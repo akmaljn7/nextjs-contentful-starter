@@ -1,35 +1,57 @@
 import { Link } from 'react-router-dom';
 import { useLanguageStore } from '@/lib/store';
 import { t } from '@/lib/translations';
-import { MessageCircle } from 'lucide-react';
+import { MessageCircle, Mail, MapPin, Phone } from 'lucide-react';
 
 export const Footer = () => {
   const { language } = useLanguageStore();
 
   return (
-    <footer className="bg-muted/30 border-t mt-16">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+    <footer className="bg-primary text-white mt-16 relative overflow-hidden">
+      {/* Orange diagonal accent - inspired by letterhead */}
+      <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-accent via-orange-500 to-accent"></div>
+      
+      {/* Diagonal stripe design element */}
+      <div className="absolute bottom-0 left-0 w-64 h-full bg-accent/10 transform -skew-x-12 origin-bottom-left"></div>
+      
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 relative z-10">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
           {/* Brand */}
-          <div className="space-y-3">
+          <div className="space-y-4">
             <img 
-              src="https://customer-assets.emergentagent.com/job_ads-kano/artifacts/cmwq0k8c_logo%20%282%29.png" 
+              src="https://customer-assets.emergentagent.com/job_ads-kano/artifacts/c38742tu_IMG_6390.png" 
               alt="Lightban Technology" 
-              className="h-10 w-auto"
+              className="h-14 w-auto brightness-0 invert"
             />
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-white/80">
               Northern Nigeria's trusted advertising marketplace.
             </p>
+            
+            {/* Contact Info */}
+            <div className="space-y-2 text-sm">
+              <div className="flex items-center space-x-2">
+                <Phone className="h-4 w-4 text-accent" />
+                <span>0808-000-0805</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Mail className="h-4 w-4 text-accent" />
+                <span>lightbantechnologies@gmail.com</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <MapPin className="h-4 w-4 text-accent" />
+                <span>No 671, Zoo Road, Inec Street, Kano</span>
+              </div>
+            </div>
           </div>
 
           {/* Company */}
           <div>
-            <h3 className="font-semibold text-foreground mb-3">Company</h3>
+            <h3 className="font-semibold text-white mb-4 text-lg">Company</h3>
             <ul className="space-y-2">
               <li>
                 <Link
                   to="/about"
-                  className="text-sm text-muted-foreground hover:text-foreground"
+                  className="text-sm text-white/80 hover:text-accent transition-colors"
                   data-testid="footer-about-link"
                 >
                   {t('footer.about', language)}
@@ -38,7 +60,7 @@ export const Footer = () => {
               <li>
                 <Link
                   to="/pricing"
-                  className="text-sm text-muted-foreground hover:text-foreground"
+                  className="text-sm text-white/80 hover:text-accent transition-colors"
                   data-testid="footer-pricing-link"
                 >
                   {t('footer.pricing', language)}
@@ -47,7 +69,7 @@ export const Footer = () => {
               <li>
                 <Link
                   to="/faq"
-                  className="text-sm text-muted-foreground hover:text-foreground"
+                  className="text-sm text-white/80 hover:text-accent transition-colors"
                   data-testid="footer-faq-link"
                 >
                   {t('footer.faq', language)}
@@ -56,7 +78,7 @@ export const Footer = () => {
               <li>
                 <Link
                   to="/contact"
-                  className="text-sm text-muted-foreground hover:text-foreground"
+                  className="text-sm text-white/80 hover:text-accent transition-colors"
                   data-testid="footer-contact-link"
                 >
                   {t('footer.contact', language)}
@@ -67,12 +89,12 @@ export const Footer = () => {
 
           {/* Categories */}
           <div>
-            <h3 className="font-semibold text-foreground mb-3">Categories</h3>
+            <h3 className="font-semibold text-white mb-4 text-lg">Categories</h3>
             <ul className="space-y-2">
               <li>
                 <Link
                   to="/influencers"
-                  className="text-sm text-muted-foreground hover:text-foreground"
+                  className="text-sm text-white/80 hover:text-accent transition-colors"
                   data-testid="footer-influencers-link"
                 >
                   {t('cat.influencers', language)}
@@ -81,7 +103,7 @@ export const Footer = () => {
               <li>
                 <Link
                   to="/billboards"
-                  className="text-sm text-muted-foreground hover:text-foreground"
+                  className="text-sm text-white/80 hover:text-accent transition-colors"
                   data-testid="footer-billboards-link"
                 >
                   {t('cat.billboards', language)}
@@ -90,7 +112,7 @@ export const Footer = () => {
               <li>
                 <Link
                   to="/digital-ads"
-                  className="text-sm text-muted-foreground hover:text-foreground"
+                  className="text-sm text-white/80 hover:text-accent transition-colors"
                   data-testid="footer-digitalads-link"
                 >
                   {t('cat.digitalads', language)}
@@ -99,7 +121,7 @@ export const Footer = () => {
               <li>
                 <Link
                   to="/kannywood"
-                  className="text-sm text-muted-foreground hover:text-foreground"
+                  className="text-sm text-white/80 hover:text-accent transition-colors"
                   data-testid="footer-kannywood-link"
                 >
                   {t('cat.kannywood', language)}
@@ -110,12 +132,12 @@ export const Footer = () => {
 
           {/* Legal */}
           <div>
-            <h3 className="font-semibold text-foreground mb-3">Legal</h3>
+            <h3 className="font-semibold text-white mb-4 text-lg">Legal</h3>
             <ul className="space-y-2">
               <li>
                 <Link
                   to="/terms"
-                  className="text-sm text-muted-foreground hover:text-foreground"
+                  className="text-sm text-white/80 hover:text-accent transition-colors"
                   data-testid="footer-terms-link"
                 >
                   {t('footer.terms', language)}
@@ -124,7 +146,7 @@ export const Footer = () => {
               <li>
                 <Link
                   to="/privacy"
-                  className="text-sm text-muted-foreground hover:text-foreground"
+                  className="text-sm text-white/80 hover:text-accent transition-colors"
                   data-testid="footer-privacy-link"
                 >
                   {t('footer.privacy', language)}
@@ -133,7 +155,7 @@ export const Footer = () => {
               <li>
                 <Link
                   to="/cookies"
-                  className="text-sm text-muted-foreground hover:text-foreground"
+                  className="text-sm text-white/80 hover:text-accent transition-colors"
                 >
                   Cookie Policy
                 </Link>
@@ -141,7 +163,7 @@ export const Footer = () => {
               <li>
                 <Link
                   to="/refund-policy"
-                  className="text-sm text-muted-foreground hover:text-foreground"
+                  className="text-sm text-white/80 hover:text-accent transition-colors"
                 >
                   Refund Policy
                 </Link>
@@ -150,23 +172,26 @@ export const Footer = () => {
           </div>
         </div>
 
-        {/* WhatsApp CTA */}
-        <div className="mt-8 pt-8 border-t">
+        {/* Bottom Bar */}
+        <div className="pt-8 border-t border-white/10">
           <div className="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
-            <p className="text-sm text-muted-foreground">{t('footer.copyright', language)}</p>
+            <p className="text-sm text-white/70">{t('footer.copyright', language)}</p>
             <a
-              href="https://wa.me/2348012345678"
+              href="https://wa.me/2348080000805"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center space-x-2 text-sm font-medium text-primary hover:text-primary/80"
+              className="flex items-center space-x-2 text-sm font-medium text-accent hover:text-accent/80 transition-colors"
               data-testid="whatsapp-link"
             >
-              <MessageCircle className="h-4 w-4" />
+              <MessageCircle className="h-5 w-5" />
               <span>WhatsApp Support</span>
             </a>
           </div>
         </div>
       </div>
+      
+      {/* Bottom orange accent */}
+      <div className="h-2 bg-gradient-to-r from-accent via-orange-500 to-accent"></div>
     </footer>
   );
 };

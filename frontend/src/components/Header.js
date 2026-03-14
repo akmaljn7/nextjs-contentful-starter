@@ -20,63 +20,69 @@ export const Header = () => {
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+    <header className="sticky top-0 z-50 w-full bg-primary shadow-lg">
+      {/* Orange diagonal accent bar - inspired by letterhead */}
+      <div className="h-2 bg-gradient-to-r from-accent via-orange-500 to-accent"></div>
+      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 items-center justify-between">
-          {/* Logo */}
+        <div className="flex h-20 items-center justify-between">
+          {/* Logo - Bigger and more prominent */}
           <Link to="/" className="flex items-center" data-testid="logo-link">
             <img 
-              src="https://customer-assets.emergentagent.com/job_ads-kano/artifacts/cmwq0k8c_logo%20%282%29.png" 
+              src="https://customer-assets.emergentagent.com/job_ads-kano/artifacts/c38742tu_IMG_6390.png" 
               alt="Lightban Technology" 
-              className="h-10 w-auto"
+              className="h-16 w-auto"
             />
           </Link>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center space-x-6">
-            <Link
-              to="/influencers"
-              className="text-sm font-medium text-foreground/80 hover:text-foreground"
-              data-testid="nav-influencers"
-            >
-              {t('nav.influencers', language)}
+          {/* Desktop Navigation - Styled as buttons */}
+          <nav className="hidden lg:flex items-center space-x-3">
+            <Link to="/influencers" data-testid="nav-influencers">
+              <Button 
+                variant="ghost" 
+                className="text-white hover:bg-accent hover:text-white font-medium h-10 px-5"
+              >
+                {t('nav.influencers', language)}
+              </Button>
             </Link>
-            <Link
-              to="/billboards"
-              className="text-sm font-medium text-foreground/80 hover:text-foreground"
-              data-testid="nav-billboards"
-            >
-              {t('nav.billboards', language)}
+            <Link to="/billboards" data-testid="nav-billboards">
+              <Button 
+                variant="ghost" 
+                className="text-white hover:bg-accent hover:text-white font-medium h-10 px-5"
+              >
+                {t('nav.billboards', language)}
+              </Button>
             </Link>
-            <Link
-              to="/digital-ads"
-              className="text-sm font-medium text-foreground/80 hover:text-foreground"
-              data-testid="nav-digitalads"
-            >
-              {t('nav.digitalads', language)}
+            <Link to="/digital-ads" data-testid="nav-digitalads">
+              <Button 
+                variant="ghost" 
+                className="text-white hover:bg-accent hover:text-white font-medium h-10 px-5"
+              >
+                {t('nav.digitalads', language)}
+              </Button>
             </Link>
-            <Link
-              to="/kannywood"
-              className="text-sm font-medium text-foreground/80 hover:text-foreground"
-              data-testid="nav-kannywood"
-            >
-              {t('nav.kannywood', language)}
+            <Link to="/kannywood" data-testid="nav-kannywood">
+              <Button 
+                variant="ghost" 
+                className="text-white hover:bg-accent hover:text-white font-medium h-10 px-5"
+              >
+                {t('nav.kannywood', language)}
+              </Button>
             </Link>
           </nav>
 
           {/* Right Actions */}
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2">
             {/* Theme Toggle */}
             <Button
               variant="ghost"
               size="sm"
               onClick={toggleTheme}
               data-testid="theme-toggle-button"
-              className="text-sm"
+              className="text-white hover:bg-accent/20"
               title={`Switch to ${theme === 'navy' ? 'Orange' : 'Navy'} theme`}
             >
-              <Palette className="h-4 w-4 mr-1" />
-              {theme === 'navy' ? '🔵' : '🟠'}
+              <Palette className="h-4 w-4" />
             </Button>
 
             {/* Language Toggle */}
@@ -85,7 +91,7 @@ export const Header = () => {
               size="sm"
               onClick={toggleLanguage}
               data-testid="language-toggle-button"
-              className="text-sm"
+              className="text-white hover:bg-accent/20"
             >
               <Globe className="h-4 w-4 mr-1" />
               {language.toUpperCase()}
@@ -97,7 +103,7 @@ export const Header = () => {
                   <Button
                     size="sm"
                     data-testid="build-campaign-button"
-                    className="bg-accent hover:bg-accent/90 text-foreground font-medium"
+                    className="bg-accent hover:bg-accent/90 text-white font-medium h-10 px-5"
                   >
                     {t('nav.buildcampaign', language)}
                   </Button>
@@ -105,12 +111,17 @@ export const Header = () => {
 
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" data-testid="user-menu-button">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      data-testid="user-menu-button"
+                      className="text-white hover:bg-accent/20"
+                    >
                       <User className="h-4 w-4 mr-1" />
                       {user.name}
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
+                  <DropdownMenuContent align="end" className="bg-white">
                     <DropdownMenuItem asChild>
                       <Link to="/dashboard" data-testid="dashboard-link">
                         {t('nav.dashboard', language)}
@@ -126,7 +137,12 @@ export const Header = () => {
             ) : (
               <>
                 <Link to="/login">
-                  <Button variant="ghost" size="sm" data-testid="signin-button">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    data-testid="signin-button"
+                    className="text-white hover:bg-accent/20 font-medium h-10 px-5"
+                  >
                     {t('nav.signin', language)}
                   </Button>
                 </Link>
@@ -134,7 +150,7 @@ export const Header = () => {
                   <Button
                     size="sm"
                     data-testid="signup-button"
-                    className="bg-primary hover:bg-primary/90 text-white"
+                    className="bg-accent hover:bg-accent/90 text-white font-semibold h-10 px-6"
                   >
                     {t('nav.signup', language)}
                   </Button>
@@ -144,6 +160,9 @@ export const Header = () => {
           </div>
         </div>
       </div>
+      
+      {/* Bottom accent line */}
+      <div className="h-1 bg-accent/30"></div>
     </header>
   );
 };
