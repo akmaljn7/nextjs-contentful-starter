@@ -1,0 +1,143 @@
+{
+  "brand_identity": {
+    "name": "Lightban Ads Network",
+    "mission": "Connect Northern Nigeria's advertisers with premium inventory through a trusted, transparent marketplace.",
+    "tone": {
+      "primary": "Trustworthy",
+      "secondary": "Culturally Resonant",
+      "tertiary": "Modern & Efficient"
+    },
+    "aesthetics": "Clean, high-contrast, mobile-optimized, with subtle Northern Nigerian geometric motifs."
+  },
+  "typography": {
+    "headings": {
+      "family": "Plus Jakarta Sans, sans-serif",
+      "weights": ["600", "700", "800"],
+      "usage": "Use for all page titles, section headers, and card titles. Letter-spacing tight for larger sizes."
+    },
+    "body": {
+      "family": "Inter, sans-serif",
+      "weights": ["400", "500"],
+      "usage": "Use for standard text, descriptions, and UI elements. High legibility focus."
+    },
+    "mono": {
+      "family": "JetBrains Mono, monospace",
+      "usage": "Use for transaction IDs, API keys, and tabular data."
+    }
+  },
+  "colors": {
+    "primary": {
+      "name": "Kano Deep Blue",
+      "hex": "#1e3a8a",
+      "tailwind": "blue-900",
+      "usage": "Primary buttons, active states, header backgrounds, key brand elements."
+    },
+    "accent": {
+      "name": "Sahara Amber",
+      "hex": "#f59e0b",
+      "tailwind": "amber-500",
+      "usage": "Call-to-actions (secondary), highlights, notifications, badges."
+    },
+    "neutral": {
+      "light": "#fdfbf7",
+      "dark": "#1c1917",
+      "usage": "Backgrounds should use warm off-whites (stone-50) rather than sterile cool grays."
+    },
+    "semantic": {
+      "success": "#16a34a",
+      "warning": "#ca8a04",
+      "error": "#dc2626",
+      "info": "#2563eb"
+    }
+  },
+  "spacing_and_layout": {
+    "container": {
+      "default": "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8",
+      "narrow": "max-w-4xl mx-auto px-4"
+    },
+    "grid_system": {
+      "marketing": "grid grid-cols-1 md:grid-cols-12 gap-6",
+      "dashboard": "grid grid-cols-1 md:grid-cols-4 gap-4",
+      "listings": "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+    },
+    "scaling": {
+      "mobile": "Compact spacing (gap-3, p-4)",
+      "desktop": "Generous spacing (gap-6, p-8)"
+    }
+  },
+  "components": {
+    "buttons": {
+      "primary": "bg-primary text-white hover:bg-primary/90 rounded-md h-11 px-6 font-medium shadow-sm transition-transform active:scale-95",
+      "secondary": "bg-accent text-white hover:bg-accent/90 rounded-md h-11 px-6 font-medium shadow-sm",
+      "outline": "border-2 border-primary text-primary hover:bg-primary/5 rounded-md h-11 px-6 font-medium",
+      "ghost": "text-muted-foreground hover:bg-muted hover:text-foreground rounded-md h-10 px-4"
+    },
+    "cards": {
+      "listing": "group relative overflow-hidden rounded-lg border bg-white shadow-sm hover:shadow-md transition-all hover:-translate-y-1",
+      "dashboard": "rounded-xl border bg-card text-card-foreground shadow-sm p-6"
+    },
+    "inputs": {
+      "default": "flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+      "label": "text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 mb-2 block"
+    }
+  },
+  "image_assets": {
+    "hero_backgrounds": [
+      {
+        "url": "https://images.unsplash.com/photo-1766330301961-6366c58297d0?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDF8MHwxfHNlYXJjaHwyfHxhZnJpY2FuJTIwY2l0eSUyMGJpbGxib2FyZCUyMGFkdmVydGlzaW5nfGVufDB8fHx8MTc3MzUxNjczMnww&ixlib=rb-4.1.0&q=85",
+        "alt": "Busy Northern Nigerian street with billboards at sunset",
+        "category": "hero"
+      }
+    ],
+    "people": [
+      {
+        "url": "https://images.unsplash.com/photo-1757899525290-731fc4745499?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MjJ8MHwxfHNlYXJjaHw0fHxhZnJpY2FuJTIwbXVzbGltJTIwd29tYW4lMjBwcm9mZXNzaW9uYWwlMjBwb3J0cmFpdHxlbnwwfHx8fDE3NzM1MTY3MzF8MA&ixlib=rb-4.1.0&q=85",
+        "alt": "Professional Muslim woman influencer",
+        "category": "profile"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1645736594009-7b16ba35f0bf?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDF8MHwxfHNlYXJjaHwzfHxhZnJpY2FuJTIwbWFuJTIwc3VpdCUyMGJ1c2luZXNzJTIwcG9ydHJhaXR8ZW58MHx8fHwxNzczNTE2NzMyfDA&ixlib=rb-4.1.0&q=85",
+        "alt": "Corporate African advertiser",
+        "category": "profile"
+      }
+    ],
+    "inventory": [
+      {
+        "url": "https://images.unsplash.com/photo-1745725427643-8994370391e6?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDF8MHwxfHNlYXJjaHw0fHxhZnJpY2FuJTIwY2l0eSUyMGJpbGxib2FyZCUyMGFkdmVydGlzaW5nfGVufDB8fHx8MTc3MzUxNjczMnww&ixlib=rb-4.1.0&q=85",
+        "alt": "Digital Billboard on highway",
+        "category": "listing_billboard"
+      }
+    ]
+  },
+  "mock_data_structure": {
+    "influencers": {
+      "fields": ["id", "name", "handle", "platform", "followers", "niche", "price_per_post", "verified", "location", "rating", "image_url"]
+    },
+    "billboards": {
+      "fields": ["id", "location_name", "city", "dimensions", "traffic_daily", "type", "price_monthly", "availability", "image_url", "coordinates"]
+    }
+  },
+  "instructions_to_main_agent": [
+    "Implement a bilingual toggle (English/Hausa) in the top nav. Use a simple state to switch text content.",
+    "Mock Paystack payment flow: When 'Pay' is clicked, show a modal with a spinner simulating processing, then success.",
+    "Mock Termii messaging: For verification, show a toast 'SMS sent to +234...'",
+    "Ensure the 'Campaign Builder' is a multi-step form (Wizard) to guide low-ad-literacy users.",
+    "Use 'sonner' for all notifications (toast).",
+    "For the Map view in Billboards, use a static image placeholder with interactive pins if a real map library is too heavy, or 'react-map-gl' if strictly necessary (prefer lightweight).",
+    "All prices should be in Naira (₦) formatted with commas.",
+    "Add 'data-testid' to all buttons, inputs, and links."
+  ],
+  "accessibility_rules": [
+    "Ensure 4.5:1 contrast ratio for all text.",
+    "Interactive elements must have a minimum touch target of 44x44px.",
+    "All images must have alt text.",
+    "Focus states must be clearly visible (ring-2 ring-accent)."
+  ],
+  "universal_guidelines": [
+    "Do not use generic gradients. Use solid colors or subtle patterns.",
+    "Avoid 'AI slop' aesthetics (shiny, floating, neon). Keep it grounded and physical.",
+    "Use Skeleton loaders instead of spinning wheels for data fetching.",
+    "Error states should be helpful, not just red.",
+    "Optimize images: use the provided Unsplash URLs but apply 'object-cover' and rounded corners."
+  ]
+}
