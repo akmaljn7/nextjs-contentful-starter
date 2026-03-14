@@ -13,9 +13,9 @@ export const Footer = () => {
           {/* Brand */}
           <div className="space-y-3">
             <img 
-              src="https://customer-assets.emergentagent.com/job_ads-kano/artifacts/lw7g3oh2_LightBan%20Horizontal%205b.png" 
+              src="https://customer-assets.emergentagent.com/job_ads-kano/artifacts/cmwq0k8c_logo%20%282%29.png" 
               alt="Lightban Technology" 
-              className="h-12 w-auto"
+              className="h-10 w-auto"
             />
             <p className="text-sm text-muted-foreground">
               Northern Nigeria's trusted advertising marketplace.

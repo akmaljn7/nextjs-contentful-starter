@@ -1,6 +1,7 @@
 import '@/App.css';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'sonner';
+import { ThemeProvider } from '@/components/ThemeProvider';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 
@@ -10,6 +11,8 @@ import { LoginPage } from '@/pages/LoginPage';
 import { RegisterPage } from '@/pages/RegisterPage';
 import { InfluencersPage } from '@/pages/InfluencersPage';
 import { BillboardsPage } from '@/pages/BillboardsPage';
+import { DigitalAdsPage } from '@/pages/DigitalAdsPage';
+import { KannywoodPage } from '@/pages/KannywoodPage';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { AboutPage } from '@/pages/AboutPage';
 import { PricingPage } from '@/pages/PricingPage';
@@ -20,39 +23,41 @@ import { PrivacyPage } from '@/pages/PrivacyPage';
 
 function App() {
   return (
-    <div className="App min-h-screen flex flex-col">
-      <BrowserRouter>
-        <Header />
-        <main className="flex-grow">
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
-            <Route path="/influencers" element={<InfluencersPage />} />
-            <Route path="/billboards" element={<BillboardsPage />} />
-            <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/about" element={<AboutPage />} />
-            <Route path="/pricing" element={<PricingPage />} />
-            <Route path="/contact" element={<ContactPage />} />
-            <Route path="/faq" element={<FAQPage />} />
-            <Route path="/terms" element={<TermsPage />} />
-            <Route path="/privacy" element={<PrivacyPage />} />
-            
-            {/* Placeholder routes */}
-            <Route path="/digital-ads" element={<PlaceholderPage title="Digital Ads" />} />
-            <Route path="/kannywood" element={<PlaceholderPage title="Kannywood" />} />
-            <Route path="/campaign-builder" element={<PlaceholderPage title="Campaign Builder" />} />
-            <Route path="/influencers/:id" element={<PlaceholderPage title="Influencer Profile" />} />
-            <Route path="/billboards/:id" element={<PlaceholderPage title="Billboard Details" />} />
-            <Route path="/cookies" element={<PlaceholderPage title="Cookie Policy" />} />
-            <Route path="/refund-policy" element={<PlaceholderPage title="Refund Policy" />} />
-            <Route path="*" element={<PlaceholderPage title="Page Not Found" />} />
-          </Routes>
-        </main>
-        <Footer />
-      </BrowserRouter>
-      <Toaster position="top-right" richColors />
-    </div>
+    <ThemeProvider>
+      <div className="App min-h-screen flex flex-col">
+        <BrowserRouter>
+          <Header />
+          <main className="flex-grow">
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
+              <Route path="/influencers" element={<InfluencersPage />} />
+              <Route path="/billboards" element={<BillboardsPage />} />
+              <Route path="/digital-ads" element={<DigitalAdsPage />} />
+              <Route path="/kannywood" element={<KannywoodPage />} />
+              <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/about" element={<AboutPage />} />
+              <Route path="/pricing" element={<PricingPage />} />
+              <Route path="/contact" element={<ContactPage />} />
+              <Route path="/faq" element={<FAQPage />} />
+              <Route path="/terms" element={<TermsPage />} />
+              <Route path="/privacy" element={<PrivacyPage />} />
+              
+              {/* Placeholder routes */}
+              <Route path="/campaign-builder" element={<PlaceholderPage title="Campaign Builder" />} />
+              <Route path="/influencers/:id" element={<PlaceholderPage title="Influencer Profile" />} />
+              <Route path="/billboards/:id" element={<PlaceholderPage title="Billboard Details" />} />
+              <Route path="/cookies" element={<PlaceholderPage title="Cookie Policy" />} />
+              <Route path="/refund-policy" element={<PlaceholderPage title="Refund Policy" />} />
+              <Route path="*" element={<PlaceholderPage title="Page Not Found" />} />
+            </Routes>
+          </main>
+          <Footer />
+        </BrowserRouter>
+        <Toaster position="top-right" richColors />
+      </div>
+    </ThemeProvider>
   );
 }
 

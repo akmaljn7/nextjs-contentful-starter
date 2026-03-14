@@ -34,3 +34,16 @@ export const useLanguageStore = create(
     }
   )
 );
+
+export const useThemeStore = create(
+  persist(
+    (set) => ({
+      theme: 'navy', // 'navy' or 'orange'
+      toggleTheme: () => set((state) => ({ theme: state.theme === 'navy' ? 'orange' : 'navy' })),
+      setTheme: (theme) => set({ theme }),
+    }),
+    {
+      name: 'theme-storage',
+    }
+  )
+);

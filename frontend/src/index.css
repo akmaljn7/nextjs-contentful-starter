@@ -38,6 +38,12 @@ code {
         --ring: 24 100% 60%;
         --radius: 0.5rem;
     }
+
+    [data-theme="orange"] {
+        --primary: 20 100% 60%;
+        --primary-foreground: 0 0% 100%;
+        --ring: 20 100% 60%;
+    }
 }
 
 h1, h2, h3, h4, h5, h6 {

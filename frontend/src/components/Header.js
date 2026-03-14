@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom';
-import { useAuthStore, useLanguageStore } from '@/lib/store';
+import { useAuthStore, useLanguageStore, useThemeStore } from '@/lib/store';
 import { t } from '@/lib/translations';
 import { Button } from '@/components/ui/button';
-import { Globe, User, LogOut } from 'lucide-react';
+import { Globe, User, LogOut, Palette } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,6 +13,7 @@ import {
 export const Header = () => {
   const { user, logout } = useAuthStore();
   const { language, setLanguage } = useLanguageStore();
+  const { theme, toggleTheme } = useThemeStore();
 
   const toggleLanguage = () => {
     setLanguage(language === 'en' ? 'ha' : 'en');
@@ -25,9 +26,9 @@ export const Header = () => {
           {/* Logo */}
           <Link to="/" className="flex items-center" data-testid="logo-link">
             <img 
-              src="https://customer-assets.emergentagent.com/job_ads-kano/artifacts/lw7g3oh2_LightBan%20Horizontal%205b.png" 
+              src="https://customer-assets.emergentagent.com/job_ads-kano/artifacts/cmwq0k8c_logo%20%282%29.png" 
               alt="Lightban Technology" 
-              className="h-12 w-auto"
+              className="h-10 w-auto"
             />
           </Link>
 
@@ -65,6 +66,19 @@ export const Header = () => {
 
           {/* Right Actions */}
           <div className="flex items-center space-x-3">
+            {/* Theme Toggle */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={toggleTheme}
+              data-testid="theme-toggle-button"
+              className="text-sm"
+              title={`Switch to ${theme === 'navy' ? 'Orange' : 'Navy'} theme`}
+            >
+              <Palette className="h-4 w-4 mr-1" />
+              {theme === 'navy' ? '🔵' : '🟠'}
+            </Button>
+
             {/* Language Toggle */}
             <Button
               variant="ghost"
