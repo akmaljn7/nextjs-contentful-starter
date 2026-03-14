@@ -16,6 +16,17 @@ html {
   outline-offset: 2px;
 }
 
+/* Hide Emergent watermark */
+[class*="emergent"],
+[id*="emergent"],
+a[href*="emergent.sh"],
+div[style*="position: fixed"][style*="bottom"],
+div[style*="position: fixed"][style*="right"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+}
+
 /* Prose for legal/content pages */
 .prose {
   max-width: 65ch;
