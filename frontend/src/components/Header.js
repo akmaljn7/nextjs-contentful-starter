@@ -26,13 +26,16 @@ export const Header = () => {
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex h-20 items-center justify-between">
-          {/* Logo - Bigger and more prominent */}
+          {/* Logo - Much bigger with white background container */}
           <Link to="/" className="flex items-center" data-testid="logo-link">
-            <img 
-              src="https://customer-assets.emergentagent.com/job_ads-kano/artifacts/togqcbtl_LightBan%20Horizontal%205b.png" 
-              alt="Lightban Technology" 
-              className="h-14 w-auto"
-            />
+            <div className="bg-white px-4 py-2 rounded-md">
+              <img 
+                src="https://customer-assets.emergentagent.com/job_ads-kano/artifacts/togqcbtl_LightBan%20Horizontal%205b.png" 
+                alt="Lightban Technology" 
+                className="h-12 w-auto"
+                style={{ filter: 'invert(1)' }}
+              />
+            </div>
           </Link>
 
           {/* Desktop Navigation - Styled as buttons */}

@@ -18,11 +18,13 @@ export const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
           {/* Brand */}
           <div className="space-y-4">
-            <img 
-              src="https://customer-assets.emergentagent.com/job_ads-kano/artifacts/togqcbtl_LightBan%20Horizontal%205b.png" 
-              alt="Lightban Technology" 
-              className="h-12 w-auto"
-            />
+            <div className="bg-white/10 px-3 py-2 rounded-md inline-block">
+              <img 
+                src="https://customer-assets.emergentagent.com/job_ads-kano/artifacts/togqcbtl_LightBan%20Horizontal%205b.png" 
+                alt="Lightban Technology" 
+                className="h-10 w-auto"
+              />
+            </div>
             <p className="text-sm text-white/80">
               Northern Nigeria's trusted advertising marketplace.
             </p>
