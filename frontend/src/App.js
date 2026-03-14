@@ -1,54 +1,69 @@
-import { useEffect } from "react";
-import "@/App.css";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import axios from "axios";
+import '@/App.css';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { Toaster } from 'sonner';
+import { Header } from '@/components/Header';
+import { Footer } from '@/components/Footer';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
-
-const Home = () => {
-  const helloWorldApi = async () => {
-    try {
-      const response = await axios.get(`${API}/`);
-      console.log(response.data.message);
-    } catch (e) {
-      console.error(e, `errored out requesting / api`);
-    }
-  };
-
-  useEffect(() => {
-    helloWorldApi();
-  }, []);
-
-  return (
-    <div>
-      <header className="App-header">
-        <a
-          className="App-link"
-          href="https://emergent.sh"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <img src="https://avatars.githubusercontent.com/in/1201222?s=120&u=2686cf91179bbafbc7a71bfbc43004cf9ae1acea&v=4" />
-        </a>
-        <p className="mt-5">Building something incredible ~!</p>
-      </header>
-    </div>
-  );
-};
+// Pages
+import { HomePage } from '@/pages/HomePage';
+import { LoginPage } from '@/pages/LoginPage';
+import { RegisterPage } from '@/pages/RegisterPage';
+import { InfluencersPage } from '@/pages/InfluencersPage';
+import { BillboardsPage } from '@/pages/BillboardsPage';
+import { DashboardPage } from '@/pages/DashboardPage';
+import { AboutPage } from '@/pages/AboutPage';
+import { PricingPage } from '@/pages/PricingPage';
+import { ContactPage } from '@/pages/ContactPage';
+import { FAQPage } from '@/pages/FAQPage';
+import { TermsPage } from '@/pages/TermsPage';
+import { PrivacyPage } from '@/pages/PrivacyPage';
 
 function App() {
   return (
-    <div className="App">
+    <div className="App min-h-screen flex flex-col">
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Home />}>
-            <Route index element={<Home />} />
-          </Route>
-        </Routes>
+        <Header />
+        <main className="flex-grow">
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/influencers" element={<InfluencersPage />} />
+            <Route path="/billboards" element={<BillboardsPage />} />
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/about" element={<AboutPage />} />
+            <Route path="/pricing" element={<PricingPage />} />
+            <Route path="/contact" element={<ContactPage />} />
+            <Route path="/faq" element={<FAQPage />} />
+            <Route path="/terms" element={<TermsPage />} />
+            <Route path="/privacy" element={<PrivacyPage />} />
+            
+            {/* Placeholder routes */}
+            <Route path="/digital-ads" element={<PlaceholderPage title="Digital Ads" />} />
+            <Route path="/kannywood" element={<PlaceholderPage title="Kannywood" />} />
+            <Route path="/campaign-builder" element={<PlaceholderPage title="Campaign Builder" />} />
+            <Route path="/influencers/:id" element={<PlaceholderPage title="Influencer Profile" />} />
+            <Route path="/billboards/:id" element={<PlaceholderPage title="Billboard Details" />} />
+            <Route path="/cookies" element={<PlaceholderPage title="Cookie Policy" />} />
+            <Route path="/refund-policy" element={<PlaceholderPage title="Refund Policy" />} />
+            <Route path="*" element={<PlaceholderPage title="Page Not Found" />} />
+          </Routes>
+        </main>
+        <Footer />
       </BrowserRouter>
+      <Toaster position="top-right" richColors />
     </div>
   );
 }
+
+// Simple placeholder component for incomplete pages
+const PlaceholderPage = ({ title }) => (
+  <div className="min-h-screen bg-stone-50 flex items-center justify-center">
+    <div className="text-center space-y-4 px-4">
+      <h1 className="text-4xl font-bold text-foreground">{title}</h1>
+      <p className="text-muted-foreground">This page is under construction</p>
+    </div>
+  </div>
+);
 
 export default App;
