@@ -76,7 +76,7 @@ export const HomePage = () => {
   ];
 
   return (
-    <div className="min-h-screen" data-testid="home-page">
+    <div className="min-h-screen bg-background" data-testid="home-page">
       {/* Hero Section */}
       <section
         className="relative bg-gradient-to-br from-primary/5 via-background to-accent/5 py-20 md:py-32"
@@ -128,7 +128,7 @@ export const HomePage = () => {
       </section>
 
       {/* Categories Section */}
-      <section className="py-16 bg-white" data-testid="categories-section">
+      <section className="py-16 bg-card" data-testid="categories-section">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-3">
@@ -161,7 +161,7 @@ export const HomePage = () => {
       </section>
 
       {/* Trust Section */}
-      <section className="py-16 bg-stone-50" data-testid="trust-section">
+      <section className="py-16 bg-muted/30" data-testid="trust-section">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-3">
@@ -187,7 +187,7 @@ export const HomePage = () => {
       </section>
 
       {/* Testimonials Section */}
-      <section className="py-16 bg-white" data-testid="testimonials-section">
+      <section className="py-16 bg-card" data-testid="testimonials-section">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-3">Trusted by Advertisers</h2>

@@ -46,9 +46,9 @@ export const InfluencersPage = () => {
   );
 
   return (
-    <div className="min-h-screen bg-stone-50" data-testid="influencers-page">
+    <div className="min-h-screen bg-background" data-testid="influencers-page">
       {/* Header */}
-      <div className="bg-white border-b">
+      <div className="bg-card border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <h1 className="text-4xl font-bold text-foreground mb-3">{t('cat.influencers', language)}</h1>
           <p className="text-lg text-muted-foreground">{t('cat.influencers.desc', language)}</p>
@@ -56,7 +56,7 @@ export const InfluencersPage = () => {
       </div>
 
       {/* Search & Filters */}
-      <div className="bg-white border-b">
+      <div className="bg-card border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="relative flex-1">

@@ -58,7 +58,7 @@ function App() {
 
 // Simple placeholder component for incomplete pages
 const PlaceholderPage = ({ title }) => (
-  <div className="min-h-screen bg-stone-50 flex items-center justify-center">
+  <div className="min-h-screen bg-background flex items-center justify-center">
     <div className="text-center space-y-4 px-4">
       <h1 className="text-4xl font-bold text-foreground">{title}</h1>
       <p className="text-muted-foreground">This page is under construction</p>

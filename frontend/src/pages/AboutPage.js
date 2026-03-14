@@ -6,8 +6,8 @@ export const AboutPage = () => {
   const { language } = useLanguageStore();
 
   return (
-    <div className="min-h-screen bg-stone-50" data-testid="about-page">
-      <div className="bg-white border-b">
+    <div className="min-h-screen bg-background" data-testid="about-page">
+      <div className="bg-card border-b">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 text-center">
           <h1 className="text-4xl font-bold text-foreground mb-4">{t('footer.about', language)}</h1>
           <p className="text-lg text-muted-foreground">

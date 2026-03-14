@@ -36,7 +36,7 @@ export const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-stone-50 px-4" data-testid="login-page">
+    <div className="min-h-screen bg-background flex items-center justify-center px-4" data-testid="login-page">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold text-center">{t('auth.login', language)}</CardTitle>

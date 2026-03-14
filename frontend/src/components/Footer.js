@@ -7,17 +7,16 @@ export const Footer = () => {
   const { language } = useLanguageStore();
 
   return (
-    <footer className="bg-stone-50 border-t mt-16">
+    <footer className="bg-muted/30 border-t mt-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Brand */}
           <div className="space-y-3">
-            <div className="flex items-center space-x-2">
-              <div className="w-10 h-10 rounded-md bg-primary flex items-center justify-center">
-                <span className="text-white font-bold text-xl">L</span>
-              </div>
-              <span className="font-bold text-lg text-foreground">Lightban</span>
-            </div>
+            <img 
+              src="https://customer-assets.emergentagent.com/job_ads-kano/artifacts/lw7g3oh2_LightBan%20Horizontal%205b.png" 
+              alt="Lightban Technology" 
+              className="h-12 w-auto"
+            />
             <p className="text-sm text-muted-foreground">
               Northern Nigeria's trusted advertising marketplace.
             </p>

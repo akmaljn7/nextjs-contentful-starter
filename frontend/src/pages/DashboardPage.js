@@ -55,7 +55,7 @@ export const DashboardPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-stone-50" data-testid="dashboard-page">
+    <div className="min-h-screen bg-background" data-testid="dashboard-page">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">

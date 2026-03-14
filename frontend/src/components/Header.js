@@ -19,17 +19,16 @@ export const Header = () => {
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80">
+    <header className="sticky top-0 z-50 w-full border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link to="/" className="flex items-center space-x-2" data-testid="logo-link">
-            <div className="w-10 h-10 rounded-md bg-primary flex items-center justify-center">
-              <span className="text-white font-bold text-xl">L</span>
-            </div>
-            <span className="font-bold text-xl text-foreground hidden sm:inline-block">
-              Lightban
-            </span>
+          <Link to="/" className="flex items-center" data-testid="logo-link">
+            <img 
+              src="https://customer-assets.emergentagent.com/job_ads-kano/artifacts/lw7g3oh2_LightBan%20Horizontal%205b.png" 
+              alt="Lightban Technology" 
+              className="h-12 w-auto"
+            />
           </Link>
 
           {/* Desktop Navigation */}
