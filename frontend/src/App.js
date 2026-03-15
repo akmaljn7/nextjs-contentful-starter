@@ -10,6 +10,7 @@ import { HomePage } from '@/pages/HomePage';
 import { LoginPage } from '@/pages/LoginPage';
 import { RegisterPage } from '@/pages/RegisterPage';
 import { InfluencersPage } from '@/pages/InfluencersPage';
+import { InfluencerDetailPage } from '@/pages/InfluencerDetailPage';
 import { BillboardsPage } from '@/pages/BillboardsPage';
 import { DigitalAdsPage } from '@/pages/DigitalAdsPage';
 import { KannywoodPage } from '@/pages/KannywoodPage';
@@ -33,6 +34,7 @@ function App() {
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/influencers" element={<InfluencersPage />} />
+              <Route path="/influencers/:id" element={<InfluencerDetailPage />} />
               <Route path="/billboards" element={<BillboardsPage />} />
               <Route path="/digital-ads" element={<DigitalAdsPage />} />
               <Route path="/kannywood" element={<KannywoodPage />} />
@@ -46,7 +48,6 @@ function App() {
               
               {/* Placeholder routes */}
               <Route path="/campaign-builder" element={<PlaceholderPage title="Campaign Builder" />} />
-              <Route path="/influencers/:id" element={<PlaceholderPage title="Influencer Profile" />} />
               <Route path="/billboards/:id" element={<PlaceholderPage title="Billboard Details" />} />
               <Route path="/cookies" element={<PlaceholderPage title="Cookie Policy" />} />
               <Route path="/refund-policy" element={<PlaceholderPage title="Refund Policy" />} />

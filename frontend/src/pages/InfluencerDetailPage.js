@@ -1,0 +1,357 @@
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useLanguageStore, useAuthStore } from '@/lib/store';
+import { t } from '@/lib/translations';
+import api from '@/lib/api';
+import { formatPrice, formatNumber } from '@/lib/utils';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { CheckCircle, Star, MapPin, Users, TrendingUp, Clock, MessageCircle, Instagram, Twitter, Youtube } from 'lucide-react';
+import { toast } from 'sonner';
+
+export const InfluencerDetailPage = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const { language } = useLanguageStore();
+  const { user } = useAuthStore();
+  const [influencer, setInfluencer] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [packages, setPackages] = useState([]);
+
+  useEffect(() => {
+    fetchInfluencer();
+  }, [id]);
+
+  const fetchInfluencer = async () => {
+    try {
+      const response = await api.get(`/influencers/${id}`);
+      const influencerData = response.data;
+      setInfluencer(influencerData);
+      
+      // Set packages based on influencer
+      setPackages(getPackagesForInfluencer(influencerData));
+    } catch (error) {
+      toast.error('Failed to load influencer details');
+      navigate('/influencers');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getPackagesForInfluencer = (influencer) => {
+    // Abis Fulani - Lifestyle & Travel (Instagram)
+    if (influencer.name === 'Abis Fulani') {
+      return [
+        {
+          id: 'pkg-1',
+          title: '2 Minute TikTok Video',
+          description: 'Engaging 2-minute video showcasing your brand with authentic storytelling',
+          price: 50000,
+          deliverables: ['1 TikTok video (up to 2 minutes)', 'Caption & hashtags', 'Posted to 320K followers', '24-hour story repost'],
+          turnaround: '3-5 days',
+        },
+        {
+          id: 'pkg-2',
+          title: 'Instagram Reel Video',
+          description: 'High-quality Instagram reel with product integration and lifestyle context',
+          price: 60000,
+          deliverables: ['1 Instagram reel (60-90 seconds)', 'Professional editing', 'Story mention', 'Permanent grid post'],
+          turnaround: '3-5 days',
+        },
+        {
+          id: 'pkg-3',
+          title: 'Brand Poster Placement',
+          description: 'Your brand poster/logo featured prominently in my next video',
+          price: 20000,
+          deliverables: ['Poster in video background', '3-5 second focused shot', 'Natural integration', 'Posted within 7 days'],
+          turnaround: '5-7 days',
+        },
+        {
+          id: 'pkg-4',
+          title: 'Instagram Story Series (5 Stories)',
+          description: '5-story series featuring your product/service with swipe-up link',
+          price: 35000,
+          deliverables: ['5 Instagram stories', 'Swipe-up/link sticker', '24-hour highlight', 'Analytics report'],
+          turnaround: '1-2 days',
+        },
+        {
+          id: 'pkg-5',
+          title: 'Travel Campaign Package',
+          description: 'Full travel campaign with multiple touchpoints (ideal for hotels, airlines, tourism)',
+          price: 150000,
+          deliverables: ['1 TikTok video', '1 Instagram reel', '3 grid posts', '10 stories', 'Blog feature (if applicable)'],
+          turnaround: '7-10 days',
+        },
+      ];
+    }
+    
+    // Ibrahim Sani - Technology (Twitter/X)
+    if (influencer.name === 'Ibrahim Sani') {
+      return [
+        {
+          id: 'pkg-1',
+          title: 'Twitter/X Thread Review',
+          description: 'Comprehensive thread reviewing your tech product or service',
+          price: 45000,
+          deliverables: ['10-15 tweet thread', 'Product photos/screenshots', 'Pinned for 48 hours', 'Reach 180K followers'],
+          turnaround: '3-5 days',
+        },
+        {
+          id: 'pkg-2',
+          title: 'Video Demo Tweet',
+          description: '2-minute video demonstration with detailed commentary',
+          price: 55000,
+          deliverables: ['Video tweet (up to 2 minutes)', 'Written review', 'Follow-up engagement', 'Retweet campaign'],
+          turnaround: '5-7 days',
+        },
+        {
+          id: 'pkg-3',
+          title: 'Sponsored Tweet',
+          description: 'Single sponsored tweet with your brand message',
+          price: 25000,
+          deliverables: ['1 branded tweet', 'Up to 280 characters + media', 'Posted to 180K followers', 'Active for 24 hours'],
+          turnaround: '1-2 days',
+        },
+        {
+          id: 'pkg-4',
+          title: 'Tech Launch Campaign',
+          description: 'Multi-platform campaign for product/app launch',
+          price: 120000,
+          deliverables: ['Launch thread (15 tweets)', 'Video review', '3 follow-up posts', 'Twitter Space discussion (optional)'],
+          turnaround: '7-10 days',
+        },
+      ];
+    }
+    
+    // Hauwa Abdullahi - Food & Cooking (TikTok)
+    if (influencer.name === 'Hauwa Abdullahi') {
+      return [
+        {
+          id: 'pkg-1',
+          title: 'Recipe Video with Your Product',
+          description: 'Full recipe video featuring your food product as the star ingredient',
+          price: 70000,
+          deliverables: ['3-5 minute TikTok video', 'Recipe integration', 'Product showcase', 'Posted to 320K followers'],
+          turnaround: '5-7 days',
+        },
+        {
+          id: 'pkg-2',
+          title: 'Kitchen Equipment Review',
+          description: 'Detailed review of your kitchen appliance or cooking equipment',
+          price: 60000,
+          deliverables: ['2-minute review video', 'Demonstration of features', 'Honest assessment', 'Story highlights'],
+          turnaround: '3-5 days',
+        },
+        {
+          id: 'pkg-3',
+          title: 'Brand Placement in Cooking Video',
+          description: 'Your product/brand visible in kitchen setup during viral recipe video',
+          price: 30000,
+          deliverables: ['Product visible in frame', 'Natural integration', '2-3 second focus shot', 'Posted within 7 days'],
+          turnaround: '5-7 days',
+        },
+        {
+          id: 'pkg-4',
+          title: 'Recipe Series (3 Videos)',
+          description: 'Three recipe videos featuring your product in different dishes',
+          price: 180000,
+          deliverables: ['3 TikTok videos', 'Different recipes each', 'Full product integration', 'Instagram cross-post'],
+          turnaround: '10-14 days',
+        },
+        {
+          id: 'pkg-5',
+          title: 'Instagram Reel + Story Bundle',
+          description: 'Short-form reel with extended behind-the-scenes stories',
+          price: 50000,
+          deliverables: ['1 Instagram reel (60 seconds)', '5 behind-the-scenes stories', 'Recipe card', 'Swipe-up link'],
+          turnaround: '3-5 days',
+        },
+      ];
+    }
+
+    return [];
+  };
+
+  const handleBookPackage = (pkg) => {
+    if (!user) {
+      toast.error('Please sign in to book a package');
+      navigate('/login');
+      return;
+    }
+    
+    // TODO: Implement booking flow
+    toast.success(`Booking ${pkg.title} - Coming soon!`);
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
+    );
+  }
+
+  if (!influencer) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p className="text-muted-foreground">Influencer not found</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background" data-testid="influencer-detail-page">
+      {/* Hero Section with Profile */}
+      <section className="bg-gradient-to-br from-primary/5 to-accent/5 py-12 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-96 h-full bg-accent/5 transform skew-x-12 origin-top-right"></div>
+        
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          {/* Profile Picture - Centered */}
+          <div className="flex flex-col items-center text-center mb-8">
+            <div className="relative mb-6">
+              <div className="w-40 h-40 rounded-full overflow-hidden border-4 border-white shadow-2xl">
+                {influencer.image_url ? (
+                  <img
+                    src={influencer.image_url}
+                    alt={influencer.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+                    <Users className="h-16 w-16 text-white" />
+                  </div>
+                )}
+              </div>
+              {influencer.verified && (
+                <div className="absolute bottom-2 right-2 bg-white rounded-full p-2 shadow-lg">
+                  <CheckCircle className="h-6 w-6 text-primary" />
+                </div>
+              )}
+            </div>
+
+            <h1 className="text-4xl font-bold text-foreground mb-2">{influencer.name}</h1>
+            <p className="text-xl text-accent mb-2">@{influencer.handle}</p>
+            <Badge className="bg-primary text-white mb-4">{influencer.platform}</Badge>
+            <p className="text-muted-foreground max-w-2xl">{influencer.bio}</p>
+          </div>
+
+          {/* Stats Row */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
+            <Card className="border-2">
+              <CardContent className="p-4 text-center">
+                <Users className="h-6 w-6 mx-auto mb-2 text-primary" />
+                <p className="text-2xl font-bold text-foreground">{formatNumber(influencer.followers)}</p>
+                <p className="text-sm text-muted-foreground">Followers</p>
+              </CardContent>
+            </Card>
+            <Card className="border-2">
+              <CardContent className="p-4 text-center">
+                <TrendingUp className="h-6 w-6 mx-auto mb-2 text-accent" />
+                <p className="text-2xl font-bold text-foreground">{influencer.engagement_rate}%</p>
+                <p className="text-sm text-muted-foreground">Engagement</p>
+              </CardContent>
+            </Card>
+            <Card className="border-2">
+              <CardContent className="p-4 text-center">
+                <Star className="h-6 w-6 mx-auto mb-2 text-amber-500" />
+                <p className="text-2xl font-bold text-foreground">{influencer.rating}</p>
+                <p className="text-sm text-muted-foreground">{influencer.total_reviews} reviews</p>
+              </CardContent>
+            </Card>
+            <Card className="border-2">
+              <CardContent className="p-4 text-center">
+                <Clock className="h-6 w-6 mx-auto mb-2 text-green-600" />
+                <p className="text-sm font-bold text-foreground">{influencer.response_time}</p>
+                <p className="text-sm text-muted-foreground">Response Time</p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* Packages Section */}
+      <section className="py-16">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-foreground mb-3">Advertising Packages</h2>
+            <p className="text-lg text-muted-foreground">Choose the perfect package for your campaign</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {packages.map((pkg) => (
+              <Card 
+                key={pkg.id} 
+                className="border-2 hover:shadow-xl hover:-translate-y-1 transition-all"
+                data-testid={`package-${pkg.id}`}
+              >
+                <CardContent className="p-6">
+                  <div className="mb-4">
+                    <h3 className="text-xl font-bold text-foreground mb-2">{pkg.title}</h3>
+                    <p className="text-sm text-muted-foreground">{pkg.description}</p>
+                  </div>
+
+                  <div className="mb-4">
+                    <p className="text-3xl font-bold text-primary">{formatPrice(pkg.price)}</p>
+                    <p className="text-sm text-muted-foreground">One-time payment</p>
+                  </div>
+
+                  <div className="mb-4 space-y-2">
+                    <p className="text-sm font-semibold text-foreground">Deliverables:</p>
+                    {pkg.deliverables.map((item, idx) => (
+                      <div key={idx} className="flex items-start space-x-2">
+                        <CheckCircle className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                        <p className="text-sm text-muted-foreground">{item}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mb-4 pb-4 border-b">
+                    <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                      <Clock className="h-4 w-4" />
+                      <span>Turnaround: {pkg.turnaround}</span>
+                    </div>
+                  </div>
+
+                  <Button
+                    onClick={() => handleBookPackage(pkg)}
+                    className="w-full bg-accent hover:bg-accent/90 text-white font-semibold"
+                    data-testid={`book-button-${pkg.id}`}
+                  >
+                    Book This Package
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Contact Section */}
+          <div className="mt-12 text-center">
+            <Card className="border-2 bg-gradient-to-br from-primary/5 to-accent/5">
+              <CardContent className="p-8">
+                <MessageCircle className="h-12 w-12 mx-auto mb-4 text-primary" />
+                <h3 className="text-2xl font-bold text-foreground mb-2">Need a Custom Package?</h3>
+                <p className="text-muted-foreground mb-6">
+                  Have specific requirements? Contact us to create a customized advertising package.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                  <Link to="/contact">
+                    <Button variant="outline" className="border-primary text-primary hover:bg-primary/5">
+                      Contact Us
+                    </Button>
+                  </Link>
+                  <a href="https://wa.me/2348080000805" target="_blank" rel="noopener noreferrer">
+                    <Button className="bg-green-600 hover:bg-green-700 text-white">
+                      <MessageCircle className="h-4 w-4 mr-2" />
+                      WhatsApp Us
+                    </Button>
+                  </a>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+};
