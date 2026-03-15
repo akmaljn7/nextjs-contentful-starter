@@ -19,7 +19,7 @@ export const Footer = () => {
           {/* Brand */}
           <div className="space-y-4">
             <img 
-              src="https://customer-assets.emergentagent.com/job_ads-kano/artifacts/c38742tu_IMG_6390.png" 
+              src="https://customer-assets.emergentagent.com/job_ads-kano/artifacts/r3mtjzen_logo_no_background.png" 
               alt="Lightban Technology" 
               className="h-16 w-auto"
             />

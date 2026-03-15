@@ -29,7 +29,7 @@ export const Header = () => {
           {/* Logo - Big and prominent */}
           <Link to="/" className="flex items-center" data-testid="logo-link">
             <img 
-              src="https://customer-assets.emergentagent.com/job_ads-kano/artifacts/c38742tu_IMG_6390.png" 
+              src="https://customer-assets.emergentagent.com/job_ads-kano/artifacts/r3mtjzen_logo_no_background.png" 
               alt="Lightban Technology" 
               className="h-20 w-auto"
             />
