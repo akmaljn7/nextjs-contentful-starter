@@ -15,11 +15,6 @@ export const BillboardsPage = () => {
   const { language } = useLanguageStore();
   const [billboards, setBillboards] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filters, setFilters] = useState({
-    city: '',
-    billboard_type: '',
-  });
 
   useEffect(() => {
     fetchBillboards();
@@ -27,11 +22,7 @@ export const BillboardsPage = () => {
 
   const fetchBillboards = async () => {
     try {
-      const params = new URLSearchParams();
-      if (filters.city) params.append('city', filters.city);
-      if (filters.billboard_type) params.append('billboard_type', filters.billboard_type);
-      
-      const response = await api.get(`/billboards?${params.toString()}`);
+      const response = await api.get('/billboards');
       setBillboards(response.data);
     } catch (error) {
       toast.error('Failed to load billboards');
@@ -39,11 +30,6 @@ export const BillboardsPage = () => {
       setLoading(false);
     }
   };
-
-  const filteredBillboards = billboards.filter((bb) =>
-    bb.location_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    bb.city.toLowerCase().includes(searchQuery.toLowerCase())
-  );
 
   return (
     <div className="min-h-screen bg-background" data-testid="billboards-page">
@@ -55,59 +41,36 @@ export const BillboardsPage = () => {
         </div>
       </div>
 
-      {/* Search & Filters */}
-      <div className="bg-card border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder={`${t('common.search', language)}...`}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-                data-testid="search-input"
-              />
-            </div>
-            <Input
-              placeholder={t('common.location', language)}
-              value={filters.city}
-              onChange={(e) => setFilters({ ...filters, city: e.target.value })}
-              className="md:w-48"
-              data-testid="city-filter"
-            />
-            <Button onClick={fetchBillboards} data-testid="apply-filters-button">
-              {t('common.filter', language)}
-            </Button>
-          </div>
+      {/* Billboard Categories */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl font-bold text-foreground mb-3">Choose Your Billboard Type</h2>
+          <p className="text-lg text-muted-foreground">Select from our three billboard categories</p>
         </div>
-      </div>
 
-      {/* Listings */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {loading ? (
           <div className="text-center py-12">
             <p className="text-muted-foreground">{t('common.loading', language)}</p>
           </div>
-        ) : filteredBillboards.length === 0 ? (
+        ) : billboards.length === 0 ? (
           <div className="text-center py-12">
-            <p className="text-muted-foreground">No billboards found</p>
+            <p className="text-muted-foreground">No billboard categories found</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredBillboards.map((billboard) => (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {billboards.map((billboard) => (
               <Link to={`/billboards/${billboard.id}`} key={billboard.id}>
                 <Card
-                  className="group hover:shadow-lg hover:-translate-y-1 h-full border-2"
+                  className="group hover:shadow-2xl hover:-translate-y-2 h-full border-2 transition-all duration-300"
                   data-testid={`billboard-card-${billboard.id}`}
                 >
                   <CardContent className="p-0">
-                    <div className="relative h-48 overflow-hidden rounded-t-lg bg-gradient-to-br from-amber-100 to-orange-100">
+                    <div className="relative h-64 overflow-hidden rounded-t-lg">
                       {billboard.image_url && (
                         <img
                           src={billboard.image_url}
                           alt={billboard.location_name}
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                         />
                       )}
                       {billboard.verified && (
@@ -116,37 +79,34 @@ export const BillboardsPage = () => {
                           {t('common.verified', language)}
                         </Badge>
                       )}
+                      <Badge className="absolute top-3 left-3 bg-accent text-white border-0 font-semibold">
+                        {billboard.billboard_type}
+                      </Badge>
                     </div>
-                    <div className="p-4 space-y-3">
+                    <div className="p-6 space-y-4">
                       <div>
-                        <h3 className="text-lg font-bold text-foreground">{billboard.location_name}</h3>
-                        <p className="text-sm text-muted-foreground flex items-center">
-                          <MapPin className="h-4 w-4 mr-1" />
-                          {billboard.city}, {billboard.state}
-                        </p>
+                        <h3 className="text-2xl font-bold text-foreground mb-2">{billboard.location_name}</h3>
+                        <p className="text-sm text-muted-foreground">{billboard.description}</p>
                       </div>
-                      <div className="flex items-center justify-between text-sm">
+                      
+                      <div className="flex items-center justify-between text-sm pt-3 border-t">
                         <div>
-                          <p className="text-xs text-muted-foreground">Type</p>
-                          <Badge variant="outline" className="text-xs mt-1">
-                            {billboard.billboard_type}
-                          </Badge>
+                          <p className="text-xs text-muted-foreground">Avg. Daily Traffic</p>
+                          <p className="text-lg font-semibold text-foreground">{formatNumber(billboard.traffic_daily)}</p>
                         </div>
                         <div className="text-right">
-                          <p className="text-xs text-muted-foreground">Daily Traffic</p>
-                          <p className="text-sm font-semibold">{formatNumber(billboard.traffic_daily)}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between pt-2 border-t">
-                        <div>
-                          <p className="text-xs text-muted-foreground">Size</p>
-                          <p className="text-sm font-medium">{billboard.dimensions}</p>
-                        </div>
-                        <div className="text-right">
+                          <p className="text-xs text-muted-foreground">{t('common.starting', language)}</p>
+                          <p className="text-2xl font-bold text-primary">{formatPrice(billboard.price_monthly)}</p>
                           <p className="text-xs text-muted-foreground">{t('common.permonth', language)}</p>
-                          <p className="text-lg font-bold text-primary">{formatPrice(billboard.price_monthly)}</p>
                         </div>
                       </div>
+
+                      <Button 
+                        className="w-full bg-accent hover:bg-accent/90 text-white font-semibold mt-4"
+                        data-testid={`view-packages-${billboard.id}`}
+                      >
+                        View Packages & Book
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
