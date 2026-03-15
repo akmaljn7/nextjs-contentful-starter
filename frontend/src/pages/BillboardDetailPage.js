@@ -340,12 +340,12 @@ export const BillboardDetailPage = () => {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           {/* Billboard Image */}
           <div className="flex flex-col items-center text-center mb-8">
-            <div className="w-full max-w-4xl mb-6 rounded-lg overflow-hidden shadow-2xl">
+            <div className="w-full max-w-3xl mb-6 rounded-lg overflow-hidden shadow-2xl">
               {billboard.image_url && (
                 <img
                   src={billboard.image_url}
                   alt={billboard.location_name}
-                  className="w-full h-auto"
+                  className="w-full h-64 object-cover"
                 />
               )}
             </div>
