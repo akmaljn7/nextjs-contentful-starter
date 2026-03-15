@@ -474,8 +474,9 @@ async def get_kannywood_placements(status: str = "approved"):
 # Order Routes
 @api_router.post("/orders", response_model=Order)
 async def create_order(data: OrderCreate, current_user: User = Depends(get_current_user)):
-    if current_user.role != "advertiser":
-        raise HTTPException(status_code=403, detail="Only advertisers can create orders")
+    # Allow any authenticated user to create orders (they can be both advertiser and supplier)
+    # if current_user.role != "advertiser":
+    #     raise HTTPException(status_code=403, detail="Only advertisers can create orders")
     
     # Get supplier_id from listing
     collection_map = {
