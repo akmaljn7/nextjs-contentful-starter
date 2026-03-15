@@ -169,7 +169,7 @@ export const PlaceOrderPage = () => {
 
       {/* Waiting Modal with Countdown */}
       <Dialog open={showWaitingModal} onOpenChange={() => {}}>
-        <DialogContent className="sm:max-w-md" hideClose>
+        <DialogContent className="sm:max-w-2xl" hideClose>
           <div className="text-center py-6 space-y-6">
             {/* Animated Icon */}
             <div className="relative mx-auto w-24 h-24">
