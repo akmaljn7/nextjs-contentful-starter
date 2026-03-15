@@ -21,6 +21,8 @@ import { ContactPage } from '@/pages/ContactPage';
 import { FAQPage } from '@/pages/FAQPage';
 import { TermsPage } from '@/pages/TermsPage';
 import { PrivacyPage } from '@/pages/PrivacyPage';
+import { CartPage } from '@/pages/CartPage';
+import { PlaceOrderPage } from '@/pages/PlaceOrderPage';
 
 function App() {
   return (
@@ -45,6 +47,8 @@ function App() {
               <Route path="/faq" element={<FAQPage />} />
               <Route path="/terms" element={<TermsPage />} />
               <Route path="/privacy" element={<PrivacyPage />} />
+              <Route path="/cart" element={<CartPage />} />
+              <Route path="/place-order" element={<PlaceOrderPage />} />
               
               {/* Placeholder routes */}
               <Route path="/campaign-builder" element={<PlaceholderPage title="Campaign Builder" />} />

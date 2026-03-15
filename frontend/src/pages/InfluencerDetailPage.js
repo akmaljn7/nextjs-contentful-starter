@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { useLanguageStore, useAuthStore } from '@/lib/store';
+import { useLanguageStore, useAuthStore, useCartStore } from '@/lib/store';
 import { t } from '@/lib/translations';
 import api from '@/lib/api';
 import { formatPrice, formatNumber } from '@/lib/utils';
@@ -15,6 +15,7 @@ export const InfluencerDetailPage = () => {
   const navigate = useNavigate();
   const { language } = useLanguageStore();
   const { user } = useAuthStore();
+  const { addItem } = useCartStore();
   const [influencer, setInfluencer] = useState(null);
   const [loading, setLoading] = useState(true);
   const [packages, setPackages] = useState([]);
@@ -180,8 +181,21 @@ export const InfluencerDetailPage = () => {
       return;
     }
     
-    // TODO: Implement booking flow
-    toast.success(`Booking ${pkg.title} - Coming soon!`);
+    // Add to cart
+    addItem({
+      influencerId: influencer.id,
+      influencerName: influencer.name,
+      influencerHandle: influencer.handle,
+      influencerImage: influencer.image_url,
+      packageId: pkg.id,
+      packageTitle: pkg.title,
+      price: pkg.price,
+      deliverables: pkg.deliverables,
+      turnaround: pkg.turnaround,
+    });
+    
+    toast.success('Package added to cart!');
+    navigate('/cart');
   };
 
   if (loading) {

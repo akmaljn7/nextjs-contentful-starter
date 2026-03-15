@@ -47,3 +47,34 @@ export const useThemeStore = create(
     }
   )
 );
+
+export const useCartStore = create(
+  persist(
+    (set) => ({
+      items: [],
+      addItem: (item) => set((state) => {
+        // Check if item already exists
+        const exists = state.items.find(i => 
+          i.influencerId === item.influencerId && i.packageId === item.packageId
+        );
+        if (exists) {
+          return state; // Don't add duplicate
+        }
+        return { items: [...state.items, item] };
+      }),
+      removeItem: (influencerId, packageId) => set((state) => ({
+        items: state.items.filter(i => 
+          !(i.influencerId === influencerId && i.packageId === packageId)
+        ),
+      })),
+      clearCart: () => set({ items: [] }),
+      getTotalAmount: () => {
+        const state = useCartStore.getState();
+        return state.items.reduce((total, item) => total + item.price, 0);
+      },
+    }),
+    {
+      name: 'cart-storage',
+    }
+  )
+);
