@@ -46,7 +46,7 @@ export const PlaceOrderPage = () => {
       // Create orders for each cart item
       const orderPromises = items.map((item) =>
         api.post('/orders', {
-          listing_type: 'influencer',
+          listing_type: item.listingType || 'influencer',
           listing_id: item.influencerId,
           package_details: {
             packageId: item.packageId,

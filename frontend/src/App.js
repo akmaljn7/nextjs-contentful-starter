@@ -23,6 +23,7 @@ import { TermsPage } from '@/pages/TermsPage';
 import { PrivacyPage } from '@/pages/PrivacyPage';
 import { CartPage } from '@/pages/CartPage';
 import { PlaceOrderPage } from '@/pages/PlaceOrderPage';
+import { BillboardDetailPage } from '@/pages/BillboardDetailPage';
 
 function App() {
   return (
@@ -50,9 +51,11 @@ function App() {
               <Route path="/cart" element={<CartPage />} />
               <Route path="/place-order" element={<PlaceOrderPage />} />
               
+              {/* Billboard detail route */}
+              <Route path="/billboards/:id" element={<BillboardDetailPage />} />
+              
               {/* Placeholder routes */}
               <Route path="/campaign-builder" element={<PlaceholderPage title="Campaign Builder" />} />
-              <Route path="/billboards/:id" element={<PlaceholderPage title="Billboard Details" />} />
               <Route path="/cookies" element={<PlaceholderPage title="Cookie Policy" />} />
               <Route path="/refund-policy" element={<PlaceholderPage title="Refund Policy" />} />
               <Route path="*" element={<PlaceholderPage title="Page Not Found" />} />
