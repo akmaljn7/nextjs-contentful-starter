@@ -114,7 +114,7 @@ export const InfluencersPage = () => {
                         <img
                           src={influencer.image_url}
                           alt={influencer.name}
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-cover object-top"
                         />
                       )}
                       {influencer.verified && (

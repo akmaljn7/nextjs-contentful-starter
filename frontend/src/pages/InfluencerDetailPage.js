@@ -41,6 +41,52 @@ export const InfluencerDetailPage = () => {
   };
 
   const getPackagesForInfluencer = (influencer) => {
+    // G_fresh - Comedy & Entertainment (TikTok)
+    if (influencer.name === 'G_fresh') {
+      return [
+        {
+          id: 'pkg-1',
+          title: 'Comedy Skit with Brand',
+          description: 'Hilarious 2-minute TikTok skit featuring your brand naturally integrated into the storyline',
+          price: 80000,
+          deliverables: ['1 TikTok comedy skit (2-3 mins)', 'Brand integration', 'Posted to 450K followers', 'Story repost'],
+          turnaround: '3-5 days',
+        },
+        {
+          id: 'pkg-2',
+          title: 'Product Unboxing/Review',
+          description: 'Fun and engaging product unboxing with comedic commentary',
+          price: 60000,
+          deliverables: ['1 TikTok unboxing video', 'Honest funny review', 'Product showcase', '24-hour story feature'],
+          turnaround: '3-5 days',
+        },
+        {
+          id: 'pkg-3',
+          title: 'Brand Shoutout',
+          description: 'Quick shoutout for your brand at the end of a viral skit',
+          price: 30000,
+          deliverables: ['5-10 second brand mention', 'Logo display', 'Posted to 450K followers', 'Natural integration'],
+          turnaround: '1-2 days',
+        },
+        {
+          id: 'pkg-4',
+          title: 'Duet Challenge',
+          description: 'Create a branded duet challenge that can go viral',
+          price: 100000,
+          deliverables: ['Original challenge video', 'Branded hashtag', 'Challenge promotion', 'Cross-platform share'],
+          turnaround: '5-7 days',
+        },
+        {
+          id: 'pkg-5',
+          title: 'Full Campaign Package',
+          description: 'Complete entertainment campaign with multiple skits and touchpoints',
+          price: 200000,
+          deliverables: ['3 TikTok skits', '5 stories', '1 Instagram reel', 'Branded hashtag campaign', 'Analytics report'],
+          turnaround: '10-14 days',
+        },
+      ];
+    }
+
     // Abis Fulani - Lifestyle & Travel (Instagram)
     if (influencer.name === 'Abis Fulani') {
       return [
@@ -86,6 +132,144 @@ export const InfluencerDetailPage = () => {
         },
       ];
     }
+
+    // Baddoo - Lifestyle & Fashion (TikTok)
+    if (influencer.name === 'Baddoo') {
+      return [
+        {
+          id: 'pkg-1',
+          title: 'Fashion Showcase Video',
+          description: 'Stylish TikTok video featuring your fashion brand or clothing line',
+          price: 70000,
+          deliverables: ['1 TikTok fashion video (2-3 mins)', 'Multiple outfit shots', 'Product tags', 'Posted to 380K followers'],
+          turnaround: '3-5 days',
+        },
+        {
+          id: 'pkg-2',
+          title: 'GRWM (Get Ready With Me)',
+          description: 'Get Ready With Me video featuring your beauty/fashion products',
+          price: 65000,
+          deliverables: ['1 GRWM TikTok video', 'Product showcase', 'Step-by-step styling', 'Story highlights'],
+          turnaround: '3-5 days',
+        },
+        {
+          id: 'pkg-3',
+          title: 'Brand Collaboration Post',
+          description: 'Single branded TikTok post with outfit/product feature',
+          price: 40000,
+          deliverables: ['1 TikTok post', 'Product mention', 'Shopping tags', '24-hour story'],
+          turnaround: '2-3 days',
+        },
+        {
+          id: 'pkg-4',
+          title: 'Lifestyle Day-in-the-Life',
+          description: 'Day-in-the-life content featuring your brand naturally',
+          price: 90000,
+          deliverables: ['1 day-in-the-life TikTok', 'Multiple brand touchpoints', 'Authentic integration', 'Instagram cross-post'],
+          turnaround: '5-7 days',
+        },
+        {
+          id: 'pkg-5',
+          title: 'Fashion Campaign Bundle',
+          description: 'Complete fashion campaign across platforms',
+          price: 180000,
+          deliverables: ['3 TikTok videos', '2 Instagram reels', '10 stories', 'Lookbook feature', 'Analytics report'],
+          turnaround: '10-14 days',
+        },
+      ];
+    }
+
+    // Maryamaaah_ - Food & Cooking (Instagram)
+    if (influencer.name === 'Maryamaaah_') {
+      return [
+        {
+          id: 'pkg-1',
+          title: 'Recipe Video with Your Product',
+          description: 'Full recipe video featuring your food product as the star ingredient',
+          price: 70000,
+          deliverables: ['1 Instagram reel recipe (2-3 mins)', 'Recipe integration', 'Product showcase', 'Posted to 320K followers'],
+          turnaround: '5-7 days',
+        },
+        {
+          id: 'pkg-2',
+          title: 'Kitchen Equipment Review',
+          description: 'Detailed review of your kitchen appliance or cooking equipment',
+          price: 60000,
+          deliverables: ['2-minute Instagram review', 'Demonstration of features', 'Honest assessment', 'Story highlights'],
+          turnaround: '3-5 days',
+        },
+        {
+          id: 'pkg-3',
+          title: 'Brand Placement in Cooking Video',
+          description: 'Your product/brand visible in kitchen setup during recipe video',
+          price: 30000,
+          deliverables: ['Product visible in frame', 'Natural integration', '2-3 second focus shot', 'Posted within 7 days'],
+          turnaround: '5-7 days',
+        },
+        {
+          id: 'pkg-4',
+          title: 'Recipe Series (3 Videos)',
+          description: 'Three recipe videos featuring your product in different dishes',
+          price: 180000,
+          deliverables: ['3 Instagram reels', 'Different recipes each', 'Full product integration', 'Story cross-post'],
+          turnaround: '10-14 days',
+        },
+        {
+          id: 'pkg-5',
+          title: 'Instagram Reel + Story Bundle',
+          description: 'Short-form reel with extended behind-the-scenes stories',
+          price: 50000,
+          deliverables: ['1 Instagram reel (60 seconds)', '5 behind-the-scenes stories', 'Recipe card', 'Swipe-up link'],
+          turnaround: '3-5 days',
+        },
+      ];
+    }
+
+    // Meenal Ahmad - Fashion & Culture (TikTok)
+    if (influencer.name === 'Meenal Ahmad') {
+      return [
+        {
+          id: 'pkg-1',
+          title: 'Traditional Fashion Showcase',
+          description: 'Beautiful TikTok video showcasing traditional Nigerian fashion with your brand',
+          price: 60000,
+          deliverables: ['1 TikTok fashion video', 'Traditional styling', 'Product feature', 'Posted to 290K followers'],
+          turnaround: '3-5 days',
+        },
+        {
+          id: 'pkg-2',
+          title: 'Cultural Style Video',
+          description: 'Cultural celebration video featuring your fashion/beauty products',
+          price: 55000,
+          deliverables: ['1 TikTok cultural video', 'Outfit showcase', 'Brand mention', 'Story highlights'],
+          turnaround: '3-5 days',
+        },
+        {
+          id: 'pkg-3',
+          title: 'Brand Styling Post',
+          description: 'Single styled post featuring your fashion brand',
+          price: 35000,
+          deliverables: ['1 TikTok post', 'Professional styling', 'Product tags', '24-hour story'],
+          turnaround: '2-3 days',
+        },
+        {
+          id: 'pkg-4',
+          title: 'Event/Occasion Styling',
+          description: 'Special occasion styling video perfect for event wear brands',
+          price: 75000,
+          deliverables: ['1 occasion styling TikTok', 'Full look breakdown', 'Shopping details', 'Instagram cross-post'],
+          turnaround: '5-7 days',
+        },
+        {
+          id: 'pkg-5',
+          title: 'Fashion Culture Campaign',
+          description: 'Complete cultural fashion campaign with multiple looks',
+          price: 150000,
+          deliverables: ['3 TikTok videos', '2 Instagram posts', '8 stories', 'Brand ambassador feature', 'Analytics report'],
+          turnaround: '10-14 days',
+        },
+      ];
+    }
     
     // Ibrahim Sani - Technology (Twitter/X)
     if (influencer.name === 'Ibrahim Sani') {
@@ -121,52 +305,6 @@ export const InfluencerDetailPage = () => {
           price: 120000,
           deliverables: ['Launch thread (15 tweets)', 'Video review', '3 follow-up posts', 'Twitter Space discussion (optional)'],
           turnaround: '7-10 days',
-        },
-      ];
-    }
-    
-    // Hauwa Abdullahi - Food & Cooking (TikTok)
-    if (influencer.name === 'Hauwa Abdullahi') {
-      return [
-        {
-          id: 'pkg-1',
-          title: 'Recipe Video with Your Product',
-          description: 'Full recipe video featuring your food product as the star ingredient',
-          price: 70000,
-          deliverables: ['3-5 minute TikTok video', 'Recipe integration', 'Product showcase', 'Posted to 320K followers'],
-          turnaround: '5-7 days',
-        },
-        {
-          id: 'pkg-2',
-          title: 'Kitchen Equipment Review',
-          description: 'Detailed review of your kitchen appliance or cooking equipment',
-          price: 60000,
-          deliverables: ['2-minute review video', 'Demonstration of features', 'Honest assessment', 'Story highlights'],
-          turnaround: '3-5 days',
-        },
-        {
-          id: 'pkg-3',
-          title: 'Brand Placement in Cooking Video',
-          description: 'Your product/brand visible in kitchen setup during viral recipe video',
-          price: 30000,
-          deliverables: ['Product visible in frame', 'Natural integration', '2-3 second focus shot', 'Posted within 7 days'],
-          turnaround: '5-7 days',
-        },
-        {
-          id: 'pkg-4',
-          title: 'Recipe Series (3 Videos)',
-          description: 'Three recipe videos featuring your product in different dishes',
-          price: 180000,
-          deliverables: ['3 TikTok videos', 'Different recipes each', 'Full product integration', 'Instagram cross-post'],
-          turnaround: '10-14 days',
-        },
-        {
-          id: 'pkg-5',
-          title: 'Instagram Reel + Story Bundle',
-          description: 'Short-form reel with extended behind-the-scenes stories',
-          price: 50000,
-          deliverables: ['1 Instagram reel (60 seconds)', '5 behind-the-scenes stories', 'Recipe card', 'Swipe-up link'],
-          turnaround: '3-5 days',
         },
       ];
     }
@@ -229,7 +367,7 @@ export const InfluencerDetailPage = () => {
                   <img
                     src={influencer.image_url}
                     alt={influencer.name}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover object-top"
                   />
                 ) : (
                   <div className="w-full h-full bg-gradient-to-br from-primary to-accent flex items-center justify-center">
