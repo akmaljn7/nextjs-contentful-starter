@@ -24,6 +24,7 @@ import { PrivacyPage } from '@/pages/PrivacyPage';
 import { CartPage } from '@/pages/CartPage';
 import { PlaceOrderPage } from '@/pages/PlaceOrderPage';
 import { BillboardDetailPage } from '@/pages/BillboardDetailPage';
+import { DigitalAdDetailPage } from '@/pages/DigitalAdDetailPage';
 
 function App() {
   return (
@@ -40,6 +41,7 @@ function App() {
               <Route path="/influencers/:id" element={<InfluencerDetailPage />} />
               <Route path="/billboards" element={<BillboardsPage />} />
               <Route path="/digital-ads" element={<DigitalAdsPage />} />
+              <Route path="/digital-ads/:id" element={<DigitalAdDetailPage />} />
               <Route path="/kannywood" element={<KannywoodPage />} />
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/about" element={<AboutPage />} />
