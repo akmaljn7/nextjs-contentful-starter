@@ -27,6 +27,7 @@ import { PlaceOrderPage } from '@/pages/PlaceOrderPage';
 import { BillboardDetailPage } from '@/pages/BillboardDetailPage';
 import { DigitalAdDetailPage } from '@/pages/DigitalAdDetailPage';
 import { PaymentCallbackPage } from '@/pages/PaymentCallbackPage';
+import { KannywoodDetailPage } from '@/pages/KannywoodDetailPage';
 
 function App() {
   return (
@@ -46,6 +47,7 @@ function App() {
               <Route path="/digital-ads" element={<DigitalAdsPage />} />
               <Route path="/digital-ads/:id" element={<DigitalAdDetailPage />} />
               <Route path="/kannywood" element={<KannywoodPage />} />
+              <Route path="/kannywood/:id" element={<KannywoodDetailPage />} />
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/about" element={<AboutPage />} />
               <Route path="/pricing" element={<PricingPage />} />

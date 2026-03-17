@@ -478,6 +478,17 @@ async def get_kannywood_placements(status: str = "approved"):
     
     return placements
 
+@api_router.get("/kannywood/{placement_id}", response_model=KannywoodPlacement)
+async def get_kannywood_placement(placement_id: str):
+    placement = await db.kannywood_placements.find_one({"id": placement_id}, {"_id": 0})
+    if not placement:
+        raise HTTPException(status_code=404, detail="Kannywood placement not found")
+    
+    if isinstance(placement.get('created_at'), str):
+        placement['created_at'] = datetime.fromisoformat(placement['created_at'])
+    
+    return placement
+
 # Order Routes
 @api_router.post("/orders", response_model=Order)
 async def create_order(data: OrderCreate, current_user: User = Depends(get_current_user)):

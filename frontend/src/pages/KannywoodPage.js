@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useLanguageStore } from '@/lib/store';
 import { t } from '@/lib/translations';
 import api from '@/lib/api';
@@ -7,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, Search, Film } from 'lucide-react';
+import { CheckCircle, Search, Film, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
 
 export const KannywoodPage = () => {
@@ -98,58 +99,70 @@ export const KannywoodPage = () => {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredPlacements.map((placement) => (
-              <Card
-                key={placement.id}
-                className="group hover:shadow-lg hover:-translate-y-1 h-full border-2"
-                data-testid={`kannywood-card-${placement.id}`}
-              >
-                <CardContent className="p-0">
-                  <div className="relative h-64 overflow-hidden rounded-t-lg bg-gradient-to-br from-purple-100 to-pink-100">
-                    {placement.image_url ? (
-                      <img
-                        src={placement.image_url}
-                        alt={placement.production_name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Film className="h-16 w-16 text-muted-foreground" />
-                      </div>
-                    )}
-                    {placement.verified && (
-                      <Badge className="absolute top-3 right-3 bg-white/90 text-primary border-0">
-                        <CheckCircle className="h-3 w-3 mr-1" />
-                        {t('common.verified', language)}
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="p-4 space-y-3">
-                    <div>
-                      <h3 className="text-lg font-bold text-foreground">{placement.production_name}</h3>
-                      <Badge variant="outline" className="text-xs mt-1">
-                        {placement.placement_type}
+              <Link to={`/kannywood/${placement.id}`} key={placement.id}>
+                <Card
+                  className="group hover:shadow-lg hover:-translate-y-1 h-full border-2 cursor-pointer transition-all"
+                  data-testid={`kannywood-card-${placement.id}`}
+                >
+                  <CardContent className="p-0">
+                    <div className="relative h-64 overflow-hidden rounded-t-lg bg-gradient-to-br from-purple-100 to-pink-100">
+                      {placement.image_url ? (
+                        <img
+                          src={placement.image_url}
+                          alt={placement.production_name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Film className="h-16 w-16 text-muted-foreground" />
+                        </div>
+                      )}
+                      {placement.verified && (
+                        <Badge className="absolute top-3 right-3 bg-white/90 text-primary border-0">
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          {t('common.verified', language)}
+                        </Badge>
+                      )}
+                      <Badge className="absolute top-3 left-3 bg-purple-600 text-white border-0">
+                        <Film className="h-3 w-3 mr-1" />
+                        Kannywood
                       </Badge>
                     </div>
-                    <p className="text-sm text-muted-foreground line-clamp-2">{placement.description}</p>
-                    <div className="flex items-center justify-between pt-2 border-t">
+                    <div className="p-4 space-y-3">
                       <div>
-                        <p className="text-xs text-muted-foreground">Estimated Reach</p>
-                        <p className="text-sm font-semibold">{formatNumber(placement.estimated_reach)}</p>
+                        <h3 className="text-lg font-bold text-foreground">{placement.production_name}</h3>
+                        <Badge variant="outline" className="text-xs mt-1">
+                          {placement.placement_type}
+                        </Badge>
                       </div>
-                      <div className="text-right">
-                        <p className="text-xs text-muted-foreground">Price</p>
-                        <p className="text-lg font-bold text-primary">{formatPrice(placement.price)}</p>
+                      <p className="text-sm text-muted-foreground line-clamp-2">{placement.description}</p>
+                      <div className="flex items-center justify-between pt-2 border-t">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Estimated Reach</p>
+                          <p className="text-sm font-semibold">{formatNumber(placement.estimated_reach)}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-muted-foreground">Starting from</p>
+                          <p className="text-lg font-bold text-primary">{formatPrice(placement.price)}</p>
+                        </div>
                       </div>
+                      {placement.release_date && (
+                        <div className="pt-2 border-t">
+                          <p className="text-xs text-muted-foreground">Release Date</p>
+                          <p className="text-sm font-medium">{placement.release_date}</p>
+                        </div>
+                      )}
+                      <Button 
+                        className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold mt-2"
+                        data-testid={`view-packages-${placement.id}`}
+                      >
+                        View Packages
+                        <ArrowRight className="h-4 w-4 ml-2" />
+                      </Button>
                     </div>
-                    {placement.release_date && (
-                      <div className="pt-2 border-t">
-                        <p className="text-xs text-muted-foreground">Release Date</p>
-                        <p className="text-sm font-medium">{placement.release_date}</p>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              </Link>
             ))}
           </div>
         )}
