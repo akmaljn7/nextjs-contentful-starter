@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom';
-import { useAuthStore, useLanguageStore, useThemeStore } from '@/lib/store';
+import { useAuthStore, useLanguageStore, useThemeStore, useCartStore } from '@/lib/store';
 import { t } from '@/lib/translations';
 import { Button } from '@/components/ui/button';
-import { Globe, User, LogOut, Palette } from 'lucide-react';
+import { Globe, User, LogOut, Palette, ShoppingCart } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,6 +14,8 @@ export const Header = () => {
   const { user, logout } = useAuthStore();
   const { language, setLanguage } = useLanguageStore();
   const { theme, toggleTheme } = useThemeStore();
+  const { items } = useCartStore();
+  const cartItemCount = items.length;
 
   const toggleLanguage = () => {
     setLanguage(language === 'en' ? 'ha' : 'en');
@@ -99,13 +101,23 @@ export const Header = () => {
 
             {user ? (
               <>
-                <Link to="/campaign-builder">
+                {/* Cart Button */}
+                <Link to="/cart">
                   <Button
                     size="sm"
-                    data-testid="build-campaign-button"
-                    className="bg-accent hover:bg-accent/90 text-white font-medium h-10 px-5"
+                    data-testid="cart-button"
+                    className="bg-accent hover:bg-accent/90 text-white font-medium h-10 px-5 relative"
                   >
-                    {t('nav.buildcampaign', language)}
+                    <ShoppingCart className="h-4 w-4 mr-2" />
+                    Cart
+                    {cartItemCount > 0 && (
+                      <span 
+                        className="absolute -top-2 -right-2 bg-white text-primary text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center animate-bounce"
+                        data-testid="cart-count"
+                      >
+                        {cartItemCount}
+                      </span>
+                    )}
                   </Button>
                 </Link>
 
@@ -136,6 +148,25 @@ export const Header = () => {
               </>
             ) : (
               <>
+                {/* Cart Button for non-logged users */}
+                <Link to="/cart">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    data-testid="cart-button-guest"
+                    className="text-white hover:bg-accent/20 relative"
+                  >
+                    <ShoppingCart className="h-4 w-4" />
+                    {cartItemCount > 0 && (
+                      <span 
+                        className="absolute -top-1 -right-1 bg-accent text-white text-xs font-bold rounded-full h-4 w-4 flex items-center justify-center"
+                        data-testid="cart-count-guest"
+                      >
+                        {cartItemCount}
+                      </span>
+                    )}
+                  </Button>
+                </Link>
                 <Link to="/login">
                   <Button 
                     variant="ghost" 

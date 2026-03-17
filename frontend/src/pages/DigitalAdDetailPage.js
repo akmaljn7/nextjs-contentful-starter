@@ -5,7 +5,7 @@ import { formatPrice } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, Clock, TrendingUp, Users, Target, BarChart3 } from 'lucide-react';
+import { CheckCircle, Clock, TrendingUp, Users, Target, BarChart3, ShoppingCart } from 'lucide-react';
 import { toast } from 'sonner';
 
 // Platform data with real pricing packages
@@ -539,6 +539,7 @@ export const DigitalAdDetailPage = () => {
   const { user } = useAuthStore();
   const { addItem } = useCartStore();
   const [platform, setPlatform] = useState(null);
+  const [addedPackages, setAddedPackages] = useState({});
 
   useEffect(() => {
     if (id && PLATFORM_DATA[id]) {
@@ -549,12 +550,56 @@ export const DigitalAdDetailPage = () => {
     }
   }, [id, navigate]);
 
-  const handleBookPackage = (pkg) => {
+  const handleBookPackage = (pkg, event) => {
     if (!user) {
       toast.error('Please sign in to book a package');
       navigate('/login');
       return;
     }
+
+    // Get button position for animation
+    const button = event.currentTarget;
+    const buttonRect = button.getBoundingClientRect();
+    
+    // Get cart button position
+    const cartButton = document.querySelector('[data-testid="cart-button"]');
+    const cartRect = cartButton?.getBoundingClientRect();
+    
+    // Create flying element
+    const flyingEl = document.createElement('div');
+    flyingEl.className = 'fly-to-cart';
+    flyingEl.innerHTML = `
+      <div class="bg-accent text-white rounded-lg p-3 shadow-2xl flex items-center space-x-2">
+        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
+        </svg>
+        <span class="font-semibold text-sm">${formatPrice(pkg.price)}</span>
+      </div>
+    `;
+    
+    // Position at button
+    flyingEl.style.left = `${buttonRect.left + buttonRect.width / 2 - 60}px`;
+    flyingEl.style.top = `${buttonRect.top}px`;
+    
+    // Calculate destination
+    if (cartRect) {
+      const flyX = cartRect.left - buttonRect.left;
+      const flyY = cartRect.top - buttonRect.top - 100;
+      flyingEl.style.setProperty('--fly-x', `${flyX}px`);
+      flyingEl.style.setProperty('--fly-y', `${flyY}px`);
+    }
+    
+    document.body.appendChild(flyingEl);
+    
+    // Remove after animation
+    setTimeout(() => {
+      flyingEl.remove();
+      // Pulse the cart button
+      if (cartButton) {
+        cartButton.classList.add('cart-pulse');
+        setTimeout(() => cartButton.classList.remove('cart-pulse'), 500);
+      }
+    }, 800);
 
     addItem({
       influencerId: `digital-${platform.id}`,
@@ -569,8 +614,21 @@ export const DigitalAdDetailPage = () => {
       listingType: 'digital-ad',
     });
 
-    toast.success('Package added to cart!');
-    navigate('/cart');
+    // Mark package as added
+    setAddedPackages(prev => ({ ...prev, [pkg.id]: true }));
+    
+    // Show success toast
+    toast.success(
+      <div className="flex items-center space-x-2">
+        <CheckCircle className="h-5 w-5 text-green-500" />
+        <span>Added to cart! Continue exploring or checkout.</span>
+      </div>
+    );
+    
+    // Reset the added state after 3 seconds
+    setTimeout(() => {
+      setAddedPackages(prev => ({ ...prev, [pkg.id]: false }));
+    }, 3000);
   };
 
   if (!platform) {
@@ -689,11 +747,25 @@ export const DigitalAdDetailPage = () => {
                   </div>
 
                   <Button
-                    onClick={() => handleBookPackage(pkg)}
-                    className="w-full bg-accent hover:bg-accent/90 text-white font-semibold"
+                    onClick={(e) => handleBookPackage(pkg, e)}
+                    className={`w-full font-semibold transition-all ${
+                      addedPackages[pkg.id] 
+                        ? 'bg-green-600 hover:bg-green-700 text-white' 
+                        : 'bg-accent hover:bg-accent/90 text-white'
+                    }`}
                     data-testid={`book-button-${pkg.id}`}
                   >
-                    Book This Package
+                    {addedPackages[pkg.id] ? (
+                      <>
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        Added to Cart
+                      </>
+                    ) : (
+                      <>
+                        <ShoppingCart className="h-4 w-4 mr-2" />
+                        Book This Package
+                      </>
+                    )}
                   </Button>
                 </CardContent>
               </Card>
