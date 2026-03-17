@@ -501,20 +501,33 @@ async def create_order(data: OrderCreate, current_user: User = Depends(get_curre
         "influencer": "influencers",
         "billboard": "billboards",
         "digital_ad": "digital_ad_services",
+        "digital-ad": "digital_ad_services",
         "kannywood": "kannywood_placements"
     }
     
-    collection = db[collection_map.get(data.listing_type)]
-    listing = await collection.find_one({"id": data.listing_id}, {"_id": 0})
-    if not listing:
-        raise HTTPException(status_code=404, detail="Listing not found")
+    # Normalize listing_type
+    listing_type = data.listing_type
+    
+    # Handle digital-ad type specially - these are platform-managed services
+    if listing_type == "digital-ad":
+        # Digital ads are managed by Lightban platform, use a default supplier
+        supplier_id = "lightban-platform"
+    else:
+        if listing_type not in collection_map:
+            raise HTTPException(status_code=400, detail=f"Invalid listing type: {listing_type}")
+        
+        collection = db[collection_map.get(listing_type)]
+        listing = await collection.find_one({"id": data.listing_id}, {"_id": 0})
+        if not listing:
+            raise HTTPException(status_code=404, detail="Listing not found")
+        supplier_id = listing['supplier_id']
     
     platform_fee = data.total_amount * 0.10  # 10% platform fee
     supplier_payout = data.total_amount - platform_fee
     
     order = Order(
         advertiser_id=current_user.id,
-        supplier_id=listing['supplier_id'],
+        supplier_id=supplier_id,
         listing_type=data.listing_type,
         listing_id=data.listing_id,
         package_details=data.package_details,
