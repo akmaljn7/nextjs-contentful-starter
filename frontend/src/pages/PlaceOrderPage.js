@@ -15,7 +15,6 @@ export const PlaceOrderPage = () => {
   const { items, getTotalAmount, clearCart } = useCartStore();
   const [showWaitingModal, setShowWaitingModal] = useState(false);
   const [showPaymentMethodModal, setShowPaymentMethodModal] = useState(false);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showCashConfirmModal, setShowCashConfirmModal] = useState(false);
   const [countdown, setCountdown] = useState(300); // 5 minutes in seconds
   const [orderIds, setOrderIds] = useState([]);
@@ -81,9 +80,44 @@ export const PlaceOrderPage = () => {
     setShowPaymentMethodModal(true);
   };
 
-  const handleSelectOnlinePayment = () => {
+  const handleCancelOrder = () => {
+    // Close all modals and go back to cart
+    setShowWaitingModal(false);
     setShowPaymentMethodModal(false);
-    setShowPaymentModal(true);
+    setShowCashConfirmModal(false);
+    toast.info('Order cancelled. Your items are still in your cart.');
+    navigate('/cart');
+  };
+
+  const handleSelectOnlinePayment = async () => {
+    // Directly initialize Paystack payment without showing intermediate modal
+    setShowPaymentMethodModal(false);
+    setIsInitializingPayment(true);
+    
+    try {
+      const orderId = orderIds[0];
+      const callbackUrl = `${window.location.origin}/payment/callback`;
+      
+      const response = await api.post('/payments/initialize', {
+        order_id: orderId,
+        email: user.email,
+        callback_url: callbackUrl,
+      });
+
+      if (response.data.status === 'success') {
+        // Redirect to Paystack payment page
+        window.location.href = response.data.authorization_url;
+      } else {
+        toast.error('Failed to initialize payment. Please try again.');
+        setIsInitializingPayment(false);
+        setShowPaymentMethodModal(true);
+      }
+    } catch (error) {
+      console.error('Payment initialization error:', error);
+      toast.error('Failed to initialize payment. Please try again.');
+      setIsInitializingPayment(false);
+      setShowPaymentMethodModal(true);
+    }
   };
 
   const handleSelectCashPayment = () => {
@@ -107,34 +141,6 @@ export const PlaceOrderPage = () => {
       navigate('/dashboard');
     } catch (error) {
       toast.error('Failed to confirm order. Please try again.');
-    }
-  };
-
-  const initializePaystackPayment = async () => {
-    setIsInitializingPayment(true);
-    
-    try {
-      // Get the first order (we'll process all orders in sequence)
-      const orderId = orderIds[0];
-      const callbackUrl = `${window.location.origin}/payment/callback`;
-      
-      const response = await api.post('/payments/initialize', {
-        order_id: orderId,
-        email: user.email,
-        callback_url: callbackUrl,
-      });
-
-      if (response.data.status === 'success') {
-        // Redirect to Paystack payment page
-        window.location.href = response.data.authorization_url;
-      } else {
-        toast.error('Failed to initialize payment. Please try again.');
-        setIsInitializingPayment(false);
-      }
-    } catch (error) {
-      console.error('Payment initialization error:', error);
-      toast.error('Failed to initialize payment. Please try again.');
-      setIsInitializingPayment(false);
     }
   };
 
@@ -265,8 +271,8 @@ export const PlaceOrderPage = () => {
             </div>
 
             {/* Skip Button */}
-            <div className="pt-4 border-t">
-              <p className="text-xs text-muted-foreground mb-3">Don't want to wait?</p>
+            <div className="pt-4 border-t space-y-3">
+              <p className="text-xs text-muted-foreground">Don't want to wait?</p>
               <Button
                 onClick={handleSkipToPayment}
                 variant="outline"
@@ -275,68 +281,14 @@ export const PlaceOrderPage = () => {
               >
                 Click me to make the payment before the advertiser accepts the request
               </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Payment Modal */}
-      <Dialog open={showPaymentModal} onOpenChange={() => {}}>
-        <DialogContent className="sm:max-w-2xl" hideClose>
-          <div className="text-center py-6 space-y-6">
-            {/* Payment Icon */}
-            <div className="relative mx-auto w-24 h-24">
-              <div className="relative bg-green-600 rounded-full w-24 h-24 flex items-center justify-center">
-                <CreditCard className="h-12 w-12 text-white" />
-              </div>
-            </div>
-
-            {/* Title */}
-            <div>
-              <h3 className="text-2xl font-bold text-foreground mb-2">Ready to Pay!</h3>
-              <p className="text-lg text-green-600 font-semibold">Complete your payment with Paystack</p>
-            </div>
-
-            {/* Amount */}
-            <div className="bg-gradient-to-br from-green-500/10 to-green-600/10 rounded-lg p-6">
-              <p className="text-sm text-muted-foreground mb-1">Total Amount</p>
-              <div className="text-4xl font-bold text-green-600" data-testid="payment-amount">
-                {formatPrice(grandTotal)}
-              </div>
-            </div>
-
-            {/* Payment Info */}
-            <div className="bg-muted/30 rounded-lg p-4">
-              <p className="text-sm text-foreground leading-relaxed">
-                You will be redirected to Paystack's secure payment page to complete your payment.
-                After successful payment, you'll be returned to confirm your order.
-              </p>
-            </div>
-
-            {/* Payment Button */}
-            <Button
-              onClick={initializePaystackPayment}
-              disabled={isInitializingPayment}
-              className="w-full bg-green-600 hover:bg-green-700 text-white font-bold h-14 text-lg"
-              data-testid="paystack-pay-button"
-            >
-              {isInitializingPayment ? (
-                <>
-                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                  Initializing Payment...
-                </>
-              ) : (
-                <>
-                  <CreditCard className="h-5 w-5 mr-2" />
-                  Pay with Paystack
-                </>
-              )}
-            </Button>
-
-            {/* Secure Badge */}
-            <div className="flex items-center justify-center space-x-2 text-xs text-muted-foreground">
-              <CheckCircle className="h-4 w-4 text-green-600" />
-              <span>Secured by Paystack - 256-bit SSL Encryption</span>
+              <Button
+                onClick={handleCancelOrder}
+                variant="ghost"
+                className="w-full text-muted-foreground hover:text-red-600"
+                data-testid="cancel-order-button"
+              >
+                Cancel Order
+              </Button>
             </div>
           </div>
         </DialogContent>
@@ -363,14 +315,19 @@ export const PlaceOrderPage = () => {
               {/* Online Payment Option */}
               <Button
                 onClick={handleSelectOnlinePayment}
+                disabled={isInitializingPayment}
                 className="w-full h-16 bg-green-600 hover:bg-green-700 text-white font-semibold flex items-center justify-start px-4"
                 data-testid="select-online-payment"
               >
                 <div className="bg-white/20 rounded-full p-2 mr-4">
-                  <CreditCard className="h-6 w-6" />
+                  {isInitializingPayment ? (
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                  ) : (
+                    <CreditCard className="h-6 w-6" />
+                  )}
                 </div>
                 <div className="text-left">
-                  <p className="font-bold">Pay Online</p>
+                  <p className="font-bold">{isInitializingPayment ? 'Connecting to Paystack...' : 'Pay Online'}</p>
                   <p className="text-xs opacity-90">Instant payment via Paystack</p>
                 </div>
               </Button>
@@ -378,6 +335,7 @@ export const PlaceOrderPage = () => {
               {/* Cash Payment Option */}
               <Button
                 onClick={handleSelectCashPayment}
+                disabled={isInitializingPayment}
                 variant="outline"
                 className="w-full h-16 border-2 border-accent text-accent hover:bg-accent/5 font-semibold flex items-center justify-start px-4"
                 data-testid="select-cash-payment"
@@ -391,6 +349,16 @@ export const PlaceOrderPage = () => {
                 </div>
               </Button>
             </div>
+
+            {/* Cancel Button */}
+            <Button
+              onClick={handleCancelOrder}
+              disabled={isInitializingPayment}
+              variant="ghost"
+              className="w-full text-muted-foreground hover:text-red-600"
+            >
+              Cancel Order
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
