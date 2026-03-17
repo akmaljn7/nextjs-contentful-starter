@@ -220,63 +220,63 @@ export const PlaceOrderPage = () => {
 
       {/* Waiting Modal with Countdown */}
       <Dialog open={showWaitingModal} onOpenChange={() => {}}>
-        <DialogContent className="sm:max-w-2xl" hideClose>
-          <div className="text-center py-6 space-y-6">
+        <DialogContent className="sm:max-w-lg max-w-[95vw] mx-auto" hideClose>
+          <div className="text-center py-4 sm:py-6 space-y-4 sm:space-y-6">
             {/* Animated Icon */}
-            <div className="relative mx-auto w-24 h-24">
+            <div className="relative mx-auto w-16 h-16 sm:w-24 sm:h-24">
               <div className="absolute inset-0 bg-accent/20 rounded-full animate-ping"></div>
-              <div className="relative bg-accent rounded-full w-24 h-24 flex items-center justify-center">
-                <Clock className="h-12 w-12 text-white animate-pulse" />
+              <div className="relative bg-accent rounded-full w-16 h-16 sm:w-24 sm:h-24 flex items-center justify-center">
+                <Clock className="h-8 w-8 sm:h-12 sm:w-12 text-white animate-pulse" />
               </div>
             </div>
 
             {/* Title */}
             <div>
-              <h3 className="text-2xl font-bold text-foreground mb-2">Order Placed Successfully!</h3>
-              <p className="text-lg text-accent font-semibold">Contacting Advertiser...</p>
+              <h3 className="text-lg sm:text-2xl font-bold text-foreground mb-1 sm:mb-2">Order Placed Successfully!</h3>
+              <p className="text-sm sm:text-lg text-accent font-semibold">Contacting Advertiser...</p>
             </div>
 
             {/* Countdown Timer */}
-            <div className="bg-gradient-to-br from-primary/5 to-accent/5 rounded-lg p-6">
-              <div className="text-5xl font-bold text-primary mb-2" data-testid="countdown-timer">
+            <div className="bg-gradient-to-br from-primary/5 to-accent/5 rounded-lg p-4 sm:p-6">
+              <div className="text-4xl sm:text-5xl font-bold text-primary mb-1 sm:mb-2" data-testid="countdown-timer">
                 {formatCountdown(countdown)}
               </div>
-              <p className="text-sm text-muted-foreground">Time remaining</p>
+              <p className="text-xs sm:text-sm text-muted-foreground">Time remaining</p>
             </div>
 
             {/* Message */}
-            <div className="bg-muted/30 rounded-lg p-4">
-              <p className="text-sm text-foreground leading-relaxed">
+            <div className="bg-muted/30 rounded-lg p-3 sm:p-4">
+              <p className="text-xs sm:text-sm text-foreground leading-relaxed">
                 Wait a moment as we are contacting the advertiser to accept your request before making the payment.
                 The advertiser would accept the request within 5 minutes.
               </p>
             </div>
 
-            {/* Progress Steps */}
-            <div className="flex items-center justify-center space-x-4 text-sm">
+            {/* Progress Steps - Stacked on mobile */}
+            <div className="flex flex-col sm:flex-row items-center justify-center space-y-2 sm:space-y-0 sm:space-x-4 text-xs sm:text-sm">
               <div className="flex items-center space-x-2 text-green-600">
-                <CheckCircle className="h-5 w-5" />
+                <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5" />
                 <span>Order Placed</span>
               </div>
-              <div className="h-px w-8 bg-border"></div>
+              <div className="hidden sm:block h-px w-8 bg-border"></div>
               <div className="flex items-center space-x-2 text-accent">
-                <Loader2 className="h-5 w-5 animate-spin" />
+                <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
                 <span>Awaiting Acceptance</span>
               </div>
-              <div className="h-px w-8 bg-border"></div>
+              <div className="hidden sm:block h-px w-8 bg-border"></div>
               <div className="flex items-center space-x-2 text-muted-foreground">
-                <CreditCard className="h-5 w-5" />
+                <CreditCard className="h-4 w-4 sm:h-5 sm:w-5" />
                 <span>Payment</span>
               </div>
             </div>
 
             {/* Skip Button */}
-            <div className="pt-4 border-t space-y-3">
+            <div className="pt-3 sm:pt-4 border-t space-y-2 sm:space-y-3">
               <p className="text-xs text-muted-foreground">Don't want to wait?</p>
               <Button
                 onClick={handleSkipToPayment}
                 variant="outline"
-                className="w-full border-accent text-accent hover:bg-accent/5 font-semibold"
+                className="w-full border-accent text-accent hover:bg-accent/5 font-semibold text-xs sm:text-sm py-2 sm:py-3"
                 data-testid="skip-to-payment-button"
               >
                 Click me to make the payment before the advertiser accepts the request
@@ -296,38 +296,38 @@ export const PlaceOrderPage = () => {
 
       {/* Payment Method Selection Modal */}
       <Dialog open={showPaymentMethodModal} onOpenChange={() => {}}>
-        <DialogContent className="sm:max-w-md" hideClose>
-          <div className="text-center py-4 space-y-5">
+        <DialogContent className="sm:max-w-md max-w-[95vw] mx-auto" hideClose>
+          <div className="text-center py-3 sm:py-4 space-y-4 sm:space-y-5">
             {/* Title */}
             <div>
-              <h3 className="text-xl font-bold text-foreground mb-1">Choose Payment Method</h3>
-              <p className="text-sm text-muted-foreground">How would you like to pay?</p>
+              <h3 className="text-lg sm:text-xl font-bold text-foreground mb-1">Choose Payment Method</h3>
+              <p className="text-xs sm:text-sm text-muted-foreground">How would you like to pay?</p>
             </div>
 
             {/* Amount */}
-            <div className="bg-muted/30 rounded-lg p-4">
+            <div className="bg-muted/30 rounded-lg p-3 sm:p-4">
               <p className="text-xs text-muted-foreground mb-1">Total Amount</p>
-              <p className="text-2xl font-bold text-primary">{formatPrice(grandTotal)}</p>
+              <p className="text-xl sm:text-2xl font-bold text-primary">{formatPrice(grandTotal)}</p>
             </div>
 
             {/* Payment Options */}
-            <div className="space-y-3">
+            <div className="space-y-2 sm:space-y-3">
               {/* Online Payment Option */}
               <Button
                 onClick={handleSelectOnlinePayment}
                 disabled={isInitializingPayment}
-                className="w-full h-16 bg-green-600 hover:bg-green-700 text-white font-semibold flex items-center justify-start px-4"
+                className="w-full h-14 sm:h-16 bg-green-600 hover:bg-green-700 text-white font-semibold flex items-center justify-start px-3 sm:px-4"
                 data-testid="select-online-payment"
               >
-                <div className="bg-white/20 rounded-full p-2 mr-4">
+                <div className="bg-white/20 rounded-full p-1.5 sm:p-2 mr-3 sm:mr-4">
                   {isInitializingPayment ? (
-                    <Loader2 className="h-6 w-6 animate-spin" />
+                    <Loader2 className="h-5 w-5 sm:h-6 sm:w-6 animate-spin" />
                   ) : (
-                    <CreditCard className="h-6 w-6" />
+                    <CreditCard className="h-5 w-5 sm:h-6 sm:w-6" />
                   )}
                 </div>
                 <div className="text-left">
-                  <p className="font-bold">{isInitializingPayment ? 'Connecting to Paystack...' : 'Pay Online'}</p>
+                  <p className="font-bold text-sm sm:text-base">{isInitializingPayment ? 'Connecting...' : 'Pay Online'}</p>
                   <p className="text-xs opacity-90">Instant payment via Paystack</p>
                 </div>
               </Button>
@@ -337,14 +337,14 @@ export const PlaceOrderPage = () => {
                 onClick={handleSelectCashPayment}
                 disabled={isInitializingPayment}
                 variant="outline"
-                className="w-full h-16 border-2 border-accent text-accent hover:bg-accent/5 font-semibold flex items-center justify-start px-4"
+                className="w-full h-14 sm:h-16 border-2 border-accent text-accent hover:bg-accent/5 font-semibold flex items-center justify-start px-3 sm:px-4"
                 data-testid="select-cash-payment"
               >
-                <div className="bg-accent/10 rounded-full p-2 mr-4">
-                  <Building2 className="h-6 w-6" />
+                <div className="bg-accent/10 rounded-full p-1.5 sm:p-2 mr-3 sm:mr-4">
+                  <Building2 className="h-5 w-5 sm:h-6 sm:w-6" />
                 </div>
                 <div className="text-left">
-                  <p className="font-bold">Pay Cash at Office</p>
+                  <p className="font-bold text-sm sm:text-base">Pay Cash at Office</p>
                   <p className="text-xs opacity-70">Visit our office to pay</p>
                 </div>
               </Button>
@@ -355,7 +355,7 @@ export const PlaceOrderPage = () => {
               onClick={handleCancelOrder}
               disabled={isInitializingPayment}
               variant="ghost"
-              className="w-full text-muted-foreground hover:text-red-600"
+              className="w-full text-muted-foreground hover:text-red-600 text-sm"
             >
               Cancel Order
             </Button>
@@ -365,35 +365,35 @@ export const PlaceOrderPage = () => {
 
       {/* Cash Payment Confirmation Modal */}
       <Dialog open={showCashConfirmModal} onOpenChange={() => {}}>
-        <DialogContent className="sm:max-w-md" hideClose>
-          <div className="text-center py-4 space-y-5">
+        <DialogContent className="sm:max-w-md max-w-[95vw] mx-auto" hideClose>
+          <div className="text-center py-3 sm:py-4 space-y-3 sm:space-y-5">
             {/* Icon */}
-            <div className="relative mx-auto w-16 h-16">
-              <div className="relative bg-accent rounded-full w-16 h-16 flex items-center justify-center">
-                <Building2 className="h-8 w-8 text-white" />
+            <div className="relative mx-auto w-12 h-12 sm:w-16 sm:h-16">
+              <div className="relative bg-accent rounded-full w-12 h-12 sm:w-16 sm:h-16 flex items-center justify-center">
+                <Building2 className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
               </div>
             </div>
 
             {/* Title */}
             <div>
-              <h3 className="text-xl font-bold text-foreground mb-1">Pay Cash at Our Office</h3>
-              <p className="text-sm text-muted-foreground">Your order will be reserved for 24 hours</p>
+              <h3 className="text-lg sm:text-xl font-bold text-foreground mb-1">Pay Cash at Our Office</h3>
+              <p className="text-xs sm:text-sm text-muted-foreground">Your order will be reserved for 24 hours</p>
             </div>
 
             {/* Office Details */}
-            <div className="bg-muted/30 rounded-lg p-4 text-left space-y-2">
+            <div className="bg-muted/30 rounded-lg p-3 sm:p-4 text-left space-y-2">
               <div>
                 <p className="text-xs text-muted-foreground">Office Address</p>
-                <p className="text-sm font-medium text-foreground">Lightban Ads Network Office</p>
-                <p className="text-sm text-muted-foreground">No. 15 Murtala Mohammed Way, Kano</p>
+                <p className="text-xs sm:text-sm font-medium text-foreground">Lightban Ads Network Office</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">No. 15 Murtala Mohammed Way, Kano</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Working Hours</p>
-                <p className="text-sm text-foreground">Monday - Saturday: 9:00 AM - 5:00 PM</p>
+                <p className="text-xs sm:text-sm text-foreground">Monday - Saturday: 9:00 AM - 5:00 PM</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Amount to Pay</p>
-                <p className="text-lg font-bold text-primary">{formatPrice(grandTotal)}</p>
+                <p className="text-base sm:text-lg font-bold text-primary">{formatPrice(grandTotal)}</p>
               </div>
             </div>
 
@@ -401,7 +401,7 @@ export const PlaceOrderPage = () => {
             <div className="space-y-2">
               <Button
                 onClick={handleConfirmCashPayment}
-                className="w-full bg-accent hover:bg-accent/90 text-white font-semibold"
+                className="w-full bg-accent hover:bg-accent/90 text-white font-semibold h-10 sm:h-12 text-sm sm:text-base"
                 data-testid="confirm-cash-payment"
               >
                 <CheckCircle className="h-4 w-4 mr-2" />
@@ -413,7 +413,7 @@ export const PlaceOrderPage = () => {
                   setShowPaymentMethodModal(true);
                 }}
                 variant="ghost"
-                className="w-full text-muted-foreground"
+                className="w-full text-muted-foreground text-sm"
               >
                 Back to Payment Options
               </Button>

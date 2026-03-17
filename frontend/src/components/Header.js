@@ -1,8 +1,9 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuthStore, useLanguageStore, useThemeStore, useCartStore } from '@/lib/store';
 import { t } from '@/lib/translations';
 import { Button } from '@/components/ui/button';
-import { Globe, User, LogOut, Palette, ShoppingCart } from 'lucide-react';
+import { Globe, User, LogOut, Palette, ShoppingCart, Menu, X } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,33 +17,38 @@ export const Header = () => {
   const { theme, toggleTheme } = useThemeStore();
   const { items } = useCartStore();
   const cartItemCount = items.length;
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const toggleLanguage = () => {
     setLanguage(language === 'en' ? 'ha' : 'en');
   };
 
+  const closeMobileMenu = () => {
+    setMobileMenuOpen(false);
+  };
+
   return (
     <header className="sticky top-0 z-50 w-full bg-primary shadow-lg">
-      {/* Orange diagonal accent bar - inspired by letterhead */}
-      <div className="h-2 bg-gradient-to-r from-accent via-orange-500 to-accent"></div>
+      {/* Orange diagonal accent bar */}
+      <div className="h-1 sm:h-2 bg-gradient-to-r from-accent via-orange-500 to-accent"></div>
       
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex h-20 items-center justify-between">
-          {/* Logo - Big and prominent */}
-          <Link to="/" className="flex items-center" data-testid="logo-link">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+        <div className="flex h-14 sm:h-20 items-center justify-between">
+          {/* Logo */}
+          <Link to="/" className="flex items-center" data-testid="logo-link" onClick={closeMobileMenu}>
             <img 
               src="https://customer-assets.emergentagent.com/job_ads-kano/artifacts/r3mtjzen_logo_no_background.png" 
               alt="Lightban Technology" 
-              className="h-20 w-auto"
+              className="h-12 sm:h-20 w-auto"
             />
           </Link>
 
-          {/* Desktop Navigation - Styled as buttons */}
-          <nav className="hidden lg:flex items-center space-x-3">
+          {/* Desktop Navigation */}
+          <nav className="hidden lg:flex items-center space-x-2">
             <Link to="/influencers" data-testid="nav-influencers">
               <Button 
                 variant="ghost" 
-                className="text-white hover:bg-accent hover:text-white font-medium h-10 px-5"
+                className="text-white hover:bg-accent hover:text-white font-medium h-10 px-4"
               >
                 {t('nav.influencers', language)}
               </Button>
@@ -50,7 +56,7 @@ export const Header = () => {
             <Link to="/billboards" data-testid="nav-billboards">
               <Button 
                 variant="ghost" 
-                className="text-white hover:bg-accent hover:text-white font-medium h-10 px-5"
+                className="text-white hover:bg-accent hover:text-white font-medium h-10 px-4"
               >
                 {t('nav.billboards', language)}
               </Button>
@@ -58,7 +64,7 @@ export const Header = () => {
             <Link to="/digital-ads" data-testid="nav-digitalads">
               <Button 
                 variant="ghost" 
-                className="text-white hover:bg-accent hover:text-white font-medium h-10 px-5"
+                className="text-white hover:bg-accent hover:text-white font-medium h-10 px-4"
               >
                 {t('nav.digitalads', language)}
               </Button>
@@ -66,7 +72,7 @@ export const Header = () => {
             <Link to="/kannywood" data-testid="nav-kannywood">
               <Button 
                 variant="ghost" 
-                className="text-white hover:bg-accent hover:text-white font-medium h-10 px-5"
+                className="text-white hover:bg-accent hover:text-white font-medium h-10 px-4"
               >
                 {t('nav.kannywood', language)}
               </Button>
@@ -74,14 +80,14 @@ export const Header = () => {
           </nav>
 
           {/* Right Actions */}
-          <div className="flex items-center space-x-2">
-            {/* Theme Toggle */}
+          <div className="flex items-center space-x-1 sm:space-x-2">
+            {/* Theme Toggle - Hidden on smallest screens */}
             <Button
               variant="ghost"
               size="sm"
               onClick={toggleTheme}
               data-testid="theme-toggle-button"
-              className="text-white hover:bg-accent/20"
+              className="hidden sm:flex text-white hover:bg-accent/20 h-8 w-8 sm:h-10 sm:w-10 p-0"
               title={`Switch to ${theme === 'navy' ? 'Orange' : 'Navy'} theme`}
             >
               <Palette className="h-4 w-4" />
@@ -93,34 +99,35 @@ export const Header = () => {
               size="sm"
               onClick={toggleLanguage}
               data-testid="language-toggle-button"
-              className="text-white hover:bg-accent/20"
+              className="text-white hover:bg-accent/20 h-8 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm"
             >
-              <Globe className="h-4 w-4 mr-1" />
+              <Globe className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
               {language.toUpperCase()}
             </Button>
 
-            {user ? (
-              <>
-                {/* Cart Button */}
-                <Link to="/cart">
-                  <Button
-                    size="sm"
-                    data-testid="cart-button"
-                    className="bg-accent hover:bg-accent/90 text-white font-medium h-10 px-5 relative"
+            {/* Cart Button */}
+            <Link to="/cart">
+              <Button
+                size="sm"
+                data-testid="cart-button"
+                className="bg-accent hover:bg-accent/90 text-white font-medium h-8 sm:h-10 px-2 sm:px-4 relative"
+              >
+                <ShoppingCart className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Cart</span>
+                {cartItemCount > 0 && (
+                  <span 
+                    className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 bg-white text-primary text-xs font-bold rounded-full h-4 w-4 sm:h-5 sm:w-5 flex items-center justify-center"
+                    data-testid="cart-count"
                   >
-                    <ShoppingCart className="h-4 w-4 mr-2" />
-                    Cart
-                    {cartItemCount > 0 && (
-                      <span 
-                        className="absolute -top-2 -right-2 bg-white text-primary text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center animate-bounce"
-                        data-testid="cart-count"
-                      >
-                        {cartItemCount}
-                      </span>
-                    )}
-                  </Button>
-                </Link>
+                    {cartItemCount}
+                  </span>
+                )}
+              </Button>
+            </Link>
 
+            {/* Desktop Auth Buttons */}
+            <div className="hidden lg:flex items-center space-x-2">
+              {user ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button 
@@ -145,55 +152,138 @@ export const Header = () => {
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
+              ) : (
+                <>
+                  <Link to="/login">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      data-testid="signin-button"
+                      className="text-white hover:bg-accent/20 font-medium h-10 px-4"
+                    >
+                      {t('nav.signin', language)}
+                    </Button>
+                  </Link>
+                  <Link to="/register">
+                    <Button
+                      size="sm"
+                      data-testid="signup-button"
+                      className="bg-accent hover:bg-accent/90 text-white font-semibold h-10 px-5"
+                    >
+                      {t('nav.signup', language)}
+                    </Button>
+                  </Link>
+                </>
+              )}
+            </div>
+
+            {/* Mobile Menu Button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="lg:hidden text-white hover:bg-accent/20 h-8 w-8 sm:h-10 sm:w-10 p-0"
+              data-testid="mobile-menu-button"
+            >
+              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile Menu */}
+      {mobileMenuOpen && (
+        <div className="lg:hidden bg-primary border-t border-white/10">
+          <div className="px-4 py-4 space-y-2">
+            {/* Navigation Links */}
+            <Link 
+              to="/influencers" 
+              onClick={closeMobileMenu}
+              className="block px-4 py-3 text-white hover:bg-accent rounded-lg font-medium"
+            >
+              {t('nav.influencers', language)}
+            </Link>
+            <Link 
+              to="/billboards" 
+              onClick={closeMobileMenu}
+              className="block px-4 py-3 text-white hover:bg-accent rounded-lg font-medium"
+            >
+              {t('nav.billboards', language)}
+            </Link>
+            <Link 
+              to="/digital-ads" 
+              onClick={closeMobileMenu}
+              className="block px-4 py-3 text-white hover:bg-accent rounded-lg font-medium"
+            >
+              {t('nav.digitalads', language)}
+            </Link>
+            <Link 
+              to="/kannywood" 
+              onClick={closeMobileMenu}
+              className="block px-4 py-3 text-white hover:bg-accent rounded-lg font-medium"
+            >
+              {t('nav.kannywood', language)}
+            </Link>
+
+            {/* Divider */}
+            <div className="border-t border-white/20 my-3"></div>
+
+            {/* Theme Toggle for Mobile */}
+            <button
+              onClick={() => { toggleTheme(); closeMobileMenu(); }}
+              className="flex items-center w-full px-4 py-3 text-white hover:bg-accent/20 rounded-lg font-medium"
+            >
+              <Palette className="h-5 w-5 mr-3" />
+              Switch to {theme === 'navy' ? 'Orange' : 'Navy'} Theme
+            </button>
+
+            {/* Divider */}
+            <div className="border-t border-white/20 my-3"></div>
+
+            {/* Auth Section */}
+            {user ? (
+              <>
+                <Link 
+                  to="/dashboard" 
+                  onClick={closeMobileMenu}
+                  className="flex items-center px-4 py-3 text-white hover:bg-accent rounded-lg font-medium"
+                >
+                  <User className="h-5 w-5 mr-3" />
+                  {t('nav.dashboard', language)}
+                </Link>
+                <button
+                  onClick={() => { logout(); closeMobileMenu(); }}
+                  className="flex items-center w-full px-4 py-3 text-white hover:bg-red-600 rounded-lg font-medium"
+                >
+                  <LogOut className="h-5 w-5 mr-3" />
+                  {t('nav.logout', language)}
+                </button>
               </>
             ) : (
-              <>
-                {/* Cart Button for non-logged users */}
-                <Link to="/cart">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    data-testid="cart-button-guest"
-                    className="text-white hover:bg-accent/20 relative"
-                  >
-                    <ShoppingCart className="h-4 w-4" />
-                    {cartItemCount > 0 && (
-                      <span 
-                        className="absolute -top-1 -right-1 bg-accent text-white text-xs font-bold rounded-full h-4 w-4 flex items-center justify-center"
-                        data-testid="cart-count-guest"
-                      >
-                        {cartItemCount}
-                      </span>
-                    )}
-                  </Button>
-                </Link>
-                <Link to="/login">
+              <div className="space-y-2 pt-2">
+                <Link to="/login" onClick={closeMobileMenu}>
                   <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    data-testid="signin-button"
-                    className="text-white hover:bg-accent/20 font-medium h-10 px-5"
+                    variant="outline"
+                    className="w-full border-white text-white hover:bg-white hover:text-primary font-medium h-12"
                   >
                     {t('nav.signin', language)}
                   </Button>
                 </Link>
-                <Link to="/register">
+                <Link to="/register" onClick={closeMobileMenu}>
                   <Button
-                    size="sm"
-                    data-testid="signup-button"
-                    className="bg-accent hover:bg-accent/90 text-white font-semibold h-10 px-6"
+                    className="w-full bg-accent hover:bg-accent/90 text-white font-semibold h-12"
                   >
                     {t('nav.signup', language)}
                   </Button>
                 </Link>
-              </>
+              </div>
             )}
           </div>
         </div>
-      </div>
+      )}
       
       {/* Bottom accent line */}
-      <div className="h-1 bg-accent/30"></div>
+      <div className="h-0.5 sm:h-1 bg-accent/30"></div>
     </header>
   );
 };
