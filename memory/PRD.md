@@ -19,6 +19,7 @@ A conversion-focused, responsive marketplace website for "Lightban Ads Network" 
 - **Backend**: FastAPI, Python
 - **Database**: MongoDB
 - **State Management**: Zustand
+- **Payments**: Paystack (Integrated)
 
 ---
 
@@ -26,12 +27,13 @@ A conversion-focused, responsive marketplace website for "Lightban Ads Network" 
 
 ### Core Pages
 - [x] Home Page - Hero section, featured categories
-- [x] Influencers Page - Grid listing of influencers
+- [x] Influencers Page - Grid listing of influencers (6 total)
 - [x] Influencer Detail Page - Profile with service packages
 - [x] Billboards Page - 3 categories (LED, Static, Lightbox)
-- [x] **LED Billboard Detail Page** - State selector with dynamic pricing for 13 Northern Nigerian locations
+- [x] LED Billboard Detail Page - State selector with dynamic pricing for 13 Northern Nigerian locations
 - [x] Kannywood Page - Movie/show placement opportunities
-- [x] Digital Ads Page - Digital marketing services
+- [x] Digital Ads Page - 6 platforms (Facebook, Instagram, TikTok, Snapchat, Google, WhatsApp)
+- [x] Digital Ad Detail Page - Real pricing packages for each platform
 - [x] Static pages: About, FAQ, Pricing, Contact, Terms, Privacy
 
 ### Features
@@ -39,25 +41,35 @@ A conversion-focused, responsive marketplace website for "Lightban Ads Network" 
 - [x] Shopping cart system (Zustand store)
 - [x] Complete booking flow: Browse -> Add to Cart -> Place Order
 - [x] Order placement with 5-minute countdown modal
+- [x] **Paystack Payment Integration** (LIVE - Test Mode)
+- [x] Payment callback handling
 - [x] User authentication (Register/Login)
 - [x] Responsive design
 
-### LED Billboard Locations & Pricing (March 2026)
-| Location | Monthly | Weekly | Daily | Hourly | Belt Buying | Per Impression |
-|----------|---------|--------|-------|--------|-------------|----------------|
-| Jos | ₦1,866,666 | ₦489,333 | ₦69,476 | ₦8,000 | ₦24,000 | ₦93 |
-| Katsina | ₦1,866,666 | ₦489,333 | ₦69,476 | ₦8,000 | ₦27,000 | ₦93 |
-| Minna | ₦1,866,666 | ₦489,333 | ₦69,476 | ₦8,000 | ₦27,000 | ₦93 |
-| Ilorin | ₦1,866,666 | ₦489,333 | ₦69,476 | ₦8,000 | ₦27,000 | ₦93 |
-| Yola | ₦1,866,666 | ₦489,333 | ₦69,476 | ₦8,000 | ₦27,000 | ₦93 |
-| Kano (Sabowar Kofa) | ₦1,866,666 | ₦489,333 | ₦69,476 | ₦8,000 | ₦27,000 | ₦93 |
-| **Kano (Airport)** | **₦2,283,333** | **₦577,917** | **₦89,565** | **₦9,200** | **₦33,761** | **₦116** |
-| Maiduguri | ₦1,866,666 | ₦489,333 | ₦69,476 | ₦8,000 | ₦27,000 | ₦93 |
-| Kaduna | ₦1,866,666 | ₦489,333 | ₦69,476 | ₦8,000 | ₦27,000 | ₦93 |
-| Sokoto | ₦1,866,666 | ₦489,333 | ₦69,476 | ₦8,000 | ₦27,000 | ₦93 |
-| Makurdi | ₦1,866,666 | ₦489,333 | ₦69,476 | ₦8,000 | ₦27,000 | ₦93 |
-| Owerri | ₦1,866,666 | ₦489,333 | ₦69,476 | ₦8,000 | ₦27,000 | ₦93 |
-| Calabar | ₦1,866,666 | ₦489,333 | ₦69,476 | ₦8,000 | ₦27,000 | ₦93 |
+### Influencers (6 Total)
+1. G_fresh - TikTok, 450K followers, Comedy & Entertainment
+2. Abis Fulani - Instagram, 320K followers, Lifestyle & Travel
+3. Baddoo - TikTok, 380K followers, Lifestyle & Fashion
+4. Maryamaaah_ - Instagram, 320K followers, Food & Cooking
+5. Meenal Ahmad - TikTok, 290K followers, Fashion & Culture
+6. Ibrahim Sani - Twitter, 180K followers, Technology & Innovation
+
+### Digital Ads Platforms
+1. Facebook Ads - Starting ₦50,000/month
+2. Instagram Ads - Starting ₦60,000/month
+3. TikTok Ads - Starting ₦75,000/month
+4. Snapchat Ads - Starting ₦55,000/month
+5. Google Ads - Starting ₦100,000/month
+6. WhatsApp Business Ads - Starting ₦45,000/month
+
+### Paystack Integration (March 2026)
+- **Status**: LIVE (Test Mode)
+- **Public Key**: pk_test_199f72eafd2703277b5d90d76ff6f7b2739686be
+- **Endpoints**:
+  - POST /api/payments/initialize - Initialize payment
+  - GET /api/payments/verify/{reference} - Verify payment
+  - POST /api/payments/webhook - Handle Paystack webhooks
+  - GET /api/payments/config - Get public key
 
 ---
 
@@ -89,7 +101,7 @@ A conversion-focused, responsive marketplace website for "Lightban Ads Network" 
 - [ ] Order tracking page
 
 ### P3 - Future/Backlog
-- [ ] Paystack payment integration (currently mocked)
+- [ ] Switch Paystack to Live Mode (requires business verification)
 - [ ] Termii SMS notifications
 - [ ] Hausa language localization
 - [ ] Comparison view for multiple listings
@@ -106,6 +118,8 @@ A conversion-focused, responsive marketplace website for "Lightban Ads Network" 
 - `GET /api/kannywood` - List Kannywood placements
 - `GET /api/digital-ads` - List digital ad services
 - `POST /api/orders` - Create new order
+- `POST /api/payments/initialize` - Initialize Paystack payment
+- `GET /api/payments/verify/:reference` - Verify payment
 - `POST /api/register` - User registration
 - `POST /api/token` - User login (JWT)
 
@@ -114,7 +128,6 @@ A conversion-focused, responsive marketplace website for "Lightban Ads Network" 
 ## Test Reports
 - `/app/test_reports/iteration_1.json` - Initial test run
 - `/app/test_reports/iteration_2.json` - Billboard feature tests (100% pass)
-- `/app/backend/tests/test_billboards.py` - Backend billboard tests
 
 ---
 

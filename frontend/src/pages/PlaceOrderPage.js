@@ -6,7 +6,7 @@ import api from '@/lib/api';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Loader2, Clock, CheckCircle, ArrowRight } from 'lucide-react';
+import { Loader2, Clock, CheckCircle, ArrowRight, CreditCard } from 'lucide-react';
 import { toast } from 'sonner';
 
 export const PlaceOrderPage = () => {
@@ -14,9 +14,11 @@ export const PlaceOrderPage = () => {
   const { user } = useAuthStore();
   const { items, getTotalAmount, clearCart } = useCartStore();
   const [showWaitingModal, setShowWaitingModal] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [countdown, setCountdown] = useState(300); // 5 minutes in seconds
   const [orderIds, setOrderIds] = useState([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isInitializingPayment, setIsInitializingPayment] = useState(false);
 
   useEffect(() => {
     if (!user || items.length === 0) {
@@ -71,33 +73,45 @@ export const PlaceOrderPage = () => {
     }
   };
 
-  const handleSkipToPayment = async () => {
-    // Proceed to payment without waiting
+  const handleSkipToPayment = () => {
+    // Show payment modal
     setShowWaitingModal(false);
-    await processPayment();
+    setShowPaymentModal(true);
   };
 
-  const processPayment = async () => {
+  const initializePaystackPayment = async () => {
+    setIsInitializingPayment(true);
+    
     try {
-      // Mock payment for all orders
-      const paymentPromises = orderIds.map((orderId) =>
-        api.post('/payments/mock-payment', null, { params: { order_id: orderId } })
-      );
+      // Get the first order (we'll process all orders in sequence)
+      const orderId = orderIds[0];
+      const callbackUrl = `${window.location.origin}/payment/callback`;
+      
+      const response = await api.post('/payments/initialize', {
+        order_id: orderId,
+        email: user.email,
+        callback_url: callbackUrl,
+      });
 
-      await Promise.all(paymentPromises);
-
-      toast.success('Payment successful! Orders confirmed.');
-      clearCart();
-      navigate('/dashboard');
+      if (response.data.status === 'success') {
+        // Redirect to Paystack payment page
+        window.location.href = response.data.authorization_url;
+      } else {
+        toast.error('Failed to initialize payment. Please try again.');
+        setIsInitializingPayment(false);
+      }
     } catch (error) {
-      toast.error('Payment failed. Please try again.');
+      console.error('Payment initialization error:', error);
+      toast.error('Failed to initialize payment. Please try again.');
+      setIsInitializingPayment(false);
     }
   };
 
   useEffect(() => {
     if (countdown === 0 && showWaitingModal) {
-      // Auto proceed to payment after countdown
-      processPayment();
+      // Auto show payment modal after countdown
+      setShowWaitingModal(false);
+      setShowPaymentModal(true);
     }
   }, [countdown, showWaitingModal]);
 
@@ -214,7 +228,7 @@ export const PlaceOrderPage = () => {
               </div>
               <div className="h-px w-8 bg-border"></div>
               <div className="flex items-center space-x-2 text-muted-foreground">
-                <Clock className="h-5 w-5" />
+                <CreditCard className="h-5 w-5" />
                 <span>Payment</span>
               </div>
             </div>
@@ -230,6 +244,68 @@ export const PlaceOrderPage = () => {
               >
                 Click me to make the payment before the advertiser accepts the request
               </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Payment Modal */}
+      <Dialog open={showPaymentModal} onOpenChange={() => {}}>
+        <DialogContent className="sm:max-w-2xl" hideClose>
+          <div className="text-center py-6 space-y-6">
+            {/* Payment Icon */}
+            <div className="relative mx-auto w-24 h-24">
+              <div className="relative bg-green-600 rounded-full w-24 h-24 flex items-center justify-center">
+                <CreditCard className="h-12 w-12 text-white" />
+              </div>
+            </div>
+
+            {/* Title */}
+            <div>
+              <h3 className="text-2xl font-bold text-foreground mb-2">Ready to Pay!</h3>
+              <p className="text-lg text-green-600 font-semibold">Complete your payment with Paystack</p>
+            </div>
+
+            {/* Amount */}
+            <div className="bg-gradient-to-br from-green-500/10 to-green-600/10 rounded-lg p-6">
+              <p className="text-sm text-muted-foreground mb-1">Total Amount</p>
+              <div className="text-4xl font-bold text-green-600" data-testid="payment-amount">
+                {formatPrice(grandTotal)}
+              </div>
+            </div>
+
+            {/* Payment Info */}
+            <div className="bg-muted/30 rounded-lg p-4">
+              <p className="text-sm text-foreground leading-relaxed">
+                You will be redirected to Paystack's secure payment page to complete your payment.
+                After successful payment, you'll be returned to confirm your order.
+              </p>
+            </div>
+
+            {/* Payment Button */}
+            <Button
+              onClick={initializePaystackPayment}
+              disabled={isInitializingPayment}
+              className="w-full bg-green-600 hover:bg-green-700 text-white font-bold h-14 text-lg"
+              data-testid="paystack-pay-button"
+            >
+              {isInitializingPayment ? (
+                <>
+                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                  Initializing Payment...
+                </>
+              ) : (
+                <>
+                  <CreditCard className="h-5 w-5 mr-2" />
+                  Pay with Paystack
+                </>
+              )}
+            </Button>
+
+            {/* Secure Badge */}
+            <div className="flex items-center justify-center space-x-2 text-xs text-muted-foreground">
+              <CheckCircle className="h-4 w-4 text-green-600" />
+              <span>Secured by Paystack - 256-bit SSL Encryption</span>
             </div>
           </div>
         </DialogContent>

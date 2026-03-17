@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, status
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -12,6 +12,9 @@ import uuid
 from datetime import datetime, timezone, timedelta
 import jwt
 from passlib.context import CryptContext
+import httpx
+import hmac
+import hashlib
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -28,6 +31,10 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 SECRET_KEY = os.environ.get('JWT_SECRET', 'your-secret-key-change-in-production')
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
+
+# Paystack settings
+PAYSTACK_SECRET_KEY = os.environ.get('PAYSTACK_SECRET_KEY')
+PAYSTACK_PUBLIC_KEY = os.environ.get('PAYSTACK_PUBLIC_KEY')
 
 security = HTTPBearer()
 
@@ -561,7 +568,167 @@ async def update_order(order_id: str, data: OrderUpdate, current_user: User = De
     
     return updated_order
 
-# Mock Payment Routes
+# Paystack Payment Models
+class PaymentInitialize(BaseModel):
+    order_id: str
+    email: str
+    callback_url: str
+
+class PaymentVerifyResponse(BaseModel):
+    status: str
+    message: str
+    order_id: Optional[str] = None
+    amount: Optional[float] = None
+
+# Paystack Payment Routes
+@api_router.post("/payments/initialize")
+async def initialize_payment(data: PaymentInitialize, current_user: User = Depends(get_current_user)):
+    """Initialize Paystack payment transaction"""
+    order = await db.orders.find_one({"id": data.order_id}, {"_id": 0})
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    
+    if order['advertiser_id'] != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to pay for this order")
+    
+    # Convert to kobo (smallest unit)
+    amount_kobo = int(order['total_amount'] * 100)
+    reference = f"lightban_{data.order_id}_{uuid.uuid4().hex[:8]}"
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                "https://api.paystack.co/transaction/initialize",
+                headers={
+                    "Authorization": f"Bearer {PAYSTACK_SECRET_KEY}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "email": data.email,
+                    "amount": amount_kobo,
+                    "reference": reference,
+                    "callback_url": data.callback_url,
+                    "metadata": {
+                        "order_id": data.order_id,
+                        "user_id": current_user.id,
+                        "custom_fields": [
+                            {
+                                "display_name": "Order ID",
+                                "variable_name": "order_id",
+                                "value": data.order_id
+                            }
+                        ]
+                    }
+                }
+            )
+            result = response.json()
+        
+        if result.get("status"):
+            # Store payment reference
+            await db.orders.update_one(
+                {"id": data.order_id},
+                {"$set": {
+                    "payment_reference": reference,
+                    "updated_at": datetime.now(timezone.utc).isoformat()
+                }}
+            )
+            
+            return {
+                "status": "success",
+                "authorization_url": result["data"]["authorization_url"],
+                "access_code": result["data"]["access_code"],
+                "reference": result["data"]["reference"]
+            }
+        
+        raise HTTPException(status_code=400, detail=result.get("message", "Payment initialization failed"))
+    
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=500, detail=f"Payment service error: {str(e)}")
+
+@api_router.get("/payments/verify/{reference}")
+async def verify_payment(reference: str, current_user: User = Depends(get_current_user)):
+    """Verify Paystack payment transaction"""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"https://api.paystack.co/transaction/verify/{reference}",
+                headers={"Authorization": f"Bearer {PAYSTACK_SECRET_KEY}"}
+            )
+            result = response.json()
+        
+        if result.get("status") and result["data"]["status"] == "success":
+            # Get order_id from reference or metadata
+            order_id = result["data"]["metadata"].get("order_id")
+            
+            if order_id:
+                # Update order payment status
+                await db.orders.update_one(
+                    {"id": order_id},
+                    {"$set": {
+                        "payment_status": "paid",
+                        "payment_reference": reference,
+                        "payment_verified_at": datetime.now(timezone.utc).isoformat(),
+                        "updated_at": datetime.now(timezone.utc).isoformat()
+                    }}
+                )
+            
+            return {
+                "status": "success",
+                "message": "Payment verified successfully",
+                "order_id": order_id,
+                "amount": result["data"]["amount"] / 100  # Convert from kobo
+            }
+        
+        return {
+            "status": "failed",
+            "message": result.get("message", "Payment verification failed")
+        }
+    
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=500, detail=f"Payment service error: {str(e)}")
+
+@api_router.post("/payments/webhook")
+async def paystack_webhook(request: Request):
+    """Handle Paystack webhook events"""
+    signature = request.headers.get("x-paystack-signature")
+    body = await request.body()
+    
+    # Verify signature
+    computed_signature = hmac.new(
+        PAYSTACK_SECRET_KEY.encode('utf-8'),
+        body,
+        hashlib.sha512
+    ).hexdigest()
+    
+    if not hmac.compare_digest(computed_signature, signature or ""):
+        raise HTTPException(status_code=401, detail="Invalid signature")
+    
+    event = await request.json()
+    
+    if event.get("event") == "charge.success":
+        reference = event["data"]["reference"]
+        order_id = event["data"]["metadata"].get("order_id")
+        
+        if order_id:
+            await db.orders.update_one(
+                {"id": order_id},
+                {"$set": {
+                    "payment_status": "paid",
+                    "payment_reference": reference,
+                    "payment_verified_at": datetime.now(timezone.utc).isoformat(),
+                    "updated_at": datetime.now(timezone.utc).isoformat()
+                }}
+            )
+            logger.info(f"Payment successful for order {order_id}")
+    
+    return {"status": "ok"}
+
+@api_router.get("/payments/config")
+async def get_payment_config():
+    """Get Paystack public key for frontend"""
+    return {"public_key": PAYSTACK_PUBLIC_KEY}
+
+# Mock Payment Routes (for testing)
 @api_router.post("/payments/mock-payment")
 async def mock_payment(order_id: str, current_user: User = Depends(get_current_user)):
     """Mock Paystack payment - simulates successful payment"""

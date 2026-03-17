@@ -15,7 +15,7 @@ const PLATFORM_DATA = {
     name: 'Facebook Ads',
     platform: 'Facebook',
     description: 'Reach over 2.9 billion monthly active users with targeted advertising. Perfect for brand awareness, lead generation, and driving sales.',
-    image_url: 'https://images.unsplash.com/photo-1611605698335-8b1569810432?w=800&h=400&fit=crop',
+    image_url: 'https://images.unsplash.com/photo-1662070479020-73f77887c87c?w=800&h=400&fit=crop',
     color: '#1877F2',
     stats: {
       monthly_users: '2.9 Billion',
@@ -101,7 +101,7 @@ const PLATFORM_DATA = {
     name: 'Instagram Ads',
     platform: 'Instagram',
     description: 'Visual-first advertising on the most engaging social platform. Leverage Stories, Reels, and Shopping features to drive results.',
-    image_url: 'https://images.unsplash.com/photo-1611162616305-c69b3fa7fbe0?w=800&h=400&fit=crop',
+    image_url: 'https://images.unsplash.com/photo-1689852501130-e89d9e54aa41?w=800&h=400&fit=crop',
     color: '#E4405F',
     stats: {
       monthly_users: '2 Billion',
@@ -186,7 +186,7 @@ const PLATFORM_DATA = {
     name: 'TikTok Ads',
     platform: 'TikTok',
     description: 'Capture Gen Z and millennial audiences with viral short-form video content. Highest organic reach potential among social platforms.',
-    image_url: 'https://images.unsplash.com/photo-1611162618071-b39a2ec055fb?w=800&h=400&fit=crop',
+    image_url: 'https://images.unsplash.com/photo-1620396748669-46bd3128ccce?w=800&h=400&fit=crop',
     color: '#000000',
     stats: {
       monthly_users: '1.5 Billion',
@@ -358,7 +358,7 @@ const PLATFORM_DATA = {
     name: 'Google Ads',
     platform: 'Google',
     description: 'Dominate search results, display network, and YouTube. Best for intent-based marketing when users are actively searching.',
-    image_url: 'https://images.unsplash.com/photo-1573804633927-bfcbcd909acd?w=800&h=400&fit=crop',
+    image_url: 'https://images.unsplash.com/photo-1628320281190-89b24da58b0f?w=800&h=400&fit=crop',
     color: '#4285F4',
     stats: {
       monthly_users: '8.5B searches/day',
@@ -447,7 +447,7 @@ const PLATFORM_DATA = {
     name: 'WhatsApp Business Ads',
     platform: 'WhatsApp',
     description: 'Direct customer communication through Click-to-WhatsApp ads. Perfect for customer service, lead generation, and direct sales.',
-    image_url: 'https://images.unsplash.com/photo-1633354931133-27ac1ee5d853?w=800&h=400&fit=crop',
+    image_url: 'https://images.unsplash.com/photo-1642724978500-c13b821afe04?w=800&h=400&fit=crop',
     color: '#25D366',
     stats: {
       monthly_users: '2 Billion',
