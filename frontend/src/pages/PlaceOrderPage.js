@@ -385,7 +385,7 @@ export const PlaceOrderPage = () => {
               <div>
                 <p className="text-xs text-muted-foreground">Office Address</p>
                 <p className="text-xs sm:text-sm font-medium text-foreground">Lightban Ads Network Office</p>
-                <p className="text-xs sm:text-sm text-muted-foreground">No. 15 Murtala Mohammed Way, Kano</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">No 671, Zoo Road, Inec Street, Kano</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Working Hours</p>
