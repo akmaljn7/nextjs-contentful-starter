@@ -592,6 +592,31 @@ async def update_order(order_id: str, data: OrderUpdate, current_user: User = De
     
     return updated_order
 
+class OrderStatusUpdate(BaseModel):
+    payment_status: Optional[str] = None
+    order_status: Optional[str] = None
+
+@api_router.put("/orders/{order_id}/status")
+async def update_order_status(order_id: str, data: OrderStatusUpdate, current_user: User = Depends(get_current_user)):
+    """Update order payment and order status"""
+    order = await db.orders.find_one({"id": order_id}, {"_id": 0})
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    
+    # Check if user owns this order
+    if order['advertiser_id'] != current_user.id and current_user.role != 'admin':
+        raise HTTPException(status_code=403, detail="Not authorized to update this order")
+    
+    update_data = {'updated_at': datetime.now(timezone.utc).isoformat()}
+    if data.payment_status:
+        update_data['payment_status'] = data.payment_status
+    if data.order_status:
+        update_data['order_status'] = data.order_status
+    
+    await db.orders.update_one({"id": order_id}, {"$set": update_data})
+    
+    return {"status": "success", "message": "Order status updated", "order_id": order_id}
+
 # Paystack Payment Models
 class PaymentInitialize(BaseModel):
     order_id: str

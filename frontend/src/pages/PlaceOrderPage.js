@@ -6,7 +6,7 @@ import api from '@/lib/api';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Loader2, Clock, CheckCircle, ArrowRight, CreditCard } from 'lucide-react';
+import { Loader2, Clock, CheckCircle, ArrowRight, CreditCard, Banknote, Building2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 export const PlaceOrderPage = () => {
@@ -14,7 +14,9 @@ export const PlaceOrderPage = () => {
   const { user } = useAuthStore();
   const { items, getTotalAmount, clearCart } = useCartStore();
   const [showWaitingModal, setShowWaitingModal] = useState(false);
+  const [showPaymentMethodModal, setShowPaymentMethodModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showCashConfirmModal, setShowCashConfirmModal] = useState(false);
   const [countdown, setCountdown] = useState(300); // 5 minutes in seconds
   const [orderIds, setOrderIds] = useState([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -74,9 +76,38 @@ export const PlaceOrderPage = () => {
   };
 
   const handleSkipToPayment = () => {
-    // Show payment modal
+    // Show payment method selection modal
     setShowWaitingModal(false);
+    setShowPaymentMethodModal(true);
+  };
+
+  const handleSelectOnlinePayment = () => {
+    setShowPaymentMethodModal(false);
     setShowPaymentModal(true);
+  };
+
+  const handleSelectCashPayment = () => {
+    setShowPaymentMethodModal(false);
+    setShowCashConfirmModal(true);
+  };
+
+  const handleConfirmCashPayment = async () => {
+    try {
+      // Update order status to awaiting cash payment
+      for (const orderId of orderIds) {
+        await api.put(`/orders/${orderId}/status`, {
+          payment_status: 'pending_cash',
+          order_status: 'awaiting_payment'
+        });
+      }
+      
+      clearCart();
+      toast.success('Order confirmed! Please visit our office to complete payment.');
+      setShowCashConfirmModal(false);
+      navigate('/dashboard');
+    } catch (error) {
+      toast.error('Failed to confirm order. Please try again.');
+    }
   };
 
   const initializePaystackPayment = async () => {
@@ -109,9 +140,9 @@ export const PlaceOrderPage = () => {
 
   useEffect(() => {
     if (countdown === 0 && showWaitingModal) {
-      // Auto show payment modal after countdown
+      // Auto show payment method selection after countdown
       setShowWaitingModal(false);
-      setShowPaymentModal(true);
+      setShowPaymentMethodModal(true);
     }
   }, [countdown, showWaitingModal]);
 
@@ -306,6 +337,118 @@ export const PlaceOrderPage = () => {
             <div className="flex items-center justify-center space-x-2 text-xs text-muted-foreground">
               <CheckCircle className="h-4 w-4 text-green-600" />
               <span>Secured by Paystack - 256-bit SSL Encryption</span>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Payment Method Selection Modal */}
+      <Dialog open={showPaymentMethodModal} onOpenChange={() => {}}>
+        <DialogContent className="sm:max-w-md" hideClose>
+          <div className="text-center py-4 space-y-5">
+            {/* Title */}
+            <div>
+              <h3 className="text-xl font-bold text-foreground mb-1">Choose Payment Method</h3>
+              <p className="text-sm text-muted-foreground">How would you like to pay?</p>
+            </div>
+
+            {/* Amount */}
+            <div className="bg-muted/30 rounded-lg p-4">
+              <p className="text-xs text-muted-foreground mb-1">Total Amount</p>
+              <p className="text-2xl font-bold text-primary">{formatPrice(grandTotal)}</p>
+            </div>
+
+            {/* Payment Options */}
+            <div className="space-y-3">
+              {/* Online Payment Option */}
+              <Button
+                onClick={handleSelectOnlinePayment}
+                className="w-full h-16 bg-green-600 hover:bg-green-700 text-white font-semibold flex items-center justify-start px-4"
+                data-testid="select-online-payment"
+              >
+                <div className="bg-white/20 rounded-full p-2 mr-4">
+                  <CreditCard className="h-6 w-6" />
+                </div>
+                <div className="text-left">
+                  <p className="font-bold">Pay Online</p>
+                  <p className="text-xs opacity-90">Instant payment via Paystack</p>
+                </div>
+              </Button>
+
+              {/* Cash Payment Option */}
+              <Button
+                onClick={handleSelectCashPayment}
+                variant="outline"
+                className="w-full h-16 border-2 border-accent text-accent hover:bg-accent/5 font-semibold flex items-center justify-start px-4"
+                data-testid="select-cash-payment"
+              >
+                <div className="bg-accent/10 rounded-full p-2 mr-4">
+                  <Building2 className="h-6 w-6" />
+                </div>
+                <div className="text-left">
+                  <p className="font-bold">Pay Cash at Office</p>
+                  <p className="text-xs opacity-70">Visit our office to pay</p>
+                </div>
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cash Payment Confirmation Modal */}
+      <Dialog open={showCashConfirmModal} onOpenChange={() => {}}>
+        <DialogContent className="sm:max-w-md" hideClose>
+          <div className="text-center py-4 space-y-5">
+            {/* Icon */}
+            <div className="relative mx-auto w-16 h-16">
+              <div className="relative bg-accent rounded-full w-16 h-16 flex items-center justify-center">
+                <Building2 className="h-8 w-8 text-white" />
+              </div>
+            </div>
+
+            {/* Title */}
+            <div>
+              <h3 className="text-xl font-bold text-foreground mb-1">Pay Cash at Our Office</h3>
+              <p className="text-sm text-muted-foreground">Your order will be reserved for 24 hours</p>
+            </div>
+
+            {/* Office Details */}
+            <div className="bg-muted/30 rounded-lg p-4 text-left space-y-2">
+              <div>
+                <p className="text-xs text-muted-foreground">Office Address</p>
+                <p className="text-sm font-medium text-foreground">Lightban Ads Network Office</p>
+                <p className="text-sm text-muted-foreground">No. 15 Murtala Mohammed Way, Kano</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Working Hours</p>
+                <p className="text-sm text-foreground">Monday - Saturday: 9:00 AM - 5:00 PM</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Amount to Pay</p>
+                <p className="text-lg font-bold text-primary">{formatPrice(grandTotal)}</p>
+              </div>
+            </div>
+
+            {/* Buttons */}
+            <div className="space-y-2">
+              <Button
+                onClick={handleConfirmCashPayment}
+                className="w-full bg-accent hover:bg-accent/90 text-white font-semibold"
+                data-testid="confirm-cash-payment"
+              >
+                <CheckCircle className="h-4 w-4 mr-2" />
+                Confirm Order
+              </Button>
+              <Button
+                onClick={() => {
+                  setShowCashConfirmModal(false);
+                  setShowPaymentMethodModal(true);
+                }}
+                variant="ghost"
+                className="w-full text-muted-foreground"
+              >
+                Back to Payment Options
+              </Button>
             </div>
           </div>
         </DialogContent>
