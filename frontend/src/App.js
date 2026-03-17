@@ -4,6 +4,7 @@ import { Toaster } from 'sonner';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
+import { ScrollToTop } from '@/components/ScrollToTop';
 
 // Pages
 import { HomePage } from '@/pages/HomePage';
@@ -32,6 +33,7 @@ function App() {
     <ThemeProvider>
       <div className="App min-h-screen flex flex-col">
         <BrowserRouter>
+          <ScrollToTop />
           <Header />
           <main className="flex-grow">
             <Routes>
