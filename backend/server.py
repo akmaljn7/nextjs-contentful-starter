@@ -509,6 +509,23 @@ async def get_digital_ad_services(platform: Optional[str] = None, status: str = 
     
     return services
 
+@api_router.get("/digital-ads/{platform_id}")
+async def get_digital_ad_by_id(platform_id: str):
+    """Get a single digital ad platform with its packages"""
+    # Try new digital_ads collection first (has packages)
+    digital_ad = await db.digital_ads.find_one({"id": platform_id}, {"_id": 0})
+    if digital_ad:
+        return digital_ad
+    
+    # Fallback to digital_ad_services collection
+    service = await db.digital_ad_services.find_one({"id": platform_id}, {"_id": 0})
+    if service:
+        if isinstance(service.get('created_at'), str):
+            service['created_at'] = datetime.fromisoformat(service['created_at'])
+        return service
+    
+    raise HTTPException(status_code=404, detail="Digital ad platform not found")
+
 # Kannywood Routes
 @api_router.post("/kannywood", response_model=KannywoodPlacement)
 async def create_kannywood_placement(data: KannywoodPlacementCreate, current_user: User = Depends(get_current_user)):
@@ -1449,12 +1466,9 @@ async def admin_update_influencer(
     update_data = {}
     for k, v in influencer.model_dump().items():
         if v is not None:
-            # For packages, only update if not empty (to preserve existing packages)
-            if k == 'packages':
-                if v and len(v) > 0:
-                    update_data[k] = v
-            else:
-                update_data[k] = v
+            # For packages, always update what's sent from admin (admin form is source of truth)
+            # The frontend should load existing packages and send the complete list
+            update_data[k] = v
     
     update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
     

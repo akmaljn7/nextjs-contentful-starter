@@ -1,161 +1,31 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useLanguageStore, useAuthStore, useCartStore } from '@/lib/store';
+import { useAuthStore, useCartStore } from '@/lib/store';
 import api from '@/lib/api';
 import { formatPrice } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CheckCircle, MapPin, Clock, Calendar, TrendingUp, ShoppingCart } from 'lucide-react';
+import { CheckCircle, MapPin, Clock, Calendar, TrendingUp, ShoppingCart, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
-// LED Billboard locations with pricing
-const LED_BILLBOARD_LOCATIONS = [
-  {
-    state: 'Jos',
-    monthly: 1866666,
-    weekly: 489333,
-    daily: 69476,
-    hourly: 8000,
-    beltBuying: 24000,
-    perImpression: 93,
-    city: 'Jos',
-    region: 'Plateau State'
-  },
-  {
-    state: 'Kastina',
-    monthly: 1866666,
-    weekly: 489333,
-    daily: 69476,
-    hourly: 8000,
-    beltBuying: 27000,
-    perImpression: 93,
-    city: 'Katsina',
-    region: 'Katsina State'
-  },
-  {
-    state: 'Minna',
-    monthly: 1866666,
-    weekly: 489333,
-    daily: 69476,
-    hourly: 8000,
-    beltBuying: 27000,
-    perImpression: 93,
-    city: 'Minna',
-    region: 'Niger State'
-  },
-  {
-    state: 'Ilorin',
-    monthly: 1866666,
-    weekly: 489333,
-    daily: 69476,
-    hourly: 8000,
-    beltBuying: 27000,
-    perImpression: 93,
-    city: 'Ilorin',
-    region: 'Kwara State'
-  },
-  {
-    state: 'Yola',
-    monthly: 1866666,
-    weekly: 489333,
-    daily: 69476,
-    hourly: 8000,
-    beltBuying: 27000,
-    perImpression: 93,
-    city: 'Yola',
-    region: 'Adamawa State'
-  },
-  {
-    state: 'Kano (Sabowar Kofa)',
-    monthly: 1866666,
-    weekly: 489333,
-    daily: 69476,
-    hourly: 8000,
-    beltBuying: 27000,
-    perImpression: 93,
-    city: 'Kano',
-    region: 'Kano State - Sabowar Kofa'
-  },
-  {
-    state: 'Kano (Airport)',
-    monthly: 2283333,
-    weekly: 577917,
-    daily: 89565,
-    hourly: 9200,
-    beltBuying: 33761,
-    perImpression: 116,
-    city: 'Kano',
-    region: 'Kano State - Airport Road'
-  },
-  {
-    state: 'Maiduguri',
-    monthly: 1866666,
-    weekly: 489333,
-    daily: 69476,
-    hourly: 8000,
-    beltBuying: 27000,
-    perImpression: 93,
-    city: 'Maiduguri',
-    region: 'Borno State'
-  },
-  {
-    state: 'Kaduna',
-    monthly: 1866666,
-    weekly: 489333,
-    daily: 69476,
-    hourly: 8000,
-    beltBuying: 27000,
-    perImpression: 93,
-    city: 'Kaduna',
-    region: 'Kaduna State'
-  },
-  {
-    state: 'Sokoto',
-    monthly: 1866666,
-    weekly: 489333,
-    daily: 69476,
-    hourly: 8000,
-    beltBuying: 27000,
-    perImpression: 93,
-    city: 'Sokoto',
-    region: 'Sokoto State'
-  },
-  {
-    state: 'Makurdi',
-    monthly: 1866666,
-    weekly: 489333,
-    daily: 69476,
-    hourly: 8000,
-    beltBuying: 27000,
-    perImpression: 93,
-    city: 'Makurdi',
-    region: 'Benue State'
-  },
-  {
-    state: 'Owerri',
-    monthly: 1866666,
-    weekly: 489333,
-    daily: 69476,
-    hourly: 8000,
-    beltBuying: 27000,
-    perImpression: 93,
-    city: 'Owerri',
-    region: 'Imo State'
-  },
-  {
-    state: 'Calabar',
-    monthly: 1866666,
-    weekly: 489333,
-    daily: 69476,
-    hourly: 8000,
-    beltBuying: 27000,
-    perImpression: 93,
-    city: 'Calabar',
-    region: 'Cross River State'
-  },
-];
+// Default LED Billboard locations with pricing (fallback)
+const DEFAULT_LED_LOCATIONS = {
+  'Jos': { monthly: 1866666, weekly: 489333, daily: 69476, hourly: 8000, belt_buying: 24000, per_impression: 93, region: 'Plateau State' },
+  'Kastina': { monthly: 1866666, weekly: 489333, daily: 69476, hourly: 8000, belt_buying: 27000, per_impression: 93, region: 'Katsina State' },
+  'Minna': { monthly: 1866666, weekly: 489333, daily: 69476, hourly: 8000, belt_buying: 27000, per_impression: 93, region: 'Niger State' },
+  'Ilorin': { monthly: 1866666, weekly: 489333, daily: 69476, hourly: 8000, belt_buying: 27000, per_impression: 93, region: 'Kwara State' },
+  'Yola': { monthly: 1866666, weekly: 489333, daily: 69476, hourly: 8000, belt_buying: 27000, per_impression: 93, region: 'Adamawa State' },
+  'Kano (Sabowar Kofa)': { monthly: 1866666, weekly: 489333, daily: 69476, hourly: 8000, belt_buying: 27000, per_impression: 93, region: 'Kano State - Sabowar Kofa' },
+  'Kano (Airport)': { monthly: 2283333, weekly: 577917, daily: 89565, hourly: 9200, belt_buying: 33761, per_impression: 116, region: 'Kano State - Airport Road' },
+  'Maiduguri': { monthly: 1866666, weekly: 489333, daily: 69476, hourly: 8000, belt_buying: 27000, per_impression: 93, region: 'Borno State' },
+  'Kaduna': { monthly: 1866666, weekly: 489333, daily: 69476, hourly: 8000, belt_buying: 27000, per_impression: 93, region: 'Kaduna State' },
+  'Sokoto': { monthly: 1866666, weekly: 489333, daily: 69476, hourly: 8000, belt_buying: 27000, per_impression: 93, region: 'Sokoto State' },
+  'Makurdi': { monthly: 1866666, weekly: 489333, daily: 69476, hourly: 8000, belt_buying: 27000, per_impression: 93, region: 'Benue State' },
+  'Owerri': { monthly: 1866666, weekly: 489333, daily: 69476, hourly: 8000, belt_buying: 27000, per_impression: 93, region: 'Imo State' },
+  'Calabar': { monthly: 1866666, weekly: 489333, daily: 69476, hourly: 8000, belt_buying: 27000, per_impression: 93, region: 'Cross River State' },
+};
 
 export const BillboardDetailPage = () => {
   const { id } = useParams();
@@ -166,6 +36,7 @@ export const BillboardDetailPage = () => {
   const [selectedLocation, setSelectedLocation] = useState('');
   const [loading, setLoading] = useState(true);
   const [addedPackages, setAddedPackages] = useState({});
+  const [locationPricing, setLocationPricing] = useState({});
 
   useEffect(() => {
     fetchBillboard();
@@ -174,9 +45,22 @@ export const BillboardDetailPage = () => {
   const fetchBillboard = async () => {
     try {
       const response = await api.get(`/billboards/${id}`);
-      setBillboard(response.data);
+      const data = response.data;
+      setBillboard(data);
+      
+      // Use pricing_by_state from API if available, otherwise use defaults for LED billboards
+      const isLED = (data.billboard_type || data.type || '').toLowerCase().includes('led');
+      const pricing = data.pricing_by_state && Object.keys(data.pricing_by_state).length > 0
+        ? data.pricing_by_state
+        : (isLED ? DEFAULT_LED_LOCATIONS : {});
+      
+      setLocationPricing(pricing);
+      
       // Set default location to first one
-      setSelectedLocation(LED_BILLBOARD_LOCATIONS[0].state);
+      const firstLocation = Object.keys(pricing)[0];
+      if (firstLocation) {
+        setSelectedLocation(firstLocation);
+      }
     } catch (error) {
       toast.error('Failed to load billboard details');
       navigate('/billboards');
@@ -186,11 +70,28 @@ export const BillboardDetailPage = () => {
   };
 
   const getLocationData = () => {
-    return LED_BILLBOARD_LOCATIONS.find(loc => loc.state === selectedLocation) || LED_BILLBOARD_LOCATIONS[0];
+    return locationPricing[selectedLocation] || Object.values(locationPricing)[0] || {};
   };
 
   const getPackages = () => {
     const locationData = getLocationData();
+    
+    if (!locationData.monthly) {
+      // If no pricing data, show basic package from billboard price
+      return [{
+        id: 'basic',
+        title: 'Billboard Advertising',
+        description: 'Book this billboard for your campaign',
+        price: billboard?.price_monthly || billboard?.price || 0,
+        duration: 'Contact for details',
+        deliverables: [
+          'Billboard placement at selected location',
+          'Professional installation',
+          'Campaign duration as agreed',
+          'Performance tracking',
+        ],
+      }];
+    }
     
     return [
       {
@@ -253,7 +154,7 @@ export const BillboardDetailPage = () => {
         id: 'belt-buying',
         title: '5 Hours Belt Buying',
         description: 'Premium time slots: Morning, Afternoon, or Evening (5 hours each)',
-        price: locationData.beltBuying,
+        price: locationData.belt_buying,
         duration: '5 Hours (Select Time Belt)',
         deliverables: [
           'Morning (6 AM - 11 AM) OR',
@@ -268,7 +169,7 @@ export const BillboardDetailPage = () => {
         id: 'per-impression',
         title: 'Per Impression (CPM)',
         description: 'Pay per thousand impressions - minimum 200 impressions',
-        price: locationData.perImpression,
+        price: locationData.per_impression,
         duration: 'Per 1,000 Impressions',
         deliverables: [
           'Cost per 1,000 views',
@@ -276,7 +177,7 @@ export const BillboardDetailPage = () => {
           'Real-time tracking',
           'Performance analytics',
           'Flexible scheduling',
-          'Starting at ' + formatPrice(locationData.perImpression * 200)
+          'Starting at ' + formatPrice((locationData.per_impression || 93) * 200)
         ],
       },
     ];
@@ -289,7 +190,7 @@ export const BillboardDetailPage = () => {
       return;
     }
 
-    if (!selectedLocation) {
+    if (!selectedLocation && Object.keys(locationPricing).length > 0) {
       toast.error('Please select a location');
       return;
     }
@@ -340,10 +241,14 @@ export const BillboardDetailPage = () => {
       }
     }, 800);
 
+    const billboardName = selectedLocation 
+      ? `${billboard.billboard_type || billboard.type || 'Billboard'} - ${selectedLocation}`
+      : billboard.location_name || billboard.name;
+
     addItem({
       influencerId: billboard.id,
-      influencerName: `LED Billboard - ${selectedLocation}`,
-      influencerHandle: locationData.region,
+      influencerName: billboardName,
+      influencerHandle: locationData.region || billboard.city || billboard.location || '',
       influencerImage: billboard.image_url,
       packageId: `${billboard.id}-${pkg.id}`,
       packageTitle: pkg.title,
@@ -373,7 +278,7 @@ export const BillboardDetailPage = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <p className="text-muted-foreground">Loading...</p>
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -388,6 +293,7 @@ export const BillboardDetailPage = () => {
 
   const packages = getPackages();
   const locationData = getLocationData();
+  const hasMultipleLocations = Object.keys(locationPricing).length > 1;
 
   return (
     <div className="min-h-screen bg-background" data-testid="billboard-detail-page">
@@ -402,49 +308,51 @@ export const BillboardDetailPage = () => {
               {billboard.image_url && (
                 <img
                   src={billboard.image_url}
-                  alt={billboard.location_name}
+                  alt={billboard.location_name || billboard.name}
                   className="w-full h-64 object-cover"
                 />
               )}
             </div>
 
-            <Badge className="bg-accent text-white mb-4">{billboard.billboard_type}</Badge>
-            <h1 className="text-4xl font-bold text-foreground mb-2">{billboard.location_name}</h1>
+            <Badge className="bg-accent text-white mb-4">{billboard.billboard_type || billboard.type}</Badge>
+            <h1 className="text-4xl font-bold text-foreground mb-2">{billboard.location_name || billboard.name}</h1>
             <p className="text-muted-foreground max-w-2xl mb-6">{billboard.description}</p>
 
-            {/* Location Selector */}
-            <div className="w-full max-w-md mb-6">
-              <label className="block text-sm font-semibold text-foreground mb-2">
-                <MapPin className="inline h-4 w-4 mr-1" />
-                Select Location/State
-              </label>
-              <Select value={selectedLocation} onValueChange={setSelectedLocation}>
-                <SelectTrigger className="w-full h-12 text-lg border-2" data-testid="location-selector">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {LED_BILLBOARD_LOCATIONS.map((location) => (
-                    <SelectItem key={location.state} value={location.state}>
-                      {location.state} - {location.region}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {/* Location Selector - only show if multiple locations */}
+            {hasMultipleLocations && (
+              <div className="w-full max-w-md mb-6">
+                <label className="block text-sm font-semibold text-foreground mb-2">
+                  <MapPin className="inline h-4 w-4 mr-1" />
+                  Select Location/State
+                </label>
+                <Select value={selectedLocation} onValueChange={setSelectedLocation}>
+                  <SelectTrigger className="w-full h-12 text-lg border-2" data-testid="location-selector">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(locationPricing).map(([state, data]) => (
+                      <SelectItem key={state} value={state}>
+                        {state} - {data.region || state}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             {/* Location Info */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <Card className="border-2">
                 <CardContent className="p-4 text-center">
                   <MapPin className="h-6 w-6 mx-auto mb-2 text-primary" />
-                  <p className="text-sm font-bold text-foreground">{locationData.city}</p>
-                  <p className="text-xs text-muted-foreground">City</p>
+                  <p className="text-sm font-bold text-foreground">{selectedLocation || billboard.city || 'Multiple'}</p>
+                  <p className="text-xs text-muted-foreground">Location</p>
                 </CardContent>
               </Card>
               <Card className="border-2">
                 <CardContent className="p-4 text-center">
                   <TrendingUp className="h-6 w-6 mx-auto mb-2 text-accent" />
-                  <p className="text-sm font-bold text-foreground">{locationData.perImpression}</p>
+                  <p className="text-sm font-bold text-foreground">{locationData.per_impression || 'N/A'}</p>
                   <p className="text-xs text-muted-foreground">Per 1K Views</p>
                 </CardContent>
               </Card>
@@ -458,8 +366,8 @@ export const BillboardDetailPage = () => {
               <Card className="border-2">
                 <CardContent className="p-4 text-center">
                   <CheckCircle className="h-6 w-6 mx-auto mb-2 text-primary" />
-                  <p className="text-sm font-bold text-foreground">Verified</p>
-                  <p className="text-xs text-muted-foreground">Location</p>
+                  <p className="text-sm font-bold text-foreground">{billboard.verified ? 'Verified' : 'Available'}</p>
+                  <p className="text-xs text-muted-foreground">Status</p>
                 </CardContent>
               </Card>
             </div>
@@ -472,7 +380,7 @@ export const BillboardDetailPage = () => {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-foreground mb-3">
-              Advertising Packages for {selectedLocation}
+              Advertising Packages {selectedLocation ? `for ${selectedLocation}` : ''}
             </h2>
             <p className="text-lg text-muted-foreground">Choose the perfect duration for your campaign</p>
           </div>
