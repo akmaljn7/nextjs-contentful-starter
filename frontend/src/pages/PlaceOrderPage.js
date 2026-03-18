@@ -220,71 +220,69 @@ export const PlaceOrderPage = () => {
 
       {/* Waiting Modal with Countdown */}
       <Dialog open={showWaitingModal} onOpenChange={() => {}}>
-        <DialogContent className="sm:max-w-lg max-w-[95vw] mx-auto" hideClose>
-          <div className="text-center py-4 sm:py-6 space-y-4 sm:space-y-6">
+        <DialogContent className="sm:max-w-md max-w-[92vw] mx-auto p-4 sm:p-6" hideClose>
+          <div className="text-center py-2 sm:py-4 space-y-3 sm:space-y-5">
             {/* Animated Icon */}
-            <div className="relative mx-auto w-16 h-16 sm:w-24 sm:h-24">
+            <div className="relative mx-auto w-12 h-12 sm:w-20 sm:h-20">
               <div className="absolute inset-0 bg-accent/20 rounded-full animate-ping"></div>
-              <div className="relative bg-accent rounded-full w-16 h-16 sm:w-24 sm:h-24 flex items-center justify-center">
-                <Clock className="h-8 w-8 sm:h-12 sm:w-12 text-white animate-pulse" />
+              <div className="relative bg-accent rounded-full w-12 h-12 sm:w-20 sm:h-20 flex items-center justify-center">
+                <Clock className="h-6 w-6 sm:h-10 sm:w-10 text-white animate-pulse" />
               </div>
             </div>
 
             {/* Title */}
             <div>
-              <h3 className="text-lg sm:text-2xl font-bold text-foreground mb-1 sm:mb-2">Order Placed Successfully!</h3>
-              <p className="text-sm sm:text-lg text-accent font-semibold">Contacting Advertiser...</p>
+              <h3 className="text-base sm:text-xl font-bold text-foreground mb-0.5 sm:mb-1">Order Placed Successfully!</h3>
+              <p className="text-xs sm:text-base text-accent font-semibold">Contacting Advertiser...</p>
             </div>
 
             {/* Countdown Timer */}
-            <div className="bg-gradient-to-br from-primary/5 to-accent/5 rounded-lg p-4 sm:p-6">
-              <div className="text-4xl sm:text-5xl font-bold text-primary mb-1 sm:mb-2" data-testid="countdown-timer">
+            <div className="bg-gradient-to-br from-primary/5 to-accent/5 rounded-lg p-3 sm:p-5">
+              <div className="text-3xl sm:text-5xl font-bold text-primary mb-0.5 sm:mb-1" data-testid="countdown-timer">
                 {formatCountdown(countdown)}
               </div>
-              <p className="text-xs sm:text-sm text-muted-foreground">Time remaining</p>
+              <p className="text-[10px] sm:text-sm text-muted-foreground">Time remaining</p>
             </div>
 
-            {/* Message */}
-            <div className="bg-muted/30 rounded-lg p-3 sm:p-4">
-              <p className="text-xs sm:text-sm text-foreground leading-relaxed">
-                Wait a moment as we are contacting the advertiser to accept your request before making the payment.
-                The advertiser would accept the request within 5 minutes.
+            {/* Message - Hidden on very small screens, shown condensed */}
+            <div className="bg-muted/30 rounded-lg p-2 sm:p-3">
+              <p className="text-[10px] sm:text-xs text-foreground leading-relaxed">
+                We're contacting the advertiser to accept your request. They will respond within 5 minutes.
               </p>
             </div>
 
-            {/* Progress Steps - Stacked on mobile */}
-            <div className="flex flex-col sm:flex-row items-center justify-center space-y-2 sm:space-y-0 sm:space-x-4 text-xs sm:text-sm">
-              <div className="flex items-center space-x-2 text-green-600">
-                <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5" />
-                <span>Order Placed</span>
+            {/* Progress Steps - Horizontal on mobile too, just smaller */}
+            <div className="flex items-center justify-center space-x-2 sm:space-x-4 text-[10px] sm:text-xs">
+              <div className="flex items-center space-x-1 text-green-600">
+                <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span>Placed</span>
               </div>
-              <div className="hidden sm:block h-px w-8 bg-border"></div>
-              <div className="flex items-center space-x-2 text-accent">
-                <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
-                <span>Awaiting Acceptance</span>
+              <div className="h-px w-4 sm:w-6 bg-border"></div>
+              <div className="flex items-center space-x-1 text-accent">
+                <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
+                <span>Waiting</span>
               </div>
-              <div className="hidden sm:block h-px w-8 bg-border"></div>
-              <div className="flex items-center space-x-2 text-muted-foreground">
-                <CreditCard className="h-4 w-4 sm:h-5 sm:w-5" />
+              <div className="h-px w-4 sm:w-6 bg-border"></div>
+              <div className="flex items-center space-x-1 text-muted-foreground">
+                <CreditCard className="h-3 w-3 sm:h-4 sm:w-4" />
                 <span>Payment</span>
               </div>
             </div>
 
             {/* Skip Button */}
-            <div className="pt-3 sm:pt-4 border-t space-y-2 sm:space-y-3">
-              <p className="text-xs text-muted-foreground">Don't want to wait?</p>
+            <div className="pt-2 sm:pt-3 border-t space-y-2">
               <Button
                 onClick={handleSkipToPayment}
                 variant="outline"
-                className="w-full border-accent text-accent hover:bg-accent/5 font-semibold text-xs sm:text-sm py-2 sm:py-3"
+                className="w-full border-accent text-accent hover:bg-accent/5 font-semibold text-[10px] sm:text-xs h-9 sm:h-10"
                 data-testid="skip-to-payment-button"
               >
-                Click me to make the payment before the advertiser accepts the request
+                Pay now without waiting
               </Button>
               <Button
                 onClick={handleCancelOrder}
                 variant="ghost"
-                className="w-full text-muted-foreground hover:text-red-600"
+                className="w-full text-muted-foreground hover:text-red-600 text-[10px] sm:text-xs h-8 sm:h-9"
                 data-testid="cancel-order-button"
               >
                 Cancel Order
