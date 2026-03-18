@@ -32,8 +32,22 @@ export const InfluencerDetailPage = () => {
       const influencerData = response.data;
       setInfluencer(influencerData);
       
-      // Set packages based on influencer
-      setPackages(getPackagesForInfluencer(influencerData));
+      // Use packages from API if available, otherwise fallback to hardcoded
+      if (influencerData.packages && influencerData.packages.length > 0) {
+        // Normalize package data from API
+        const apiPackages = influencerData.packages.map((pkg, index) => ({
+          id: pkg.id || `pkg-${index + 1}`,
+          title: pkg.title,
+          description: pkg.description,
+          price: pkg.price,
+          deliverables: pkg.deliverables || pkg.features || [pkg.description],
+          turnaround: pkg.delivery_time || pkg.turnaround || '3-5 days',
+        }));
+        setPackages(apiPackages);
+      } else {
+        // Fallback to hardcoded packages for existing influencers without API packages
+        setPackages(getPackagesForInfluencer(influencerData));
+      }
     } catch (error) {
       toast.error('Failed to load influencer details');
       navigate('/influencers');

@@ -258,16 +258,42 @@ export const KannywoodDetailPage = () => {
       const response = await api.get(`/kannywood/${id}`);
       const apiData = response.data;
       
-      // Merge with our package data
-      const packageData = KANNYWOOD_PACKAGES[id];
-      if (packageData) {
+      // Use API packages if available, otherwise fallback to hardcoded
+      if (apiData.packages && apiData.packages.length > 0) {
+        // Normalize API packages
+        const normalizedPackages = apiData.packages.map((pkg, index) => ({
+          id: pkg.id || `pkg-${index + 1}`,
+          title: pkg.title,
+          description: pkg.description,
+          price: pkg.price,
+          deliverables: pkg.deliverables || pkg.features || [pkg.description],
+          turnaround: pkg.delivery_time || pkg.turnaround || 'Film Release Date',
+          reach: pkg.reach || 'Wide audience',
+        }));
+        
         setProduction({
           ...apiData,
-          ...packageData,
-          image_url: packageData.posterUrl,
+          productionName: apiData.title,
+          productionType: apiData.genre || 'Feature Film',
+          director: apiData.director,
+          genre: apiData.genre,
+          releaseDate: apiData.release_date,
+          estimatedReach: parseInt(apiData.est_reach?.replace(/[^0-9]/g, '')) || 1000000,
+          posterUrl: apiData.image_url,
+          packages: normalizedPackages,
         });
       } else {
-        setProduction(apiData);
+        // Fallback to hardcoded packages for existing productions
+        const packageData = KANNYWOOD_PACKAGES[id];
+        if (packageData) {
+          setProduction({
+            ...apiData,
+            ...packageData,
+            image_url: packageData.posterUrl,
+          });
+        } else {
+          setProduction(apiData);
+        }
       }
     } catch (error) {
       toast.error('Production not found');

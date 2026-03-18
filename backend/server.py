@@ -108,6 +108,7 @@ class Influencer(BaseModel):
     response_time: str = "Within 24 hours"
     completion_rate: float = 100.0
     status: str = "pending"  # pending, approved, rejected
+    packages: Optional[List[dict]] = []
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class BillboardCreate(BaseModel):
@@ -185,6 +186,12 @@ class KannywoodPlacement(BaseModel):
     release_date: Optional[str] = None
     verified: bool = False
     status: str = "pending"
+    packages: Optional[List[dict]] = []
+    title: Optional[str] = None
+    director: Optional[str] = None
+    genre: Optional[str] = None
+    est_reach: Optional[str] = None
+    image_url: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 # Order Models
@@ -373,14 +380,11 @@ async def get_influencers(
     
     return influencers
 
-@api_router.get("/influencers/{influencer_id}", response_model=Influencer)
+@api_router.get("/influencers/{influencer_id}")
 async def get_influencer(influencer_id: str):
     influencer = await db.influencers.find_one({"id": influencer_id}, {"_id": 0})
     if not influencer:
         raise HTTPException(status_code=404, detail="Influencer not found")
-    
-    if isinstance(influencer['created_at'], str):
-        influencer['created_at'] = datetime.fromisoformat(influencer['created_at'])
     
     return influencer
 
@@ -518,23 +522,51 @@ async def create_kannywood_placement(data: KannywoodPlacementCreate, current_use
     await db.kannywood_placements.insert_one(doc)
     return placement
 
-@api_router.get("/kannywood", response_model=List[KannywoodPlacement])
+@api_router.get("/kannywood")
 async def get_kannywood_placements(status: str = "approved"):
+    # Get from both collections
     placements = await db.kannywood_placements.find({"status": status}, {"_id": 0}).to_list(100)
-    for p in placements:
-        if isinstance(p['created_at'], str):
-            p['created_at'] = datetime.fromisoformat(p['created_at'])
+    admin_placements = await db.kannywood.find({"status": status}, {"_id": 0}).to_list(100)
     
-    return placements
+    # Combine both
+    all_placements = placements + admin_placements
+    
+    # Normalize data for response
+    normalized = []
+    for p in all_placements:
+        normalized.append({
+            "id": p.get("id"),
+            "supplier_id": p.get("supplier_id", "admin"),
+            "production_name": p.get("production_name") or p.get("title", ""),
+            "title": p.get("title") or p.get("production_name", ""),
+            "placement_type": p.get("placement_type") or p.get("genre", "Feature Film"),
+            "genre": p.get("genre") or p.get("placement_type", ""),
+            "description": p.get("description", ""),
+            "estimated_reach": p.get("estimated_reach") or int(str(p.get("est_reach", "0")).replace(",", "").replace(" ", "") or 0),
+            "est_reach": p.get("est_reach") or str(p.get("estimated_reach", 0)),
+            "price": p.get("price", 0),
+            "release_date": p.get("release_date"),
+            "director": p.get("director"),
+            "image_url": p.get("image_url"),
+            "verified": p.get("verified", False),
+            "status": p.get("status", "approved"),
+            "packages": p.get("packages", []),
+            "created_at": p.get("created_at")
+        })
+    
+    return normalized
 
-@api_router.get("/kannywood/{placement_id}", response_model=KannywoodPlacement)
+@api_router.get("/kannywood/{placement_id}")
 async def get_kannywood_placement(placement_id: str):
+    # First check the kannywood_placements collection
     placement = await db.kannywood_placements.find_one({"id": placement_id}, {"_id": 0})
+    
+    # Also check the kannywood collection (admin-created)
+    if not placement:
+        placement = await db.kannywood.find_one({"id": placement_id}, {"_id": 0})
+    
     if not placement:
         raise HTTPException(status_code=404, detail="Kannywood placement not found")
-    
-    if isinstance(placement.get('created_at'), str):
-        placement['created_at'] = datetime.fromisoformat(placement['created_at'])
     
     return placement
 
