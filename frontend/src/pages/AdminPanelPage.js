@@ -166,11 +166,44 @@ export const AdminPanelPage = () => {
     setShowModal(true);
   };
 
-  const openEditModal = (type, item) => {
+  const openEditModal = async (type, item) => {
     setModalType(type);
     setModalMode('edit');
     setSelectedItem(item);
-    setFormData({ ...item });
+    
+    // For influencers and kannywood, fetch the full data with packages
+    if (type === 'influencer') {
+      try {
+        const response = await api.get(`/influencers/${item.id}`);
+        const fullData = response.data;
+        
+        // If API has packages, use them. Otherwise check if item already has packages
+        const packages = fullData.packages && fullData.packages.length > 0 
+          ? fullData.packages 
+          : (item.packages || []);
+        
+        setFormData({ ...fullData, packages });
+      } catch (error) {
+        // Fallback to item data if API fails
+        setFormData({ ...item, packages: item.packages || [] });
+      }
+    } else if (type === 'kannywood') {
+      try {
+        const response = await api.get(`/kannywood/${item.id}`);
+        const fullData = response.data;
+        
+        const packages = fullData.packages && fullData.packages.length > 0 
+          ? fullData.packages 
+          : (item.packages || []);
+        
+        setFormData({ ...fullData, packages });
+      } catch (error) {
+        setFormData({ ...item, packages: item.packages || [] });
+      }
+    } else {
+      setFormData({ ...item });
+    }
+    
     setShowModal(true);
   };
 

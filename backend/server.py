@@ -1445,7 +1445,17 @@ async def admin_update_influencer(
     if not existing:
         raise HTTPException(status_code=404, detail="Influencer not found")
     
-    update_data = {k: v for k, v in influencer.model_dump().items() if v is not None}
+    # Build update data, excluding None values
+    update_data = {}
+    for k, v in influencer.model_dump().items():
+        if v is not None:
+            # For packages, only update if not empty (to preserve existing packages)
+            if k == 'packages':
+                if v and len(v) > 0:
+                    update_data[k] = v
+            else:
+                update_data[k] = v
+    
     update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
     
     await db.influencers.update_one({"id": influencer_id}, {"$set": update_data})
