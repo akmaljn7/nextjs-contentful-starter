@@ -113,11 +113,12 @@ export const DashboardPage = () => {
     );
   };
 
-  // Calculate stats from orders
-  const pendingOrders = orders.filter(o => ['pending', 'accepted', 'in_progress', 'awaiting_payment'].includes(o.order_status)).length;
-  const completedOrders = orders.filter(o => o.order_status === 'completed').length;
-  const cancelledOrders = orders.filter(o => o.order_status === 'cancelled').length;
-  const totalSpent = orders.filter(o => o.payment_status === 'paid').reduce((sum, o) => sum + (o.total_amount || 0), 0);
+  // Use API stats if available, otherwise calculate from orders
+  const pendingOrders = stats?.pending_orders ?? orders.filter(o => ['pending', 'accepted', 'in_progress', 'awaiting_payment'].includes(o.order_status)).length;
+  const completedOrders = stats?.completed_orders ?? orders.filter(o => o.order_status === 'completed').length;
+  const cancelledOrders = stats?.cancelled_orders ?? orders.filter(o => o.order_status === 'cancelled').length;
+  const totalSpent = stats?.total_spent ?? orders.filter(o => o.payment_status === 'paid').reduce((sum, o) => sum + (o.total_amount || 0), 0);
+  const totalOrders = stats?.total_orders ?? orders.length;
 
   return (
     <div className="min-h-screen bg-background" data-testid="dashboard-page">
@@ -134,6 +135,15 @@ export const DashboardPage = () => {
               </p>
             </div>
             <div className="flex items-center gap-2">
+              {user.role === 'admin' && (
+                <Button
+                  onClick={() => navigate('/admin')}
+                  className="bg-accent hover:bg-accent/90 text-white h-9"
+                  size="sm"
+                >
+                  Admin Panel
+                </Button>
+              )}
               <Button
                 variant="outline"
                 size="sm"
@@ -163,7 +173,7 @@ export const DashboardPage = () => {
                       <Package className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
                     </div>
                   </div>
-                  <p className="text-2xl sm:text-3xl font-bold text-foreground">{orders.length}</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-foreground">{totalOrders}</p>
                   <p className="text-xs sm:text-sm text-muted-foreground">Total Orders</p>
                 </CardContent>
               </Card>

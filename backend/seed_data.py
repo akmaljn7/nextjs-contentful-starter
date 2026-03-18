@@ -3,12 +3,19 @@ from motor.motor_asyncio import AsyncIOMotorClient
 import os
 from datetime import datetime, timezone
 import sys
+import hashlib
+import secrets
 
 # Add backend to path
 sys.path.insert(0, '/app/backend')
 
 MONGO_URL = os.environ.get('MONGO_URL', 'mongodb://localhost:27017')
 DB_NAME = os.environ.get('DB_NAME', 'test_database')
+
+def hash_password(password: str) -> str:
+    salt = secrets.token_hex(16)
+    password_hash = hashlib.sha256(f"{password}{salt}".encode()).hexdigest()
+    return f"{salt}:{password_hash}"
 
 async def seed_data():
     client = AsyncIOMotorClient(MONGO_URL)
@@ -21,6 +28,23 @@ async def seed_data():
     await db.digital_ad_services.delete_many({})
     await db.kannywood_placements.delete_many({})
     
+    # Create admin user if not exists
+    print("Creating admin user...")
+    admin_exists = await db.users.find_one({"email": "admin@lightban.com"})
+    if not admin_exists:
+        admin_user = {
+            "id": "admin-1",
+            "name": "Lightban Admin",
+            "email": "admin@lightban.com",
+            "phone": "+234 800 000 0001",
+            "password_hash": hash_password("LightbanAdmin2024"),
+            "role": "admin",
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        await db.users.insert_one(admin_user)
+        print("Admin user created: admin@lightban.com / LightbanAdmin2024")
+    else:
+        print("Admin user already exists")
     # Seed Influencers
     print("Seeding influencers...")
     influencers = [

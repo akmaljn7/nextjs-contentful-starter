@@ -29,6 +29,7 @@ import { DigitalAdDetailPage } from '@/pages/DigitalAdDetailPage';
 import { PaymentCallbackPage } from '@/pages/PaymentCallbackPage';
 import { KannywoodDetailPage } from '@/pages/KannywoodDetailPage';
 import { ConsultationPage } from '@/pages/ConsultationPage';
+import { AdminPanelPage } from '@/pages/AdminPanelPage';
 
 function App() {
   return (
@@ -60,6 +61,7 @@ function App() {
               <Route path="/place-order" element={<PlaceOrderPage />} />
               <Route path="/payment/callback" element={<PaymentCallbackPage />} />
               <Route path="/consultation" element={<ConsultationPage />} />
+              <Route path="/admin" element={<AdminPanelPage />} />
               
               {/* Billboard detail route */}
               <Route path="/billboards/:id" element={<BillboardDetailPage />} />

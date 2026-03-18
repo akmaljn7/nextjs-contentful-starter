@@ -957,21 +957,51 @@ async def get_messages(order_id: str, current_user: User = Depends(get_current_u
 @api_router.get("/dashboard/stats")
 async def get_dashboard_stats(current_user: User = Depends(get_current_user)):
     if current_user.role == "advertiser":
-        total_orders = await db.orders.count_documents({"advertiser_id": current_user.id})
-        active_orders = await db.orders.count_documents({
-            "advertiser_id": current_user.id,
-            "order_status": {"$in": ["pending", "accepted", "in_progress", "proof_submitted"]}
-        })
-        total_spent = 0
-        orders = await db.orders.find({"advertiser_id": current_user.id, "payment_status": "paid"}).to_list(1000)
-        for order in orders:
-            total_spent += order.get('total_amount', 0)
+        # Get all orders for this user
+        all_orders = await db.orders.find({"advertiser_id": current_user.id}, {"_id": 0}).to_list(1000)
+        
+        total_orders = len(all_orders)
+        pending_orders = len([o for o in all_orders if o.get('order_status') in ['pending', 'accepted', 'in_progress', 'awaiting_payment']])
+        completed_orders = len([o for o in all_orders if o.get('order_status') == 'completed'])
+        cancelled_orders = len([o for o in all_orders if o.get('order_status') == 'cancelled'])
+        
+        # Total spent = sum of all paid orders
+        total_spent = sum(o.get('total_amount', 0) for o in all_orders if o.get('payment_status') == 'paid')
         
         return {
             "total_orders": total_orders,
-            "active_orders": active_orders,
-            "completed_orders": total_orders - active_orders,
+            "pending_orders": pending_orders,
+            "completed_orders": completed_orders,
+            "cancelled_orders": cancelled_orders,
+            "active_orders": pending_orders,  # For backward compatibility
             "total_spent": total_spent
+        }
+    
+    elif current_user.role == "admin":
+        # Admin sees all orders
+        all_orders = await db.orders.find({}, {"_id": 0}).to_list(1000)
+        all_consultations = await db.consultations.find({}, {"_id": 0}).to_list(1000)
+        
+        total_orders = len(all_orders)
+        pending_orders = len([o for o in all_orders if o.get('order_status') in ['pending', 'accepted', 'in_progress', 'awaiting_payment']])
+        completed_orders = len([o for o in all_orders if o.get('order_status') == 'completed'])
+        cancelled_orders = len([o for o in all_orders if o.get('order_status') == 'cancelled'])
+        total_revenue = sum(o.get('total_amount', 0) for o in all_orders if o.get('payment_status') == 'paid')
+        
+        total_consultations = len(all_consultations)
+        pending_consultations = len([c for c in all_consultations if c.get('status') == 'pending'])
+        
+        total_users = await db.users.count_documents({})
+        
+        return {
+            "total_orders": total_orders,
+            "pending_orders": pending_orders,
+            "completed_orders": completed_orders,
+            "cancelled_orders": cancelled_orders,
+            "total_revenue": total_revenue,
+            "total_consultations": total_consultations,
+            "pending_consultations": pending_consultations,
+            "total_users": total_users
         }
     
     elif current_user.role == "supplier":
@@ -1000,18 +1030,6 @@ async def get_dashboard_stats(current_user: User = Depends(get_current_user)):
             "total_orders": total_orders,
             "pending_orders": pending_orders,
             "total_earned": total_earned
-        }
-    
-    elif current_user.role == "admin":
-        total_users = await db.users.count_documents({})
-        pending_verifications = await db.influencers.count_documents({"status": "pending"})
-        pending_verifications += await db.billboards.count_documents({"status": "pending"})
-        total_orders = await db.orders.count_documents({})
-        
-        return {
-            "total_users": total_users,
-            "pending_verifications": pending_verifications,
-            "total_orders": total_orders
         }
     
     return {}
@@ -1061,6 +1079,88 @@ async def get_pending_listings(current_user: User = Depends(get_current_user)):
         "digital_ads": digital_ads,
         "kannywood": kannywood
     }
+
+# Admin Order Management
+@api_router.get("/admin/orders")
+async def get_all_orders_admin(current_user: User = Depends(get_current_user)):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    orders = await db.orders.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
+    
+    # Get user info for each order
+    for order in orders:
+        user = await db.users.find_one({"id": order.get("advertiser_id")}, {"_id": 0, "name": 1, "email": 1, "phone": 1})
+        order["user_info"] = user or {}
+    
+    return orders
+
+@api_router.put("/admin/orders/{order_id}/status")
+async def admin_update_order_status(
+    order_id: str,
+    order_status: str,
+    payment_status: Optional[str] = None,
+    current_user: User = Depends(get_current_user)
+):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    order = await db.orders.find_one({"id": order_id}, {"_id": 0})
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    
+    update_data = {
+        "order_status": order_status,
+        "updated_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    if payment_status:
+        update_data["payment_status"] = payment_status
+    
+    await db.orders.update_one({"id": order_id}, {"$set": update_data})
+    
+    return {"status": "success", "message": f"Order status updated to {order_status}"}
+
+# Admin Consultation Management
+@api_router.get("/admin/consultations")
+async def get_all_consultations_admin(current_user: User = Depends(get_current_user)):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    consultations = await db.consultations.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
+    
+    # Get user info for each consultation
+    for consultation in consultations:
+        user = await db.users.find_one({"id": consultation.get("user_id")}, {"_id": 0, "name": 1, "email": 1, "phone": 1})
+        consultation["user_info"] = user or {}
+    
+    return consultations
+
+@api_router.put("/admin/consultations/{consultation_id}/status")
+async def admin_update_consultation_status(
+    consultation_id: str,
+    status: str,
+    payment_status: Optional[str] = None,
+    current_user: User = Depends(get_current_user)
+):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    consultation = await db.consultations.find_one({"id": consultation_id}, {"_id": 0})
+    if not consultation:
+        raise HTTPException(status_code=404, detail="Consultation not found")
+    
+    update_data = {
+        "status": status,
+        "updated_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    if payment_status:
+        update_data["payment_status"] = payment_status
+    
+    await db.consultations.update_one({"id": consultation_id}, {"$set": update_data})
+    
+    return {"status": "success", "message": f"Consultation status updated to {status}"}
 
 # ============= CONSULTATION ROUTES =============
 
