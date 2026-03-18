@@ -171,7 +171,7 @@ export const AdminPanelPage = () => {
     setModalMode('edit');
     setSelectedItem(item);
     
-    // For influencers and kannywood, fetch the full data with packages
+    // For influencers and kannywood, fetch the full data with packages BEFORE showing modal
     if (type === 'influencer') {
       try {
         const response = await api.get(`/influencers/${item.id}`);
@@ -183,9 +183,11 @@ export const AdminPanelPage = () => {
           : (item.packages || []);
         
         setFormData({ ...fullData, packages });
+        setShowModal(true);  // Show modal AFTER data is loaded
       } catch (error) {
         // Fallback to item data if API fails
         setFormData({ ...item, packages: item.packages || [] });
+        setShowModal(true);
       }
     } else if (type === 'kannywood') {
       try {
@@ -197,14 +199,15 @@ export const AdminPanelPage = () => {
           : (item.packages || []);
         
         setFormData({ ...fullData, packages });
+        setShowModal(true);  // Show modal AFTER data is loaded
       } catch (error) {
         setFormData({ ...item, packages: item.packages || [] });
+        setShowModal(true);
       }
     } else {
       setFormData({ ...item });
+      setShowModal(true);
     }
-    
-    setShowModal(true);
   };
 
   const getDefaultFormData = (type) => {
