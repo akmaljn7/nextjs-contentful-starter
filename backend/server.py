@@ -622,6 +622,8 @@ class PaymentInitialize(BaseModel):
     order_id: str
     email: str
     callback_url: str
+    amount: Optional[float] = None  # Optional for direct amount (consultations)
+    metadata: Optional[dict] = None  # Optional metadata for consultations
 
 class PaymentVerifyResponse(BaseModel):
     status: str
@@ -632,67 +634,138 @@ class PaymentVerifyResponse(BaseModel):
 # Paystack Payment Routes
 @api_router.post("/payments/initialize")
 async def initialize_payment(data: PaymentInitialize, current_user: User = Depends(get_current_user)):
-    """Initialize Paystack payment transaction"""
-    order = await db.orders.find_one({"id": data.order_id}, {"_id": 0})
-    if not order:
-        raise HTTPException(status_code=404, detail="Order not found")
+    """Initialize Paystack payment transaction for orders or consultations"""
     
-    if order['advertiser_id'] != current_user.id:
-        raise HTTPException(status_code=403, detail="Not authorized to pay for this order")
+    # Check if this is a consultation payment
+    is_consultation = data.metadata and data.metadata.get('type') == 'consultation'
     
-    # Convert to kobo (smallest unit)
-    amount_kobo = int(order['total_amount'] * 100)
-    reference = f"lightban_{data.order_id}_{uuid.uuid4().hex[:8]}"
-    
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                "https://api.paystack.co/transaction/initialize",
-                headers={
-                    "Authorization": f"Bearer {PAYSTACK_SECRET_KEY}",
-                    "Content-Type": "application/json"
-                },
-                json={
-                    "email": data.email,
-                    "amount": amount_kobo,
-                    "reference": reference,
-                    "callback_url": data.callback_url,
-                    "metadata": {
-                        "order_id": data.order_id,
-                        "user_id": current_user.id,
-                        "custom_fields": [
-                            {
-                                "display_name": "Order ID",
-                                "variable_name": "order_id",
-                                "value": data.order_id
-                            }
-                        ]
+    if is_consultation:
+        # Handle consultation payment
+        consultation = await db.consultations.find_one({"id": data.order_id}, {"_id": 0})
+        if not consultation:
+            raise HTTPException(status_code=404, detail="Consultation not found")
+        
+        if consultation['user_id'] != current_user.id:
+            raise HTTPException(status_code=403, detail="Not authorized to pay for this consultation")
+        
+        amount = data.amount or consultation.get('price', 0)
+        amount_kobo = int(amount * 100)
+        reference = f"lightban_consult_{data.order_id}_{uuid.uuid4().hex[:8]}"
+        
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    "https://api.paystack.co/transaction/initialize",
+                    headers={
+                        "Authorization": f"Bearer {PAYSTACK_SECRET_KEY}",
+                        "Content-Type": "application/json"
+                    },
+                    json={
+                        "email": data.email,
+                        "amount": amount_kobo,
+                        "reference": reference,
+                        "callback_url": data.callback_url,
+                        "metadata": {
+                            "type": "consultation",
+                            "consultation_id": data.order_id,
+                            "user_id": current_user.id,
+                            "custom_fields": [
+                                {
+                                    "display_name": "Consultation ID",
+                                    "variable_name": "consultation_id",
+                                    "value": data.order_id
+                                }
+                            ]
+                        }
                     }
-                }
-            )
-            result = response.json()
-        
-        if result.get("status"):
-            # Store payment reference
-            await db.orders.update_one(
-                {"id": data.order_id},
-                {"$set": {
-                    "payment_reference": reference,
-                    "updated_at": datetime.now(timezone.utc).isoformat()
-                }}
-            )
+                )
+                result = response.json()
             
-            return {
-                "status": "success",
-                "authorization_url": result["data"]["authorization_url"],
-                "access_code": result["data"]["access_code"],
-                "reference": result["data"]["reference"]
-            }
+            if result.get("status"):
+                # Store payment reference
+                await db.consultations.update_one(
+                    {"id": data.order_id},
+                    {"$set": {
+                        "payment_reference": reference,
+                        "payment_status": "pending",
+                        "updated_at": datetime.now(timezone.utc).isoformat()
+                    }}
+                )
+                
+                return {
+                    "status": "success",
+                    "authorization_url": result["data"]["authorization_url"],
+                    "access_code": result["data"]["access_code"],
+                    "reference": result["data"]["reference"]
+                }
+            
+            raise HTTPException(status_code=400, detail=result.get("message", "Payment initialization failed"))
         
-        raise HTTPException(status_code=400, detail=result.get("message", "Payment initialization failed"))
+        except httpx.RequestError as e:
+            raise HTTPException(status_code=500, detail=f"Payment service error: {str(e)}")
     
-    except httpx.RequestError as e:
-        raise HTTPException(status_code=500, detail=f"Payment service error: {str(e)}")
+    else:
+        # Handle order payment (original logic)
+        order = await db.orders.find_one({"id": data.order_id}, {"_id": 0})
+        if not order:
+            raise HTTPException(status_code=404, detail="Order not found")
+        
+        if order['advertiser_id'] != current_user.id:
+            raise HTTPException(status_code=403, detail="Not authorized to pay for this order")
+        
+        # Convert to kobo (smallest unit)
+        amount_kobo = int(order['total_amount'] * 100)
+        reference = f"lightban_{data.order_id}_{uuid.uuid4().hex[:8]}"
+        
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    "https://api.paystack.co/transaction/initialize",
+                    headers={
+                        "Authorization": f"Bearer {PAYSTACK_SECRET_KEY}",
+                        "Content-Type": "application/json"
+                    },
+                    json={
+                        "email": data.email,
+                        "amount": amount_kobo,
+                        "reference": reference,
+                        "callback_url": data.callback_url,
+                        "metadata": {
+                            "order_id": data.order_id,
+                            "user_id": current_user.id,
+                            "custom_fields": [
+                                {
+                                    "display_name": "Order ID",
+                                    "variable_name": "order_id",
+                                    "value": data.order_id
+                                }
+                            ]
+                        }
+                    }
+                )
+                result = response.json()
+            
+            if result.get("status"):
+                # Store payment reference
+                await db.orders.update_one(
+                    {"id": data.order_id},
+                    {"$set": {
+                        "payment_reference": reference,
+                        "updated_at": datetime.now(timezone.utc).isoformat()
+                    }}
+                )
+                
+                return {
+                    "status": "success",
+                    "authorization_url": result["data"]["authorization_url"],
+                    "access_code": result["data"]["access_code"],
+                    "reference": result["data"]["reference"]
+                }
+            
+            raise HTTPException(status_code=400, detail=result.get("message", "Payment initialization failed"))
+        
+        except httpx.RequestError as e:
+            raise HTTPException(status_code=500, detail=f"Payment service error: {str(e)}")
 
 @api_router.get("/payments/verify/{reference}")
 async def verify_payment(reference: str, current_user: User = Depends(get_current_user)):
@@ -1075,6 +1148,36 @@ async def update_consultation_status(
         raise HTTPException(status_code=404, detail="Consultation not found")
     
     return {"status": "success", "message": f"Consultation status updated to {status}"}
+
+class ConsultationPaymentUpdate(BaseModel):
+    payment_status: str
+    payment_method: str
+
+@api_router.patch("/consultations/{consultation_id}/payment")
+async def update_consultation_payment(
+    consultation_id: str,
+    payment_update: ConsultationPaymentUpdate,
+    current_user: User = Depends(get_current_user)
+):
+    # Check if consultation exists and belongs to user
+    consultation = await db.consultations.find_one({"id": consultation_id})
+    
+    if not consultation:
+        raise HTTPException(status_code=404, detail="Consultation not found")
+    
+    if consultation["user_id"] != current_user.id and current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    result = await db.consultations.update_one(
+        {"id": consultation_id},
+        {"$set": {
+            "payment_status": payment_update.payment_status,
+            "payment_method": payment_update.payment_method,
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    return {"status": "success", "message": "Payment status updated"}
 
 # Health check
 @api_router.get("/")

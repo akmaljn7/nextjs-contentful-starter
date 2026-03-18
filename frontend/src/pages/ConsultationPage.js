@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { 
   CheckCircle, 
   Users, 
@@ -26,7 +27,11 @@ import {
   Mail,
   MapPin,
   Calendar,
-  Loader2
+  Loader2,
+  CreditCard,
+  Banknote,
+  PartyPopper,
+  X
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
@@ -111,6 +116,11 @@ export const ConsultationPage = () => {
   const [selectedPackage, setSelectedPackage] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [showPaymentMethodModal, setShowPaymentMethodModal] = useState(false);
+  const [showCashConfirmModal, setShowCashConfirmModal] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [isInitializingPayment, setIsInitializingPayment] = useState(false);
+  const [consultationId, setConsultationId] = useState(null);
   const [formData, setFormData] = useState({
     businessName: '',
     industry: '',
@@ -174,14 +184,78 @@ export const ConsultationPage = () => {
         contact_phone: formData.contactPhone,
       });
 
-      toast.success('Consultation request submitted! Our team will contact you within 24 hours.');
-      navigate('/dashboard');
+      // Store consultation ID and show payment method modal
+      setConsultationId(response.data.consultation.id);
+      setShowPaymentMethodModal(true);
     } catch (error) {
       console.error('Consultation submission error:', error);
       toast.error('Failed to submit request. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleSelectOnlinePayment = async () => {
+    setShowPaymentMethodModal(false);
+    setIsInitializingPayment(true);
+    
+    try {
+      const callbackUrl = `${window.location.origin}/payment/callback?type=consultation&id=${consultationId}`;
+      
+      const response = await api.post('/payments/initialize', {
+        order_id: consultationId,
+        email: user.email,
+        amount: selectedPackage.price,
+        callback_url: callbackUrl,
+        metadata: {
+          type: 'consultation',
+          consultation_id: consultationId,
+          package_title: selectedPackage.title
+        }
+      });
+
+      if (response.data.status === 'success') {
+        // Redirect to Paystack payment page
+        window.location.href = response.data.authorization_url;
+      } else {
+        toast.error('Failed to initialize payment. Please try again.');
+        setIsInitializingPayment(false);
+        setShowPaymentMethodModal(true);
+      }
+    } catch (error) {
+      console.error('Payment initialization error:', error);
+      toast.error('Failed to initialize payment. Please try again.');
+      setIsInitializingPayment(false);
+      setShowPaymentMethodModal(true);
+    }
+  };
+
+  const handleSelectCashPayment = () => {
+    setShowPaymentMethodModal(false);
+    setShowCashConfirmModal(true);
+  };
+
+  const handleConfirmCashPayment = async () => {
+    try {
+      // Update consultation status to pending cash payment
+      await api.patch(`/consultations/${consultationId}/payment`, {
+        payment_status: 'pending_cash',
+        payment_method: 'cash'
+      });
+      
+      setShowCashConfirmModal(false);
+      setShowSuccessModal(true);
+    } catch (error) {
+      console.error('Cash payment confirmation error:', error);
+      // Still show success since consultation is created
+      setShowCashConfirmModal(false);
+      setShowSuccessModal(true);
+    }
+  };
+
+  const handleCloseSuccess = () => {
+    setShowSuccessModal(false);
+    navigate('/dashboard');
   };
 
   return (
@@ -627,6 +701,180 @@ export const ConsultationPage = () => {
           </div>
         </div>
       </section>
+
+      {/* Payment Method Selection Modal */}
+      <Dialog open={showPaymentMethodModal} onOpenChange={() => {}}>
+        <DialogContent className="sm:max-w-md max-w-[92vw] mx-auto p-4 sm:p-6" hideClose>
+          <div className="text-center py-2 sm:py-4 space-y-4 sm:space-y-6">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-accent/10 rounded-full flex items-center justify-center mx-auto">
+              <CreditCard className="h-6 w-6 sm:h-8 sm:w-8 text-accent" />
+            </div>
+            
+            <div>
+              <h3 className="text-lg sm:text-xl font-bold text-foreground mb-1 sm:mb-2">Choose Payment Method</h3>
+              <p className="text-xs sm:text-sm text-muted-foreground">How would you like to pay for your consultation?</p>
+            </div>
+
+            <div className="bg-gradient-to-br from-primary/5 to-accent/5 rounded-lg p-3 sm:p-4">
+              <p className="text-xs sm:text-sm text-muted-foreground mb-1">{selectedPackage?.title}</p>
+              <p className="text-xl sm:text-2xl font-bold text-foreground">{selectedPackage && formatPrice(selectedPackage.price)}</p>
+            </div>
+
+            <div className="space-y-2 sm:space-y-3">
+              <Button
+                onClick={handleSelectOnlinePayment}
+                disabled={isInitializingPayment}
+                className="w-full bg-accent hover:bg-accent/90 text-white font-semibold h-11 sm:h-12 text-sm sm:text-base"
+                data-testid="pay-online-btn"
+              >
+                {isInitializingPayment ? (
+                  <>
+                    <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 mr-2 animate-spin" />
+                    Initializing...
+                  </>
+                ) : (
+                  <>
+                    <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+                    Pay Online (Paystack)
+                  </>
+                )}
+              </Button>
+              
+              <Button
+                onClick={handleSelectCashPayment}
+                variant="outline"
+                className="w-full border-2 font-semibold h-11 sm:h-12 text-sm sm:text-base"
+                data-testid="pay-cash-btn"
+              >
+                <Banknote className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+                Pay Cash at Office
+              </Button>
+            </div>
+
+            <Button
+              onClick={() => setShowPaymentMethodModal(false)}
+              variant="ghost"
+              className="text-muted-foreground text-xs sm:text-sm"
+            >
+              Cancel
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cash Payment Confirmation Modal */}
+      <Dialog open={showCashConfirmModal} onOpenChange={() => {}}>
+        <DialogContent className="sm:max-w-md max-w-[92vw] mx-auto p-4 sm:p-6" hideClose>
+          <div className="text-center py-2 sm:py-4 space-y-4 sm:space-y-6">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
+              <Building2 className="h-6 w-6 sm:h-8 sm:w-8 text-green-600" />
+            </div>
+            
+            <div>
+              <h3 className="text-lg sm:text-xl font-bold text-foreground mb-1 sm:mb-2">Pay at Our Office</h3>
+              <p className="text-xs sm:text-sm text-muted-foreground">Please visit our office to complete your payment</p>
+            </div>
+
+            <div className="bg-muted/50 rounded-lg p-3 sm:p-4 text-left">
+              <div className="flex items-start space-x-3">
+                <MapPin className="h-5 w-5 text-accent mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="font-semibold text-foreground text-sm sm:text-base">Lightban Technology</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">No 671, Zoo Road, Inec Street, Kano</p>
+                  <p className="text-xs text-muted-foreground mt-1">Monday - Saturday: 9:00 AM - 5:00 PM</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-accent/10 rounded-lg p-3 sm:p-4">
+              <p className="text-xs sm:text-sm text-muted-foreground mb-1">Amount to Pay</p>
+              <p className="text-xl sm:text-2xl font-bold text-foreground">{selectedPackage && formatPrice(selectedPackage.price)}</p>
+            </div>
+
+            <div className="space-y-2 sm:space-y-3">
+              <Button
+                onClick={handleConfirmCashPayment}
+                className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold h-11 sm:h-12 text-sm sm:text-base"
+                data-testid="confirm-cash-btn"
+              >
+                <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+                Confirm Booking
+              </Button>
+              
+              <Button
+                onClick={() => {
+                  setShowCashConfirmModal(false);
+                  setShowPaymentMethodModal(true);
+                }}
+                variant="ghost"
+                className="text-muted-foreground text-xs sm:text-sm"
+              >
+                Back to Payment Options
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Success Confirmation Modal */}
+      <Dialog open={showSuccessModal} onOpenChange={() => {}}>
+        <DialogContent className="sm:max-w-md max-w-[92vw] mx-auto p-4 sm:p-6" hideClose>
+          <div className="text-center py-4 sm:py-6 space-y-4 sm:space-y-6">
+            <div className="relative mx-auto w-16 h-16 sm:w-20 sm:h-20">
+              <div className="absolute inset-0 bg-green-500/20 rounded-full animate-ping"></div>
+              <div className="relative bg-green-500 rounded-full w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center">
+                <PartyPopper className="h-8 w-8 sm:h-10 sm:w-10 text-white" />
+              </div>
+            </div>
+            
+            <div>
+              <h3 className="text-xl sm:text-2xl font-bold text-foreground mb-2">Booking Confirmed!</h3>
+              <p className="text-sm sm:text-base text-muted-foreground">Your consultation has been successfully booked</p>
+            </div>
+
+            <div className="bg-gradient-to-br from-green-50 to-accent/5 rounded-lg p-4 sm:p-5 space-y-3">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Consultation Type</span>
+                <span className="font-semibold text-foreground">{selectedPackage?.title}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Business</span>
+                <span className="font-semibold text-foreground">{formData.businessName}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Amount</span>
+                <span className="font-bold text-green-600">{selectedPackage && formatPrice(selectedPackage.price)}</span>
+              </div>
+            </div>
+
+            <div className="bg-accent/10 rounded-lg p-3 sm:p-4">
+              <div className="flex items-center space-x-2 text-accent">
+                <Clock className="h-4 w-4 sm:h-5 sm:w-5" />
+                <p className="text-xs sm:text-sm font-medium">Our team will contact you within 24 hours to confirm your consultation schedule.</p>
+              </div>
+            </div>
+
+            <Button
+              onClick={handleCloseSuccess}
+              className="w-full bg-accent hover:bg-accent/90 text-white font-semibold h-11 sm:h-12 text-sm sm:text-base"
+              data-testid="close-success-btn"
+            >
+              Go to Dashboard
+              <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5 ml-2" />
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Loading Overlay for Payment Initialization */}
+      {isInitializingPayment && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 sm:p-8 text-center space-y-4">
+            <Loader2 className="h-10 w-10 sm:h-12 sm:w-12 text-accent animate-spin mx-auto" />
+            <p className="text-sm sm:text-base font-medium text-foreground">Redirecting to payment...</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

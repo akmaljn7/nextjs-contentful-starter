@@ -77,11 +77,16 @@ A conversion-focused, responsive marketplace website for "Lightban Ads Network" 
 - **In-Office Consultation**: ₦25,000 (1-2 hours)
 - **Online Consultation**: ₦15,000 (45-60 minutes)
 - **Form Fields**: Business Name, Industry, Business Stage, Description, Goals, Budget Range, Contact Info
+- **Payment Flow**: 
+  - Form submission → Payment method selection modal
+  - Pay Online → Redirects to Paystack gateway
+  - Pay Cash → Office location confirmation → Success modal
 - **Endpoints**:
   - POST /api/consultations - Create consultation request
   - GET /api/consultations - Get user's consultations
   - GET /api/consultations/:id - Get specific consultation
   - PATCH /api/consultations/:id/status - Update status (admin only)
+  - PATCH /api/consultations/:id/payment - Update payment status
 
 ---
 
