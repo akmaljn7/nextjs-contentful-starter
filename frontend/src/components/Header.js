@@ -77,6 +77,14 @@ export const Header = () => {
                 {t('nav.kannywood', language)}
               </Button>
             </Link>
+            <Link to="/consultation" data-testid="nav-consultation">
+              <Button 
+                variant="ghost" 
+                className="text-white hover:bg-accent hover:text-white font-medium h-10 px-4"
+              >
+                Consultation
+              </Button>
+            </Link>
           </nav>
 
           {/* Right Actions */}
@@ -223,6 +231,13 @@ export const Header = () => {
               className="block px-4 py-3 text-white hover:bg-accent rounded-lg font-medium"
             >
               {t('nav.kannywood', language)}
+            </Link>
+            <Link 
+              to="/consultation" 
+              onClick={closeMobileMenu}
+              className="block px-4 py-3 text-white hover:bg-accent rounded-lg font-medium"
+            >
+              Consultation
             </Link>
 
             {/* Divider */}

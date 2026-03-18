@@ -989,6 +989,93 @@ async def get_pending_listings(current_user: User = Depends(get_current_user)):
         "kannywood": kannywood
     }
 
+# ============= CONSULTATION ROUTES =============
+
+class ConsultationCreate(BaseModel):
+    user_id: str
+    consultation_type: str  # physical or online
+    package_title: str
+    price: float
+    business_name: str
+    industry: str
+    business_stage: Optional[str] = None
+    description: str
+    goals: Optional[str] = None
+    budget_range: Optional[str] = None
+    preferred_date: Optional[str] = None
+    preferred_time: Optional[str] = None
+    contact_name: str
+    contact_email: Optional[str] = None
+    contact_phone: str
+
+@api_router.post("/consultations")
+async def create_consultation(
+    consultation: ConsultationCreate,
+    current_user: User = Depends(get_current_user)
+):
+    consultation_data = consultation.model_dump()
+    consultation_data["id"] = str(uuid.uuid4())
+    consultation_data["status"] = "pending"
+    consultation_data["created_at"] = datetime.now(timezone.utc).isoformat()
+    
+    await db.consultations.insert_one(consultation_data)
+    
+    # Remove _id before returning
+    consultation_data.pop("_id", None)
+    
+    return {
+        "status": "success",
+        "message": "Consultation request submitted successfully",
+        "consultation": consultation_data
+    }
+
+@api_router.get("/consultations")
+async def get_user_consultations(current_user: User = Depends(get_current_user)):
+    consultations = await db.consultations.find(
+        {"user_id": current_user.id},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(50)
+    
+    return consultations
+
+@api_router.get("/consultations/{consultation_id}")
+async def get_consultation(
+    consultation_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    consultation = await db.consultations.find_one(
+        {"id": consultation_id},
+        {"_id": 0}
+    )
+    
+    if not consultation:
+        raise HTTPException(status_code=404, detail="Consultation not found")
+    
+    # Only allow owner or admin to view
+    if consultation["user_id"] != current_user.id and current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    return consultation
+
+@api_router.patch("/consultations/{consultation_id}/status")
+async def update_consultation_status(
+    consultation_id: str,
+    status: str,
+    current_user: User = Depends(get_current_user)
+):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    result = await db.consultations.update_one(
+        {"id": consultation_id},
+        {"$set": {"status": status, "updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Consultation not found")
+    
+    return {"status": "success", "message": f"Consultation status updated to {status}"}
+
 # Health check
 @api_router.get("/")
 async def root():

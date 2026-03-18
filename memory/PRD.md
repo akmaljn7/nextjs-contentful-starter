@@ -32,8 +32,10 @@ A conversion-focused, responsive marketplace website for "Lightban Ads Network" 
 - [x] Billboards Page - 3 categories (LED, Static, Lightbox)
 - [x] LED Billboard Detail Page - State selector with dynamic pricing for 13 Northern Nigerian locations
 - [x] Kannywood Page - Movie/show placement opportunities
+- [x] Kannywood Detail Page - Advertising packages for film productions
 - [x] Digital Ads Page - 6 platforms (Facebook, Instagram, TikTok, Snapchat, Google, WhatsApp)
 - [x] Digital Ad Detail Page - Real pricing packages for each platform
+- [x] **Consultation Page** - Expert advertising guidance with online/in-office options (March 2026)
 - [x] Static pages: About, FAQ, Pricing, Contact, Terms, Privacy
 
 ### Features
@@ -70,6 +72,16 @@ A conversion-focused, responsive marketplace website for "Lightban Ads Network" 
   - GET /api/payments/verify/{reference} - Verify payment
   - POST /api/payments/webhook - Handle Paystack webhooks
   - GET /api/payments/config - Get public key
+
+### Consultation Service (March 2026)
+- **In-Office Consultation**: ₦25,000 (1-2 hours)
+- **Online Consultation**: ₦15,000 (45-60 minutes)
+- **Form Fields**: Business Name, Industry, Business Stage, Description, Goals, Budget Range, Contact Info
+- **Endpoints**:
+  - POST /api/consultations - Create consultation request
+  - GET /api/consultations - Get user's consultations
+  - GET /api/consultations/:id - Get specific consultation
+  - PATCH /api/consultations/:id/status - Update status (admin only)
 
 ---
 
@@ -131,4 +143,4 @@ A conversion-focused, responsive marketplace website for "Lightban Ads Network" 
 
 ---
 
-*Last Updated: March 15, 2026*
+*Last Updated: March 18, 2026*

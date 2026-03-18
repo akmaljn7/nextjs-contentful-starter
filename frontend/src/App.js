@@ -28,6 +28,7 @@ import { BillboardDetailPage } from '@/pages/BillboardDetailPage';
 import { DigitalAdDetailPage } from '@/pages/DigitalAdDetailPage';
 import { PaymentCallbackPage } from '@/pages/PaymentCallbackPage';
 import { KannywoodDetailPage } from '@/pages/KannywoodDetailPage';
+import { ConsultationPage } from '@/pages/ConsultationPage';
 
 function App() {
   return (
@@ -58,6 +59,7 @@ function App() {
               <Route path="/cart" element={<CartPage />} />
               <Route path="/place-order" element={<PlaceOrderPage />} />
               <Route path="/payment/callback" element={<PaymentCallbackPage />} />
+              <Route path="/consultation" element={<ConsultationPage />} />
               
               {/* Billboard detail route */}
               <Route path="/billboards/:id" element={<BillboardDetailPage />} />
