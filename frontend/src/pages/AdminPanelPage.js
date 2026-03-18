@@ -1021,6 +1021,7 @@ export const AdminPanelPage = () => {
                           description: '',
                           price: 0,
                           delivery_time: '3-5 days',
+                          deliverables: [],
                           features: []
                         });
                         updateFormField('packages', [...packages]);
@@ -1107,6 +1108,20 @@ export const AdminPanelPage = () => {
                               }}
                               placeholder="e.g., 3-5 days"
                             />
+                          </div>
+                          <div className="mt-2">
+                            <Label className="text-xs">Deliverables (one per line)</Label>
+                            <Textarea
+                              className="text-sm min-h-[80px]"
+                              value={(pkg.deliverables || []).join('\n')}
+                              onChange={(e) => {
+                                const packages = [...(formData.packages || [])];
+                                packages[index].deliverables = e.target.value.split('\n').filter(item => item.trim() !== '');
+                                updateFormField('packages', packages);
+                              }}
+                              placeholder="1 TikTok video&#10;Brand mention&#10;Story repost&#10;Analytics report"
+                            />
+                            <p className="text-xs text-muted-foreground mt-1">Enter each deliverable on a new line</p>
                           </div>
                         </div>
                       ))}
@@ -1348,6 +1363,7 @@ export const AdminPanelPage = () => {
                           title: '',
                           description: '',
                           price: 0,
+                          deliverables: [],
                           features: []
                         });
                         updateFormField('packages', [...packages]);
@@ -1421,6 +1437,20 @@ export const AdminPanelPage = () => {
                               }}
                               placeholder="What's included in this package..."
                             />
+                          </div>
+                          <div className="mt-2">
+                            <Label className="text-xs">Deliverables (one per line)</Label>
+                            <Textarea
+                              className="text-sm min-h-[80px]"
+                              value={(pkg.deliverables || []).join('\n')}
+                              onChange={(e) => {
+                                const packages = [...(formData.packages || [])];
+                                packages[index].deliverables = e.target.value.split('\n').filter(item => item.trim() !== '');
+                                updateFormField('packages', packages);
+                              }}
+                              placeholder="Product visible in 3-5 scenes&#10;Natural background placement&#10;Certificate of placement&#10;Behind-the-scenes photo"
+                            />
+                            <p className="text-xs text-muted-foreground mt-1">Enter each deliverable on a new line</p>
                           </div>
                         </div>
                       ))}
