@@ -115,12 +115,29 @@ A conversion-focused, responsive marketplace website for "Lightban Ads Network" 
 
 ---
 
-## Pending Issues (P0-P2)
+## Completed Fixes (December 2025)
 
-### P1: API Data Integration
-- Frontend components use hardcoded data instead of fetching from backend APIs
-- InfluencerDetailPage.js, BillboardsPage.js need to fetch dynamic data
-- Need to wire up frontend to use `/api/influencers/:id`, `/api/billboards` endpoints
+### Issue 1: Package Preservation Bug - FIXED
+- **Problem**: When admin edited an item and added a new package, all existing packages were wiped
+- **Root Cause**: Original seed data lacked `packages` field in database, causing admin edit form to start empty
+- **Solution**: 
+  1. Created data migration script (`/app/backend/migrate_packages.py`) to populate default packages
+  2. Updated admin update endpoint to accept packages directly from form
+  3. Admin panel now fetches full item data (including packages) before showing edit modal
+- **Test Status**: Verified via automated tests (8/8 passed)
+
+### Issue 2: Hardcoded Frontend Data - FIXED
+- **Problem**: BillboardDetailPage.js and DigitalAdDetailPage.js used hardcoded data instead of API
+- **Solution**:
+  1. Created `/api/digital-ads/{platform_id}` endpoint to fetch platform with packages
+  2. Refactored `DigitalAdDetailPage.js` to fetch packages from API
+  3. Refactored `BillboardDetailPage.js` to fetch `pricing_by_state` from API
+  4. Both pages now display dynamic, database-driven content
+- **Test Status**: Verified - Digital Ads shows 4 packages from API, Billboards shows 13 locations
+
+---
+
+## Pending Issues (P2)
 
 ### P2: Backend Authorization Logic
 - Some endpoints return 403 instead of 401 for unauthenticated requests
@@ -134,11 +151,12 @@ A conversion-focused, responsive marketplace website for "Lightban Ads Network" 
 - [ ] Static Banner Billboard detail page (same pattern as LED)
 - [ ] Lightbox Billboard detail page
 - [ ] Global search bar with filters (city, category, budget)
-- [ ] Fix API data integration - wire frontend to backend APIs
+- [ ] Add package management for Digital Ads in Admin Panel
 
 ### P2 - Medium Priority
 - [ ] Messaging center between advertisers and Lightban team
 - [ ] Order tracking page with detailed status
+- [ ] Fix 401 vs 403 HTTP status codes
 
 ### P3 - Future/Backlog
 - [ ] Switch Paystack to Live Mode (requires business verification)
@@ -147,16 +165,19 @@ A conversion-focused, responsive marketplace website for "Lightban Ads Network" 
 - [ ] Comparison view for multiple listings
 - [ ] Reviews and ratings system
 - [ ] Map component for billboard locations
+- [ ] Image upload in admin panel (replace URL inputs)
 
 ---
 
 ## API Endpoints
 - `GET /api/influencers` - List all influencers
-- `GET /api/influencers/:id` - Get influencer details
+- `GET /api/influencers/:id` - Get influencer details with packages
 - `GET /api/billboards` - List billboard categories
-- `GET /api/billboards/:id` - Get billboard details
+- `GET /api/billboards/:id` - Get billboard details with pricing_by_state
 - `GET /api/kannywood` - List Kannywood placements
+- `GET /api/kannywood/:id` - Get Kannywood details with packages
 - `GET /api/digital-ads` - List digital ad services
+- `GET /api/digital-ads/:id` - Get digital ad platform with packages (NEW)
 - `POST /api/orders` - Create new order
 - `POST /api/payments/initialize` - Initialize Paystack payment
 - `GET /api/payments/verify/:reference` - Verify payment
@@ -165,10 +186,16 @@ A conversion-focused, responsive marketplace website for "Lightban Ads Network" 
 
 ---
 
-## Test Reports
-- `/app/test_reports/iteration_1.json` - Initial test run
-- `/app/test_reports/iteration_2.json` - Billboard feature tests (100% pass)
+## Database Migration Scripts
+- `/app/backend/migrate_packages.py` - Populates default packages for all items without package data
 
 ---
 
-*Last Updated: March 18, 2026*
+## Test Reports
+- `/app/test_reports/iteration_1.json` - Initial test run
+- `/app/test_reports/iteration_2.json` - Billboard feature tests (100% pass)
+- `/app/test_reports/iteration_3.json` - Package preservation and API data fixes (100% pass)
+
+---
+
+*Last Updated: December 2025*
