@@ -1279,6 +1279,613 @@ async def update_consultation_payment(
     
     return {"status": "success", "message": "Payment status updated"}
 
+# ============= COMPREHENSIVE ADMIN CRUD ROUTES =============
+
+# Admin check decorator helper
+async def check_admin(current_user: User):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return True
+
+# ========== INFLUENCER MANAGEMENT ==========
+
+class AdminInfluencerCreate(BaseModel):
+    name: str
+    handle: str
+    platform: str
+    followers: int
+    niche: str
+    bio: str
+    location: str
+    price_per_post: float
+    engagement_rate: Optional[float] = 0.0
+    audience_demographics: Optional[str] = ""
+    image_url: Optional[str] = ""
+    verified: bool = False
+    rating: float = 0.0
+    total_reviews: int = 0
+    response_time: str = "Within 24 hours"
+    completion_rate: float = 100.0
+    status: str = "approved"
+    packages: Optional[List[dict]] = []
+
+class AdminInfluencerUpdate(BaseModel):
+    name: Optional[str] = None
+    handle: Optional[str] = None
+    platform: Optional[str] = None
+    followers: Optional[int] = None
+    niche: Optional[str] = None
+    bio: Optional[str] = None
+    location: Optional[str] = None
+    price_per_post: Optional[float] = None
+    engagement_rate: Optional[float] = None
+    audience_demographics: Optional[str] = None
+    image_url: Optional[str] = None
+    verified: Optional[bool] = None
+    rating: Optional[float] = None
+    total_reviews: Optional[int] = None
+    response_time: Optional[str] = None
+    completion_rate: Optional[float] = None
+    status: Optional[str] = None
+    packages: Optional[List[dict]] = None
+
+@api_router.get("/admin/influencers")
+async def admin_get_all_influencers(current_user: User = Depends(get_current_user)):
+    await check_admin(current_user)
+    influencers = await db.influencers.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
+    return influencers
+
+@api_router.post("/admin/influencers")
+async def admin_create_influencer(
+    influencer: AdminInfluencerCreate,
+    current_user: User = Depends(get_current_user)
+):
+    await check_admin(current_user)
+    
+    influencer_data = influencer.model_dump()
+    influencer_data["id"] = f"inf-{str(uuid.uuid4())[:8]}"
+    influencer_data["supplier_id"] = "admin"
+    influencer_data["created_at"] = datetime.now(timezone.utc).isoformat()
+    
+    await db.influencers.insert_one(influencer_data)
+    influencer_data.pop("_id", None)
+    
+    return {"status": "success", "message": "Influencer created", "influencer": influencer_data}
+
+@api_router.put("/admin/influencers/{influencer_id}")
+async def admin_update_influencer(
+    influencer_id: str,
+    influencer: AdminInfluencerUpdate,
+    current_user: User = Depends(get_current_user)
+):
+    await check_admin(current_user)
+    
+    existing = await db.influencers.find_one({"id": influencer_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Influencer not found")
+    
+    update_data = {k: v for k, v in influencer.model_dump().items() if v is not None}
+    update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    
+    await db.influencers.update_one({"id": influencer_id}, {"$set": update_data})
+    
+    updated = await db.influencers.find_one({"id": influencer_id}, {"_id": 0})
+    return {"status": "success", "message": "Influencer updated", "influencer": updated}
+
+@api_router.delete("/admin/influencers/{influencer_id}")
+async def admin_delete_influencer(
+    influencer_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    await check_admin(current_user)
+    
+    result = await db.influencers.delete_one({"id": influencer_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Influencer not found")
+    
+    return {"status": "success", "message": "Influencer deleted"}
+
+# ========== BILLBOARD MANAGEMENT ==========
+
+class AdminBillboardCreate(BaseModel):
+    name: str
+    type: str  # LED, Static, Lightbox
+    location: str
+    city: Optional[str] = ""
+    state: Optional[str] = ""
+    dimensions: Optional[str] = ""
+    traffic: Optional[str] = ""
+    traffic_daily: Optional[int] = 0
+    price: float
+    price_monthly: Optional[float] = 0
+    description: Optional[str] = ""
+    image_url: Optional[str] = ""
+    verified: bool = False
+    availability: bool = True
+    status: str = "approved"
+    pricing_by_state: Optional[dict] = {}
+
+class AdminBillboardUpdate(BaseModel):
+    name: Optional[str] = None
+    type: Optional[str] = None
+    location: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    dimensions: Optional[str] = None
+    traffic: Optional[str] = None
+    traffic_daily: Optional[int] = None
+    price: Optional[float] = None
+    price_monthly: Optional[float] = None
+    description: Optional[str] = None
+    image_url: Optional[str] = None
+    verified: Optional[bool] = None
+    availability: Optional[bool] = None
+    status: Optional[str] = None
+    pricing_by_state: Optional[dict] = None
+
+@api_router.get("/admin/billboards")
+async def admin_get_all_billboards(current_user: User = Depends(get_current_user)):
+    await check_admin(current_user)
+    billboards = await db.billboards.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
+    return billboards
+
+@api_router.post("/admin/billboards")
+async def admin_create_billboard(
+    billboard: AdminBillboardCreate,
+    current_user: User = Depends(get_current_user)
+):
+    await check_admin(current_user)
+    
+    billboard_data = billboard.model_dump()
+    billboard_data["id"] = f"bb-{str(uuid.uuid4())[:8]}"
+    billboard_data["supplier_id"] = "admin"
+    billboard_data["created_at"] = datetime.now(timezone.utc).isoformat()
+    
+    await db.billboards.insert_one(billboard_data)
+    billboard_data.pop("_id", None)
+    
+    return {"status": "success", "message": "Billboard created", "billboard": billboard_data}
+
+@api_router.put("/admin/billboards/{billboard_id}")
+async def admin_update_billboard(
+    billboard_id: str,
+    billboard: AdminBillboardUpdate,
+    current_user: User = Depends(get_current_user)
+):
+    await check_admin(current_user)
+    
+    existing = await db.billboards.find_one({"id": billboard_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Billboard not found")
+    
+    update_data = {k: v for k, v in billboard.model_dump().items() if v is not None}
+    update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    
+    await db.billboards.update_one({"id": billboard_id}, {"$set": update_data})
+    
+    updated = await db.billboards.find_one({"id": billboard_id}, {"_id": 0})
+    return {"status": "success", "message": "Billboard updated", "billboard": updated}
+
+@api_router.delete("/admin/billboards/{billboard_id}")
+async def admin_delete_billboard(
+    billboard_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    await check_admin(current_user)
+    
+    result = await db.billboards.delete_one({"id": billboard_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Billboard not found")
+    
+    return {"status": "success", "message": "Billboard deleted"}
+
+# ========== DIGITAL ADS MANAGEMENT ==========
+
+class AdminDigitalAdCreate(BaseModel):
+    platform: str  # Facebook, Instagram, TikTok, Google, WhatsApp, Snapchat
+    name: str
+    description: Optional[str] = ""
+    image_url: Optional[str] = ""
+    status: str = "approved"
+    packages: Optional[List[dict]] = []
+
+class AdminDigitalAdUpdate(BaseModel):
+    platform: Optional[str] = None
+    name: Optional[str] = None
+    description: Optional[str] = None
+    image_url: Optional[str] = None
+    status: Optional[str] = None
+    packages: Optional[List[dict]] = None
+
+@api_router.get("/admin/digital-ads")
+async def admin_get_all_digital_ads(current_user: User = Depends(get_current_user)):
+    await check_admin(current_user)
+    digital_ads = await db.digital_ads.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
+    return digital_ads
+
+@api_router.post("/admin/digital-ads")
+async def admin_create_digital_ad(
+    digital_ad: AdminDigitalAdCreate,
+    current_user: User = Depends(get_current_user)
+):
+    await check_admin(current_user)
+    
+    digital_ad_data = digital_ad.model_dump()
+    digital_ad_data["id"] = digital_ad.platform.lower().replace(" ", "-")
+    digital_ad_data["created_at"] = datetime.now(timezone.utc).isoformat()
+    
+    # Check if platform already exists
+    existing = await db.digital_ads.find_one({"id": digital_ad_data["id"]})
+    if existing:
+        raise HTTPException(status_code=400, detail="Digital ad platform already exists")
+    
+    await db.digital_ads.insert_one(digital_ad_data)
+    digital_ad_data.pop("_id", None)
+    
+    return {"status": "success", "message": "Digital ad created", "digital_ad": digital_ad_data}
+
+@api_router.put("/admin/digital-ads/{digital_ad_id}")
+async def admin_update_digital_ad(
+    digital_ad_id: str,
+    digital_ad: AdminDigitalAdUpdate,
+    current_user: User = Depends(get_current_user)
+):
+    await check_admin(current_user)
+    
+    existing = await db.digital_ads.find_one({"id": digital_ad_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Digital ad not found")
+    
+    update_data = {k: v for k, v in digital_ad.model_dump().items() if v is not None}
+    update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    
+    await db.digital_ads.update_one({"id": digital_ad_id}, {"$set": update_data})
+    
+    updated = await db.digital_ads.find_one({"id": digital_ad_id}, {"_id": 0})
+    return {"status": "success", "message": "Digital ad updated", "digital_ad": updated}
+
+@api_router.delete("/admin/digital-ads/{digital_ad_id}")
+async def admin_delete_digital_ad(
+    digital_ad_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    await check_admin(current_user)
+    
+    result = await db.digital_ads.delete_one({"id": digital_ad_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Digital ad not found")
+    
+    return {"status": "success", "message": "Digital ad deleted"}
+
+# ========== KANNYWOOD MANAGEMENT ==========
+
+class AdminKannywoodCreate(BaseModel):
+    title: str
+    director: Optional[str] = ""
+    genre: Optional[str] = ""
+    description: Optional[str] = ""
+    est_reach: Optional[str] = ""
+    release_date: Optional[str] = ""
+    price: float
+    image_url: Optional[str] = ""
+    status: str = "approved"
+    packages: Optional[List[dict]] = []
+
+class AdminKannywoodUpdate(BaseModel):
+    title: Optional[str] = None
+    director: Optional[str] = None
+    genre: Optional[str] = None
+    description: Optional[str] = None
+    est_reach: Optional[str] = None
+    release_date: Optional[str] = None
+    price: Optional[float] = None
+    image_url: Optional[str] = None
+    status: Optional[str] = None
+    packages: Optional[List[dict]] = None
+
+@api_router.get("/admin/kannywood")
+async def admin_get_all_kannywood(current_user: User = Depends(get_current_user)):
+    await check_admin(current_user)
+    kannywood = await db.kannywood.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
+    return kannywood
+
+@api_router.post("/admin/kannywood")
+async def admin_create_kannywood(
+    kannywood: AdminKannywoodCreate,
+    current_user: User = Depends(get_current_user)
+):
+    await check_admin(current_user)
+    
+    kannywood_data = kannywood.model_dump()
+    kannywood_data["id"] = f"kw-{str(uuid.uuid4())[:8]}"
+    kannywood_data["created_at"] = datetime.now(timezone.utc).isoformat()
+    
+    await db.kannywood.insert_one(kannywood_data)
+    kannywood_data.pop("_id", None)
+    
+    return {"status": "success", "message": "Kannywood production created", "kannywood": kannywood_data}
+
+@api_router.put("/admin/kannywood/{kannywood_id}")
+async def admin_update_kannywood(
+    kannywood_id: str,
+    kannywood: AdminKannywoodUpdate,
+    current_user: User = Depends(get_current_user)
+):
+    await check_admin(current_user)
+    
+    existing = await db.kannywood.find_one({"id": kannywood_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Kannywood production not found")
+    
+    update_data = {k: v for k, v in kannywood.model_dump().items() if v is not None}
+    update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    
+    await db.kannywood.update_one({"id": kannywood_id}, {"$set": update_data})
+    
+    updated = await db.kannywood.find_one({"id": kannywood_id}, {"_id": 0})
+    return {"status": "success", "message": "Kannywood production updated", "kannywood": updated}
+
+@api_router.delete("/admin/kannywood/{kannywood_id}")
+async def admin_delete_kannywood(
+    kannywood_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    await check_admin(current_user)
+    
+    result = await db.kannywood.delete_one({"id": kannywood_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Kannywood production not found")
+    
+    return {"status": "success", "message": "Kannywood production deleted"}
+
+# ========== USER MANAGEMENT ==========
+
+class AdminUserUpdate(BaseModel):
+    name: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    role: Optional[str] = None
+    verified: Optional[bool] = None
+    language_preference: Optional[str] = None
+
+@api_router.get("/admin/users")
+async def admin_get_all_users(current_user: User = Depends(get_current_user)):
+    await check_admin(current_user)
+    users = await db.users.find({}, {"_id": 0, "password": 0}).sort("created_at", -1).to_list(500)
+    return users
+
+@api_router.get("/admin/users/{user_id}")
+async def admin_get_user(user_id: str, current_user: User = Depends(get_current_user)):
+    await check_admin(current_user)
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "password": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
+
+@api_router.put("/admin/users/{user_id}")
+async def admin_update_user(
+    user_id: str,
+    user_update: AdminUserUpdate,
+    current_user: User = Depends(get_current_user)
+):
+    await check_admin(current_user)
+    
+    existing = await db.users.find_one({"id": user_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    update_data = {k: v for k, v in user_update.model_dump().items() if v is not None}
+    update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    
+    await db.users.update_one({"id": user_id}, {"$set": update_data})
+    
+    updated = await db.users.find_one({"id": user_id}, {"_id": 0, "password": 0})
+    return {"status": "success", "message": "User updated", "user": updated}
+
+@api_router.delete("/admin/users/{user_id}")
+async def admin_delete_user(
+    user_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    await check_admin(current_user)
+    
+    # Prevent deleting self
+    if user_id == current_user.id:
+        raise HTTPException(status_code=400, detail="Cannot delete your own account")
+    
+    result = await db.users.delete_one({"id": user_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    return {"status": "success", "message": "User deleted"}
+
+# ========== COMPLETE ORDER MANAGEMENT ==========
+
+class AdminOrderUpdate(BaseModel):
+    order_status: Optional[str] = None
+    payment_status: Optional[str] = None
+    payment_method: Optional[str] = None
+    total_amount: Optional[float] = None
+    notes: Optional[str] = None
+
+@api_router.put("/admin/orders/{order_id}")
+async def admin_update_order_full(
+    order_id: str,
+    order_update: AdminOrderUpdate,
+    current_user: User = Depends(get_current_user)
+):
+    await check_admin(current_user)
+    
+    existing = await db.orders.find_one({"id": order_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Order not found")
+    
+    update_data = {k: v for k, v in order_update.model_dump().items() if v is not None}
+    update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    
+    await db.orders.update_one({"id": order_id}, {"$set": update_data})
+    
+    updated = await db.orders.find_one({"id": order_id}, {"_id": 0})
+    return {"status": "success", "message": "Order updated", "order": updated}
+
+@api_router.delete("/admin/orders/{order_id}")
+async def admin_delete_order(
+    order_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    await check_admin(current_user)
+    
+    result = await db.orders.delete_one({"id": order_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Order not found")
+    
+    return {"status": "success", "message": "Order deleted"}
+
+# ========== COMPLETE CONSULTATION MANAGEMENT ==========
+
+class AdminConsultationUpdate(BaseModel):
+    status: Optional[str] = None
+    payment_status: Optional[str] = None
+    payment_method: Optional[str] = None
+    price: Optional[float] = None
+    notes: Optional[str] = None
+    scheduled_date: Optional[str] = None
+    scheduled_time: Optional[str] = None
+
+@api_router.put("/admin/consultations/{consultation_id}")
+async def admin_update_consultation_full(
+    consultation_id: str,
+    consultation_update: AdminConsultationUpdate,
+    current_user: User = Depends(get_current_user)
+):
+    await check_admin(current_user)
+    
+    existing = await db.consultations.find_one({"id": consultation_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Consultation not found")
+    
+    update_data = {k: v for k, v in consultation_update.model_dump().items() if v is not None}
+    update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    
+    await db.consultations.update_one({"id": consultation_id}, {"$set": update_data})
+    
+    updated = await db.consultations.find_one({"id": consultation_id}, {"_id": 0})
+    return {"status": "success", "message": "Consultation updated", "consultation": updated}
+
+@api_router.delete("/admin/consultations/{consultation_id}")
+async def admin_delete_consultation(
+    consultation_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    await check_admin(current_user)
+    
+    result = await db.consultations.delete_one({"id": consultation_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Consultation not found")
+    
+    return {"status": "success", "message": "Consultation deleted"}
+
+# ========== SITE SETTINGS MANAGEMENT ==========
+
+class SiteSettings(BaseModel):
+    site_name: Optional[str] = "Lightban Ads Network"
+    tagline: Optional[str] = "Northern Nigeria's Premier Ad Marketplace"
+    contact_email: Optional[str] = "info@lightban.com"
+    contact_phone: Optional[str] = "+234 800 000 0001"
+    office_address: Optional[str] = "No 671, Zoo Road, Inec Street, Kano"
+    business_hours: Optional[str] = "Monday - Saturday: 9:00 AM - 5:00 PM"
+    currency: Optional[str] = "NGN"
+    currency_symbol: Optional[str] = "₦"
+    consultation_price_online: Optional[float] = 15000
+    consultation_price_office: Optional[float] = 25000
+    platform_fee_percentage: Optional[float] = 10.0
+    social_links: Optional[dict] = {}
+    seo_title: Optional[str] = ""
+    seo_description: Optional[str] = ""
+
+@api_router.get("/admin/settings")
+async def admin_get_settings(current_user: User = Depends(get_current_user)):
+    await check_admin(current_user)
+    settings = await db.site_settings.find_one({}, {"_id": 0})
+    if not settings:
+        # Return default settings if none exist
+        return SiteSettings().model_dump()
+    return settings
+
+@api_router.put("/admin/settings")
+async def admin_update_settings(
+    settings: SiteSettings,
+    current_user: User = Depends(get_current_user)
+):
+    await check_admin(current_user)
+    
+    settings_data = settings.model_dump()
+    settings_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    
+    # Upsert settings
+    await db.site_settings.update_one(
+        {},
+        {"$set": settings_data},
+        upsert=True
+    )
+    
+    return {"status": "success", "message": "Settings updated", "settings": settings_data}
+
+# ========== ADMIN STATS SUMMARY ==========
+
+@api_router.get("/admin/stats/summary")
+async def admin_get_stats_summary(current_user: User = Depends(get_current_user)):
+    await check_admin(current_user)
+    
+    # Get counts for all collections
+    total_users = await db.users.count_documents({})
+    total_influencers = await db.influencers.count_documents({})
+    total_billboards = await db.billboards.count_documents({})
+    total_digital_ads = await db.digital_ads.count_documents({})
+    total_kannywood = await db.kannywood.count_documents({})
+    total_orders = await db.orders.count_documents({})
+    total_consultations = await db.consultations.count_documents({})
+    
+    # Order stats
+    pending_orders = await db.orders.count_documents({"order_status": {"$in": ["pending", "accepted", "in_progress"]}})
+    completed_orders = await db.orders.count_documents({"order_status": "completed"})
+    cancelled_orders = await db.orders.count_documents({"order_status": "cancelled"})
+    
+    # Revenue calculation
+    paid_orders = await db.orders.find({"payment_status": "paid"}, {"total_amount": 1}).to_list(10000)
+    total_revenue = sum(o.get("total_amount", 0) for o in paid_orders)
+    
+    # Consultation stats
+    pending_consultations = await db.consultations.count_documents({"status": "pending"})
+    completed_consultations = await db.consultations.count_documents({"status": "completed"})
+    
+    return {
+        "users": {
+            "total": total_users,
+            "advertisers": await db.users.count_documents({"role": "advertiser"}),
+            "suppliers": await db.users.count_documents({"role": "supplier"}),
+            "admins": await db.users.count_documents({"role": "admin"})
+        },
+        "inventory": {
+            "influencers": total_influencers,
+            "billboards": total_billboards,
+            "digital_ads": total_digital_ads,
+            "kannywood": total_kannywood
+        },
+        "orders": {
+            "total": total_orders,
+            "pending": pending_orders,
+            "completed": completed_orders,
+            "cancelled": cancelled_orders,
+            "revenue": total_revenue
+        },
+        "consultations": {
+            "total": total_consultations,
+            "pending": pending_consultations,
+            "completed": completed_consultations
+        }
+    }
+
 # Health check
 @api_router.get("/")
 async def root():

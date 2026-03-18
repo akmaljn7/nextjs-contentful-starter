@@ -6,6 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { 
   Select, 
   SelectContent, 
@@ -16,8 +19,8 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { formatPrice, formatDate } from '@/lib/utils';
 import { 
-  ShoppingBag, 
-  Users,
+  Users, 
+  ShoppingBag,
   CheckCircle, 
   Clock, 
   XCircle,
@@ -27,53 +30,81 @@ import {
   Loader2,
   RefreshCw,
   Edit,
+  Trash2,
+  Plus,
   Eye,
+  User,
+  Monitor,
+  Film,
+  MapPin,
+  Settings,
+  BarChart3,
   AlertCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-const ORDER_STATUSES = [
-  { value: 'pending', label: 'Pending', color: 'bg-amber-100 text-amber-800' },
-  { value: 'accepted', label: 'Accepted', color: 'bg-blue-100 text-blue-800' },
-  { value: 'in_progress', label: 'In Progress', color: 'bg-purple-100 text-purple-800' },
-  { value: 'completed', label: 'Completed', color: 'bg-green-600 text-white' },
-  { value: 'cancelled', label: 'Cancelled', color: 'bg-gray-100 text-gray-800' },
+const STATUS_OPTIONS = [
+  { value: 'pending', label: 'Pending' },
+  { value: 'accepted', label: 'Accepted' },
+  { value: 'in_progress', label: 'In Progress' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'cancelled', label: 'Cancelled' },
 ];
 
-const PAYMENT_STATUSES = [
-  { value: 'pending', label: 'Pending', color: 'bg-amber-100 text-amber-800' },
-  { value: 'paid', label: 'Paid', color: 'bg-green-100 text-green-800' },
-  { value: 'pending_cash', label: 'Pending Cash', color: 'bg-orange-100 text-orange-800' },
-  { value: 'refunded', label: 'Refunded', color: 'bg-gray-100 text-gray-800' },
+const PAYMENT_STATUS_OPTIONS = [
+  { value: 'pending', label: 'Pending' },
+  { value: 'paid', label: 'Paid' },
+  { value: 'pending_cash', label: 'Pending Cash' },
+  { value: 'refunded', label: 'Refunded' },
 ];
 
-const CONSULTATION_STATUSES = [
-  { value: 'pending', label: 'Pending', color: 'bg-amber-100 text-amber-800' },
-  { value: 'scheduled', label: 'Scheduled', color: 'bg-blue-100 text-blue-800' },
-  { value: 'completed', label: 'Completed', color: 'bg-green-600 text-white' },
-  { value: 'cancelled', label: 'Cancelled', color: 'bg-gray-100 text-gray-800' },
+const ROLE_OPTIONS = [
+  { value: 'advertiser', label: 'Advertiser' },
+  { value: 'supplier', label: 'Supplier' },
+  { value: 'admin', label: 'Admin' },
+];
+
+const PLATFORM_OPTIONS = [
+  { value: 'Instagram', label: 'Instagram' },
+  { value: 'TikTok', label: 'TikTok' },
+  { value: 'Twitter', label: 'Twitter' },
+  { value: 'Facebook', label: 'Facebook' },
+  { value: 'YouTube', label: 'YouTube' },
+];
+
+const BILLBOARD_TYPES = [
+  { value: 'LED', label: 'LED Digital' },
+  { value: 'Static', label: 'Static Banner' },
+  { value: 'Lightbox', label: 'Lightbox' },
 ];
 
 export const AdminPanelPage = () => {
   const { user } = useAuthStore();
   const navigate = useNavigate();
-  const [stats, setStats] = useState(null);
-  const [orders, setOrders] = useState([]);
-  const [consultations, setConsultations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
+  const [stats, setStats] = useState(null);
+  
+  // Data states
+  const [orders, setOrders] = useState([]);
+  const [consultations, setConsultations] = useState([]);
+  const [influencers, setInfluencers] = useState([]);
+  const [billboards, setBillboards] = useState([]);
+  const [digitalAds, setDigitalAds] = useState([]);
+  const [kannywood, setKannywood] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [settings, setSettings] = useState(null);
   
   // Modal states
-  const [selectedOrder, setSelectedOrder] = useState(null);
-  const [selectedConsultation, setSelectedConsultation] = useState(null);
-  const [showOrderModal, setShowOrderModal] = useState(false);
-  const [showConsultationModal, setShowConsultationModal] = useState(false);
-  const [updating, setUpdating] = useState(false);
-  
-  // Status update states
-  const [newOrderStatus, setNewOrderStatus] = useState('');
-  const [newPaymentStatus, setNewPaymentStatus] = useState('');
-  const [newConsultationStatus, setNewConsultationStatus] = useState('');
+  const [showModal, setShowModal] = useState(false);
+  const [modalType, setModalType] = useState('');
+  const [modalMode, setModalMode] = useState('create'); // create or edit
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [formData, setFormData] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState(null);
 
   useEffect(() => {
     if (!user) {
@@ -85,79 +116,193 @@ export const AdminPanelPage = () => {
       navigate('/dashboard');
       return;
     }
-    fetchAdminData();
+    fetchAllData();
   }, [user, navigate]);
 
-  const fetchAdminData = async () => {
+  const fetchAllData = async () => {
     setLoading(true);
     try {
-      const [statsRes, ordersRes, consultationsRes] = await Promise.all([
-        api.get('/dashboard/stats'),
+      const [
+        statsRes,
+        ordersRes,
+        consultationsRes,
+        influencersRes,
+        billboardsRes,
+        kannywoodRes,
+        usersRes,
+        settingsRes
+      ] = await Promise.all([
+        api.get('/admin/stats/summary'),
         api.get('/admin/orders'),
         api.get('/admin/consultations'),
+        api.get('/admin/influencers'),
+        api.get('/admin/billboards'),
+        api.get('/admin/kannywood'),
+        api.get('/admin/users'),
+        api.get('/admin/settings').catch(() => ({ data: {} })),
       ]);
+      
       setStats(statsRes.data);
       setOrders(ordersRes.data);
       setConsultations(consultationsRes.data);
+      setInfluencers(influencersRes.data);
+      setBillboards(billboardsRes.data);
+      setKannywood(kannywoodRes.data);
+      setUsers(usersRes.data);
+      setSettings(settingsRes.data);
     } catch (error) {
-      console.error('Error fetching admin data:', error);
+      console.error('Error fetching data:', error);
       toast.error('Failed to load admin data');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleEditOrder = (order) => {
-    setSelectedOrder(order);
-    setNewOrderStatus(order.order_status || 'pending');
-    setNewPaymentStatus(order.payment_status || 'pending');
-    setShowOrderModal(true);
+  const openCreateModal = (type) => {
+    setModalType(type);
+    setModalMode('create');
+    setSelectedItem(null);
+    setFormData(getDefaultFormData(type));
+    setShowModal(true);
   };
 
-  const handleEditConsultation = (consultation) => {
-    setSelectedConsultation(consultation);
-    setNewConsultationStatus(consultation.status || 'pending');
-    setNewPaymentStatus(consultation.payment_status || 'pending');
-    setShowConsultationModal(true);
+  const openEditModal = (type, item) => {
+    setModalType(type);
+    setModalMode('edit');
+    setSelectedItem(item);
+    setFormData({ ...item });
+    setShowModal(true);
   };
 
-  const handleUpdateOrder = async () => {
-    if (!selectedOrder) return;
-    setUpdating(true);
-    try {
-      await api.put(`/admin/orders/${selectedOrder.id}/status?order_status=${newOrderStatus}&payment_status=${newPaymentStatus}`);
-      toast.success('Order updated successfully');
-      setShowOrderModal(false);
-      fetchAdminData();
-    } catch (error) {
-      console.error('Error updating order:', error);
-      toast.error('Failed to update order');
-    } finally {
-      setUpdating(false);
+  const getDefaultFormData = (type) => {
+    switch (type) {
+      case 'influencer':
+        return {
+          name: '', handle: '', platform: 'Instagram', followers: 0,
+          niche: '', bio: '', location: '', price_per_post: 0,
+          engagement_rate: 0, image_url: '', status: 'approved', packages: []
+        };
+      case 'billboard':
+        return {
+          name: '', type: 'LED', location: '', city: '', state: '',
+          traffic: '', price: 0, description: '', image_url: '', status: 'approved'
+        };
+      case 'kannywood':
+        return {
+          title: '', director: '', genre: '', description: '',
+          est_reach: '', release_date: '', price: 0, image_url: '', status: 'approved'
+        };
+      case 'user':
+        return { name: '', email: '', phone: '', role: 'advertiser', verified: false };
+      case 'order':
+        return { order_status: 'pending', payment_status: 'pending', notes: '' };
+      case 'consultation':
+        return { status: 'pending', payment_status: 'pending', notes: '' };
+      default:
+        return {};
     }
   };
 
-  const handleUpdateConsultation = async () => {
-    if (!selectedConsultation) return;
-    setUpdating(true);
+  const handleSave = async () => {
+    setSaving(true);
     try {
-      await api.put(`/admin/consultations/${selectedConsultation.id}/status?status=${newConsultationStatus}&payment_status=${newPaymentStatus}`);
-      toast.success('Consultation updated successfully');
-      setShowConsultationModal(false);
-      fetchAdminData();
+      let endpoint = '';
+      let method = modalMode === 'create' ? 'post' : 'put';
+      
+      switch (modalType) {
+        case 'influencer':
+          endpoint = modalMode === 'create' 
+            ? '/admin/influencers' 
+            : `/admin/influencers/${selectedItem.id}`;
+          break;
+        case 'billboard':
+          endpoint = modalMode === 'create' 
+            ? '/admin/billboards' 
+            : `/admin/billboards/${selectedItem.id}`;
+          break;
+        case 'kannywood':
+          endpoint = modalMode === 'create' 
+            ? '/admin/kannywood' 
+            : `/admin/kannywood/${selectedItem.id}`;
+          break;
+        case 'user':
+          endpoint = `/admin/users/${selectedItem.id}`;
+          method = 'put';
+          break;
+        case 'order':
+          endpoint = `/admin/orders/${selectedItem.id}`;
+          method = 'put';
+          break;
+        case 'consultation':
+          endpoint = `/admin/consultations/${selectedItem.id}`;
+          method = 'put';
+          break;
+      }
+
+      await api[method](endpoint, formData);
+      toast.success(`${modalType} ${modalMode === 'create' ? 'created' : 'updated'} successfully`);
+      setShowModal(false);
+      fetchAllData();
     } catch (error) {
-      console.error('Error updating consultation:', error);
-      toast.error('Failed to update consultation');
+      console.error('Save error:', error);
+      toast.error(`Failed to ${modalMode} ${modalType}`);
     } finally {
-      setUpdating(false);
+      setSaving(false);
     }
   };
 
-  const getStatusBadge = (status, statusList) => {
-    const statusConfig = statusList.find(s => s.value === status) || statusList[0];
+  const confirmDelete = (type, item) => {
+    setItemToDelete({ type, item });
+    setShowDeleteConfirm(true);
+  };
+
+  const handleDelete = async () => {
+    if (!itemToDelete) return;
+    setDeleting(true);
+    try {
+      const { type, item } = itemToDelete;
+      let endpoint = '';
+      
+      switch (type) {
+        case 'influencer': endpoint = `/admin/influencers/${item.id}`; break;
+        case 'billboard': endpoint = `/admin/billboards/${item.id}`; break;
+        case 'kannywood': endpoint = `/admin/kannywood/${item.id}`; break;
+        case 'user': endpoint = `/admin/users/${item.id}`; break;
+        case 'order': endpoint = `/admin/orders/${item.id}`; break;
+        case 'consultation': endpoint = `/admin/consultations/${item.id}`; break;
+      }
+      
+      await api.delete(endpoint);
+      toast.success(`${type} deleted successfully`);
+      setShowDeleteConfirm(false);
+      setItemToDelete(null);
+      fetchAllData();
+    } catch (error) {
+      console.error('Delete error:', error);
+      toast.error(`Failed to delete ${itemToDelete.type}`);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const updateFormField = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const getStatusBadge = (status) => {
+    const colors = {
+      pending: 'bg-amber-100 text-amber-800',
+      accepted: 'bg-blue-100 text-blue-800',
+      in_progress: 'bg-purple-100 text-purple-800',
+      completed: 'bg-green-600 text-white',
+      cancelled: 'bg-gray-100 text-gray-800',
+      approved: 'bg-green-100 text-green-800',
+      paid: 'bg-green-100 text-green-800',
+      pending_cash: 'bg-orange-100 text-orange-800',
+    };
     return (
-      <Badge className={`${statusConfig.color} border-0`}>
-        {statusConfig.label}
+      <Badge className={`${colors[status] || 'bg-gray-100'} border-0`}>
+        {status?.replace(/_/g, ' ')}
       </Badge>
     );
   };
@@ -171,21 +316,14 @@ export const AdminPanelPage = () => {
         <div className="mb-6 sm:mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
-                Admin Panel
-              </h1>
+              <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Admin Panel</h1>
               <p className="text-sm sm:text-base text-muted-foreground mt-1">
-                Manage orders, consultations, and platform operations
+                Full control over all platform content and settings
               </p>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={fetchAdminData}
-              className="h-9"
-            >
+            <Button variant="outline" size="sm" onClick={fetchAllData} className="h-9">
               <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh Data
+              Refresh
             </Button>
           </div>
         </div>
@@ -197,243 +335,349 @@ export const AdminPanelPage = () => {
           </div>
         ) : (
           <>
-            {/* Stats Overview */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
+            {/* Stats Cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
               <Card className="border-2">
-                <CardContent className="p-4 sm:p-6">
-                  <div className="flex items-center justify-between mb-2">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
                     <div className="h-10 w-10 bg-primary/10 rounded-full flex items-center justify-center">
-                      <Package className="h-5 w-5 text-primary" />
+                      <Users className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold">{stats?.users?.total || 0}</p>
+                      <p className="text-xs text-muted-foreground">Total Users</p>
                     </div>
                   </div>
-                  <p className="text-2xl sm:text-3xl font-bold text-foreground">{stats?.total_orders || 0}</p>
-                  <p className="text-xs sm:text-sm text-muted-foreground">Total Orders</p>
                 </CardContent>
               </Card>
-
               <Card className="border-2">
-                <CardContent className="p-4 sm:p-6">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="h-10 w-10 bg-amber-100 rounded-full flex items-center justify-center">
-                      <Clock className="h-5 w-5 text-amber-600" />
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 bg-accent/10 rounded-full flex items-center justify-center">
+                      <Package className="h-5 w-5 text-accent" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold">{stats?.orders?.total || 0}</p>
+                      <p className="text-xs text-muted-foreground">Total Orders</p>
                     </div>
                   </div>
-                  <p className="text-2xl sm:text-3xl font-bold text-foreground">{stats?.pending_orders || 0}</p>
-                  <p className="text-xs sm:text-sm text-muted-foreground">Pending Orders</p>
                 </CardContent>
               </Card>
-
               <Card className="border-2">
-                <CardContent className="p-4 sm:p-6">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="h-10 w-10 bg-purple-100 rounded-full flex items-center justify-center">
-                      <MessageSquare className="h-5 w-5 text-purple-600" />
-                    </div>
-                  </div>
-                  <p className="text-2xl sm:text-3xl font-bold text-foreground">{stats?.total_consultations || 0}</p>
-                  <p className="text-xs sm:text-sm text-muted-foreground">Consultations</p>
-                </CardContent>
-              </Card>
-
-              <Card className="border-2">
-                <CardContent className="p-4 sm:p-6">
-                  <div className="flex items-center justify-between mb-2">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
                     <div className="h-10 w-10 bg-green-100 rounded-full flex items-center justify-center">
                       <TrendingUp className="h-5 w-5 text-green-600" />
                     </div>
+                    <div>
+                      <p className="text-2xl font-bold text-green-600">{formatPrice(stats?.orders?.revenue || 0)}</p>
+                      <p className="text-xs text-muted-foreground">Revenue</p>
+                    </div>
                   </div>
-                  <p className="text-2xl sm:text-3xl font-bold text-accent">{formatPrice(stats?.total_revenue || 0)}</p>
-                  <p className="text-xs sm:text-sm text-muted-foreground">Total Revenue</p>
+                </CardContent>
+              </Card>
+              <Card className="border-2">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 bg-purple-100 rounded-full flex items-center justify-center">
+                      <BarChart3 className="h-5 w-5 text-purple-600" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold">{(stats?.inventory?.influencers || 0) + (stats?.inventory?.billboards || 0) + (stats?.inventory?.kannywood || 0)}</p>
+                      <p className="text-xs text-muted-foreground">Inventory</p>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             </div>
 
             {/* Tabs */}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-              <TabsList className="bg-muted/50 p-1">
-                <TabsTrigger value="overview" className="data-[state=active]:bg-white">
-                  Overview
-                </TabsTrigger>
-                <TabsTrigger value="orders" className="data-[state=active]:bg-white">
-                  Orders ({orders.length})
-                </TabsTrigger>
-                <TabsTrigger value="consultations" className="data-[state=active]:bg-white">
-                  Consultations ({consultations.length})
-                </TabsTrigger>
+              <TabsList className="bg-muted/50 p-1 flex-wrap h-auto">
+                <TabsTrigger value="overview" className="data-[state=active]:bg-white text-xs sm:text-sm">Overview</TabsTrigger>
+                <TabsTrigger value="influencers" className="data-[state=active]:bg-white text-xs sm:text-sm">Influencers</TabsTrigger>
+                <TabsTrigger value="billboards" className="data-[state=active]:bg-white text-xs sm:text-sm">Billboards</TabsTrigger>
+                <TabsTrigger value="kannywood" className="data-[state=active]:bg-white text-xs sm:text-sm">Kannywood</TabsTrigger>
+                <TabsTrigger value="orders" className="data-[state=active]:bg-white text-xs sm:text-sm">Orders</TabsTrigger>
+                <TabsTrigger value="consultations" className="data-[state=active]:bg-white text-xs sm:text-sm">Consultations</TabsTrigger>
+                <TabsTrigger value="users" className="data-[state=active]:bg-white text-xs sm:text-sm">Users</TabsTrigger>
+                <TabsTrigger value="settings" className="data-[state=active]:bg-white text-xs sm:text-sm">Settings</TabsTrigger>
               </TabsList>
 
               {/* Overview Tab */}
               <TabsContent value="overview">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Recent Orders */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <Card className="border-2">
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-lg flex items-center">
-                          <ShoppingBag className="h-5 w-5 mr-2 text-accent" />
-                          Recent Orders
-                        </CardTitle>
-                        <Button variant="ghost" size="sm" onClick={() => setActiveTab('orders')}>
-                          View All
-                        </Button>
-                      </div>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-lg flex items-center">
+                        <User className="h-5 w-5 mr-2 text-primary" />
+                        Influencers ({influencers.length})
+                      </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      {orders.length === 0 ? (
-                        <p className="text-center text-muted-foreground py-8">No orders yet</p>
-                      ) : (
-                        <div className="space-y-3">
-                          {orders.slice(0, 5).map((order) => (
-                            <div
-                              key={order.id}
-                              className="flex items-center justify-between p-3 bg-muted/30 rounded-lg"
-                            >
-                              <div className="min-w-0">
-                                <p className="font-medium text-sm truncate">
-                                  {order.package_details?.packageTitle || order.listing_type}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  {order.user_info?.name || 'Unknown User'} • {formatDate(order.created_at)}
-                                </p>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                {getStatusBadge(order.order_status, ORDER_STATUSES)}
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleEditOrder(order)}
-                                  className="h-8 w-8 p-0"
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                      <Button onClick={() => openCreateModal('influencer')} className="w-full bg-accent hover:bg-accent/90">
+                        <Plus className="h-4 w-4 mr-2" /> Add Influencer
+                      </Button>
                     </CardContent>
                   </Card>
-
-                  {/* Recent Consultations */}
                   <Card className="border-2">
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-lg flex items-center">
-                          <MessageSquare className="h-5 w-5 mr-2 text-purple-600" />
-                          Recent Consultations
-                        </CardTitle>
-                        <Button variant="ghost" size="sm" onClick={() => setActiveTab('consultations')}>
-                          View All
-                        </Button>
-                      </div>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-lg flex items-center">
+                        <MapPin className="h-5 w-5 mr-2 text-red-500" />
+                        Billboards ({billboards.length})
+                      </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      {consultations.length === 0 ? (
-                        <p className="text-center text-muted-foreground py-8">No consultations yet</p>
-                      ) : (
-                        <div className="space-y-3">
-                          {consultations.slice(0, 5).map((consultation) => (
-                            <div
-                              key={consultation.id}
-                              className="flex items-center justify-between p-3 bg-muted/30 rounded-lg"
-                            >
-                              <div className="min-w-0">
-                                <p className="font-medium text-sm truncate">
-                                  {consultation.package_title}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  {consultation.business_name} • {formatDate(consultation.created_at)}
-                                </p>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                {getStatusBadge(consultation.status || 'pending', CONSULTATION_STATUSES)}
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleEditConsultation(consultation)}
-                                  className="h-8 w-8 p-0"
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                      <Button onClick={() => openCreateModal('billboard')} className="w-full bg-accent hover:bg-accent/90">
+                        <Plus className="h-4 w-4 mr-2" /> Add Billboard
+                      </Button>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-2">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-lg flex items-center">
+                        <Film className="h-5 w-5 mr-2 text-purple-500" />
+                        Kannywood ({kannywood.length})
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <Button onClick={() => openCreateModal('kannywood')} className="w-full bg-accent hover:bg-accent/90">
+                        <Plus className="h-4 w-4 mr-2" /> Add Production
+                      </Button>
                     </CardContent>
                   </Card>
                 </div>
+
+                {/* Quick Stats */}
+                <div className="mt-6 grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="bg-amber-50 rounded-lg p-4 border border-amber-200">
+                    <p className="text-2xl font-bold text-amber-700">{stats?.orders?.pending || 0}</p>
+                    <p className="text-sm text-amber-600">Pending Orders</p>
+                  </div>
+                  <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+                    <p className="text-2xl font-bold text-green-700">{stats?.orders?.completed || 0}</p>
+                    <p className="text-sm text-green-600">Completed Orders</p>
+                  </div>
+                  <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
+                    <p className="text-2xl font-bold text-purple-700">{stats?.consultations?.pending || 0}</p>
+                    <p className="text-sm text-purple-600">Pending Consultations</p>
+                  </div>
+                  <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                    <p className="text-2xl font-bold text-blue-700">{stats?.users?.advertisers || 0}</p>
+                    <p className="text-sm text-blue-600">Advertisers</p>
+                  </div>
+                </div>
+              </TabsContent>
+
+              {/* Influencers Tab */}
+              <TabsContent value="influencers">
+                <Card className="border-2">
+                  <CardHeader className="flex flex-row items-center justify-between">
+                    <CardTitle>Manage Influencers</CardTitle>
+                    <Button onClick={() => openCreateModal('influencer')} className="bg-accent hover:bg-accent/90">
+                      <Plus className="h-4 w-4 mr-2" /> Add New
+                    </Button>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="border-b">
+                            <th className="text-left py-3 px-2 text-sm font-semibold">Name</th>
+                            <th className="text-left py-3 px-2 text-sm font-semibold">Platform</th>
+                            <th className="text-left py-3 px-2 text-sm font-semibold">Followers</th>
+                            <th className="text-left py-3 px-2 text-sm font-semibold">Price</th>
+                            <th className="text-left py-3 px-2 text-sm font-semibold">Status</th>
+                            <th className="text-center py-3 px-2 text-sm font-semibold">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {influencers.map((item) => (
+                            <tr key={item.id} className="border-b hover:bg-muted/30">
+                              <td className="py-3 px-2">
+                                <div className="flex items-center gap-2">
+                                  {item.image_url && (
+                                    <img src={item.image_url} alt="" className="w-8 h-8 rounded-full object-cover" />
+                                  )}
+                                  <div>
+                                    <p className="font-medium text-sm">{item.name}</p>
+                                    <p className="text-xs text-muted-foreground">@{item.handle}</p>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="py-3 px-2 text-sm">{item.platform}</td>
+                              <td className="py-3 px-2 text-sm">{item.followers?.toLocaleString()}</td>
+                              <td className="py-3 px-2 text-sm font-semibold">{formatPrice(item.price_per_post)}</td>
+                              <td className="py-3 px-2">{getStatusBadge(item.status)}</td>
+                              <td className="py-3 px-2">
+                                <div className="flex items-center justify-center gap-1">
+                                  <Button variant="ghost" size="sm" onClick={() => openEditModal('influencer', item)}>
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                  <Button variant="ghost" size="sm" className="text-red-500" onClick={() => confirmDelete('influencer', item)}>
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* Billboards Tab */}
+              <TabsContent value="billboards">
+                <Card className="border-2">
+                  <CardHeader className="flex flex-row items-center justify-between">
+                    <CardTitle>Manage Billboards</CardTitle>
+                    <Button onClick={() => openCreateModal('billboard')} className="bg-accent hover:bg-accent/90">
+                      <Plus className="h-4 w-4 mr-2" /> Add New
+                    </Button>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="border-b">
+                            <th className="text-left py-3 px-2 text-sm font-semibold">Name</th>
+                            <th className="text-left py-3 px-2 text-sm font-semibold">Type</th>
+                            <th className="text-left py-3 px-2 text-sm font-semibold">Location</th>
+                            <th className="text-left py-3 px-2 text-sm font-semibold">Price</th>
+                            <th className="text-left py-3 px-2 text-sm font-semibold">Status</th>
+                            <th className="text-center py-3 px-2 text-sm font-semibold">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {billboards.map((item) => (
+                            <tr key={item.id} className="border-b hover:bg-muted/30">
+                              <td className="py-3 px-2">
+                                <p className="font-medium text-sm">{item.name || item.location_name}</p>
+                              </td>
+                              <td className="py-3 px-2 text-sm">{item.type || item.billboard_type}</td>
+                              <td className="py-3 px-2 text-sm">{item.location || item.city}</td>
+                              <td className="py-3 px-2 text-sm font-semibold">{formatPrice(item.price || item.price_monthly)}</td>
+                              <td className="py-3 px-2">{getStatusBadge(item.status)}</td>
+                              <td className="py-3 px-2">
+                                <div className="flex items-center justify-center gap-1">
+                                  <Button variant="ghost" size="sm" onClick={() => openEditModal('billboard', item)}>
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                  <Button variant="ghost" size="sm" className="text-red-500" onClick={() => confirmDelete('billboard', item)}>
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* Kannywood Tab */}
+              <TabsContent value="kannywood">
+                <Card className="border-2">
+                  <CardHeader className="flex flex-row items-center justify-between">
+                    <CardTitle>Manage Kannywood Productions</CardTitle>
+                    <Button onClick={() => openCreateModal('kannywood')} className="bg-accent hover:bg-accent/90">
+                      <Plus className="h-4 w-4 mr-2" /> Add New
+                    </Button>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="border-b">
+                            <th className="text-left py-3 px-2 text-sm font-semibold">Title</th>
+                            <th className="text-left py-3 px-2 text-sm font-semibold">Director</th>
+                            <th className="text-left py-3 px-2 text-sm font-semibold">Genre</th>
+                            <th className="text-left py-3 px-2 text-sm font-semibold">Price</th>
+                            <th className="text-left py-3 px-2 text-sm font-semibold">Status</th>
+                            <th className="text-center py-3 px-2 text-sm font-semibold">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {kannywood.map((item) => (
+                            <tr key={item.id} className="border-b hover:bg-muted/30">
+                              <td className="py-3 px-2 font-medium text-sm">{item.title}</td>
+                              <td className="py-3 px-2 text-sm">{item.director}</td>
+                              <td className="py-3 px-2 text-sm">{item.genre}</td>
+                              <td className="py-3 px-2 text-sm font-semibold">{formatPrice(item.price)}</td>
+                              <td className="py-3 px-2">{getStatusBadge(item.status)}</td>
+                              <td className="py-3 px-2">
+                                <div className="flex items-center justify-center gap-1">
+                                  <Button variant="ghost" size="sm" onClick={() => openEditModal('kannywood', item)}>
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                  <Button variant="ghost" size="sm" className="text-red-500" onClick={() => confirmDelete('kannywood', item)}>
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </CardContent>
+                </Card>
               </TabsContent>
 
               {/* Orders Tab */}
               <TabsContent value="orders">
                 <Card className="border-2">
                   <CardHeader>
-                    <CardTitle className="flex items-center">
-                      <Package className="h-5 w-5 mr-2 text-accent" />
-                      All Orders
-                    </CardTitle>
+                    <CardTitle>Manage Orders ({orders.length})</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    {orders.length === 0 ? (
-                      <p className="text-center text-muted-foreground py-12">No orders found</p>
-                    ) : (
-                      <div className="overflow-x-auto">
-                        <table className="w-full">
-                          <thead>
-                            <tr className="border-b">
-                              <th className="text-left py-3 px-4 text-sm font-semibold text-muted-foreground">Order</th>
-                              <th className="text-left py-3 px-4 text-sm font-semibold text-muted-foreground">Customer</th>
-                              <th className="text-left py-3 px-4 text-sm font-semibold text-muted-foreground">Date</th>
-                              <th className="text-left py-3 px-4 text-sm font-semibold text-muted-foreground">Status</th>
-                              <th className="text-left py-3 px-4 text-sm font-semibold text-muted-foreground">Payment</th>
-                              <th className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground">Amount</th>
-                              <th className="text-center py-3 px-4 text-sm font-semibold text-muted-foreground">Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {orders.map((order) => (
-                              <tr key={order.id} className="border-b hover:bg-muted/30">
-                                <td className="py-3 px-4">
-                                  <p className="font-medium text-sm">
-                                    {order.package_details?.packageTitle || order.listing_type?.replace('_', ' ')}
-                                  </p>
-                                  <p className="text-xs text-muted-foreground font-mono">
-                                    {order.id?.slice(0, 8)}...
-                                  </p>
-                                </td>
-                                <td className="py-3 px-4">
-                                  <p className="text-sm font-medium">{order.user_info?.name || 'N/A'}</p>
-                                  <p className="text-xs text-muted-foreground">{order.user_info?.email || ''}</p>
-                                </td>
-                                <td className="py-3 px-4 text-sm text-muted-foreground">
-                                  {formatDate(order.created_at)}
-                                </td>
-                                <td className="py-3 px-4">
-                                  {getStatusBadge(order.order_status, ORDER_STATUSES)}
-                                </td>
-                                <td className="py-3 px-4">
-                                  {getStatusBadge(order.payment_status, PAYMENT_STATUSES)}
-                                </td>
-                                <td className="py-3 px-4 text-right">
-                                  <span className="font-bold">{formatPrice(order.total_amount)}</span>
-                                </td>
-                                <td className="py-3 px-4 text-center">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleEditOrder(order)}
-                                  >
-                                    <Edit className="h-4 w-4 mr-1" />
-                                    Update
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="border-b">
+                            <th className="text-left py-3 px-2 text-sm font-semibold">Order</th>
+                            <th className="text-left py-3 px-2 text-sm font-semibold">Customer</th>
+                            <th className="text-left py-3 px-2 text-sm font-semibold">Date</th>
+                            <th className="text-left py-3 px-2 text-sm font-semibold">Status</th>
+                            <th className="text-left py-3 px-2 text-sm font-semibold">Payment</th>
+                            <th className="text-right py-3 px-2 text-sm font-semibold">Amount</th>
+                            <th className="text-center py-3 px-2 text-sm font-semibold">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {orders.slice(0, 50).map((item) => (
+                            <tr key={item.id} className="border-b hover:bg-muted/30">
+                              <td className="py-3 px-2">
+                                <p className="font-medium text-sm">{item.package_details?.packageTitle || item.listing_type}</p>
+                                <p className="text-xs text-muted-foreground font-mono">{item.id?.slice(0, 8)}...</p>
+                              </td>
+                              <td className="py-3 px-2">
+                                <p className="text-sm">{item.user_info?.name || 'N/A'}</p>
+                                <p className="text-xs text-muted-foreground">{item.user_info?.email}</p>
+                              </td>
+                              <td className="py-3 px-2 text-sm">{formatDate(item.created_at)}</td>
+                              <td className="py-3 px-2">{getStatusBadge(item.order_status)}</td>
+                              <td className="py-3 px-2">{getStatusBadge(item.payment_status)}</td>
+                              <td className="py-3 px-2 text-right font-semibold">{formatPrice(item.total_amount)}</td>
+                              <td className="py-3 px-2">
+                                <div className="flex items-center justify-center gap-1">
+                                  <Button variant="ghost" size="sm" onClick={() => openEditModal('order', item)}>
+                                    <Edit className="h-4 w-4" />
                                   </Button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
+                                  <Button variant="ghost" size="sm" className="text-red-500" onClick={() => confirmDelete('order', item)}>
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -442,68 +686,203 @@ export const AdminPanelPage = () => {
               <TabsContent value="consultations">
                 <Card className="border-2">
                   <CardHeader>
-                    <CardTitle className="flex items-center">
-                      <MessageSquare className="h-5 w-5 mr-2 text-purple-600" />
-                      All Consultations
-                    </CardTitle>
+                    <CardTitle>Manage Consultations ({consultations.length})</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    {consultations.length === 0 ? (
-                      <p className="text-center text-muted-foreground py-12">No consultations found</p>
-                    ) : (
-                      <div className="overflow-x-auto">
-                        <table className="w-full">
-                          <thead>
-                            <tr className="border-b">
-                              <th className="text-left py-3 px-4 text-sm font-semibold text-muted-foreground">Consultation</th>
-                              <th className="text-left py-3 px-4 text-sm font-semibold text-muted-foreground">Business</th>
-                              <th className="text-left py-3 px-4 text-sm font-semibold text-muted-foreground">Contact</th>
-                              <th className="text-left py-3 px-4 text-sm font-semibold text-muted-foreground">Date</th>
-                              <th className="text-left py-3 px-4 text-sm font-semibold text-muted-foreground">Status</th>
-                              <th className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground">Price</th>
-                              <th className="text-center py-3 px-4 text-sm font-semibold text-muted-foreground">Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {consultations.map((consultation) => (
-                              <tr key={consultation.id} className="border-b hover:bg-muted/30">
-                                <td className="py-3 px-4">
-                                  <p className="font-medium text-sm">{consultation.package_title}</p>
-                                  <p className="text-xs text-muted-foreground">{consultation.consultation_type}</p>
-                                </td>
-                                <td className="py-3 px-4">
-                                  <p className="text-sm font-medium">{consultation.business_name}</p>
-                                  <p className="text-xs text-muted-foreground">{consultation.industry}</p>
-                                </td>
-                                <td className="py-3 px-4">
-                                  <p className="text-sm">{consultation.contact_name}</p>
-                                  <p className="text-xs text-muted-foreground">{consultation.contact_phone}</p>
-                                </td>
-                                <td className="py-3 px-4 text-sm text-muted-foreground">
-                                  {formatDate(consultation.created_at)}
-                                </td>
-                                <td className="py-3 px-4">
-                                  {getStatusBadge(consultation.status || 'pending', CONSULTATION_STATUSES)}
-                                </td>
-                                <td className="py-3 px-4 text-right">
-                                  <span className="font-bold">{formatPrice(consultation.price)}</span>
-                                </td>
-                                <td className="py-3 px-4 text-center">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleEditConsultation(consultation)}
-                                  >
-                                    <Edit className="h-4 w-4 mr-1" />
-                                    Update
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="border-b">
+                            <th className="text-left py-3 px-2 text-sm font-semibold">Type</th>
+                            <th className="text-left py-3 px-2 text-sm font-semibold">Business</th>
+                            <th className="text-left py-3 px-2 text-sm font-semibold">Contact</th>
+                            <th className="text-left py-3 px-2 text-sm font-semibold">Date</th>
+                            <th className="text-left py-3 px-2 text-sm font-semibold">Status</th>
+                            <th className="text-right py-3 px-2 text-sm font-semibold">Price</th>
+                            <th className="text-center py-3 px-2 text-sm font-semibold">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {consultations.map((item) => (
+                            <tr key={item.id} className="border-b hover:bg-muted/30">
+                              <td className="py-3 px-2 font-medium text-sm">{item.package_title}</td>
+                              <td className="py-3 px-2">
+                                <p className="text-sm">{item.business_name}</p>
+                                <p className="text-xs text-muted-foreground">{item.industry}</p>
+                              </td>
+                              <td className="py-3 px-2">
+                                <p className="text-sm">{item.contact_name}</p>
+                                <p className="text-xs text-muted-foreground">{item.contact_phone}</p>
+                              </td>
+                              <td className="py-3 px-2 text-sm">{formatDate(item.created_at)}</td>
+                              <td className="py-3 px-2">{getStatusBadge(item.status || 'pending')}</td>
+                              <td className="py-3 px-2 text-right font-semibold">{formatPrice(item.price)}</td>
+                              <td className="py-3 px-2">
+                                <div className="flex items-center justify-center gap-1">
+                                  <Button variant="ghost" size="sm" onClick={() => openEditModal('consultation', item)}>
+                                    <Edit className="h-4 w-4" />
                                   </Button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                                  <Button variant="ghost" size="sm" className="text-red-500" onClick={() => confirmDelete('consultation', item)}>
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* Users Tab */}
+              <TabsContent value="users">
+                <Card className="border-2">
+                  <CardHeader>
+                    <CardTitle>Manage Users ({users.length})</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="border-b">
+                            <th className="text-left py-3 px-2 text-sm font-semibold">Name</th>
+                            <th className="text-left py-3 px-2 text-sm font-semibold">Email</th>
+                            <th className="text-left py-3 px-2 text-sm font-semibold">Phone</th>
+                            <th className="text-left py-3 px-2 text-sm font-semibold">Role</th>
+                            <th className="text-left py-3 px-2 text-sm font-semibold">Joined</th>
+                            <th className="text-center py-3 px-2 text-sm font-semibold">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {users.map((item) => (
+                            <tr key={item.id} className="border-b hover:bg-muted/30">
+                              <td className="py-3 px-2 font-medium text-sm">{item.name}</td>
+                              <td className="py-3 px-2 text-sm">{item.email}</td>
+                              <td className="py-3 px-2 text-sm">{item.phone}</td>
+                              <td className="py-3 px-2">
+                                <Badge className={`border-0 ${
+                                  item.role === 'admin' ? 'bg-red-100 text-red-800' :
+                                  item.role === 'supplier' ? 'bg-blue-100 text-blue-800' :
+                                  'bg-green-100 text-green-800'
+                                }`}>
+                                  {item.role}
+                                </Badge>
+                              </td>
+                              <td className="py-3 px-2 text-sm">{formatDate(item.created_at)}</td>
+                              <td className="py-3 px-2">
+                                <div className="flex items-center justify-center gap-1">
+                                  <Button variant="ghost" size="sm" onClick={() => openEditModal('user', item)}>
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                  {item.id !== user.id && (
+                                    <Button variant="ghost" size="sm" className="text-red-500" onClick={() => confirmDelete('user', item)}>
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* Settings Tab */}
+              <TabsContent value="settings">
+                <Card className="border-2">
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <Settings className="h-5 w-5 mr-2" />
+                      Site Settings
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label>Site Name</Label>
+                        <Input 
+                          value={settings?.site_name || ''} 
+                          onChange={(e) => setSettings(prev => ({ ...prev, site_name: e.target.value }))}
+                        />
                       </div>
-                    )}
+                      <div>
+                        <Label>Tagline</Label>
+                        <Input 
+                          value={settings?.tagline || ''} 
+                          onChange={(e) => setSettings(prev => ({ ...prev, tagline: e.target.value }))}
+                        />
+                      </div>
+                      <div>
+                        <Label>Contact Email</Label>
+                        <Input 
+                          value={settings?.contact_email || ''} 
+                          onChange={(e) => setSettings(prev => ({ ...prev, contact_email: e.target.value }))}
+                        />
+                      </div>
+                      <div>
+                        <Label>Contact Phone</Label>
+                        <Input 
+                          value={settings?.contact_phone || ''} 
+                          onChange={(e) => setSettings(prev => ({ ...prev, contact_phone: e.target.value }))}
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <Label>Office Address</Label>
+                        <Input 
+                          value={settings?.office_address || ''} 
+                          onChange={(e) => setSettings(prev => ({ ...prev, office_address: e.target.value }))}
+                        />
+                      </div>
+                      <div>
+                        <Label>Business Hours</Label>
+                        <Input 
+                          value={settings?.business_hours || ''} 
+                          onChange={(e) => setSettings(prev => ({ ...prev, business_hours: e.target.value }))}
+                        />
+                      </div>
+                      <div>
+                        <Label>Platform Fee (%)</Label>
+                        <Input 
+                          type="number"
+                          value={settings?.platform_fee_percentage || 10} 
+                          onChange={(e) => setSettings(prev => ({ ...prev, platform_fee_percentage: parseFloat(e.target.value) }))}
+                        />
+                      </div>
+                      <div>
+                        <Label>Online Consultation Price</Label>
+                        <Input 
+                          type="number"
+                          value={settings?.consultation_price_online || 15000} 
+                          onChange={(e) => setSettings(prev => ({ ...prev, consultation_price_online: parseFloat(e.target.value) }))}
+                        />
+                      </div>
+                      <div>
+                        <Label>Office Consultation Price</Label>
+                        <Input 
+                          type="number"
+                          value={settings?.consultation_price_office || 25000} 
+                          onChange={(e) => setSettings(prev => ({ ...prev, consultation_price_office: parseFloat(e.target.value) }))}
+                        />
+                      </div>
+                    </div>
+                    <Button 
+                      onClick={async () => {
+                        try {
+                          await api.put('/admin/settings', settings);
+                          toast.success('Settings saved successfully');
+                        } catch (error) {
+                          toast.error('Failed to save settings');
+                        }
+                      }}
+                      className="bg-accent hover:bg-accent/90"
+                    >
+                      Save Settings
+                    </Button>
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -512,130 +891,298 @@ export const AdminPanelPage = () => {
         )}
       </div>
 
-      {/* Order Update Modal */}
-      <Dialog open={showOrderModal} onOpenChange={setShowOrderModal}>
-        <DialogContent className="sm:max-w-md">
+      {/* Create/Edit Modal */}
+      <Dialog open={showModal} onOpenChange={setShowModal}>
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Update Order Status</DialogTitle>
+            <DialogTitle>
+              {modalMode === 'create' ? 'Create' : 'Edit'} {modalType.charAt(0).toUpperCase() + modalType.slice(1)}
+            </DialogTitle>
           </DialogHeader>
-          {selectedOrder && (
-            <div className="space-y-4 py-4">
-              <div className="bg-muted/30 rounded-lg p-3">
-                <p className="font-medium">{selectedOrder.package_details?.packageTitle || selectedOrder.listing_type}</p>
-                <p className="text-sm text-muted-foreground">
-                  Customer: {selectedOrder.user_info?.name || 'N/A'}
-                </p>
-                <p className="text-sm font-bold text-accent mt-1">{formatPrice(selectedOrder.total_amount)}</p>
-              </div>
-
-              <div className="space-y-3">
+          
+          <div className="space-y-4 py-4">
+            {/* Influencer Form */}
+            {modalType === 'influencer' && (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Name *</Label>
+                    <Input value={formData.name || ''} onChange={(e) => updateFormField('name', e.target.value)} />
+                  </div>
+                  <div>
+                    <Label>Handle *</Label>
+                    <Input value={formData.handle || ''} onChange={(e) => updateFormField('handle', e.target.value)} placeholder="@username" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Platform</Label>
+                    <Select value={formData.platform} onValueChange={(v) => updateFormField('platform', v)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {PLATFORM_OPTIONS.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Followers</Label>
+                    <Input type="number" value={formData.followers || 0} onChange={(e) => updateFormField('followers', parseInt(e.target.value))} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Niche</Label>
+                    <Input value={formData.niche || ''} onChange={(e) => updateFormField('niche', e.target.value)} />
+                  </div>
+                  <div>
+                    <Label>Location</Label>
+                    <Input value={formData.location || ''} onChange={(e) => updateFormField('location', e.target.value)} />
+                  </div>
+                </div>
                 <div>
-                  <label className="text-sm font-medium mb-1 block">Order Status</label>
-                  <Select value={newOrderStatus} onValueChange={setNewOrderStatus}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
+                  <Label>Bio</Label>
+                  <Textarea value={formData.bio || ''} onChange={(e) => updateFormField('bio', e.target.value)} />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Price per Post (₦)</Label>
+                    <Input type="number" value={formData.price_per_post || 0} onChange={(e) => updateFormField('price_per_post', parseFloat(e.target.value))} />
+                  </div>
+                  <div>
+                    <Label>Engagement Rate (%)</Label>
+                    <Input type="number" step="0.1" value={formData.engagement_rate || 0} onChange={(e) => updateFormField('engagement_rate', parseFloat(e.target.value))} />
+                  </div>
+                </div>
+                <div>
+                  <Label>Image URL</Label>
+                  <Input value={formData.image_url || ''} onChange={(e) => updateFormField('image_url', e.target.value)} />
+                </div>
+                <div>
+                  <Label>Status</Label>
+                  <Select value={formData.status || 'approved'} onValueChange={(v) => updateFormField('status', v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {ORDER_STATUSES.map((status) => (
-                        <SelectItem key={status.value} value={status.value}>
-                          {status.label}
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="approved">Approved</SelectItem>
+                      <SelectItem value="rejected">Rejected</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
+              </>
+            )}
 
+            {/* Billboard Form */}
+            {modalType === 'billboard' && (
+              <>
                 <div>
-                  <label className="text-sm font-medium mb-1 block">Payment Status</label>
-                  <Select value={newPaymentStatus} onValueChange={setNewPaymentStatus}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
+                  <Label>Name *</Label>
+                  <Input value={formData.name || ''} onChange={(e) => updateFormField('name', e.target.value)} />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Type</Label>
+                    <Select value={formData.type || 'LED'} onValueChange={(v) => updateFormField('type', v)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {BILLBOARD_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Price (₦)</Label>
+                    <Input type="number" value={formData.price || 0} onChange={(e) => updateFormField('price', parseFloat(e.target.value))} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Location</Label>
+                    <Input value={formData.location || ''} onChange={(e) => updateFormField('location', e.target.value)} />
+                  </div>
+                  <div>
+                    <Label>Traffic</Label>
+                    <Input value={formData.traffic || ''} onChange={(e) => updateFormField('traffic', e.target.value)} />
+                  </div>
+                </div>
+                <div>
+                  <Label>Description</Label>
+                  <Textarea value={formData.description || ''} onChange={(e) => updateFormField('description', e.target.value)} />
+                </div>
+                <div>
+                  <Label>Image URL</Label>
+                  <Input value={formData.image_url || ''} onChange={(e) => updateFormField('image_url', e.target.value)} />
+                </div>
+              </>
+            )}
+
+            {/* Kannywood Form */}
+            {modalType === 'kannywood' && (
+              <>
+                <div>
+                  <Label>Title *</Label>
+                  <Input value={formData.title || ''} onChange={(e) => updateFormField('title', e.target.value)} />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Director</Label>
+                    <Input value={formData.director || ''} onChange={(e) => updateFormField('director', e.target.value)} />
+                  </div>
+                  <div>
+                    <Label>Genre</Label>
+                    <Input value={formData.genre || ''} onChange={(e) => updateFormField('genre', e.target.value)} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Est. Reach</Label>
+                    <Input value={formData.est_reach || ''} onChange={(e) => updateFormField('est_reach', e.target.value)} />
+                  </div>
+                  <div>
+                    <Label>Price (₦)</Label>
+                    <Input type="number" value={formData.price || 0} onChange={(e) => updateFormField('price', parseFloat(e.target.value))} />
+                  </div>
+                </div>
+                <div>
+                  <Label>Description</Label>
+                  <Textarea value={formData.description || ''} onChange={(e) => updateFormField('description', e.target.value)} />
+                </div>
+                <div>
+                  <Label>Image URL</Label>
+                  <Input value={formData.image_url || ''} onChange={(e) => updateFormField('image_url', e.target.value)} />
+                </div>
+              </>
+            )}
+
+            {/* User Form */}
+            {modalType === 'user' && (
+              <>
+                <div>
+                  <Label>Name</Label>
+                  <Input value={formData.name || ''} onChange={(e) => updateFormField('name', e.target.value)} />
+                </div>
+                <div>
+                  <Label>Email</Label>
+                  <Input value={formData.email || ''} onChange={(e) => updateFormField('email', e.target.value)} />
+                </div>
+                <div>
+                  <Label>Phone</Label>
+                  <Input value={formData.phone || ''} onChange={(e) => updateFormField('phone', e.target.value)} />
+                </div>
+                <div>
+                  <Label>Role</Label>
+                  <Select value={formData.role || 'advertiser'} onValueChange={(v) => updateFormField('role', v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {PAYMENT_STATUSES.map((status) => (
-                        <SelectItem key={status.value} value={status.value}>
-                          {status.label}
-                        </SelectItem>
-                      ))}
+                      {ROLE_OPTIONS.map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
-              </div>
-            </div>
-          )}
+              </>
+            )}
+
+            {/* Order Form */}
+            {modalType === 'order' && (
+              <>
+                <div className="bg-muted/30 rounded-lg p-3 mb-4">
+                  <p className="font-medium">{selectedItem?.package_details?.packageTitle || selectedItem?.listing_type}</p>
+                  <p className="text-sm text-muted-foreground">Customer: {selectedItem?.user_info?.name}</p>
+                  <p className="text-sm font-bold text-accent">{formatPrice(selectedItem?.total_amount)}</p>
+                </div>
+                <div>
+                  <Label>Order Status</Label>
+                  <Select value={formData.order_status || 'pending'} onValueChange={(v) => updateFormField('order_status', v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {STATUS_OPTIONS.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Payment Status</Label>
+                  <Select value={formData.payment_status || 'pending'} onValueChange={(v) => updateFormField('payment_status', v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {PAYMENT_STATUS_OPTIONS.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Notes</Label>
+                  <Textarea value={formData.notes || ''} onChange={(e) => updateFormField('notes', e.target.value)} placeholder="Internal notes..." />
+                </div>
+              </>
+            )}
+
+            {/* Consultation Form */}
+            {modalType === 'consultation' && (
+              <>
+                <div className="bg-muted/30 rounded-lg p-3 mb-4">
+                  <p className="font-medium">{selectedItem?.package_title}</p>
+                  <p className="text-sm text-muted-foreground">Business: {selectedItem?.business_name}</p>
+                  <p className="text-sm text-muted-foreground">Contact: {selectedItem?.contact_name} - {selectedItem?.contact_phone}</p>
+                  <p className="text-sm font-bold text-accent">{formatPrice(selectedItem?.price)}</p>
+                </div>
+                <div>
+                  <Label>Status</Label>
+                  <Select value={formData.status || 'pending'} onValueChange={(v) => updateFormField('status', v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="scheduled">Scheduled</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="cancelled">Cancelled</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Payment Status</Label>
+                  <Select value={formData.payment_status || 'pending'} onValueChange={(v) => updateFormField('payment_status', v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {PAYMENT_STATUS_OPTIONS.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Scheduled Date</Label>
+                  <Input type="date" value={formData.scheduled_date || ''} onChange={(e) => updateFormField('scheduled_date', e.target.value)} />
+                </div>
+                <div>
+                  <Label>Notes</Label>
+                  <Textarea value={formData.notes || ''} onChange={(e) => updateFormField('notes', e.target.value)} placeholder="Internal notes..." />
+                </div>
+              </>
+            )}
+          </div>
+          
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowOrderModal(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleUpdateOrder} disabled={updating} className="bg-accent hover:bg-accent/90">
-              {updating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-              Update Order
+            <Button variant="outline" onClick={() => setShowModal(false)}>Cancel</Button>
+            <Button onClick={handleSave} disabled={saving} className="bg-accent hover:bg-accent/90">
+              {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {modalMode === 'create' ? 'Create' : 'Save Changes'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Consultation Update Modal */}
-      <Dialog open={showConsultationModal} onOpenChange={setShowConsultationModal}>
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Update Consultation Status</DialogTitle>
+            <DialogTitle className="flex items-center text-red-600">
+              <AlertCircle className="h-5 w-5 mr-2" />
+              Confirm Delete
+            </DialogTitle>
           </DialogHeader>
-          {selectedConsultation && (
-            <div className="space-y-4 py-4">
-              <div className="bg-muted/30 rounded-lg p-3">
-                <p className="font-medium">{selectedConsultation.package_title}</p>
-                <p className="text-sm text-muted-foreground">
-                  Business: {selectedConsultation.business_name}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Contact: {selectedConsultation.contact_name} - {selectedConsultation.contact_phone}
-                </p>
-                <p className="text-sm font-bold text-accent mt-1">{formatPrice(selectedConsultation.price)}</p>
-              </div>
-
-              <div className="space-y-3">
-                <div>
-                  <label className="text-sm font-medium mb-1 block">Consultation Status</label>
-                  <Select value={newConsultationStatus} onValueChange={setNewConsultationStatus}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CONSULTATION_STATUSES.map((status) => (
-                        <SelectItem key={status.value} value={status.value}>
-                          {status.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium mb-1 block">Payment Status</label>
-                  <Select value={newPaymentStatus} onValueChange={setNewPaymentStatus}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {PAYMENT_STATUSES.map((status) => (
-                        <SelectItem key={status.value} value={status.value}>
-                          {status.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-          )}
+          <div className="py-4">
+            <p className="text-muted-foreground">
+              Are you sure you want to delete this {itemToDelete?.type}? This action cannot be undone.
+            </p>
+          </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowConsultationModal(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleUpdateConsultation} disabled={updating} className="bg-accent hover:bg-accent/90">
-              {updating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-              Update Consultation
+            <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>Cancel</Button>
+            <Button onClick={handleDelete} disabled={deleting} className="bg-red-600 hover:bg-red-700">
+              {deleting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Delete
             </Button>
           </DialogFooter>
         </DialogContent>
