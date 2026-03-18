@@ -397,7 +397,7 @@ async def create_billboard(data: BillboardCreate, current_user: User = Depends(g
     await db.billboards.insert_one(doc)
     return billboard
 
-@api_router.get("/billboards", response_model=List[Billboard])
+@api_router.get("/billboards")
 async def get_billboards(
     city: Optional[str] = None,
     billboard_type: Optional[str] = None,
@@ -408,27 +408,76 @@ async def get_billboards(
     if city:
         query["city"] = {"$regex": city, "$options": "i"}
     if billboard_type:
-        query["billboard_type"] = billboard_type
+        query["$or"] = [{"billboard_type": billboard_type}, {"type": billboard_type}]
     if max_price:
-        query["price_monthly"] = {"$lte": max_price}
+        query["$or"] = [{"price_monthly": {"$lte": max_price}}, {"price": {"$lte": max_price}}]
     
     billboards = await db.billboards.find(query, {"_id": 0}).to_list(100)
-    for bb in billboards:
-        if isinstance(bb['created_at'], str):
-            bb['created_at'] = datetime.fromisoformat(bb['created_at'])
     
-    return billboards
+    # Normalize billboard data to handle both old and new formats
+    normalized = []
+    for bb in billboards:
+        normalized_bb = {
+            "id": bb.get("id"),
+            "supplier_id": bb.get("supplier_id", "admin"),
+            "location_name": bb.get("location_name") or bb.get("name") or bb.get("location", ""),
+            "name": bb.get("name") or bb.get("location_name", ""),
+            "city": bb.get("city", ""),
+            "state": bb.get("state", ""),
+            "dimensions": bb.get("dimensions", ""),
+            "billboard_type": bb.get("billboard_type") or bb.get("type", "LED"),
+            "type": bb.get("type") or bb.get("billboard_type", "LED"),
+            "traffic_daily": bb.get("traffic_daily", 0),
+            "traffic": bb.get("traffic", ""),
+            "price_monthly": bb.get("price_monthly") or bb.get("price", 0),
+            "price": bb.get("price") or bb.get("price_monthly", 0),
+            "description": bb.get("description", ""),
+            "latitude": bb.get("latitude"),
+            "longitude": bb.get("longitude"),
+            "image_url": bb.get("image_url", ""),
+            "verified": bb.get("verified", False),
+            "availability": bb.get("availability", True),
+            "status": bb.get("status", "approved"),
+            "pricing_by_state": bb.get("pricing_by_state", {}),
+            "created_at": bb.get("created_at")
+        }
+        normalized.append(normalized_bb)
+    
+    return normalized
 
-@api_router.get("/billboards/{billboard_id}", response_model=Billboard)
+@api_router.get("/billboards/{billboard_id}")
 async def get_billboard(billboard_id: str):
     billboard = await db.billboards.find_one({"id": billboard_id}, {"_id": 0})
     if not billboard:
         raise HTTPException(status_code=404, detail="Billboard not found")
     
-    if isinstance(billboard['created_at'], str):
-        billboard['created_at'] = datetime.fromisoformat(billboard['created_at'])
+    # Normalize billboard data
+    normalized_bb = {
+        "id": billboard.get("id"),
+        "supplier_id": billboard.get("supplier_id", "admin"),
+        "location_name": billboard.get("location_name") or billboard.get("name") or billboard.get("location", ""),
+        "name": billboard.get("name") or billboard.get("location_name", ""),
+        "city": billboard.get("city", ""),
+        "state": billboard.get("state", ""),
+        "dimensions": billboard.get("dimensions", ""),
+        "billboard_type": billboard.get("billboard_type") or billboard.get("type", "LED"),
+        "type": billboard.get("type") or billboard.get("billboard_type", "LED"),
+        "traffic_daily": billboard.get("traffic_daily", 0),
+        "traffic": billboard.get("traffic", ""),
+        "price_monthly": billboard.get("price_monthly") or billboard.get("price", 0),
+        "price": billboard.get("price") or billboard.get("price_monthly", 0),
+        "description": billboard.get("description", ""),
+        "latitude": billboard.get("latitude"),
+        "longitude": billboard.get("longitude"),
+        "image_url": billboard.get("image_url", ""),
+        "verified": billboard.get("verified", False),
+        "availability": billboard.get("availability", True),
+        "status": billboard.get("status", "approved"),
+        "pricing_by_state": billboard.get("pricing_by_state", {}),
+        "created_at": billboard.get("created_at")
+    }
     
-    return billboard
+    return normalized_bb
 
 # Digital Ad Service Routes
 @api_router.post("/digital-ads", response_model=DigitalAdService)

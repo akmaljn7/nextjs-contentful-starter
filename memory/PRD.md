@@ -68,6 +68,10 @@ A conversion-focused, responsive marketplace website for "Lightban Ads Network" 
   - Full CRUD for Orders and Consultations
   - User management (view, edit roles, delete)
   - Site Settings management (site name, contact info, prices, fees)
+  - **Package Management**: Admin can add/edit/delete service packages for:
+    - Influencers (title, description, price, delivery time)
+    - Kannywood (title, description, price)
+    - Billboards (location-based pricing by state with daily/weekly/monthly rates)
 
 ### Influencers (6 Total)
 1. G_fresh - TikTok, 450K followers, Comedy & Entertainment

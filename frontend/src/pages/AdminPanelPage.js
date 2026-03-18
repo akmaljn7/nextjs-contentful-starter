@@ -968,6 +968,115 @@ export const AdminPanelPage = () => {
                     </SelectContent>
                   </Select>
                 </div>
+
+                {/* Packages Section */}
+                <div className="border-t pt-4 mt-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <Label className="text-base font-semibold">Service Packages</Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const packages = formData.packages || [];
+                        packages.push({
+                          id: `pkg-${Date.now()}`,
+                          title: '',
+                          description: '',
+                          price: 0,
+                          delivery_time: '3-5 days',
+                          features: []
+                        });
+                        updateFormField('packages', [...packages]);
+                      }}
+                    >
+                      <Plus className="h-4 w-4 mr-1" /> Add Package
+                    </Button>
+                  </div>
+                  
+                  {(formData.packages || []).length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4 bg-muted/30 rounded-lg">
+                      No packages yet. Click "Add Package" to create one.
+                    </p>
+                  ) : (
+                    <div className="space-y-4">
+                      {(formData.packages || []).map((pkg, index) => (
+                        <div key={pkg.id || index} className="border rounded-lg p-3 bg-muted/20">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-medium">Package {index + 1}</span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0 text-red-500"
+                              onClick={() => {
+                                const packages = [...(formData.packages || [])];
+                                packages.splice(index, 1);
+                                updateFormField('packages', packages);
+                              }}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <Label className="text-xs">Title</Label>
+                              <Input
+                                className="h-8 text-sm"
+                                value={pkg.title || ''}
+                                onChange={(e) => {
+                                  const packages = [...(formData.packages || [])];
+                                  packages[index].title = e.target.value;
+                                  updateFormField('packages', packages);
+                                }}
+                                placeholder="e.g., Basic Shoutout"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-xs">Price (₦)</Label>
+                              <Input
+                                className="h-8 text-sm"
+                                type="number"
+                                value={pkg.price || 0}
+                                onChange={(e) => {
+                                  const packages = [...(formData.packages || [])];
+                                  packages[index].price = parseFloat(e.target.value);
+                                  updateFormField('packages', packages);
+                                }}
+                              />
+                            </div>
+                          </div>
+                          <div className="mt-2">
+                            <Label className="text-xs">Description</Label>
+                            <Textarea
+                              className="text-sm min-h-[60px]"
+                              value={pkg.description || ''}
+                              onChange={(e) => {
+                                const packages = [...(formData.packages || [])];
+                                packages[index].description = e.target.value;
+                                updateFormField('packages', packages);
+                              }}
+                              placeholder="What's included in this package..."
+                            />
+                          </div>
+                          <div className="mt-2">
+                            <Label className="text-xs">Delivery Time</Label>
+                            <Input
+                              className="h-8 text-sm"
+                              value={pkg.delivery_time || ''}
+                              onChange={(e) => {
+                                const packages = [...(formData.packages || [])];
+                                packages[index].delivery_time = e.target.value;
+                                updateFormField('packages', packages);
+                              }}
+                              placeholder="e.g., 3-5 days"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </>
             )}
 
@@ -989,19 +1098,33 @@ export const AdminPanelPage = () => {
                     </Select>
                   </div>
                   <div>
-                    <Label>Price (₦)</Label>
+                    <Label>Base Price (₦)</Label>
                     <Input type="number" value={formData.price || 0} onChange={(e) => updateFormField('price', parseFloat(e.target.value))} />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <Label>Location</Label>
-                    <Input value={formData.location || ''} onChange={(e) => updateFormField('location', e.target.value)} />
+                    <Label>City</Label>
+                    <Input value={formData.city || ''} onChange={(e) => updateFormField('city', e.target.value)} placeholder="e.g., Kano" />
                   </div>
                   <div>
-                    <Label>Traffic</Label>
-                    <Input value={formData.traffic || ''} onChange={(e) => updateFormField('traffic', e.target.value)} />
+                    <Label>State</Label>
+                    <Input value={formData.state || ''} onChange={(e) => updateFormField('state', e.target.value)} placeholder="e.g., Kano State" />
                   </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Location Details</Label>
+                    <Input value={formData.location || ''} onChange={(e) => updateFormField('location', e.target.value)} placeholder="Specific area/street" />
+                  </div>
+                  <div>
+                    <Label>Daily Traffic</Label>
+                    <Input value={formData.traffic || ''} onChange={(e) => updateFormField('traffic', e.target.value)} placeholder="e.g., 50,000 vehicles" />
+                  </div>
+                </div>
+                <div>
+                  <Label>Dimensions</Label>
+                  <Input value={formData.dimensions || ''} onChange={(e) => updateFormField('dimensions', e.target.value)} placeholder="e.g., 48ft x 14ft" />
                 </div>
                 <div>
                   <Label>Description</Label>
@@ -1010,6 +1133,130 @@ export const AdminPanelPage = () => {
                 <div>
                   <Label>Image URL</Label>
                   <Input value={formData.image_url || ''} onChange={(e) => updateFormField('image_url', e.target.value)} />
+                </div>
+
+                {/* Location-Based Pricing Section */}
+                <div className="border-t pt-4 mt-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <Label className="text-base font-semibold">Location-Based Pricing</Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const pricing = formData.pricing_by_state || {};
+                        const newState = `State_${Object.keys(pricing).length + 1}`;
+                        pricing[newState] = { 
+                          name: '', 
+                          city: '', 
+                          daily_rate: 0, 
+                          weekly_rate: 0, 
+                          monthly_rate: 0 
+                        };
+                        updateFormField('pricing_by_state', { ...pricing });
+                      }}
+                    >
+                      <Plus className="h-4 w-4 mr-1" /> Add Location
+                    </Button>
+                  </div>
+                  
+                  {Object.keys(formData.pricing_by_state || {}).length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4 bg-muted/30 rounded-lg">
+                      No location pricing yet. Click "Add Location" to create one.
+                    </p>
+                  ) : (
+                    <div className="space-y-4">
+                      {Object.entries(formData.pricing_by_state || {}).map(([key, location], index) => (
+                        <div key={key} className="border rounded-lg p-3 bg-muted/20">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-medium">Location {index + 1}</span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0 text-red-500"
+                              onClick={() => {
+                                const pricing = { ...(formData.pricing_by_state || {}) };
+                                delete pricing[key];
+                                updateFormField('pricing_by_state', pricing);
+                              }}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <Label className="text-xs">State Name</Label>
+                              <Input
+                                className="h-8 text-sm"
+                                value={location.name || ''}
+                                onChange={(e) => {
+                                  const pricing = { ...(formData.pricing_by_state || {}) };
+                                  pricing[key].name = e.target.value;
+                                  updateFormField('pricing_by_state', pricing);
+                                }}
+                                placeholder="e.g., Kano"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-xs">City</Label>
+                              <Input
+                                className="h-8 text-sm"
+                                value={location.city || ''}
+                                onChange={(e) => {
+                                  const pricing = { ...(formData.pricing_by_state || {}) };
+                                  pricing[key].city = e.target.value;
+                                  updateFormField('pricing_by_state', pricing);
+                                }}
+                                placeholder="e.g., Kano City"
+                              />
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2 mt-2">
+                            <div>
+                              <Label className="text-xs">Daily (₦)</Label>
+                              <Input
+                                className="h-8 text-sm"
+                                type="number"
+                                value={location.daily_rate || 0}
+                                onChange={(e) => {
+                                  const pricing = { ...(formData.pricing_by_state || {}) };
+                                  pricing[key].daily_rate = parseFloat(e.target.value);
+                                  updateFormField('pricing_by_state', pricing);
+                                }}
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-xs">Weekly (₦)</Label>
+                              <Input
+                                className="h-8 text-sm"
+                                type="number"
+                                value={location.weekly_rate || 0}
+                                onChange={(e) => {
+                                  const pricing = { ...(formData.pricing_by_state || {}) };
+                                  pricing[key].weekly_rate = parseFloat(e.target.value);
+                                  updateFormField('pricing_by_state', pricing);
+                                }}
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-xs">Monthly (₦)</Label>
+                              <Input
+                                className="h-8 text-sm"
+                                type="number"
+                                value={location.monthly_rate || 0}
+                                onChange={(e) => {
+                                  const pricing = { ...(formData.pricing_by_state || {}) };
+                                  pricing[key].monthly_rate = parseFloat(e.target.value);
+                                  updateFormField('pricing_by_state', pricing);
+                                }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </>
             )}
@@ -1048,6 +1295,101 @@ export const AdminPanelPage = () => {
                 <div>
                   <Label>Image URL</Label>
                   <Input value={formData.image_url || ''} onChange={(e) => updateFormField('image_url', e.target.value)} />
+                </div>
+
+                {/* Packages Section for Kannywood */}
+                <div className="border-t pt-4 mt-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <Label className="text-base font-semibold">Advertising Packages</Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const packages = formData.packages || [];
+                        packages.push({
+                          id: `pkg-${Date.now()}`,
+                          title: '',
+                          description: '',
+                          price: 0,
+                          features: []
+                        });
+                        updateFormField('packages', [...packages]);
+                      }}
+                    >
+                      <Plus className="h-4 w-4 mr-1" /> Add Package
+                    </Button>
+                  </div>
+                  
+                  {(formData.packages || []).length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4 bg-muted/30 rounded-lg">
+                      No packages yet. Click "Add Package" to create one.
+                    </p>
+                  ) : (
+                    <div className="space-y-4">
+                      {(formData.packages || []).map((pkg, index) => (
+                        <div key={pkg.id || index} className="border rounded-lg p-3 bg-muted/20">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-medium">Package {index + 1}</span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0 text-red-500"
+                              onClick={() => {
+                                const packages = [...(formData.packages || [])];
+                                packages.splice(index, 1);
+                                updateFormField('packages', packages);
+                              }}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <Label className="text-xs">Title</Label>
+                              <Input
+                                className="h-8 text-sm"
+                                value={pkg.title || ''}
+                                onChange={(e) => {
+                                  const packages = [...(formData.packages || [])];
+                                  packages[index].title = e.target.value;
+                                  updateFormField('packages', packages);
+                                }}
+                                placeholder="e.g., Product Placement"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-xs">Price (₦)</Label>
+                              <Input
+                                className="h-8 text-sm"
+                                type="number"
+                                value={pkg.price || 0}
+                                onChange={(e) => {
+                                  const packages = [...(formData.packages || [])];
+                                  packages[index].price = parseFloat(e.target.value);
+                                  updateFormField('packages', packages);
+                                }}
+                              />
+                            </div>
+                          </div>
+                          <div className="mt-2">
+                            <Label className="text-xs">Description</Label>
+                            <Textarea
+                              className="text-sm min-h-[60px]"
+                              value={pkg.description || ''}
+                              onChange={(e) => {
+                                const packages = [...(formData.packages || [])];
+                                packages[index].description = e.target.value;
+                                updateFormField('packages', packages);
+                              }}
+                              placeholder="What's included in this package..."
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </>
             )}
