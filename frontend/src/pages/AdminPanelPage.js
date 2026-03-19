@@ -732,7 +732,7 @@ export const AdminPanelPage = () => {
                             <th className="text-left py-3 px-2 text-sm font-semibold">Type</th>
                             <th className="text-left py-3 px-2 text-sm font-semibold">Business</th>
                             <th className="text-left py-3 px-2 text-sm font-semibold">Contact</th>
-                            <th className="text-left py-3 px-2 text-sm font-semibold">Date</th>
+                            <th className="text-left py-3 px-2 text-sm font-semibold">Preferred Date/Time</th>
                             <th className="text-left py-3 px-2 text-sm font-semibold">Status</th>
                             <th className="text-right py-3 px-2 text-sm font-semibold">Price</th>
                             <th className="text-center py-3 px-2 text-sm font-semibold">Actions</th>
@@ -750,7 +750,10 @@ export const AdminPanelPage = () => {
                                 <p className="text-sm">{item.contact_name}</p>
                                 <p className="text-xs text-muted-foreground">{item.contact_phone}</p>
                               </td>
-                              <td className="py-3 px-2 text-sm">{formatDate(item.created_at)}</td>
+                              <td className="py-3 px-2">
+                                <p className="text-sm">{item.preferred_date ? formatDate(item.preferred_date) : '-'}</p>
+                                <p className="text-xs text-muted-foreground font-medium">{item.preferred_time || '-'}</p>
+                              </td>
                               <td className="py-3 px-2">{getStatusBadge(item.status || 'pending')}</td>
                               <td className="py-3 px-2 text-right font-semibold">{formatPrice(item.price)}</td>
                               <td className="py-3 px-2">
@@ -1526,8 +1529,29 @@ export const AdminPanelPage = () => {
                 <div className="bg-muted/30 rounded-lg p-3 mb-4">
                   <p className="font-medium">{selectedItem?.package_title}</p>
                   <p className="text-sm text-muted-foreground">Business: {selectedItem?.business_name}</p>
+                  <p className="text-sm text-muted-foreground">Industry: {selectedItem?.industry}</p>
                   <p className="text-sm text-muted-foreground">Contact: {selectedItem?.contact_name} - {selectedItem?.contact_phone}</p>
-                  <p className="text-sm font-bold text-accent">{formatPrice(selectedItem?.price)}</p>
+                  <p className="text-sm text-muted-foreground">Email: {selectedItem?.contact_email}</p>
+                  {selectedItem?.preferred_date && (
+                    <p className="text-sm text-muted-foreground">
+                      Preferred Date: <span className="font-medium text-foreground">{formatDate(selectedItem?.preferred_date)}</span>
+                    </p>
+                  )}
+                  {selectedItem?.preferred_time && (
+                    <p className="text-sm text-muted-foreground">
+                      Preferred Time: <span className="font-medium text-foreground">{selectedItem?.preferred_time}</span>
+                    </p>
+                  )}
+                  {selectedItem?.description && (
+                    <p className="text-sm text-muted-foreground mt-2">Description: {selectedItem?.description}</p>
+                  )}
+                  {selectedItem?.goals && (
+                    <p className="text-sm text-muted-foreground">Goals: {selectedItem?.goals}</p>
+                  )}
+                  {selectedItem?.budget_range && (
+                    <p className="text-sm text-muted-foreground">Budget: {selectedItem?.budget_range}</p>
+                  )}
+                  <p className="text-sm font-bold text-accent mt-2">{formatPrice(selectedItem?.price)}</p>
                 </div>
                 <div>
                   <Label>Status</Label>
@@ -1553,6 +1577,22 @@ export const AdminPanelPage = () => {
                 <div>
                   <Label>Scheduled Date</Label>
                   <Input type="date" value={formData.scheduled_date || ''} onChange={(e) => updateFormField('scheduled_date', e.target.value)} />
+                </div>
+                <div>
+                  <Label>Scheduled Time</Label>
+                  <Select value={formData.scheduled_time || ''} onValueChange={(v) => updateFormField('scheduled_time', v)}>
+                    <SelectTrigger><SelectValue placeholder="Select time" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="9:00 AM">9:00 AM</SelectItem>
+                      <SelectItem value="10:00 AM">10:00 AM</SelectItem>
+                      <SelectItem value="11:00 AM">11:00 AM</SelectItem>
+                      <SelectItem value="12:00 PM">12:00 PM</SelectItem>
+                      <SelectItem value="2:00 PM">2:00 PM</SelectItem>
+                      <SelectItem value="3:00 PM">3:00 PM</SelectItem>
+                      <SelectItem value="4:00 PM">4:00 PM</SelectItem>
+                      <SelectItem value="5:00 PM">5:00 PM</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <Label>Notes</Label>

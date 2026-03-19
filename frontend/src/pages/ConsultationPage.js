@@ -549,6 +549,59 @@ export const ConsultationPage = () => {
                     </div>
                   )}
 
+                  {/* Preferred Schedule for Online Consultation */}
+                  {selectedPackage.id === 'online' && (
+                    <div className="space-y-4 pt-4 border-t">
+                      <h3 className="font-semibold text-foreground flex items-center text-sm sm:text-base">
+                        <Video className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-accent" />
+                        Preferred Schedule for Video Call
+                      </h3>
+                      
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="preferredDateOnline" className="text-xs sm:text-sm">Preferred Date</Label>
+                          <Input
+                            id="preferredDateOnline"
+                            type="date"
+                            value={formData.preferredDate}
+                            onChange={(e) => handleInputChange('preferredDate', e.target.value)}
+                            className="mt-1 text-sm"
+                            min={new Date().toISOString().split('T')[0]}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="preferredTimeOnline" className="text-xs sm:text-sm">Preferred Time</Label>
+                          <Select value={formData.preferredTime} onValueChange={(v) => handleInputChange('preferredTime', v)}>
+                            <SelectTrigger className="mt-1 text-sm">
+                              <SelectValue placeholder="Select time" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="9:00 AM">9:00 AM</SelectItem>
+                              <SelectItem value="10:00 AM">10:00 AM</SelectItem>
+                              <SelectItem value="11:00 AM">11:00 AM</SelectItem>
+                              <SelectItem value="12:00 PM">12:00 PM</SelectItem>
+                              <SelectItem value="2:00 PM">2:00 PM</SelectItem>
+                              <SelectItem value="3:00 PM">3:00 PM</SelectItem>
+                              <SelectItem value="4:00 PM">4:00 PM</SelectItem>
+                              <SelectItem value="5:00 PM">5:00 PM</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+
+                      <div className="bg-muted/50 rounded-lg p-3 sm:p-4">
+                        <div className="flex items-start space-x-2">
+                          <Video className="h-4 w-4 sm:h-5 sm:w-5 text-accent mt-0.5" />
+                          <div>
+                            <p className="font-medium text-foreground text-xs sm:text-sm">Video Call Details</p>
+                            <p className="text-xs sm:text-sm text-muted-foreground">A meeting link will be sent to your email once your booking is confirmed.</p>
+                            <p className="text-xs text-muted-foreground mt-1">Available Monday - Saturday: 9:00 AM - 5:00 PM</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Contact Information */}
                   <div className="space-y-4 pt-4 border-t">
                     <h3 className="font-semibold text-foreground flex items-center text-sm sm:text-base">
