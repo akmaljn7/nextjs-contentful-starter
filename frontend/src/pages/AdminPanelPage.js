@@ -1007,6 +1007,29 @@ export const AdminPanelPage = () => {
                   <Label>Image URL</Label>
                   <Input value={formData.image_url || ''} onChange={(e) => updateFormField('image_url', e.target.value)} />
                 </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Rating (1-5 stars)</Label>
+                    <Input 
+                      type="number" 
+                      min="1" 
+                      max="5" 
+                      step="0.1" 
+                      value={formData.rating || 4.5} 
+                      onChange={(e) => updateFormField('rating', parseFloat(e.target.value))} 
+                      placeholder="e.g., 4.8"
+                    />
+                  </div>
+                  <div>
+                    <Label>Total Reviews</Label>
+                    <Input 
+                      type="number" 
+                      value={formData.total_reviews || 0} 
+                      onChange={(e) => updateFormField('total_reviews', parseInt(e.target.value))} 
+                      placeholder="e.g., 156"
+                    />
+                  </div>
+                </div>
                 <div>
                   <Label>Status</Label>
                   <Select value={formData.status || 'approved'} onValueChange={(v) => updateFormField('status', v)}>
@@ -1346,11 +1369,32 @@ export const AdminPanelPage = () => {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label>Est. Reach</Label>
-                    <Input value={formData.est_reach || ''} onChange={(e) => updateFormField('est_reach', e.target.value)} />
+                    <Input value={formData.est_reach || ''} onChange={(e) => updateFormField('est_reach', e.target.value)} placeholder="e.g., 1.5m or 2,000,000" />
                   </div>
                   <div>
                     <Label>Price (₦)</Label>
                     <Input type="number" value={formData.price || 0} onChange={(e) => updateFormField('price', parseFloat(e.target.value))} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Release Date</Label>
+                    <Input 
+                      type="date" 
+                      value={formData.release_date || ''} 
+                      onChange={(e) => updateFormField('release_date', e.target.value)} 
+                    />
+                  </div>
+                  <div>
+                    <Label>Status</Label>
+                    <Select value={formData.status || 'approved'} onValueChange={(v) => updateFormField('status', v)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="approved">Approved</SelectItem>
+                        <SelectItem value="rejected">Rejected</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
                 <div>
