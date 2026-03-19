@@ -144,16 +144,17 @@ export const PlaceOrderPage = () => {
 
   const handleConfirmCashPayment = async () => {
     try {
-      // Update order status to awaiting cash payment
+      // Update order status to awaiting cash payment and set payment method
       for (const orderId of orderIds) {
         await api.put(`/orders/${orderId}/status`, {
           payment_status: 'pending_cash',
+          payment_method: 'cash',
           order_status: 'awaiting_payment'
         });
       }
       
       clearCart();
-      toast.success('Order confirmed! Please visit our office to complete payment.');
+      toast.success('Order confirmed! Check your email for details. Please visit our office to complete payment.');
       setShowCashConfirmModal(false);
       navigate('/dashboard');
     } catch (error) {

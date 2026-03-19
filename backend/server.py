@@ -18,6 +18,11 @@ import hmac
 import hashlib
 import shutil
 import base64
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -42,6 +47,15 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
 # Paystack settings
 PAYSTACK_SECRET_KEY = os.environ.get('PAYSTACK_SECRET_KEY')
 PAYSTACK_PUBLIC_KEY = os.environ.get('PAYSTACK_PUBLIC_KEY')
+
+# Email settings
+SMTP_EMAIL = os.environ.get('SMTP_EMAIL')
+SMTP_PASSWORD = os.environ.get('SMTP_PASSWORD')
+SMTP_HOST = os.environ.get('SMTP_HOST', 'smtp.gmail.com')
+SMTP_PORT = int(os.environ.get('SMTP_PORT', 587))
+
+# Thread pool for sending emails in background
+email_executor = ThreadPoolExecutor(max_workers=2)
 
 security = HTTPBearer(auto_error=False)
 
@@ -207,6 +221,7 @@ class OrderCreate(BaseModel):
     listing_id: str
     package_details: dict
     total_amount: float
+    payment_method: Optional[str] = "online"  # online or cash (pay at office)
 
 class Order(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -220,6 +235,7 @@ class Order(BaseModel):
     platform_fee: float
     supplier_payout: float
     payment_status: str = "pending"  # pending, paid, held, released, refunded
+    payment_method: str = "online"  # online or cash
     order_status: str = "pending"  # pending, accepted, in_progress, proof_submitted, completed, disputed, cancelled
     brief_url: Optional[str] = None
     proof_url: Optional[str] = None
@@ -301,6 +317,305 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         raise HTTPException(status_code=401, detail="Token expired")
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid authentication")
+
+# ============= EMAIL UTILITIES =============
+
+def get_email_base_template(content: str, title: str = "Lightban Ads Network") -> str:
+    """Generate base HTML email template with Lightban branding"""
+    return f"""
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>{title}</title>
+    </head>
+    <body style="margin: 0; padding: 0; background-color: #f4f4f5; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+        <table role="presentation" style="width: 100%; border-collapse: collapse;">
+            <tr>
+                <td align="center" style="padding: 40px 0;">
+                    <table role="presentation" style="width: 600px; max-width: 100%; border-collapse: collapse; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+                        <!-- Header -->
+                        <tr>
+                            <td style="background: linear-gradient(135deg, #0d1b2a 0%, #1b3a4b 100%); padding: 30px 40px; text-align: center;">
+                                <h1 style="color: #ff6b35; margin: 0; font-size: 28px; font-weight: bold;">LIGHTBAN</h1>
+                                <p style="color: #94a3b8; margin: 8px 0 0 0; font-size: 14px;">Northern Nigeria's Premier Ad Marketplace</p>
+                            </td>
+                        </tr>
+                        <!-- Content -->
+                        <tr>
+                            <td style="padding: 40px;">
+                                {content}
+                            </td>
+                        </tr>
+                        <!-- Footer -->
+                        <tr>
+                            <td style="background-color: #f8fafc; padding: 30px 40px; border-top: 1px solid #e2e8f0;">
+                                <table role="presentation" style="width: 100%;">
+                                    <tr>
+                                        <td style="text-align: center;">
+                                            <p style="color: #64748b; font-size: 14px; margin: 0 0 10px 0;">
+                                                <strong>Lightban Ads Network</strong>
+                                            </p>
+                                            <p style="color: #94a3b8; font-size: 13px; margin: 0 0 5px 0;">
+                                                No 671, Zoo Road, Inec Street, Kano
+                                            </p>
+                                            <p style="color: #94a3b8; font-size: 13px; margin: 0 0 5px 0;">
+                                                Phone: +234 8080000805 | Email: lightbantechnologies@gmail.com
+                                            </p>
+                                            <p style="color: #94a3b8; font-size: 12px; margin: 15px 0 0 0;">
+                                                &copy; 2026 Lightban Ads Network. All rights reserved.
+                                            </p>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """
+
+def generate_order_confirmation_email(order_data: dict, user_data: dict, settings: dict) -> str:
+    """Generate beautiful HTML email for pay-at-office order confirmation"""
+    
+    office_address = settings.get('office_address', 'No 671, Zoo Road, Inec Street, Kano')
+    business_hours = settings.get('business_hours', 'Monday - Saturday: 9:00 AM - 5:00 PM')
+    contact_phone = settings.get('contact_phone', '+234 8080000805')
+    
+    # Format amount with Naira
+    total_amount = f"₦{order_data.get('total_amount', 0):,.2f}"
+    
+    content = f"""
+    <div style="text-align: center; margin-bottom: 30px;">
+        <div style="width: 80px; height: 80px; background-color: #dcfce7; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 20px;">
+            <span style="font-size: 40px;">✓</span>
+        </div>
+        <h2 style="color: #0d1b2a; margin: 0 0 10px 0; font-size: 24px;">Order Confirmed!</h2>
+        <p style="color: #64748b; margin: 0; font-size: 16px;">Thank you for your order, {user_data.get('name', 'Valued Customer')}!</p>
+    </div>
+    
+    <!-- Order Details Card -->
+    <div style="background-color: #f8fafc; border-radius: 8px; padding: 25px; margin-bottom: 25px;">
+        <h3 style="color: #0d1b2a; margin: 0 0 15px 0; font-size: 18px; border-bottom: 2px solid #ff6b35; padding-bottom: 10px;">Order Details</h3>
+        <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+                <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Order ID:</td>
+                <td style="padding: 8px 0; color: #0d1b2a; font-size: 14px; text-align: right; font-weight: 600;">{order_data.get('id', 'N/A')[:8].upper()}</td>
+            </tr>
+            <tr>
+                <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Service:</td>
+                <td style="padding: 8px 0; color: #0d1b2a; font-size: 14px; text-align: right;">{order_data.get('package_details', {}).get('title', 'Advertising Service')}</td>
+            </tr>
+            <tr>
+                <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Category:</td>
+                <td style="padding: 8px 0; color: #0d1b2a; font-size: 14px; text-align: right; text-transform: capitalize;">{order_data.get('listing_type', 'N/A').replace('_', ' ')}</td>
+            </tr>
+            <tr>
+                <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Payment Method:</td>
+                <td style="padding: 8px 0; color: #ff6b35; font-size: 14px; text-align: right; font-weight: 600;">Pay at Office</td>
+            </tr>
+            <tr style="border-top: 1px dashed #e2e8f0;">
+                <td style="padding: 15px 0 8px 0; color: #0d1b2a; font-size: 16px; font-weight: bold;">Total Amount:</td>
+                <td style="padding: 15px 0 8px 0; color: #ff6b35; font-size: 20px; text-align: right; font-weight: bold;">{total_amount}</td>
+            </tr>
+        </table>
+    </div>
+    
+    <!-- Office Location Card -->
+    <div style="background: linear-gradient(135deg, #0d1b2a 0%, #1b3a4b 100%); border-radius: 8px; padding: 25px; margin-bottom: 25px; color: white;">
+        <h3 style="color: #ff6b35; margin: 0 0 15px 0; font-size: 18px;">
+            <span style="margin-right: 8px;">📍</span> Visit Our Office
+        </h3>
+        <p style="color: #e2e8f0; margin: 0 0 10px 0; font-size: 15px; line-height: 1.6;">
+            <strong>Address:</strong><br>
+            {office_address}
+        </p>
+        <p style="color: #e2e8f0; margin: 0 0 10px 0; font-size: 15px;">
+            <strong>Business Hours:</strong><br>
+            {business_hours}
+        </p>
+        <p style="color: #e2e8f0; margin: 0; font-size: 15px;">
+            <strong>Contact:</strong> {contact_phone}
+        </p>
+    </div>
+    
+    <!-- Important Notice -->
+    <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 4px; padding: 15px 20px; margin-bottom: 25px;">
+        <p style="color: #92400e; margin: 0; font-size: 14px;">
+            <strong>⚠️ Important:</strong> Please bring a copy of this email or your Order ID when visiting our office. Payment is due within 3 business days to confirm your order.
+        </p>
+    </div>
+    
+    <!-- CTA Button -->
+    <div style="text-align: center;">
+        <p style="color: #64748b; font-size: 14px; margin: 0 0 15px 0;">Have questions? We're here to help!</p>
+        <a href="https://wa.me/2348080000805" style="display: inline-block; background-color: #25d366; color: white; text-decoration: none; padding: 12px 30px; border-radius: 25px; font-weight: 600; font-size: 14px;">
+            💬 Chat on WhatsApp
+        </a>
+    </div>
+    """
+    
+    return get_email_base_template(content, "Order Confirmation - Lightban Ads Network")
+
+def generate_consultation_scheduled_email(consultation_data: dict, user_data: dict, settings: dict) -> str:
+    """Generate beautiful HTML email for consultation scheduling confirmation"""
+    
+    office_address = settings.get('office_address', 'No 671, Zoo Road, Inec Street, Kano')
+    contact_phone = settings.get('contact_phone', '+234 8080000805')
+    
+    consultation_type = consultation_data.get('consultation_type', 'online')
+    is_online = consultation_type.lower() == 'online'
+    
+    scheduled_date = consultation_data.get('scheduled_date', 'To be confirmed')
+    scheduled_time = consultation_data.get('scheduled_time', 'To be confirmed')
+    
+    # Format price
+    price = f"₦{consultation_data.get('price', 0):,.2f}"
+    
+    # Location section based on type
+    if is_online:
+        location_section = """
+        <div style="background-color: #dbeafe; border-left: 4px solid #3b82f6; border-radius: 4px; padding: 15px 20px; margin-bottom: 25px;">
+            <p style="color: #1e40af; margin: 0; font-size: 14px;">
+                <strong>💻 Online Consultation</strong><br>
+                A meeting link will be shared with you via email or WhatsApp before the scheduled time.
+            </p>
+        </div>
+        """
+    else:
+        location_section = f"""
+        <div style="background: linear-gradient(135deg, #0d1b2a 0%, #1b3a4b 100%); border-radius: 8px; padding: 25px; margin-bottom: 25px; color: white;">
+            <h3 style="color: #ff6b35; margin: 0 0 15px 0; font-size: 18px;">
+                <span style="margin-right: 8px;">📍</span> Office Location
+            </h3>
+            <p style="color: #e2e8f0; margin: 0 0 10px 0; font-size: 15px; line-height: 1.6;">
+                {office_address}
+            </p>
+            <p style="color: #e2e8f0; margin: 0; font-size: 15px;">
+                <strong>Contact:</strong> {contact_phone}
+            </p>
+        </div>
+        """
+    
+    content = f"""
+    <div style="text-align: center; margin-bottom: 30px;">
+        <div style="width: 80px; height: 80px; background-color: #dbeafe; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 20px;">
+            <span style="font-size: 40px;">📅</span>
+        </div>
+        <h2 style="color: #0d1b2a; margin: 0 0 10px 0; font-size: 24px;">Consultation Scheduled!</h2>
+        <p style="color: #64748b; margin: 0; font-size: 16px;">Your consultation has been confirmed, {user_data.get('name', 'Valued Customer')}!</p>
+    </div>
+    
+    <!-- Consultation Details Card -->
+    <div style="background-color: #f8fafc; border-radius: 8px; padding: 25px; margin-bottom: 25px;">
+        <h3 style="color: #0d1b2a; margin: 0 0 15px 0; font-size: 18px; border-bottom: 2px solid #ff6b35; padding-bottom: 10px;">Appointment Details</h3>
+        <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+                <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Consultation ID:</td>
+                <td style="padding: 8px 0; color: #0d1b2a; font-size: 14px; text-align: right; font-weight: 600;">{consultation_data.get('id', 'N/A')[:8].upper()}</td>
+            </tr>
+            <tr>
+                <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Package:</td>
+                <td style="padding: 8px 0; color: #0d1b2a; font-size: 14px; text-align: right;">{consultation_data.get('package_title', 'Expert Consultation')}</td>
+            </tr>
+            <tr>
+                <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Type:</td>
+                <td style="padding: 8px 0; color: #3b82f6; font-size: 14px; text-align: right; font-weight: 600; text-transform: capitalize;">{'🖥️ Online' if is_online else '🏢 In-Office'}</td>
+            </tr>
+            <tr>
+                <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Business:</td>
+                <td style="padding: 8px 0; color: #0d1b2a; font-size: 14px; text-align: right;">{consultation_data.get('business_name', 'N/A')}</td>
+            </tr>
+        </table>
+    </div>
+    
+    <!-- Schedule Highlight -->
+    <div style="background: linear-gradient(135deg, #ff6b35 0%, #f97316 100%); border-radius: 8px; padding: 25px; margin-bottom: 25px; text-align: center; color: white;">
+        <p style="margin: 0 0 5px 0; font-size: 14px; opacity: 0.9;">Scheduled For</p>
+        <p style="margin: 0; font-size: 28px; font-weight: bold;">{scheduled_date}</p>
+        <p style="margin: 5px 0 0 0; font-size: 20px;">{scheduled_time}</p>
+    </div>
+    
+    {location_section}
+    
+    <!-- Price Info -->
+    <div style="background-color: #f0fdf4; border-radius: 8px; padding: 20px; margin-bottom: 25px; text-align: center;">
+        <p style="color: #166534; margin: 0 0 5px 0; font-size: 14px;">Consultation Fee</p>
+        <p style="color: #166534; margin: 0; font-size: 24px; font-weight: bold;">{price}</p>
+        <p style="color: #16a34a; margin: 8px 0 0 0; font-size: 13px;">
+            Payment Status: <strong style="text-transform: capitalize;">{consultation_data.get('payment_status', 'Pending')}</strong>
+        </p>
+    </div>
+    
+    <!-- Preparation Tips -->
+    <div style="margin-bottom: 25px;">
+        <h3 style="color: #0d1b2a; margin: 0 0 15px 0; font-size: 16px;">📋 Prepare for Your Consultation:</h3>
+        <ul style="color: #64748b; margin: 0; padding-left: 20px; font-size: 14px; line-height: 1.8;">
+            <li>Have your business goals and objectives ready</li>
+            <li>Prepare questions about advertising strategies</li>
+            <li>Bring examples of ads or campaigns you admire</li>
+            <li>Know your target audience and budget range</li>
+        </ul>
+    </div>
+    
+    <!-- CTA Button -->
+    <div style="text-align: center;">
+        <p style="color: #64748b; font-size: 14px; margin: 0 0 15px 0;">Need to reschedule? Contact us!</p>
+        <a href="https://wa.me/2348080000805" style="display: inline-block; background-color: #25d366; color: white; text-decoration: none; padding: 12px 30px; border-radius: 25px; font-weight: 600; font-size: 14px;">
+            💬 Chat on WhatsApp
+        </a>
+    </div>
+    """
+    
+    return get_email_base_template(content, "Consultation Scheduled - Lightban Ads Network")
+
+def send_email_sync(to_email: str, subject: str, html_content: str) -> bool:
+    """Synchronous function to send email via SMTP"""
+    try:
+        if not SMTP_EMAIL or not SMTP_PASSWORD:
+            logger.warning("SMTP credentials not configured")
+            return False
+        
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = subject
+        msg['From'] = f"Lightban Ads Network <{SMTP_EMAIL}>"
+        msg['To'] = to_email
+        
+        # Attach HTML content
+        html_part = MIMEText(html_content, 'html')
+        msg.attach(html_part)
+        
+        # Connect and send
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+            server.starttls()
+            server.login(SMTP_EMAIL, SMTP_PASSWORD)
+            server.sendmail(SMTP_EMAIL, to_email, msg.as_string())
+        
+        logger.info(f"Email sent successfully to {to_email}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to send email to {to_email}: {str(e)}")
+        return False
+
+async def send_email_async(to_email: str, subject: str, html_content: str) -> bool:
+    """Async wrapper for sending emails in background"""
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(email_executor, send_email_sync, to_email, subject, html_content)
+
+async def get_site_settings() -> dict:
+    """Helper to get site settings from database"""
+    settings = await db.settings.find_one({}, {"_id": 0})
+    if not settings:
+        return {
+            "office_address": "No 671, Zoo Road, Inec Street, Kano",
+            "contact_phone": "+234 8080000805",
+            "business_hours": "Monday - Saturday: 9:00 AM - 5:00 PM"
+        }
+    return settings
 
 # ============= ROUTES =============
 
@@ -662,6 +977,10 @@ async def create_order(data: OrderCreate, current_user: User = Depends(get_curre
     platform_fee = data.total_amount * 0.10  # 10% platform fee
     supplier_payout = data.total_amount - platform_fee
     
+    # Determine payment method and initial status
+    payment_method = data.payment_method or "online"
+    payment_status = "pending_cash" if payment_method == "cash" else "pending"
+    
     order = Order(
         advertiser_id=current_user.id,
         supplier_id=supplier_id,
@@ -670,7 +989,9 @@ async def create_order(data: OrderCreate, current_user: User = Depends(get_curre
         package_details=data.package_details,
         total_amount=data.total_amount,
         platform_fee=platform_fee,
-        supplier_payout=supplier_payout
+        supplier_payout=supplier_payout,
+        payment_method=payment_method,
+        payment_status=payment_status
     )
     
     doc = order.model_dump()
@@ -678,6 +999,25 @@ async def create_order(data: OrderCreate, current_user: User = Depends(get_curre
     doc['updated_at'] = doc['updated_at'].isoformat()
     
     await db.orders.insert_one(doc)
+    
+    # Send email for pay-at-office orders
+    if payment_method == "cash":
+        try:
+            settings = await get_site_settings()
+            user_data = {"name": current_user.name, "email": current_user.email}
+            order_data = doc.copy()
+            
+            email_html = generate_order_confirmation_email(order_data, user_data, settings)
+            # Send email in background (don't wait)
+            asyncio.create_task(send_email_async(
+                current_user.email,
+                "Order Confirmed - Pay at Office | Lightban Ads Network",
+                email_html
+            ))
+            logger.info(f"Order confirmation email queued for {current_user.email}")
+        except Exception as e:
+            logger.error(f"Failed to queue order email: {str(e)}")
+    
     return order
 
 @api_router.get("/orders", response_model=List[Order])
@@ -732,6 +1072,7 @@ async def update_order(order_id: str, data: OrderUpdate, current_user: User = De
 class OrderStatusUpdate(BaseModel):
     payment_status: Optional[str] = None
     order_status: Optional[str] = None
+    payment_method: Optional[str] = None
 
 @api_router.put("/orders/{order_id}/status")
 async def update_order_status(order_id: str, data: OrderStatusUpdate, current_user: User = Depends(get_current_user)):
@@ -749,8 +1090,27 @@ async def update_order_status(order_id: str, data: OrderStatusUpdate, current_us
         update_data['payment_status'] = data.payment_status
     if data.order_status:
         update_data['order_status'] = data.order_status
+    if data.payment_method:
+        update_data['payment_method'] = data.payment_method
     
     await db.orders.update_one({"id": order_id}, {"$set": update_data})
+    
+    # Send email notification for cash/pay-at-office orders
+    if data.payment_method == 'cash' or data.payment_status == 'pending_cash':
+        try:
+            updated_order = await db.orders.find_one({"id": order_id}, {"_id": 0})
+            settings = await get_site_settings()
+            user_data = {"name": current_user.name, "email": current_user.email}
+            
+            email_html = generate_order_confirmation_email(updated_order, user_data, settings)
+            asyncio.create_task(send_email_async(
+                current_user.email,
+                "Order Confirmed - Pay at Office | Lightban Ads Network",
+                email_html
+            ))
+            logger.info(f"Pay-at-office order email queued for {current_user.email}")
+        except Exception as e:
+            logger.error(f"Failed to queue order email: {str(e)}")
     
     return {"status": "success", "message": "Order status updated", "order_id": order_id}
 
@@ -1940,9 +2300,38 @@ async def admin_update_consultation_full(
     update_data = {k: v for k, v in consultation_update.model_dump().items() if v is not None}
     update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
     
+    # Check if schedule is being set (send email notification)
+    should_send_email = (
+        consultation_update.scheduled_date and 
+        consultation_update.scheduled_time and
+        (existing.get('scheduled_date') != consultation_update.scheduled_date or
+         existing.get('scheduled_time') != consultation_update.scheduled_time)
+    )
+    
     await db.consultations.update_one({"id": consultation_id}, {"$set": update_data})
     
     updated = await db.consultations.find_one({"id": consultation_id}, {"_id": 0})
+    
+    # Send scheduling confirmation email
+    if should_send_email:
+        try:
+            # Get user info
+            user = await db.users.find_one({"id": existing.get('user_id')}, {"_id": 0})
+            if user and user.get('email'):
+                settings = await get_site_settings()
+                user_data = {"name": user.get('name', 'Valued Customer'), "email": user.get('email')}
+                
+                email_html = generate_consultation_scheduled_email(updated, user_data, settings)
+                # Send email in background
+                asyncio.create_task(send_email_async(
+                    user['email'],
+                    "Consultation Scheduled | Lightban Ads Network",
+                    email_html
+                ))
+                logger.info(f"Consultation scheduling email queued for {user['email']}")
+        except Exception as e:
+            logger.error(f"Failed to queue consultation email: {str(e)}")
+    
     return {"status": "success", "message": "Consultation updated", "consultation": updated}
 
 @api_router.delete("/admin/consultations/{consultation_id}")
