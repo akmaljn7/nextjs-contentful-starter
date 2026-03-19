@@ -135,13 +135,25 @@ A conversion-focused, responsive marketplace website for "Lightban Ads Network" 
   4. Both pages now display dynamic, database-driven content
 - **Test Status**: Verified - Digital Ads shows 4 packages from API, Billboards shows 13 locations
 
----
+### Issue 3: Digital Ads Not Showing on Public Page - FIXED (March 2026)
+- **Problem**: Digital Ads created via admin panel were not visible on public `/digital-ads` page
+- **Root Cause**: 
+  1. Public `/api/digital-ads` endpoint read from `digital_ad_services` collection, while admin created entries in `digital_ads` collection
+  2. Frontend `DigitalAdsPage.js` was using hardcoded `AD_PLATFORMS` array instead of fetching from API
+- **Solution**:
+  1. Updated `/api/digital-ads` endpoint to read from `digital_ads` collection (admin-managed)
+  2. Refactored `DigitalAdsPage.js` to fetch and display data from API
+  3. Added proper loading states and error handling
+- **Test Status**: Verified - All 7 platforms (including YouTube) now appear on public page
 
-## Pending Issues (P2)
-
-### P2: Backend Authorization Logic
-- Some endpoints return 403 instead of 401 for unauthenticated requests
-- Need to fix status codes for proper API semantics
+### Issue 4: HTTP Status Codes (401 vs 403) - FIXED (March 2026)
+- **Problem**: Unauthenticated requests returned 403 Forbidden instead of 401 Unauthorized
+- **Root Cause**: FastAPI's `HTTPBearer` security dependency had `auto_error=True` by default
+- **Solution**:
+  1. Set `HTTPBearer(auto_error=False)` to prevent automatic 403 response
+  2. Added explicit check for `None` credentials in `get_current_user` function
+  3. Returns 401 with proper `WWW-Authenticate: Bearer` header
+- **Test Status**: Verified - Unauthenticated requests now return 401
 
 ---
 
@@ -151,12 +163,10 @@ A conversion-focused, responsive marketplace website for "Lightban Ads Network" 
 - [ ] Static Banner Billboard detail page (same pattern as LED)
 - [ ] Lightbox Billboard detail page
 - [ ] Global search bar with filters (city, category, budget)
-- [ ] Add package management for Digital Ads in Admin Panel
 
 ### P2 - Medium Priority
 - [ ] Messaging center between advertisers and Lightban team
 - [ ] Order tracking page with detailed status
-- [ ] Fix 401 vs 403 HTTP status codes
 
 ### P3 - Future/Backlog
 - [ ] Switch Paystack to Live Mode (requires business verification)
@@ -195,7 +205,8 @@ A conversion-focused, responsive marketplace website for "Lightban Ads Network" 
 - `/app/test_reports/iteration_1.json` - Initial test run
 - `/app/test_reports/iteration_2.json` - Billboard feature tests (100% pass)
 - `/app/test_reports/iteration_3.json` - Package preservation and API data fixes (100% pass)
+- `/app/test_reports/iteration_4.json` - Digital Ads visibility and 401 status code fixes (100% pass - 13/13 backend, all frontend verified)
 
 ---
 
-*Last Updated: December 2025*
+*Last Updated: March 2026*
