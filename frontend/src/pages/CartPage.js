@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCartStore, useAuthStore } from '@/lib/store';
 import { formatPrice } from '@/lib/utils';
@@ -5,11 +6,26 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Trash2, ShoppingCart, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import api from '@/lib/api';
 
 export const CartPage = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const { items, removeItem, getTotalAmount } = useCartStore();
+  const [settings, setSettings] = useState(null);
+
+  // Fetch settings on mount
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const response = await api.get('/settings');
+        setSettings(response.data);
+      } catch (error) {
+        console.log('Using default settings');
+      }
+    };
+    fetchSettings();
+  }, []);
 
   if (!user) {
     navigate('/login');
@@ -17,6 +33,11 @@ export const CartPage = () => {
   }
 
   const totalAmount = getTotalAmount();
+  
+  // Get platform fee percentage from settings (default to 10 if not set)
+  const feePercentage = settings?.platform_fee_percentage || 10;
+  const platformFee = totalAmount * (feePercentage / 100);
+  const grandTotal = totalAmount + platformFee;
 
   const handleRemoveItem = (influencerId, packageId) => {
     removeItem(influencerId, packageId);
@@ -80,43 +101,55 @@ export const CartPage = () => {
                         )}
                       </div>
 
-                      {/* Package Details */}
+                      {/* Item Details */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between">
-                          <div className="min-w-0 flex-1">
-                            <h3 className="text-sm sm:text-lg font-bold text-foreground truncate">{item.packageTitle}</h3>
-                            <p className="text-xs sm:text-sm text-muted-foreground mb-1 sm:mb-2 truncate">
+                          <div className="min-w-0 flex-1 pr-2">
+                            <h3 className="font-bold text-foreground text-base sm:text-lg truncate">
+                              {item.packageTitle}
+                            </h3>
+                            <p className="text-xs sm:text-sm text-muted-foreground">
                               {item.influencerName} (@{item.influencerHandle})
                             </p>
                           </div>
                           <Button
                             variant="ghost"
                             size="sm"
+                            className="h-7 w-7 sm:h-8 sm:w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50 flex-shrink-0"
                             onClick={() => handleRemoveItem(item.influencerId, item.packageId)}
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50 h-8 w-8 p-0 ml-2 flex-shrink-0"
                             data-testid={`remove-item-${item.packageId}`}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
 
-                        <div className="space-y-1 mb-2 sm:mb-3 hidden sm:block">
-                          {item.deliverables.slice(0, 3).map((deliverable, idx) => (
-                            <div key={idx} className="flex items-start space-x-2">
-                              <CheckCircle className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-                              <p className="text-sm text-muted-foreground">{deliverable}</p>
+                        {/* Deliverables */}
+                        {item.deliverables && item.deliverables.length > 0 && (
+                          <div className="mt-2 sm:mt-3">
+                            <div className="space-y-0.5 sm:space-y-1">
+                              {item.deliverables.slice(0, 3).map((deliverable, idx) => (
+                                <div key={idx} className="flex items-center space-x-1.5 sm:space-x-2">
+                                  <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 text-primary flex-shrink-0" />
+                                  <span className="text-xs sm:text-sm text-muted-foreground truncate">{deliverable}</span>
+                                </div>
+                              ))}
+                              {item.deliverables.length > 3 && (
+                                <p className="text-xs text-muted-foreground pl-4 sm:pl-6">
+                                  + {item.deliverables.length - 3} more deliverables
+                                </p>
+                              )}
                             </div>
-                          ))}
-                          {item.deliverables.length > 3 && (
-                            <p className="text-sm text-muted-foreground ml-6">
-                              + {item.deliverables.length - 3} more deliverables
-                            </p>
-                          )}
-                        </div>
+                          </div>
+                        )}
 
-                        <div className="flex items-center justify-between pt-2 sm:pt-3 border-t">
-                          <p className="text-xs sm:text-sm text-muted-foreground">Turnaround: {item.turnaround}</p>
-                          <p className="text-lg sm:text-xl font-bold text-primary">{formatPrice(item.price)}</p>
+                        {/* Price & Turnaround */}
+                        <div className="mt-3 sm:mt-4 pt-2 sm:pt-3 border-t flex items-center justify-between">
+                          <span className="text-xs sm:text-sm text-muted-foreground">
+                            Turnaround: {item.turnaround}
+                          </span>
+                          <span className="text-lg sm:text-xl font-bold text-foreground">
+                            {formatPrice(item.price)}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -137,13 +170,13 @@ export const CartPage = () => {
                       <span>{formatPrice(totalAmount)}</span>
                     </div>
                     <div className="flex justify-between text-sm text-muted-foreground">
-                      <span>Platform Fee (10%)</span>
-                      <span>{formatPrice(totalAmount * 0.1)}</span>
+                      <span>Platform Fee ({feePercentage}%)</span>
+                      <span>{formatPrice(platformFee)}</span>
                     </div>
                     <div className="h-px bg-border"></div>
                     <div className="flex justify-between text-base sm:text-lg font-bold text-foreground">
                       <span>Total</span>
-                      <span className="text-primary">{formatPrice(totalAmount + totalAmount * 0.1)}</span>
+                      <span className="text-primary">{formatPrice(grandTotal)}</span>
                     </div>
                   </div>
 
