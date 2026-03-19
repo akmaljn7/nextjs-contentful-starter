@@ -155,6 +155,27 @@ A conversion-focused, responsive marketplace website for "Lightban Ads Network" 
   3. Returns 401 with proper `WWW-Authenticate: Bearer` header
 - **Test Status**: Verified - Unauthenticated requests now return 401
 
+### Feature: Image Upload in Admin Panel - IMPLEMENTED (March 2026)
+- **Request**: Replace URL inputs with image upload functionality in admin panel
+- **Implementation**:
+  1. **Backend**: Created chunked upload endpoint (`POST /api/upload/chunk`) to bypass proxy limits
+     - Uses 64KB chunks with base64 encoding
+     - Supports JPG, PNG, GIF, WebP (max 5MB)
+     - Files stored in `/app/backend/uploads/`
+     - Files served via `GET /api/uploads/{filename}`
+  2. **Frontend**: Created `ImageUpload` component (`/app/frontend/src/components/ImageUpload.jsx`)
+     - Toggle between Upload and URL modes
+     - Drag-and-drop upload area
+     - Progress indicator during upload
+     - Image preview after upload/URL entry
+     - Clear button to remove image
+  3. **Integration**: Updated all admin forms to use ImageUpload component:
+     - Influencers form: "Profile Image"
+     - Billboards form: "Billboard Image"
+     - Kannywood form: "Production Image"
+     - Digital Ads form: "Platform Image"
+- **Test Status**: Verified - 100% pass rate (11/11 backend tests, all frontend verified)
+
 ---
 
 ## Prioritized Backlog
@@ -175,7 +196,6 @@ A conversion-focused, responsive marketplace website for "Lightban Ads Network" 
 - [ ] Comparison view for multiple listings
 - [ ] Reviews and ratings system
 - [ ] Map component for billboard locations
-- [ ] Image upload in admin panel (replace URL inputs)
 
 ---
 
@@ -187,12 +207,14 @@ A conversion-focused, responsive marketplace website for "Lightban Ads Network" 
 - `GET /api/kannywood` - List Kannywood placements
 - `GET /api/kannywood/:id` - Get Kannywood details with packages
 - `GET /api/digital-ads` - List digital ad services
-- `GET /api/digital-ads/:id` - Get digital ad platform with packages (NEW)
+- `GET /api/digital-ads/:id` - Get digital ad platform with packages
 - `POST /api/orders` - Create new order
 - `POST /api/payments/initialize` - Initialize Paystack payment
 - `GET /api/payments/verify/:reference` - Verify payment
 - `POST /api/register` - User registration
 - `POST /api/token` - User login (JWT)
+- `POST /api/upload/chunk` - Chunked file upload (admin only)
+- `GET /api/uploads/:filename` - Serve uploaded files
 
 ---
 
@@ -206,6 +228,7 @@ A conversion-focused, responsive marketplace website for "Lightban Ads Network" 
 - `/app/test_reports/iteration_2.json` - Billboard feature tests (100% pass)
 - `/app/test_reports/iteration_3.json` - Package preservation and API data fixes (100% pass)
 - `/app/test_reports/iteration_4.json` - Digital Ads visibility and 401 status code fixes (100% pass - 13/13 backend, all frontend verified)
+- `/app/test_reports/iteration_5.json` - Image upload feature (100% pass - 11/11 backend, all frontend verified)
 
 ---
 
