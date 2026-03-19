@@ -548,6 +548,27 @@ async def get_kannywood_placements(status: str = "approved"):
     # Combine both
     all_placements = placements + admin_placements
     
+    # Helper to safely parse estimated reach
+    def parse_reach(value):
+        if value is None:
+            return 0
+        if isinstance(value, int):
+            return value
+        if isinstance(value, str):
+            # Remove commas and spaces
+            clean = value.replace(",", "").replace(" ", "").lower()
+            # Handle formats like "1.5m", "2m", "500k"
+            try:
+                if 'm' in clean:
+                    return int(float(clean.replace('m', '')) * 1000000)
+                elif 'k' in clean:
+                    return int(float(clean.replace('k', '')) * 1000)
+                else:
+                    return int(float(clean)) if clean else 0
+            except (ValueError, TypeError):
+                return 0
+        return 0
+    
     # Normalize data for response
     normalized = []
     for p in all_placements:
@@ -559,7 +580,7 @@ async def get_kannywood_placements(status: str = "approved"):
             "placement_type": p.get("placement_type") or p.get("genre", "Feature Film"),
             "genre": p.get("genre") or p.get("placement_type", ""),
             "description": p.get("description", ""),
-            "estimated_reach": p.get("estimated_reach") or int(str(p.get("est_reach", "0")).replace(",", "").replace(" ", "") or 0),
+            "estimated_reach": parse_reach(p.get("estimated_reach") or p.get("est_reach")),
             "est_reach": p.get("est_reach") or str(p.get("estimated_reach", 0)),
             "price": p.get("price", 0),
             "release_date": p.get("release_date"),
