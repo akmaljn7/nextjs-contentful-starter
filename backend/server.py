@@ -285,7 +285,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         return User(**user_doc)
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token expired")
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=401, detail="Invalid authentication")
 
 # ============= ROUTES =============
@@ -1058,13 +1058,29 @@ async def get_dashboard_stats(current_user: User = Depends(get_current_user)):
         # Get all orders for this user
         all_orders = await db.orders.find({"advertiser_id": current_user.id}, {"_id": 0}).to_list(1000)
         
-        total_orders = len(all_orders)
-        pending_orders = len([o for o in all_orders if o.get('order_status') in ['pending', 'accepted', 'in_progress', 'awaiting_payment']])
-        completed_orders = len([o for o in all_orders if o.get('order_status') == 'completed'])
-        cancelled_orders = len([o for o in all_orders if o.get('order_status') == 'cancelled'])
+        # Get all consultations for this user
+        all_consultations = await db.consultations.find({"user_id": current_user.id}, {"_id": 0}).to_list(1000)
         
-        # Total spent = sum of all paid orders
-        total_spent = sum(o.get('total_amount', 0) for o in all_orders if o.get('payment_status') == 'paid')
+        # Order stats
+        order_total = len(all_orders)
+        order_pending = len([o for o in all_orders if o.get('order_status') in ['pending', 'accepted', 'in_progress', 'awaiting_payment']])
+        order_completed = len([o for o in all_orders if o.get('order_status') == 'completed'])
+        order_cancelled = len([o for o in all_orders if o.get('order_status') == 'cancelled'])
+        order_spent = sum(o.get('total_amount', 0) for o in all_orders if o.get('payment_status') == 'paid')
+        
+        # Consultation stats
+        consultation_total = len(all_consultations)
+        consultation_pending = len([c for c in all_consultations if c.get('status') in ['pending', 'scheduled']])
+        consultation_completed = len([c for c in all_consultations if c.get('status') == 'completed'])
+        consultation_cancelled = len([c for c in all_consultations if c.get('status') == 'cancelled'])
+        consultation_spent = sum(c.get('price', 0) for c in all_consultations if c.get('payment_status') == 'paid')
+        
+        # Combined totals (orders + consultations)
+        total_orders = order_total + consultation_total
+        pending_orders = order_pending + consultation_pending
+        completed_orders = order_completed + consultation_completed
+        cancelled_orders = order_cancelled + consultation_cancelled
+        total_spent = order_spent + consultation_spent
         
         return {
             "total_orders": total_orders,
@@ -1072,7 +1088,10 @@ async def get_dashboard_stats(current_user: User = Depends(get_current_user)):
             "completed_orders": completed_orders,
             "cancelled_orders": cancelled_orders,
             "active_orders": pending_orders,  # For backward compatibility
-            "total_spent": total_spent
+            "total_spent": total_spent,
+            # Breakdown for detailed view
+            "orders_count": order_total,
+            "consultations_count": consultation_total
         }
     
     elif current_user.role == "admin":
@@ -1080,26 +1099,36 @@ async def get_dashboard_stats(current_user: User = Depends(get_current_user)):
         all_orders = await db.orders.find({}, {"_id": 0}).to_list(1000)
         all_consultations = await db.consultations.find({}, {"_id": 0}).to_list(1000)
         
-        total_orders = len(all_orders)
-        pending_orders = len([o for o in all_orders if o.get('order_status') in ['pending', 'accepted', 'in_progress', 'awaiting_payment']])
-        completed_orders = len([o for o in all_orders if o.get('order_status') == 'completed'])
-        cancelled_orders = len([o for o in all_orders if o.get('order_status') == 'cancelled'])
-        total_revenue = sum(o.get('total_amount', 0) for o in all_orders if o.get('payment_status') == 'paid')
+        # Order stats
+        order_total = len(all_orders)
+        order_pending = len([o for o in all_orders if o.get('order_status') in ['pending', 'accepted', 'in_progress', 'awaiting_payment']])
+        order_completed = len([o for o in all_orders if o.get('order_status') == 'completed'])
+        order_cancelled = len([o for o in all_orders if o.get('order_status') == 'cancelled'])
+        order_revenue = sum(o.get('total_amount', 0) for o in all_orders if o.get('payment_status') == 'paid')
         
-        total_consultations = len(all_consultations)
-        pending_consultations = len([c for c in all_consultations if c.get('status') == 'pending'])
+        # Consultation stats
+        consultation_total = len(all_consultations)
+        consultation_pending = len([c for c in all_consultations if c.get('status') in ['pending', 'scheduled']])
+        consultation_completed = len([c for c in all_consultations if c.get('status') == 'completed'])
+        consultation_cancelled = len([c for c in all_consultations if c.get('status') == 'cancelled'])
+        consultation_revenue = sum(c.get('price', 0) for c in all_consultations if c.get('payment_status') == 'paid')
         
         total_users = await db.users.count_documents({})
         
+        # Combined stats (orders + consultations)
         return {
-            "total_orders": total_orders,
-            "pending_orders": pending_orders,
-            "completed_orders": completed_orders,
-            "cancelled_orders": cancelled_orders,
-            "total_revenue": total_revenue,
-            "total_consultations": total_consultations,
-            "pending_consultations": pending_consultations,
-            "total_users": total_users
+            "total_orders": order_total + consultation_total,
+            "pending_orders": order_pending + consultation_pending,
+            "completed_orders": order_completed + consultation_completed,
+            "cancelled_orders": order_cancelled + consultation_cancelled,
+            "total_revenue": order_revenue + consultation_revenue,
+            "total_spent": order_revenue + consultation_revenue,  # Alias for dashboard compatibility
+            "total_consultations": consultation_total,
+            "pending_consultations": consultation_pending,
+            "total_users": total_users,
+            # Breakdown
+            "orders_count": order_total,
+            "consultations_count": consultation_total
         }
     
     elif current_user.role == "supplier":

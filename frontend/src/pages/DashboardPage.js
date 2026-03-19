@@ -113,12 +113,19 @@ export const DashboardPage = () => {
     );
   };
 
-  // Use API stats if available, otherwise calculate from orders
-  const pendingOrders = stats?.pending_orders ?? orders.filter(o => ['pending', 'accepted', 'in_progress', 'awaiting_payment'].includes(o.order_status)).length;
-  const completedOrders = stats?.completed_orders ?? orders.filter(o => o.order_status === 'completed').length;
-  const cancelledOrders = stats?.cancelled_orders ?? orders.filter(o => o.order_status === 'cancelled').length;
-  const totalSpent = stats?.total_spent ?? orders.filter(o => o.payment_status === 'paid').reduce((sum, o) => sum + (o.total_amount || 0), 0);
-  const totalOrders = stats?.total_orders ?? orders.length;
+  // Use API stats if available, otherwise calculate from orders + consultations
+  // Count consultations as orders for unified tracking
+  const pendingConsultations = consultations.filter(c => ['pending', 'scheduled'].includes(c.status)).length;
+  const completedConsultations = consultations.filter(c => c.status === 'completed').length;
+  const cancelledConsultations = consultations.filter(c => c.status === 'cancelled').length;
+  const consultationSpent = consultations.filter(c => c.payment_status === 'paid').reduce((sum, c) => sum + (c.price || 0), 0);
+  
+  // Combined stats (orders + consultations)
+  const pendingOrders = (stats?.pending_orders ?? orders.filter(o => ['pending', 'accepted', 'in_progress', 'awaiting_payment'].includes(o.order_status)).length) + pendingConsultations;
+  const completedOrders = (stats?.completed_orders ?? orders.filter(o => o.order_status === 'completed').length) + completedConsultations;
+  const cancelledOrders = (stats?.cancelled_orders ?? orders.filter(o => o.order_status === 'cancelled').length) + cancelledConsultations;
+  const totalSpent = (stats?.total_spent ?? orders.filter(o => o.payment_status === 'paid').reduce((sum, o) => sum + (o.total_amount || 0), 0)) + consultationSpent;
+  const totalOrders = (stats?.total_orders ?? orders.length) + consultations.length;
 
   return (
     <div className="min-h-screen bg-background" data-testid="dashboard-page">
