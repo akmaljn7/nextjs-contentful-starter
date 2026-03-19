@@ -1,10 +1,29 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useLanguageStore } from '@/lib/store';
 import { t } from '@/lib/translations';
 import { MessageCircle, Mail, MapPin, Phone } from 'lucide-react';
+import api from '@/lib/api';
 
 export const Footer = () => {
   const { language } = useLanguageStore();
+  const [settings, setSettings] = useState(null);
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const response = await api.get('/settings');
+        setSettings(response.data);
+      } catch (error) {
+        console.log('Using default footer settings');
+      }
+    };
+    fetchSettings();
+  }, []);
+
+  // Extract phone number for WhatsApp link
+  const phoneNumber = settings?.contact_phone?.replace(/[^0-9]/g, '') || '2348080000805';
+  const whatsappLink = `https://wa.me/${phoneNumber.startsWith('234') ? phoneNumber : '234' + phoneNumber}`;
 
   return (
     <footer className="bg-primary text-white mt-16 relative overflow-hidden">
@@ -20,26 +39,26 @@ export const Footer = () => {
           <div className="space-y-4">
             <img 
               src="https://customer-assets.emergentagent.com/job_ads-kano/artifacts/r3mtjzen_logo_no_background.png" 
-              alt="Lightban Technology" 
+              alt={settings?.site_name || 'Lightban Technology'} 
               className="h-16 w-auto"
             />
             <p className="text-sm text-white/80">
-              Northern Nigeria's trusted advertising marketplace.
+              {settings?.tagline || "Northern Nigeria's trusted advertising marketplace."}
             </p>
             
             {/* Contact Info */}
             <div className="space-y-2 text-sm">
               <div className="flex items-center space-x-2">
                 <Phone className="h-4 w-4 text-accent" />
-                <span>0808-000-0805</span>
+                <span>{settings?.contact_phone || '0808-000-0805'}</span>
               </div>
               <div className="flex items-center space-x-2">
                 <Mail className="h-4 w-4 text-accent" />
-                <span>lightbantechnologies@gmail.com</span>
+                <span>{settings?.contact_email || 'info@lightban.com'}</span>
               </div>
               <div className="flex items-center space-x-2">
                 <MapPin className="h-4 w-4 text-accent" />
-                <span>No 671, Zoo Road, Inec Street, Kano</span>
+                <span>{settings?.office_address || 'No 671, Zoo Road, Inec Street, Kano'}</span>
               </div>
             </div>
           </div>
@@ -175,9 +194,11 @@ export const Footer = () => {
         {/* Bottom Bar */}
         <div className="pt-8 border-t border-white/10">
           <div className="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
-            <p className="text-sm text-white/70">{t('footer.copyright', language)}</p>
+            <p className="text-sm text-white/70">
+              © {new Date().getFullYear()} {settings?.site_name || 'Lightban Ads Network'}. All rights reserved.
+            </p>
             <a
-              href="https://wa.me/2348080000805"
+              href={whatsappLink}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center space-x-2 text-sm font-medium text-accent hover:text-accent/80 transition-colors"

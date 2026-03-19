@@ -129,6 +129,7 @@ export const AdminPanelPage = () => {
         influencersRes,
         billboardsRes,
         kannywoodRes,
+        digitalAdsRes,
         usersRes,
         settingsRes
       ] = await Promise.all([
@@ -138,6 +139,7 @@ export const AdminPanelPage = () => {
         api.get('/admin/influencers'),
         api.get('/admin/billboards'),
         api.get('/admin/kannywood'),
+        api.get('/admin/digital-ads'),
         api.get('/admin/users'),
         api.get('/admin/settings').catch(() => ({ data: {} })),
       ]);
@@ -148,6 +150,7 @@ export const AdminPanelPage = () => {
       setInfluencers(influencersRes.data);
       setBillboards(billboardsRes.data);
       setKannywood(kannywoodRes.data);
+      setDigitalAds(digitalAdsRes.data || []);
       setUsers(usersRes.data);
       setSettings(settingsRes.data);
     } catch (error) {
@@ -261,6 +264,11 @@ export const AdminPanelPage = () => {
             ? '/admin/kannywood' 
             : `/admin/kannywood/${selectedItem.id}`;
           break;
+        case 'digitalad':
+          endpoint = modalMode === 'create' 
+            ? '/admin/digital-ads' 
+            : `/admin/digital-ads/${selectedItem.id}`;
+          break;
         case 'user':
           endpoint = `/admin/users/${selectedItem.id}`;
           method = 'put';
@@ -303,6 +311,7 @@ export const AdminPanelPage = () => {
         case 'influencer': endpoint = `/admin/influencers/${item.id}`; break;
         case 'billboard': endpoint = `/admin/billboards/${item.id}`; break;
         case 'kannywood': endpoint = `/admin/kannywood/${item.id}`; break;
+        case 'digitalad': endpoint = `/admin/digital-ads/${item.id}`; break;
         case 'user': endpoint = `/admin/users/${item.id}`; break;
         case 'order': endpoint = `/admin/orders/${item.id}`; break;
         case 'consultation': endpoint = `/admin/consultations/${item.id}`; break;
@@ -434,6 +443,7 @@ export const AdminPanelPage = () => {
                 <TabsTrigger value="influencers" className="data-[state=active]:bg-white text-xs sm:text-sm">Influencers</TabsTrigger>
                 <TabsTrigger value="billboards" className="data-[state=active]:bg-white text-xs sm:text-sm">Billboards</TabsTrigger>
                 <TabsTrigger value="kannywood" className="data-[state=active]:bg-white text-xs sm:text-sm">Kannywood</TabsTrigger>
+                <TabsTrigger value="digitalads" className="data-[state=active]:bg-white text-xs sm:text-sm">Digital Ads</TabsTrigger>
                 <TabsTrigger value="orders" className="data-[state=active]:bg-white text-xs sm:text-sm">Orders</TabsTrigger>
                 <TabsTrigger value="consultations" className="data-[state=active]:bg-white text-xs sm:text-sm">Consultations</TabsTrigger>
                 <TabsTrigger value="users" className="data-[state=active]:bg-white text-xs sm:text-sm">Users</TabsTrigger>
@@ -479,6 +489,19 @@ export const AdminPanelPage = () => {
                     <CardContent>
                       <Button onClick={() => openCreateModal('kannywood')} className="w-full bg-accent hover:bg-accent/90">
                         <Plus className="h-4 w-4 mr-2" /> Add Production
+                      </Button>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-2">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-lg flex items-center">
+                        <BarChart3 className="h-5 w-5 mr-2 text-blue-500" />
+                        Digital Ads ({digitalAds.length})
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <Button onClick={() => openCreateModal('digitalad')} className="w-full bg-accent hover:bg-accent/90">
+                        <Plus className="h-4 w-4 mr-2" /> Add Platform
                       </Button>
                     </CardContent>
                   </Card>
@@ -651,6 +674,55 @@ export const AdminPanelPage = () => {
                                     <Edit className="h-4 w-4" />
                                   </Button>
                                   <Button variant="ghost" size="sm" className="text-red-500" onClick={() => confirmDelete('kannywood', item)}>
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* Digital Ads Tab */}
+              <TabsContent value="digitalads">
+                <Card className="border-2">
+                  <CardHeader className="flex flex-row items-center justify-between">
+                    <CardTitle>Manage Digital Ad Platforms ({digitalAds.length})</CardTitle>
+                    <Button onClick={() => openCreateModal('digitalad')} className="bg-accent hover:bg-accent/90">
+                      <Plus className="h-4 w-4 mr-2" /> Add Platform
+                    </Button>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="border-b">
+                            <th className="text-left py-3 px-2 text-sm font-semibold">Platform</th>
+                            <th className="text-left py-3 px-2 text-sm font-semibold">Name</th>
+                            <th className="text-left py-3 px-2 text-sm font-semibold">Packages</th>
+                            <th className="text-left py-3 px-2 text-sm font-semibold">Status</th>
+                            <th className="text-center py-3 px-2 text-sm font-semibold">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {digitalAds.map((item) => (
+                            <tr key={item.id} className="border-b hover:bg-muted/30">
+                              <td className="py-3 px-2 font-medium">{item.platform || item.id}</td>
+                              <td className="py-3 px-2">{item.name || item.service_name}</td>
+                              <td className="py-3 px-2">
+                                <Badge variant="outline">{(item.packages || []).length} packages</Badge>
+                              </td>
+                              <td className="py-3 px-2">{getStatusBadge(item.status)}</td>
+                              <td className="py-3 px-2">
+                                <div className="flex items-center justify-center gap-1">
+                                  <Button variant="ghost" size="sm" onClick={() => openEditModal('digitalad', item)}>
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                  <Button variant="ghost" size="sm" className="text-red-500" onClick={() => confirmDelete('digitalad', item)}>
                                     <Trash2 className="h-4 w-4" />
                                   </Button>
                                 </div>
@@ -1507,6 +1579,191 @@ export const AdminPanelPage = () => {
                                 updateFormField('packages', packages);
                               }}
                               placeholder="Product visible in 3-5 scenes&#10;Natural background placement&#10;Certificate of placement&#10;Behind-the-scenes photo"
+                            />
+                            <p className="text-xs text-muted-foreground mt-1">Enter each deliverable on a new line</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+
+            {/* Digital Ad Form */}
+            {modalType === 'digitalad' && (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Platform ID</Label>
+                    <Input 
+                      value={formData.id || ''} 
+                      onChange={(e) => updateFormField('id', e.target.value.toLowerCase().replace(/\s+/g, '-'))} 
+                      placeholder="e.g., facebook, instagram, tiktok"
+                      disabled={modalMode === 'edit'}
+                    />
+                  </div>
+                  <div>
+                    <Label>Platform Name</Label>
+                    <Input value={formData.name || ''} onChange={(e) => updateFormField('name', e.target.value)} placeholder="e.g., Facebook Ads" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Platform</Label>
+                    <Input value={formData.platform || ''} onChange={(e) => updateFormField('platform', e.target.value)} placeholder="e.g., Facebook, Instagram" />
+                  </div>
+                  <div>
+                    <Label>Status</Label>
+                    <Select value={formData.status || 'approved'} onValueChange={(v) => updateFormField('status', v)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="approved">Approved</SelectItem>
+                        <SelectItem value="rejected">Rejected</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div>
+                  <Label>Description</Label>
+                  <Textarea value={formData.description || ''} onChange={(e) => updateFormField('description', e.target.value)} placeholder="Platform description..." />
+                </div>
+                <div>
+                  <Label>Image URL</Label>
+                  <Input value={formData.image_url || ''} onChange={(e) => updateFormField('image_url', e.target.value)} placeholder="https://..." />
+                </div>
+
+                {/* Digital Ad Packages Section */}
+                <div className="space-y-3 pt-4 border-t">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-base font-semibold">Advertising Packages</Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const packages = formData.packages || [];
+                        packages.push({
+                          id: `pkg-${Date.now()}`,
+                          title: '',
+                          description: '',
+                          price: 0,
+                          duration: '1 Month',
+                          ad_spend: '',
+                          deliverables: []
+                        });
+                        updateFormField('packages', [...packages]);
+                      }}
+                    >
+                      <Plus className="h-4 w-4 mr-1" /> Add Package
+                    </Button>
+                  </div>
+                  
+                  {(formData.packages || []).length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4 bg-muted/30 rounded-lg">
+                      No packages yet. Click "Add Package" to create one.
+                    </p>
+                  ) : (
+                    <div className="space-y-4">
+                      {(formData.packages || []).map((pkg, index) => (
+                        <div key={pkg.id || index} className="border rounded-lg p-3 bg-muted/20">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-medium">Package {index + 1}</span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0 text-red-500"
+                              onClick={() => {
+                                const packages = [...(formData.packages || [])];
+                                packages.splice(index, 1);
+                                updateFormField('packages', packages);
+                              }}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <Label className="text-xs">Title</Label>
+                              <Input
+                                className="h-8 text-sm"
+                                value={pkg.title || ''}
+                                onChange={(e) => {
+                                  const packages = [...(formData.packages || [])];
+                                  packages[index].title = e.target.value;
+                                  updateFormField('packages', packages);
+                                }}
+                                placeholder="e.g., Starter Package"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-xs">Price (₦)</Label>
+                              <Input
+                                className="h-8 text-sm"
+                                type="number"
+                                value={pkg.price || 0}
+                                onChange={(e) => {
+                                  const packages = [...(formData.packages || [])];
+                                  packages[index].price = parseFloat(e.target.value);
+                                  updateFormField('packages', packages);
+                                }}
+                              />
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 mt-2">
+                            <div>
+                              <Label className="text-xs">Duration</Label>
+                              <Input
+                                className="h-8 text-sm"
+                                value={pkg.duration || ''}
+                                onChange={(e) => {
+                                  const packages = [...(formData.packages || [])];
+                                  packages[index].duration = e.target.value;
+                                  updateFormField('packages', packages);
+                                }}
+                                placeholder="e.g., 1 Month"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-xs">Ad Spend Included</Label>
+                              <Input
+                                className="h-8 text-sm"
+                                value={pkg.ad_spend || ''}
+                                onChange={(e) => {
+                                  const packages = [...(formData.packages || [])];
+                                  packages[index].ad_spend = e.target.value;
+                                  updateFormField('packages', packages);
+                                }}
+                                placeholder="e.g., 30,000 included"
+                              />
+                            </div>
+                          </div>
+                          <div className="mt-2">
+                            <Label className="text-xs">Description</Label>
+                            <Textarea
+                              className="text-sm min-h-[60px]"
+                              value={pkg.description || ''}
+                              onChange={(e) => {
+                                const packages = [...(formData.packages || [])];
+                                packages[index].description = e.target.value;
+                                updateFormField('packages', packages);
+                              }}
+                              placeholder="What's included in this package..."
+                            />
+                          </div>
+                          <div className="mt-2">
+                            <Label className="text-xs">Deliverables (one per line)</Label>
+                            <Textarea
+                              className="text-sm min-h-[80px]"
+                              value={(pkg.deliverables || []).join('\n')}
+                              onChange={(e) => {
+                                const packages = [...(formData.packages || [])];
+                                packages[index].deliverables = e.target.value.split('\n').filter(item => item.trim() !== '');
+                                updateFormField('packages', packages);
+                              }}
+                              placeholder="Campaign setup & optimization&#10;2 ad creatives&#10;Weekly performance report&#10;Up to 10,000 reach"
                             />
                             <p className="text-xs text-muted-foreground mt-1">Enter each deliverable on a new line</p>
                           </div>

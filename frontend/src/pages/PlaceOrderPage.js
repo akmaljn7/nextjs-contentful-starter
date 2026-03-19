@@ -13,6 +13,7 @@ export const PlaceOrderPage = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const { items, getTotalAmount, clearCart } = useCartStore();
+  const [settings, setSettings] = useState(null);
   const [showWaitingModal, setShowWaitingModal] = useState(false);
   const [showPaymentMethodModal, setShowPaymentMethodModal] = useState(false);
   const [showCashConfirmModal, setShowCashConfirmModal] = useState(false);
@@ -20,6 +21,22 @@ export const PlaceOrderPage = () => {
   const [orderIds, setOrderIds] = useState([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isInitializingPayment, setIsInitializingPayment] = useState(false);
+
+  // Fetch settings on mount
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const response = await api.get('/settings');
+        setSettings(response.data);
+      } catch (error) {
+        console.log('Using default settings');
+      }
+    };
+    fetchSettings();
+  }, []);
+
+  // Get platform fee percentage (default to 10 if not set)
+  const platformFeePercentage = (settings?.platform_fee_percentage || 10) / 100;
 
   useEffect(() => {
     if (!user || items.length === 0) {
@@ -57,7 +74,7 @@ export const PlaceOrderPage = () => {
             deliverables: item.deliverables,
             turnaround: item.turnaround,
           },
-          total_amount: item.price + item.price * 0.1,
+          total_amount: item.price + item.price * platformFeePercentage,
         })
       );
 
@@ -153,8 +170,9 @@ export const PlaceOrderPage = () => {
   }, [countdown, showWaitingModal]);
 
   const totalAmount = getTotalAmount();
-  const platformFee = totalAmount * 0.1;
+  const platformFee = totalAmount * platformFeePercentage;
   const grandTotal = totalAmount + platformFee;
+  const feePercentageDisplay = settings?.platform_fee_percentage || 10;
 
   return (
     <div className="min-h-screen bg-background py-12" data-testid="place-order-page">
@@ -187,7 +205,7 @@ export const PlaceOrderPage = () => {
                 <span>{formatPrice(totalAmount)}</span>
               </div>
               <div className="flex justify-between text-muted-foreground">
-                <span>Platform Fee (10%)</span>
+                <span>Platform Fee ({feePercentageDisplay}%)</span>
                 <span>{formatPrice(platformFee)}</span>
               </div>
               <div className="flex justify-between text-xl font-bold text-foreground pt-3 border-t">
@@ -382,12 +400,12 @@ export const PlaceOrderPage = () => {
             <div className="bg-muted/30 rounded-lg p-3 sm:p-4 text-left space-y-2">
               <div>
                 <p className="text-xs text-muted-foreground">Office Address</p>
-                <p className="text-xs sm:text-sm font-medium text-foreground">Lightban Ads Network Office</p>
-                <p className="text-xs sm:text-sm text-muted-foreground">No 671, Zoo Road, Inec Street, Kano</p>
+                <p className="text-xs sm:text-sm font-medium text-foreground">{settings?.site_name || 'Lightban Ads Network'} Office</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">{settings?.office_address || 'No 671, Zoo Road, Inec Street, Kano'}</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Working Hours</p>
-                <p className="text-xs sm:text-sm text-foreground">Monday - Saturday: 9:00 AM - 5:00 PM</p>
+                <p className="text-xs sm:text-sm text-foreground">{settings?.business_hours || 'Monday - Saturday: 9:00 AM - 5:00 PM'}</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Amount to Pay</p>
