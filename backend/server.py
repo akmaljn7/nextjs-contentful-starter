@@ -1958,6 +1958,15 @@ class SiteSettings(BaseModel):
     seo_title: Optional[str] = ""
     seo_description: Optional[str] = ""
 
+@api_router.get("/settings")
+async def get_public_settings():
+    """Public endpoint to get site settings (for consultation prices, contact info, etc.)"""
+    settings = await db.site_settings.find_one({}, {"_id": 0})
+    if not settings:
+        # Return default settings if none exist
+        return SiteSettings().model_dump()
+    return settings
+
 @api_router.get("/admin/settings")
 async def admin_get_settings(current_user: User = Depends(get_current_user)):
     await check_admin(current_user)

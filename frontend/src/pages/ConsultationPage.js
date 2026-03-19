@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/lib/store';
 import { formatPrice } from '@/lib/utils';
@@ -36,13 +36,14 @@ import {
 import { toast } from 'sonner';
 import api from '@/lib/api';
 
-const CONSULTATION_PACKAGES = [
+// Default consultation packages (prices will be overridden by settings)
+const getConsultationPackages = (settings) => [
   {
     id: 'physical',
     title: 'In-Office Consultation',
     subtitle: 'Face-to-face meeting with our experts',
     icon: Building2,
-    price: 25000,
+    price: settings?.consultation_price_office || 25000,
     duration: '1-2 Hours',
     color: 'bg-primary',
     features: [
@@ -60,7 +61,7 @@ const CONSULTATION_PACKAGES = [
     title: 'Online Consultation',
     subtitle: 'Video call from anywhere',
     icon: Video,
-    price: 15000,
+    price: settings?.consultation_price_online || 15000,
     duration: '45-60 Minutes',
     color: 'bg-accent',
     features: [
@@ -113,6 +114,7 @@ const BUSINESS_STAGES = [
 export const ConsultationPage = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
+  const [settings, setSettings] = useState(null);
   const [selectedPackage, setSelectedPackage] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -134,6 +136,22 @@ export const ConsultationPage = () => {
     contactEmail: user?.email || '',
     contactPhone: '',
   });
+
+  // Fetch settings on mount
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const response = await api.get('/settings');
+        setSettings(response.data);
+      } catch (error) {
+        console.log('Using default settings');
+      }
+    };
+    fetchSettings();
+  }, []);
+
+  // Get consultation packages with dynamic prices from settings
+  const CONSULTATION_PACKAGES = getConsultationPackages(settings);
 
   const handlePackageSelect = (pkg) => {
     setSelectedPackage(pkg);
@@ -541,8 +559,8 @@ export const ConsultationPage = () => {
                           <MapPin className="h-4 w-4 sm:h-5 sm:w-5 text-accent mt-0.5" />
                           <div>
                             <p className="font-medium text-foreground text-xs sm:text-sm">Office Location</p>
-                            <p className="text-xs sm:text-sm text-muted-foreground">No 671, Zoo Road, Inec Street, Kano</p>
-                            <p className="text-xs text-muted-foreground mt-1">Monday - Saturday: 9:00 AM - 5:00 PM</p>
+                            <p className="text-xs sm:text-sm text-muted-foreground">{settings?.office_address || 'No 671, Zoo Road, Inec Street, Kano'}</p>
+                            <p className="text-xs text-muted-foreground mt-1">{settings?.business_hours || 'Monday - Saturday: 9:00 AM - 5:00 PM'}</p>
                           </div>
                         </div>
                       </div>
@@ -595,7 +613,7 @@ export const ConsultationPage = () => {
                           <div>
                             <p className="font-medium text-foreground text-xs sm:text-sm">Video Call Details</p>
                             <p className="text-xs sm:text-sm text-muted-foreground">A meeting link will be sent to your email once your booking is confirmed.</p>
-                            <p className="text-xs text-muted-foreground mt-1">Available Monday - Saturday: 9:00 AM - 5:00 PM</p>
+                            <p className="text-xs text-muted-foreground mt-1">Available {settings?.business_hours || 'Monday - Saturday: 9:00 AM - 5:00 PM'}</p>
                           </div>
                         </div>
                       </div>
@@ -832,9 +850,9 @@ export const ConsultationPage = () => {
               <div className="flex items-start space-x-3">
                 <MapPin className="h-5 w-5 text-accent mt-0.5 flex-shrink-0" />
                 <div>
-                  <p className="font-semibold text-foreground text-sm sm:text-base">Lightban Technology</p>
-                  <p className="text-xs sm:text-sm text-muted-foreground">No 671, Zoo Road, Inec Street, Kano</p>
-                  <p className="text-xs text-muted-foreground mt-1">Monday - Saturday: 9:00 AM - 5:00 PM</p>
+                  <p className="font-semibold text-foreground text-sm sm:text-base">{settings?.site_name || 'Lightban Technology'}</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">{settings?.office_address || 'No 671, Zoo Road, Inec Street, Kano'}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{settings?.business_hours || 'Monday - Saturday: 9:00 AM - 5:00 PM'}</p>
                 </div>
               </div>
             </div>
