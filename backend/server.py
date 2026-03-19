@@ -1,5 +1,6 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, Request
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, Request, UploadFile, File, Form
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.responses import FileResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -15,9 +16,15 @@ from passlib.context import CryptContext
 import httpx
 import hmac
 import hashlib
+import shutil
+import base64
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
+
+# Create uploads directory
+UPLOAD_DIR = ROOT_DIR / "uploads"
+UPLOAD_DIR.mkdir(exist_ok=True)
 
 # MongoDB connection
 mongo_url = os.environ['MONGO_URL']
@@ -2060,6 +2067,129 @@ async def admin_get_stats_summary(current_user: User = Depends(get_current_user)
             "completed": completed_consultations
         }
     }
+
+# ========== FILE UPLOAD ENDPOINTS ==========
+
+ALLOWED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
+MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+
+class UploadChunkRequest(BaseModel):
+    filename: str
+    chunk: str  # Base64 encoded chunk
+    chunk_index: int
+    total_chunks: int
+    file_id: Optional[str] = None
+
+@api_router.post("/upload/chunk")
+async def upload_chunk(
+    data: UploadChunkRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Handle chunked file uploads to bypass proxy limits"""
+    await check_admin(current_user)
+    
+    # Validate file extension
+    ext = Path(data.filename).suffix.lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(status_code=400, detail=f"File type not allowed. Allowed: {', '.join(ALLOWED_EXTENSIONS)}")
+    
+    # Generate or use existing file ID
+    file_id = data.file_id or str(uuid.uuid4())
+    temp_dir = UPLOAD_DIR / "temp" / file_id
+    temp_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Save chunk
+    chunk_data = base64.b64decode(data.chunk)
+    chunk_path = temp_dir / f"chunk_{data.chunk_index}"
+    with open(chunk_path, 'wb') as f:
+        f.write(chunk_data)
+    
+    # If this is the last chunk, combine all chunks
+    if data.chunk_index == data.total_chunks - 1:
+        # Generate final filename
+        final_filename = f"{file_id}{ext}"
+        final_path = UPLOAD_DIR / final_filename
+        
+        # Combine chunks
+        with open(final_path, 'wb') as final_file:
+            for i in range(data.total_chunks):
+                chunk_file = temp_dir / f"chunk_{i}"
+                if chunk_file.exists():
+                    with open(chunk_file, 'rb') as cf:
+                        final_file.write(cf.read())
+        
+        # Clean up temp directory
+        shutil.rmtree(temp_dir)
+        
+        # Check file size
+        if final_path.stat().st_size > MAX_FILE_SIZE:
+            final_path.unlink()
+            raise HTTPException(status_code=400, detail="File too large. Maximum size is 5MB")
+        
+        # Return the URL to the uploaded file
+        return {
+            "status": "complete",
+            "file_id": file_id,
+            "filename": final_filename,
+            "url": f"/api/uploads/{final_filename}"
+        }
+    
+    return {
+        "status": "chunk_received",
+        "file_id": file_id,
+        "chunk_index": data.chunk_index
+    }
+
+@api_router.post("/upload/simple")
+async def simple_upload(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user)
+):
+    """Simple file upload for smaller files"""
+    await check_admin(current_user)
+    
+    # Validate file extension
+    ext = Path(file.filename).suffix.lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(status_code=400, detail=f"File type not allowed. Allowed: {', '.join(ALLOWED_EXTENSIONS)}")
+    
+    # Read file content
+    content = await file.read()
+    
+    # Check file size
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(status_code=400, detail="File too large. Maximum size is 5MB")
+    
+    # Generate filename and save
+    file_id = str(uuid.uuid4())
+    final_filename = f"{file_id}{ext}"
+    final_path = UPLOAD_DIR / final_filename
+    
+    with open(final_path, 'wb') as f:
+        f.write(content)
+    
+    return {
+        "status": "complete",
+        "file_id": file_id,
+        "filename": final_filename,
+        "url": f"/api/uploads/{final_filename}"
+    }
+
+@api_router.get("/uploads/{filename}")
+async def get_uploaded_file(filename: str):
+    """Serve uploaded files"""
+    file_path = UPLOAD_DIR / filename
+    
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File not found")
+    
+    # Security: Ensure the path is within UPLOAD_DIR
+    try:
+        file_path.resolve().relative_to(UPLOAD_DIR.resolve())
+    except ValueError:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    return FileResponse(file_path)
 
 # Health check
 @api_router.get("/")

@@ -17,6 +17,7 @@ import {
   SelectValue 
 } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { ImageUpload } from '@/components/ImageUpload';
 import { formatPrice, formatDate } from '@/lib/utils';
 import { 
   Users, 
@@ -1075,10 +1076,11 @@ export const AdminPanelPage = () => {
                     <Input type="number" step="0.1" value={formData.engagement_rate || 0} onChange={(e) => updateFormField('engagement_rate', parseFloat(e.target.value))} />
                   </div>
                 </div>
-                <div>
-                  <Label>Image URL</Label>
-                  <Input value={formData.image_url || ''} onChange={(e) => updateFormField('image_url', e.target.value)} />
-                </div>
+                <ImageUpload
+                  label="Profile Image"
+                  value={formData.image_url || ''}
+                  onChange={(url) => updateFormField('image_url', url)}
+                />
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label>Rating (1-5 stars)</Label>
@@ -1290,10 +1292,11 @@ export const AdminPanelPage = () => {
                   <Label>Description</Label>
                   <Textarea value={formData.description || ''} onChange={(e) => updateFormField('description', e.target.value)} />
                 </div>
-                <div>
-                  <Label>Image URL</Label>
-                  <Input value={formData.image_url || ''} onChange={(e) => updateFormField('image_url', e.target.value)} />
-                </div>
+                <ImageUpload
+                  label="Billboard Image"
+                  value={formData.image_url || ''}
+                  onChange={(url) => updateFormField('image_url', url)}
+                />
 
                 {/* Location-Based Pricing Section */}
                 <div className="border-t pt-4 mt-4">
@@ -1473,10 +1476,11 @@ export const AdminPanelPage = () => {
                   <Label>Description</Label>
                   <Textarea value={formData.description || ''} onChange={(e) => updateFormField('description', e.target.value)} />
                 </div>
-                <div>
-                  <Label>Image URL</Label>
-                  <Input value={formData.image_url || ''} onChange={(e) => updateFormField('image_url', e.target.value)} />
-                </div>
+                <ImageUpload
+                  label="Production Image"
+                  value={formData.image_url || ''}
+                  onChange={(url) => updateFormField('image_url', url)}
+                />
 
                 {/* Packages Section for Kannywood */}
                 <div className="border-t pt-4 mt-4">
@@ -1629,10 +1633,11 @@ export const AdminPanelPage = () => {
                   <Label>Description</Label>
                   <Textarea value={formData.description || ''} onChange={(e) => updateFormField('description', e.target.value)} placeholder="Platform description..." />
                 </div>
-                <div>
-                  <Label>Image URL</Label>
-                  <Input value={formData.image_url || ''} onChange={(e) => updateFormField('image_url', e.target.value)} placeholder="https://..." />
-                </div>
+                <ImageUpload
+                  label="Platform Image"
+                  value={formData.image_url || ''}
+                  onChange={(url) => updateFormField('image_url', url)}
+                />
 
                 {/* Digital Ad Packages Section */}
                 <div className="space-y-3 pt-4 border-t">
