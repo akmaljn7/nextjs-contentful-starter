@@ -176,6 +176,25 @@ A conversion-focused, responsive marketplace website for "Lightban Ads Network" 
      - Digital Ads form: "Platform Image"
 - **Test Status**: Verified - 100% pass rate (11/11 backend tests, all frontend verified)
 
+### Feature: Email Notifications - IMPLEMENTED (March 2026)
+- **Request**: Send beautiful emails for pay-at-office orders and consultation scheduling
+- **Implementation**:
+  1. **SMTP Configuration**: Gmail SMTP with app password in backend `.env`
+  2. **Order Confirmation Email**: Sent when user selects "Pay at Office" payment method
+     - Beautiful HTML template with Lightban branding
+     - Includes order details, total amount, office address, business hours
+     - WhatsApp contact link for questions
+  3. **Consultation Scheduling Email**: Sent when admin sets scheduled_date and scheduled_time
+     - Includes appointment details, date/time highlight
+     - Location info (online meeting link note or office address)
+     - Preparation tips for the consultation
+  4. **Async Delivery**: Emails sent in background using ThreadPoolExecutor
+- **Endpoints Modified**:
+  - `POST /api/orders`: Triggers email when `payment_method='cash'`
+  - `PUT /api/orders/{id}/status`: Triggers email when `payment_status='pending_cash'`
+  - `PUT /api/admin/consultations/{id}`: Triggers email when schedule is set
+- **Test Status**: Verified - 100% pass rate (8/8 tests, emails confirmed delivered)
+
 ---
 
 ## Prioritized Backlog
@@ -229,6 +248,7 @@ A conversion-focused, responsive marketplace website for "Lightban Ads Network" 
 - `/app/test_reports/iteration_3.json` - Package preservation and API data fixes (100% pass)
 - `/app/test_reports/iteration_4.json` - Digital Ads visibility and 401 status code fixes (100% pass - 13/13 backend, all frontend verified)
 - `/app/test_reports/iteration_5.json` - Image upload feature (100% pass - 11/11 backend, all frontend verified)
+- `/app/test_reports/iteration_6.json` - Email notifications (100% pass - 8/8 backend, order & consultation emails verified)
 
 ---
 
