@@ -6,86 +6,97 @@ import { formatPrice } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, TrendingUp, Users, Globe } from 'lucide-react';
+import { CheckCircle, TrendingUp, Users, Globe, Loader2 } from 'lucide-react';
 
-// Platform data with real images and info
-const AD_PLATFORMS = [
-  {
-    id: 'facebook',
-    name: 'Facebook Ads',
-    platform: 'Facebook',
-    description: 'Reach over 2.9 billion monthly active users. Perfect for brand awareness, lead generation, and sales conversions.',
-    image_url: 'https://images.unsplash.com/photo-1662070479020-73f77887c87c?w=600&h=400&fit=crop',
-    color: '#1877F2',
-    starting_price: 50000,
-    features: ['Targeted audience reach', 'Multiple ad formats', 'Detailed analytics'],
-    monthly_users: '2.9B',
-    avg_cpc: '₦50-₦200',
-  },
-  {
-    id: 'instagram',
-    name: 'Instagram Ads',
-    platform: 'Instagram',
-    description: 'Visual-first advertising on the most engaging social platform. Ideal for fashion, lifestyle, and e-commerce brands.',
-    image_url: 'https://images.unsplash.com/photo-1689852501130-e89d9e54aa41?w=600&h=400&fit=crop',
-    color: '#E4405F',
-    starting_price: 60000,
-    features: ['Stories & Reels ads', 'Shopping integration', 'Influencer partnerships'],
-    monthly_users: '2B',
-    avg_cpc: '₦60-₦250',
-  },
-  {
-    id: 'tiktok',
-    name: 'TikTok Ads',
-    platform: 'TikTok',
-    description: 'Capture Gen Z and millennial audiences with short-form video ads. Highest engagement rates in social media.',
-    image_url: 'https://images.unsplash.com/photo-1620396748669-46bd3128ccce?w=600&h=400&fit=crop',
-    color: '#000000',
-    starting_price: 75000,
-    features: ['In-feed video ads', 'Branded hashtag challenges', 'Spark Ads'],
-    monthly_users: '1.5B',
-    avg_cpc: '₦40-₦150',
-  },
-  {
-    id: 'snapchat',
-    name: 'Snapchat Ads',
-    platform: 'Snapchat',
-    description: 'Connect with young audiences through immersive AR experiences and vertical video ads.',
-    image_url: 'https://customer-assets.emergentagent.com/job_ads-kano/artifacts/cdbi8ulp_snapchat.png',
-    color: '#FFFC00',
-    starting_price: 55000,
-    features: ['AR lens ads', 'Story ads', 'Spotlight ads'],
-    monthly_users: '750M',
-    avg_cpc: '₦45-₦180',
-  },
-  {
-    id: 'google',
-    name: 'Google Ads',
-    platform: 'Google',
-    description: 'Dominate search results and display network. Best for intent-based marketing and immediate conversions.',
-    image_url: 'https://images.unsplash.com/photo-1628320281190-89b24da58b0f?w=600&h=400&fit=crop',
-    color: '#4285F4',
-    starting_price: 100000,
-    features: ['Search ads', 'Display network', 'YouTube ads'],
-    monthly_users: '8.5B searches/day',
-    avg_cpc: '₦100-₦500',
-  },
-  {
-    id: 'whatsapp',
-    name: 'WhatsApp Business Ads',
-    platform: 'WhatsApp',
-    description: 'Direct customer communication with Click-to-WhatsApp ads. Perfect for customer service and direct sales.',
-    image_url: 'https://images.unsplash.com/photo-1642724978500-c13b821afe04?w=600&h=400&fit=crop',
-    color: '#25D366',
-    starting_price: 45000,
-    features: ['Click-to-chat ads', 'Business messaging', 'Catalog sharing'],
-    monthly_users: '2B',
-    avg_cpc: '₦30-₦100',
-  },
-];
+const API_URL = process.env.REACT_APP_BACKEND_URL;
+
+// Default platform colors by name (fallback)
+const PLATFORM_COLORS = {
+  'facebook': '#1877F2',
+  'instagram': '#E4405F',
+  'tiktok': '#000000',
+  'snapchat': '#FFFC00',
+  'google': '#4285F4',
+  'whatsapp': '#25D366',
+  'youtube': '#FF0000',
+  'twitter': '#1DA1F2',
+  'linkedin': '#0077B5',
+  'pinterest': '#E60023',
+};
 
 export const DigitalAdsPage = () => {
   const { language } = useLanguageStore();
+  const [platforms, setPlatforms] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchDigitalAds = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch(`${API_URL}/api/digital-ads`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch digital ad platforms');
+        }
+        const data = await response.json();
+        setPlatforms(data);
+      } catch (err) {
+        console.error('Error fetching digital ads:', err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDigitalAds();
+  }, []);
+
+  // Helper to get platform color
+  const getPlatformColor = (platform) => {
+    const id = platform.id?.toLowerCase() || platform.platform?.toLowerCase();
+    return platform.color || PLATFORM_COLORS[id] || '#6366F1';
+  };
+
+  // Helper to get starting price from packages
+  const getStartingPrice = (platform) => {
+    if (platform.starting_price) return platform.starting_price;
+    if (platform.packages && platform.packages.length > 0) {
+      const prices = platform.packages.map(p => p.price).filter(p => p > 0);
+      return prices.length > 0 ? Math.min(...prices) : 50000;
+    }
+    return 50000;
+  };
+
+  // Helper to get features from packages or default
+  const getFeatures = (platform) => {
+    if (platform.features && platform.features.length > 0) return platform.features.slice(0, 3);
+    if (platform.packages && platform.packages.length > 0) {
+      return platform.packages.slice(0, 3).map(p => p.name);
+    }
+    return ['Professional management', 'Detailed analytics', 'Campaign optimization'];
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center" data-testid="digital-ads-loading">
+        <div className="text-center">
+          <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading platforms...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center" data-testid="digital-ads-error">
+        <div className="text-center text-red-500">
+          <p className="text-lg font-semibold mb-2">Error loading platforms</p>
+          <p className="text-sm">{error}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background" data-testid="digital-ads-page">
@@ -105,84 +116,97 @@ export const DigitalAdsPage = () => {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-          {AD_PLATFORMS.map((platform) => (
-            <Link to={`/digital-ads/${platform.id}`} key={platform.id}>
-              <Card
-                className="group hover:shadow-2xl hover:-translate-y-2 h-full border-2 transition-all duration-300"
-                data-testid={`platform-card-${platform.id}`}
-              >
-                <CardContent className="p-0">
-                  <div className="relative h-48 overflow-hidden rounded-t-lg">
-                    <img
-                      src={platform.image_url}
-                      alt={platform.name}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                    />
-                    <Badge 
-                      className="absolute top-3 left-3 text-white border-0 font-semibold"
-                      style={{ backgroundColor: platform.color }}
-                    >
-                      {platform.platform}
-                    </Badge>
-                    <Badge className="absolute top-3 right-3 bg-white/90 text-primary border-0">
-                      <CheckCircle className="h-3 w-3 mr-1" />
-                      Verified
-                    </Badge>
-                  </div>
-                  
-                  <div className="p-6 space-y-4">
-                    <div>
-                      <h3 className="text-xl font-bold text-foreground mb-2">{platform.name}</h3>
-                      <p className="text-sm text-muted-foreground line-clamp-2">{platform.description}</p>
-                    </div>
-
-                    {/* Features */}
-                    <div className="space-y-2">
-                      {platform.features.map((feature, idx) => (
-                        <div key={idx} className="flex items-center text-sm">
-                          <CheckCircle className="h-4 w-4 mr-2 text-primary flex-shrink-0" />
-                          <span className="text-muted-foreground">{feature}</span>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Stats */}
-                    <div className="grid grid-cols-2 gap-4 pt-4 border-t">
-                      <div className="text-center">
-                        <div className="flex items-center justify-center mb-1">
-                          <Users className="h-4 w-4 mr-1 text-accent" />
-                        </div>
-                        <p className="text-xs text-muted-foreground">Monthly Users</p>
-                        <p className="text-sm font-semibold text-foreground">{platform.monthly_users}</p>
-                      </div>
-                      <div className="text-center">
-                        <div className="flex items-center justify-center mb-1">
-                          <TrendingUp className="h-4 w-4 mr-1 text-green-600" />
-                        </div>
-                        <p className="text-xs text-muted-foreground">Avg. CPC</p>
-                        <p className="text-sm font-semibold text-foreground">{platform.avg_cpc}</p>
-                      </div>
-                    </div>
-
-                    {/* Price & CTA */}
-                    <div className="flex items-center justify-between pt-4 border-t">
-                      <div>
-                        <p className="text-xs text-muted-foreground">Starting from</p>
-                        <p className="text-xl font-bold text-primary">{formatPrice(platform.starting_price)}</p>
-                        <p className="text-xs text-muted-foreground">/month</p>
-                      </div>
-                      <Button 
-                        className="bg-accent hover:bg-accent/90 text-white font-semibold"
-                        data-testid={`view-packages-${platform.id}`}
+          {platforms.length === 0 ? (
+            <div className="col-span-full text-center py-12">
+              <Globe className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+              <p className="text-lg text-muted-foreground">No advertising platforms available yet.</p>
+              <p className="text-sm text-muted-foreground mt-2">Check back soon for new opportunities!</p>
+            </div>
+          ) : (
+            platforms.map((platform) => (
+              <Link to={`/digital-ads/${platform.id}`} key={platform.id}>
+                <Card
+                  className="group hover:shadow-2xl hover:-translate-y-2 h-full border-2 transition-all duration-300"
+                  data-testid={`platform-card-${platform.id}`}
+                >
+                  <CardContent className="p-0">
+                    <div className="relative h-48 overflow-hidden rounded-t-lg">
+                      <img
+                        src={platform.image_url || `https://images.unsplash.com/photo-1432888622747-4eb9a8efeb07?w=600&h=400&fit=crop`}
+                        alt={platform.name || platform.platform}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                        onError={(e) => {
+                          e.target.src = 'https://images.unsplash.com/photo-1432888622747-4eb9a8efeb07?w=600&h=400&fit=crop';
+                        }}
+                      />
+                      <Badge 
+                        className="absolute top-3 left-3 text-white border-0 font-semibold"
+                        style={{ backgroundColor: getPlatformColor(platform) }}
                       >
-                        View Packages
-                      </Button>
+                        {platform.platform}
+                      </Badge>
+                      <Badge className="absolute top-3 right-3 bg-white/90 text-primary border-0">
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        Verified
+                      </Badge>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
+                    
+                    <div className="p-6 space-y-4">
+                      <div>
+                        <h3 className="text-xl font-bold text-foreground mb-2">{platform.name || `${platform.platform} Ads`}</h3>
+                        <p className="text-sm text-muted-foreground line-clamp-2">
+                          {platform.description || `Professional ${platform.platform} advertising services for your business.`}
+                        </p>
+                      </div>
+
+                      {/* Features */}
+                      <div className="space-y-2">
+                        {getFeatures(platform).map((feature, idx) => (
+                          <div key={idx} className="flex items-center text-sm">
+                            <CheckCircle className="h-4 w-4 mr-2 text-primary flex-shrink-0" />
+                            <span className="text-muted-foreground">{feature}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Stats */}
+                      <div className="grid grid-cols-2 gap-4 pt-4 border-t">
+                        <div className="text-center">
+                          <div className="flex items-center justify-center mb-1">
+                            <Users className="h-4 w-4 mr-1 text-accent" />
+                          </div>
+                          <p className="text-xs text-muted-foreground">Monthly Users</p>
+                          <p className="text-sm font-semibold text-foreground">{platform.monthly_users || 'Millions'}</p>
+                        </div>
+                        <div className="text-center">
+                          <div className="flex items-center justify-center mb-1">
+                            <TrendingUp className="h-4 w-4 mr-1 text-green-600" />
+                          </div>
+                          <p className="text-xs text-muted-foreground">Avg. CPC</p>
+                          <p className="text-sm font-semibold text-foreground">{platform.avg_cpc || 'Varies'}</p>
+                        </div>
+                      </div>
+
+                      {/* Price & CTA */}
+                      <div className="flex items-center justify-between pt-4 border-t">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Starting from</p>
+                          <p className="text-xl font-bold text-primary">{formatPrice(getStartingPrice(platform))}</p>
+                          <p className="text-xs text-muted-foreground">/month</p>
+                        </div>
+                        <Button 
+                          className="bg-accent hover:bg-accent/90 text-white font-semibold"
+                          data-testid={`view-packages-${platform.id}`}
+                        >
+                          View Packages
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))
+          )}
         </div>
       </div>
     </div>

@@ -36,7 +36,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
 PAYSTACK_SECRET_KEY = os.environ.get('PAYSTACK_SECRET_KEY')
 PAYSTACK_PUBLIC_KEY = os.environ.get('PAYSTACK_PUBLIC_KEY')
 
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
 # Create the main app
 app = FastAPI()
@@ -268,6 +268,13 @@ def create_access_token(data: dict):
     return encoded_jwt
 
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    # Check if credentials were provided
+    if credentials is None:
+        raise HTTPException(
+            status_code=401, 
+            detail="Not authenticated", 
+            headers={"WWW-Authenticate": "Bearer"}
+        )
     try:
         token = credentials.credentials
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
@@ -496,18 +503,22 @@ async def create_digital_ad_service(data: DigitalAdServiceCreate, current_user: 
     await db.digital_ad_services.insert_one(doc)
     return service
 
-@api_router.get("/digital-ads", response_model=List[DigitalAdService])
-async def get_digital_ad_services(platform: Optional[str] = None, status: str = "approved"):
-    query = {"status": status}
+@api_router.get("/digital-ads")
+async def get_digital_ad_services(platform: Optional[str] = None):
+    """Get all digital ad platforms (from admin-managed digital_ads collection)"""
+    # Query the digital_ads collection (admin-managed)
+    query = {}
     if platform:
-        query["platform"] = platform
+        query["platform"] = {"$regex": platform, "$options": "i"}
     
-    services = await db.digital_ad_services.find(query, {"_id": 0}).to_list(100)
-    for svc in services:
-        if isinstance(svc['created_at'], str):
-            svc['created_at'] = datetime.fromisoformat(svc['created_at'])
+    digital_ads = await db.digital_ads.find(query, {"_id": 0}).to_list(100)
     
-    return services
+    # If no admin-created entries exist, fall back to digital_ad_services for backwards compatibility
+    if not digital_ads:
+        services = await db.digital_ad_services.find({}, {"_id": 0}).to_list(100)
+        return services
+    
+    return digital_ads
 
 @api_router.get("/digital-ads/{platform_id}")
 async def get_digital_ad_by_id(platform_id: str):
