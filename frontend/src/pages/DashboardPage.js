@@ -475,16 +475,40 @@ export const DashboardPage = () => {
                             className="p-4 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors"
                           >
                             <div className="flex items-start justify-between gap-4">
-                              <div className="min-w-0">
+                              <div className="min-w-0 flex-1">
                                 <p className="font-semibold text-foreground text-sm sm:text-base">
                                   {consultation.package_title}
                                 </p>
                                 <p className="text-xs sm:text-sm text-muted-foreground mt-1">
                                   {consultation.business_name} • {consultation.industry}
                                 </p>
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  {formatDate(consultation.created_at)}
-                                </p>
+                                
+                                {/* Show Confirmed Schedule if set */}
+                                {consultation.scheduled_date ? (
+                                  <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-md">
+                                    <p className="text-xs font-semibold text-green-800 flex items-center">
+                                      <Calendar className="h-3 w-3 mr-1" />
+                                      Confirmed Schedule
+                                    </p>
+                                    <p className="text-sm font-medium text-green-700">
+                                      {formatDate(consultation.scheduled_date)} {consultation.scheduled_time && `at ${consultation.scheduled_time}`}
+                                    </p>
+                                  </div>
+                                ) : consultation.preferred_date ? (
+                                  <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded-md">
+                                    <p className="text-xs font-semibold text-amber-800 flex items-center">
+                                      <Clock className="h-3 w-3 mr-1" />
+                                      Requested Schedule (Pending Confirmation)
+                                    </p>
+                                    <p className="text-sm text-amber-700">
+                                      {formatDate(consultation.preferred_date)} {consultation.preferred_time && `at ${consultation.preferred_time}`}
+                                    </p>
+                                  </div>
+                                ) : (
+                                  <p className="text-xs text-muted-foreground mt-2">
+                                    Booked on {formatDate(consultation.created_at)}
+                                  </p>
+                                )}
                               </div>
                               <div className="text-right flex-shrink-0">
                                 {getStatusBadge(consultation.status || 'pending')}

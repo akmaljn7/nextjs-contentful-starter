@@ -732,7 +732,8 @@ export const AdminPanelPage = () => {
                             <th className="text-left py-3 px-2 text-sm font-semibold">Type</th>
                             <th className="text-left py-3 px-2 text-sm font-semibold">Business</th>
                             <th className="text-left py-3 px-2 text-sm font-semibold">Contact</th>
-                            <th className="text-left py-3 px-2 text-sm font-semibold">Preferred Date/Time</th>
+                            <th className="text-left py-3 px-2 text-sm font-semibold">Requested</th>
+                            <th className="text-left py-3 px-2 text-sm font-semibold">Confirmed</th>
                             <th className="text-left py-3 px-2 text-sm font-semibold">Status</th>
                             <th className="text-right py-3 px-2 text-sm font-semibold">Price</th>
                             <th className="text-center py-3 px-2 text-sm font-semibold">Actions</th>
@@ -752,7 +753,17 @@ export const AdminPanelPage = () => {
                               </td>
                               <td className="py-3 px-2">
                                 <p className="text-sm">{item.preferred_date ? formatDate(item.preferred_date) : '-'}</p>
-                                <p className="text-xs text-muted-foreground font-medium">{item.preferred_time || '-'}</p>
+                                <p className="text-xs text-muted-foreground">{item.preferred_time || '-'}</p>
+                              </td>
+                              <td className="py-3 px-2">
+                                {item.scheduled_date ? (
+                                  <>
+                                    <p className="text-sm font-medium text-green-700">{formatDate(item.scheduled_date)}</p>
+                                    <p className="text-xs font-medium text-green-600">{item.scheduled_time || '-'}</p>
+                                  </>
+                                ) : (
+                                  <span className="text-xs text-amber-600 font-medium">Not confirmed</span>
+                                )}
                               </td>
                               <td className="py-3 px-2">{getStatusBadge(item.status || 'pending')}</td>
                               <td className="py-3 px-2 text-right font-semibold">{formatPrice(item.price)}</td>
@@ -1526,7 +1537,9 @@ export const AdminPanelPage = () => {
             {/* Consultation Form */}
             {modalType === 'consultation' && (
               <>
+                {/* Customer Request Details (Read-only) */}
                 <div className="bg-muted/30 rounded-lg p-3 mb-4">
+                  <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase">Customer Request</p>
                   <p className="font-medium">{selectedItem?.package_title}</p>
                   <p className="text-sm text-muted-foreground">Business: {selectedItem?.business_name}</p>
                   <p className="text-sm text-muted-foreground">Industry: {selectedItem?.industry}</p>
@@ -1534,12 +1547,12 @@ export const AdminPanelPage = () => {
                   <p className="text-sm text-muted-foreground">Email: {selectedItem?.contact_email}</p>
                   {selectedItem?.preferred_date && (
                     <p className="text-sm text-muted-foreground">
-                      Preferred Date: <span className="font-medium text-foreground">{formatDate(selectedItem?.preferred_date)}</span>
+                      Requested Date: <span className="font-medium text-foreground">{formatDate(selectedItem?.preferred_date)}</span>
                     </p>
                   )}
                   {selectedItem?.preferred_time && (
                     <p className="text-sm text-muted-foreground">
-                      Preferred Time: <span className="font-medium text-foreground">{selectedItem?.preferred_time}</span>
+                      Requested Time: <span className="font-medium text-foreground">{selectedItem?.preferred_time}</span>
                     </p>
                   )}
                   {selectedItem?.description && (
@@ -1553,50 +1566,72 @@ export const AdminPanelPage = () => {
                   )}
                   <p className="text-sm font-bold text-accent mt-2">{formatPrice(selectedItem?.price)}</p>
                 </div>
-                <div>
-                  <Label>Status</Label>
-                  <Select value={formData.status || 'pending'} onValueChange={(v) => updateFormField('status', v)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="scheduled">Scheduled</SelectItem>
-                      <SelectItem value="completed">Completed</SelectItem>
-                      <SelectItem value="cancelled">Cancelled</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Payment Status</Label>
-                  <Select value={formData.payment_status || 'pending'} onValueChange={(v) => updateFormField('payment_status', v)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {PAYMENT_STATUS_OPTIONS.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Scheduled Date</Label>
-                  <Input type="date" value={formData.scheduled_date || ''} onChange={(e) => updateFormField('scheduled_date', e.target.value)} />
-                </div>
-                <div>
-                  <Label>Scheduled Time</Label>
-                  <Select value={formData.scheduled_time || ''} onValueChange={(v) => updateFormField('scheduled_time', v)}>
-                    <SelectTrigger><SelectValue placeholder="Select time" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="9:00 AM">9:00 AM</SelectItem>
-                      <SelectItem value="10:00 AM">10:00 AM</SelectItem>
-                      <SelectItem value="11:00 AM">11:00 AM</SelectItem>
-                      <SelectItem value="12:00 PM">12:00 PM</SelectItem>
-                      <SelectItem value="2:00 PM">2:00 PM</SelectItem>
-                      <SelectItem value="3:00 PM">3:00 PM</SelectItem>
-                      <SelectItem value="4:00 PM">4:00 PM</SelectItem>
-                      <SelectItem value="5:00 PM">5:00 PM</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Notes</Label>
-                  <Textarea value={formData.notes || ''} onChange={(e) => updateFormField('notes', e.target.value)} placeholder="Internal notes..." />
+
+                {/* Admin Editable Fields */}
+                <div className="border-t pt-4">
+                  <p className="text-xs font-semibold text-muted-foreground mb-3 uppercase">Admin Settings</p>
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label>Status</Label>
+                      <Select value={formData.status || 'pending'} onValueChange={(v) => updateFormField('status', v)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="pending">Pending</SelectItem>
+                          <SelectItem value="scheduled">Scheduled</SelectItem>
+                          <SelectItem value="completed">Completed</SelectItem>
+                          <SelectItem value="cancelled">Cancelled</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Payment Status</Label>
+                      <Select value={formData.payment_status || 'pending'} onValueChange={(v) => updateFormField('payment_status', v)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {PAYMENT_STATUS_OPTIONS.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {/* Confirmed Schedule - Highlighted */}
+                  <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <p className="text-xs font-semibold text-green-800 mb-2 uppercase">Confirmed Schedule (Visible to Customer)</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-green-700">Confirmed Date</Label>
+                        <Input 
+                          type="date" 
+                          value={formData.scheduled_date || ''} 
+                          onChange={(e) => updateFormField('scheduled_date', e.target.value)}
+                          className="border-green-300 focus:border-green-500"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-green-700">Confirmed Time</Label>
+                        <Select value={formData.scheduled_time || ''} onValueChange={(v) => updateFormField('scheduled_time', v)}>
+                          <SelectTrigger className="border-green-300"><SelectValue placeholder="Select time" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="9:00 AM">9:00 AM</SelectItem>
+                            <SelectItem value="10:00 AM">10:00 AM</SelectItem>
+                            <SelectItem value="11:00 AM">11:00 AM</SelectItem>
+                            <SelectItem value="12:00 PM">12:00 PM</SelectItem>
+                            <SelectItem value="2:00 PM">2:00 PM</SelectItem>
+                            <SelectItem value="3:00 PM">3:00 PM</SelectItem>
+                            <SelectItem value="4:00 PM">4:00 PM</SelectItem>
+                            <SelectItem value="5:00 PM">5:00 PM</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <p className="text-xs text-green-600 mt-2">This date/time will be shown to the customer in their dashboard.</p>
+                  </div>
+
+                  <div className="mt-4">
+                    <Label>Admin Notes (Internal Only)</Label>
+                    <Textarea value={formData.notes || ''} onChange={(e) => updateFormField('notes', e.target.value)} placeholder="Internal notes..." />
+                  </div>
                 </div>
               </>
             )}
