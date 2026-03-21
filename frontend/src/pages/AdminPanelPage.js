@@ -40,9 +40,43 @@ import {
   MapPin,
   Settings,
   BarChart3,
-  AlertCircle
+  AlertCircle,
+  Search,
+  X
 } from 'lucide-react';
 import { toast } from 'sonner';
+
+// Reusable Search Bar Component
+const AdminSearchBar = ({ value, onChange, placeholder, resultCount, totalCount }) => (
+  <div className="relative mb-4">
+    <div className="flex items-center gap-2">
+      <div className="relative flex-1">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className="w-full pl-10 pr-10 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent"
+          data-testid="admin-search-input"
+        />
+        {value && (
+          <button
+            onClick={() => onChange('')}
+            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+    </div>
+    {value && (
+      <p className="text-xs text-muted-foreground mt-1">
+        Showing {resultCount} of {totalCount} results
+      </p>
+    )}
+  </div>
+);
 
 const STATUS_OPTIONS = [
   { value: 'pending', label: 'Pending' },
@@ -108,6 +142,67 @@ export const AdminPanelPage = () => {
   const [itemToDelete, setItemToDelete] = useState(null);
   const [showOrderDetail, setShowOrderDetail] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  
+  // Search states for each tab
+  const [searchQueries, setSearchQueries] = useState({
+    orders: '',
+    consultations: '',
+    influencers: '',
+    billboards: '',
+    digitalAds: '',
+    kannywood: '',
+    users: ''
+  });
+
+  // Update search query for a specific tab
+  const updateSearchQuery = (tab, query) => {
+    setSearchQueries(prev => ({ ...prev, [tab]: query }));
+  };
+
+  // Smart filter function that searches across multiple fields
+  const filterItems = (items, query, fields) => {
+    if (!query.trim()) return items;
+    const lowerQuery = query.toLowerCase().trim();
+    return items.filter(item => {
+      return fields.some(field => {
+        const value = field.split('.').reduce((obj, key) => obj?.[key], item);
+        if (value === null || value === undefined) return false;
+        return String(value).toLowerCase().includes(lowerQuery);
+      });
+    });
+  };
+
+  // Filtered data for each tab
+  const filteredOrders = filterItems(orders, searchQueries.orders, [
+    'id', 'user_info.name', 'user_info.email', 'user_info.phone',
+    'package_details.packageTitle', 'package_details.title', 'listing_type',
+    'payment_status', 'order_status', 'payment_method'
+  ]);
+
+  const filteredConsultations = filterItems(consultations, searchQueries.consultations, [
+    'id', 'business_name', 'contact_name', 'contact_email', 'contact_phone',
+    'industry', 'package_title', 'status', 'payment_status'
+  ]);
+
+  const filteredInfluencers = filterItems(influencers, searchQueries.influencers, [
+    'id', 'name', 'handle', 'platform', 'category', 'location', 'status'
+  ]);
+
+  const filteredBillboards = filterItems(billboards, searchQueries.billboards, [
+    'id', 'name', 'type', 'location', 'status'
+  ]);
+
+  const filteredDigitalAds = filterItems(digitalAds, searchQueries.digitalAds, [
+    'id', 'name', 'platform', 'status'
+  ]);
+
+  const filteredKannywood = filterItems(kannywood, searchQueries.kannywood, [
+    'id', 'title', 'production_company', 'type', 'status'
+  ]);
+
+  const filteredUsers = filterItems(users, searchQueries.users, [
+    'id', 'name', 'email', 'phone', 'role', 'company_name'
+  ]);
 
   useEffect(() => {
     if (!user) {
@@ -559,12 +654,19 @@ export const AdminPanelPage = () => {
               <TabsContent value="influencers">
                 <Card className="border-2">
                   <CardHeader className="flex flex-row items-center justify-between">
-                    <CardTitle>Manage Influencers</CardTitle>
+                    <CardTitle>Manage Influencers ({filteredInfluencers.length})</CardTitle>
                     <Button onClick={() => openCreateModal('influencer')} className="bg-accent hover:bg-accent/90">
                       <Plus className="h-4 w-4 mr-2" /> Add New
                     </Button>
                   </CardHeader>
                   <CardContent>
+                    <AdminSearchBar
+                      value={searchQueries.influencers}
+                      onChange={(q) => updateSearchQuery('influencers', q)}
+                      placeholder="Search by name, handle, platform, category..."
+                      resultCount={filteredInfluencers.length}
+                      totalCount={influencers.length}
+                    />
                     <div className="overflow-x-auto">
                       <table className="w-full">
                         <thead>
@@ -578,7 +680,7 @@ export const AdminPanelPage = () => {
                           </tr>
                         </thead>
                         <tbody>
-                          {influencers.map((item) => (
+                          {filteredInfluencers.map((item) => (
                             <tr key={item.id} className="border-b hover:bg-muted/30">
                               <td className="py-3 px-2">
                                 <div className="flex items-center gap-2">
@@ -618,12 +720,19 @@ export const AdminPanelPage = () => {
               <TabsContent value="billboards">
                 <Card className="border-2">
                   <CardHeader className="flex flex-row items-center justify-between">
-                    <CardTitle>Manage Billboards</CardTitle>
+                    <CardTitle>Manage Billboards ({filteredBillboards.length})</CardTitle>
                     <Button onClick={() => openCreateModal('billboard')} className="bg-accent hover:bg-accent/90">
                       <Plus className="h-4 w-4 mr-2" /> Add New
                     </Button>
                   </CardHeader>
                   <CardContent>
+                    <AdminSearchBar
+                      value={searchQueries.billboards}
+                      onChange={(q) => updateSearchQuery('billboards', q)}
+                      placeholder="Search by name, type, location..."
+                      resultCount={filteredBillboards.length}
+                      totalCount={billboards.length}
+                    />
                     <div className="overflow-x-auto">
                       <table className="w-full">
                         <thead>
@@ -637,7 +746,7 @@ export const AdminPanelPage = () => {
                           </tr>
                         </thead>
                         <tbody>
-                          {billboards.map((item) => (
+                          {filteredBillboards.map((item) => (
                             <tr key={item.id} className="border-b hover:bg-muted/30">
                               <td className="py-3 px-2">
                                 <p className="font-medium text-sm">{item.name || item.location_name}</p>
