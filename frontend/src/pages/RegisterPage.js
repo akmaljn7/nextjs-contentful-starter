@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 
 export const RegisterPage = () => {
@@ -20,7 +19,7 @@ export const RegisterPage = () => {
     email: '',
     phone: '',
     password: '',
-    role: 'advertiser',
+    role: 'user', // All users get full access (both advertiser and supplier capabilities)
     language_preference: language,
   });
 
@@ -96,25 +95,6 @@ export const RegisterPage = () => {
                 required
                 data-testid="register-password-input"
               />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="role">{t('auth.role', language)}</Label>
-              <Select
-                value={formData.role}
-                onValueChange={(value) => setFormData({ ...formData, role: value })}
-              >
-                <SelectTrigger id="role" data-testid="register-role-select">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="advertiser" data-testid="role-advertiser">
-                    {t('auth.advertiser', language)}
-                  </SelectItem>
-                  <SelectItem value="supplier" data-testid="role-supplier">
-                    {t('auth.supplier', language)}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
             </div>
             <Button
               type="submit"

@@ -346,7 +346,7 @@ export const DashboardPage = () => {
                         </div>
                         <div className="pt-2 border-t">
                           <Badge className="bg-primary/10 text-primary border-0 capitalize">
-                            {user.role}
+                            {user.role === 'user' ? 'Member' : user.role === 'admin' ? 'Admin' : user.role}
                           </Badge>
                         </div>
                       </CardContent>
@@ -395,17 +395,17 @@ export const DashboardPage = () => {
                 </div>
               </TabsContent>
 
-              {/* All Orders Tab */}
+              {/* All Orders Tab - Combined Service Orders + Consultations */}
               <TabsContent value="orders">
                 <Card className="border-2">
                   <CardHeader>
                     <CardTitle className="text-base sm:text-lg flex items-center">
                       <Package className="h-5 w-5 mr-2 text-accent" />
-                      All Orders ({orders.length})
+                      All Orders ({orders.length + consultations.length})
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    {orders.length === 0 ? (
+                    {orders.length === 0 && consultations.length === 0 ? (
                       <div className="text-center py-12">
                         <Package className="h-16 w-16 mx-auto text-muted-foreground/30 mb-4" />
                         <p className="text-muted-foreground mb-4">No orders found</p>
@@ -418,6 +418,7 @@ export const DashboardPage = () => {
                         <table className="w-full">
                           <thead>
                             <tr className="border-b">
+                              <th className="text-left py-3 px-2 sm:px-4 text-xs sm:text-sm font-semibold text-muted-foreground">Type</th>
                               <th className="text-left py-3 px-2 sm:px-4 text-xs sm:text-sm font-semibold text-muted-foreground">Order</th>
                               <th className="text-left py-3 px-2 sm:px-4 text-xs sm:text-sm font-semibold text-muted-foreground hidden sm:table-cell">Date</th>
                               <th className="text-left py-3 px-2 sm:px-4 text-xs sm:text-sm font-semibold text-muted-foreground">Status</th>
@@ -426,30 +427,52 @@ export const DashboardPage = () => {
                             </tr>
                           </thead>
                           <tbody>
-                            {orders.map((order) => (
-                              <tr key={order.id} className="border-b hover:bg-muted/30 transition-colors">
+                            {/* Combine and sort orders + consultations by date */}
+                            {[
+                              ...orders.map(o => ({ ...o, orderType: 'service' })),
+                              ...consultations.map(c => ({ 
+                                ...c, 
+                                orderType: 'consultation',
+                                order_status: c.status,
+                                total_amount: c.price,
+                                package_details: { packageTitle: c.package_title }
+                              }))
+                            ]
+                              .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+                              .map((item) => (
+                              <tr key={item.id} className="border-b hover:bg-muted/30 transition-colors">
+                                <td className="py-3 px-2 sm:px-4">
+                                  <Badge 
+                                    className={`text-xs ${item.orderType === 'consultation' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'} border-0`}
+                                  >
+                                    {item.orderType === 'consultation' ? 'Consultation' : 'Service'}
+                                  </Badge>
+                                </td>
                                 <td className="py-3 px-2 sm:px-4">
                                   <div>
                                     <p className="font-medium text-foreground text-xs sm:text-sm truncate max-w-[120px] sm:max-w-none">
-                                      {order.package_details?.packageTitle || order.listing_type?.replace('_', ' ')}
+                                      {item.package_details?.packageTitle || item.listing_type?.replace('_', ' ') || 'Order'}
                                     </p>
+                                    {item.orderType === 'consultation' && item.business_name && (
+                                      <p className="text-xs text-muted-foreground">{item.business_name}</p>
+                                    )}
                                     <p className="text-xs text-muted-foreground sm:hidden">
-                                      {formatDate(order.created_at)}
+                                      {formatDate(item.created_at)}
                                     </p>
                                   </div>
                                 </td>
                                 <td className="py-3 px-2 sm:px-4 text-xs sm:text-sm text-muted-foreground hidden sm:table-cell">
-                                  {formatDate(order.created_at)}
+                                  {formatDate(item.created_at)}
                                 </td>
                                 <td className="py-3 px-2 sm:px-4">
-                                  {getStatusBadge(order.order_status)}
+                                  {getStatusBadge(item.order_status)}
                                 </td>
                                 <td className="py-3 px-2 sm:px-4 hidden md:table-cell">
-                                  {getPaymentStatusBadge(order.payment_status)}
+                                  {getPaymentStatusBadge(item.payment_status)}
                                 </td>
                                 <td className="py-3 px-2 sm:px-4 text-right">
                                   <span className="font-bold text-foreground text-xs sm:text-sm">
-                                    {formatPrice(order.total_amount)}
+                                    {formatPrice(item.total_amount)}
                                   </span>
                                 </td>
                               </tr>

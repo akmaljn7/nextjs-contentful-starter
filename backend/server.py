@@ -71,7 +71,7 @@ class UserRegister(BaseModel):
     email: EmailStr
     password: str
     phone: str
-    role: Literal["advertiser", "supplier", "admin"] = "advertiser"
+    role: Literal["user", "advertiser", "supplier", "admin"] = "user"
     language_preference: Literal["en", "ha"] = "en"
 
 class UserLogin(BaseModel):
@@ -676,7 +676,8 @@ async def get_me(current_user: User = Depends(get_current_user)):
 # Influencer Routes
 @api_router.post("/influencers", response_model=Influencer)
 async def create_influencer(data: InfluencerCreate, current_user: User = Depends(get_current_user)):
-    if current_user.role not in ["supplier", "admin"]:
+    # Allow user, supplier, and admin to create influencers
+    if current_user.role not in ["user", "supplier", "admin"]:
         raise HTTPException(status_code=403, detail="Not authorized")
     
     influencer = Influencer(supplier_id=current_user.id, **data.model_dump())
@@ -722,7 +723,8 @@ async def get_influencer(influencer_id: str):
 # Billboard Routes
 @api_router.post("/billboards", response_model=Billboard)
 async def create_billboard(data: BillboardCreate, current_user: User = Depends(get_current_user)):
-    if current_user.role not in ["supplier", "admin"]:
+    # Allow user, supplier, and admin to create billboards
+    if current_user.role not in ["user", "supplier", "admin"]:
         raise HTTPException(status_code=403, detail="Not authorized")
     
     billboard = Billboard(supplier_id=current_user.id, **data.model_dump())
@@ -817,7 +819,8 @@ async def get_billboard(billboard_id: str):
 # Digital Ad Service Routes
 @api_router.post("/digital-ads", response_model=DigitalAdService)
 async def create_digital_ad_service(data: DigitalAdServiceCreate, current_user: User = Depends(get_current_user)):
-    if current_user.role not in ["supplier", "admin"]:
+    # Allow user, supplier, and admin to create digital ads
+    if current_user.role not in ["user", "supplier", "admin"]:
         raise HTTPException(status_code=403, detail="Not authorized")
     
     service = DigitalAdService(supplier_id=current_user.id, **data.model_dump())
@@ -864,7 +867,8 @@ async def get_digital_ad_by_id(platform_id: str):
 # Kannywood Routes
 @api_router.post("/kannywood", response_model=KannywoodPlacement)
 async def create_kannywood_placement(data: KannywoodPlacementCreate, current_user: User = Depends(get_current_user)):
-    if current_user.role not in ["supplier", "admin"]:
+    # Allow user, supplier, and admin to create kannywood placements
+    if current_user.role not in ["user", "supplier", "admin"]:
         raise HTTPException(status_code=403, detail="Not authorized")
     
     placement = KannywoodPlacement(supplier_id=current_user.id, **data.model_dump())
@@ -1038,10 +1042,12 @@ async def create_order(data: OrderCreate, current_user: User = Depends(get_curre
 @api_router.get("/orders", response_model=List[Order])
 async def get_orders(current_user: User = Depends(get_current_user)):
     query = {}
-    if current_user.role == "advertiser":
+    # "user" role gets full access to their own orders (can act as both advertiser and supplier)
+    if current_user.role in ["user", "advertiser"]:
         query["advertiser_id"] = current_user.id
     elif current_user.role == "supplier":
         query["supplier_id"] = current_user.id
+    # admin sees all orders (no query filter)
     
     orders = await db.orders.find(query, {"_id": 0}).sort("created_at", -1).to_list(100)
     for order in orders:
@@ -1432,8 +1438,9 @@ async def mock_payment(order_id: str, current_user: User = Depends(get_current_u
 # Review Routes
 @api_router.post("/reviews", response_model=Review)
 async def create_review(data: ReviewCreate, current_user: User = Depends(get_current_user)):
-    if current_user.role != "advertiser":
-        raise HTTPException(status_code=403, detail="Only advertisers can leave reviews")
+    # Allow user and advertiser roles to leave reviews
+    if current_user.role not in ["user", "advertiser"]:
+        raise HTTPException(status_code=403, detail="Only users can leave reviews")
     
     # Check if order exists and belongs to user
     order = await db.orders.find_one({"id": data.order_id, "advertiser_id": current_user.id})
