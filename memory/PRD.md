@@ -237,6 +237,15 @@ A conversion-focused, responsive marketplace website for "Lightban Ads Network" 
   4. **Date/Time Fix**: Added `formatDateTime` function that shows both date AND time for all orders
 - **Test Status**: Verified - 100% pass rate (12/12 tests, all UI elements verified)
 
+### Bug Fix: Dynamic Platform Fee - FIXED (March 2026)
+- **Problem**: Order creation used hardcoded 10% platform fee instead of fetching from admin settings
+- **Root Cause**: `get_site_settings()` helper function was querying `db.settings` instead of `db.site_settings`
+- **Solution**: 
+  1. Fixed `get_site_settings()` to query correct collection (`db.site_settings`)
+  2. Order creation now fetches `platform_fee_percentage` from admin settings
+  3. New orders correctly calculate platform fee based on admin-configured percentage (currently 20%)
+- **Test Status**: Verified - New orders show 20% platform fee as configured in settings
+
 ---
 
 ## Prioritized Backlog

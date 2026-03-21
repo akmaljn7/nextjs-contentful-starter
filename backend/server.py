@@ -608,12 +608,13 @@ async def send_email_async(to_email: str, subject: str, html_content: str) -> bo
 
 async def get_site_settings() -> dict:
     """Helper to get site settings from database"""
-    settings = await db.settings.find_one({}, {"_id": 0})
+    settings = await db.site_settings.find_one({}, {"_id": 0})
     if not settings:
         return {
             "office_address": "No 671, Zoo Road, Inec Street, Kano",
             "contact_phone": "+234 8080000805",
-            "business_hours": "Monday - Saturday: 9:00 AM - 5:00 PM"
+            "business_hours": "Monday - Saturday: 9:00 AM - 5:00 PM",
+            "platform_fee_percentage": 10.0
         }
     return settings
 
@@ -974,7 +975,11 @@ async def create_order(data: OrderCreate, current_user: User = Depends(get_curre
             raise HTTPException(status_code=404, detail="Listing not found")
         supplier_id = listing['supplier_id']
     
-    platform_fee = data.total_amount * 0.10  # 10% platform fee
+    # Get platform fee percentage from settings
+    settings = await get_site_settings()
+    fee_percentage = settings.get('platform_fee_percentage', 10.0) / 100.0  # Convert to decimal
+    
+    platform_fee = data.total_amount * fee_percentage
     supplier_payout = data.total_amount - platform_fee
     
     # Determine payment method and initial status
