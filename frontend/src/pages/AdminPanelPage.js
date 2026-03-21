@@ -445,8 +445,8 @@ export const AdminPanelPage = () => {
                 <TabsTrigger value="billboards" className="data-[state=active]:bg-white text-xs sm:text-sm">Billboards</TabsTrigger>
                 <TabsTrigger value="kannywood" className="data-[state=active]:bg-white text-xs sm:text-sm">Kannywood</TabsTrigger>
                 <TabsTrigger value="digitalads" className="data-[state=active]:bg-white text-xs sm:text-sm">Digital Ads</TabsTrigger>
-                <TabsTrigger value="orders" className="data-[state=active]:bg-white text-xs sm:text-sm">Orders</TabsTrigger>
                 <TabsTrigger value="consultations" className="data-[state=active]:bg-white text-xs sm:text-sm">Consultations</TabsTrigger>
+                <TabsTrigger value="orders" className="data-[state=active]:bg-white text-xs sm:text-sm">Orders</TabsTrigger>
                 <TabsTrigger value="users" className="data-[state=active]:bg-white text-xs sm:text-sm">Users</TabsTrigger>
                 <TabsTrigger value="settings" className="data-[state=active]:bg-white text-xs sm:text-sm">Settings</TabsTrigger>
               </TabsList>
@@ -737,60 +737,6 @@ export const AdminPanelPage = () => {
                 </Card>
               </TabsContent>
 
-              {/* Orders Tab */}
-              <TabsContent value="orders">
-                <Card className="border-2">
-                  <CardHeader>
-                    <CardTitle>Manage Orders ({orders.length})</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead>
-                          <tr className="border-b">
-                            <th className="text-left py-3 px-2 text-sm font-semibold">Order</th>
-                            <th className="text-left py-3 px-2 text-sm font-semibold">Customer</th>
-                            <th className="text-left py-3 px-2 text-sm font-semibold">Date</th>
-                            <th className="text-left py-3 px-2 text-sm font-semibold">Status</th>
-                            <th className="text-left py-3 px-2 text-sm font-semibold">Payment</th>
-                            <th className="text-right py-3 px-2 text-sm font-semibold">Amount</th>
-                            <th className="text-center py-3 px-2 text-sm font-semibold">Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {orders.slice(0, 50).map((item) => (
-                            <tr key={item.id} className="border-b hover:bg-muted/30">
-                              <td className="py-3 px-2">
-                                <p className="font-medium text-sm">{item.package_details?.packageTitle || item.listing_type}</p>
-                                <p className="text-xs text-muted-foreground font-mono">{item.id?.slice(0, 8)}...</p>
-                              </td>
-                              <td className="py-3 px-2">
-                                <p className="text-sm">{item.user_info?.name || 'N/A'}</p>
-                                <p className="text-xs text-muted-foreground">{item.user_info?.email}</p>
-                              </td>
-                              <td className="py-3 px-2 text-sm">{formatDate(item.created_at)}</td>
-                              <td className="py-3 px-2">{getStatusBadge(item.order_status)}</td>
-                              <td className="py-3 px-2">{getStatusBadge(item.payment_status)}</td>
-                              <td className="py-3 px-2 text-right font-semibold">{formatPrice(item.total_amount)}</td>
-                              <td className="py-3 px-2">
-                                <div className="flex items-center justify-center gap-1">
-                                  <Button variant="ghost" size="sm" onClick={() => openEditModal('order', item)}>
-                                    <Edit className="h-4 w-4" />
-                                  </Button>
-                                  <Button variant="ghost" size="sm" className="text-red-500" onClick={() => confirmDelete('order', item)}>
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
               {/* Consultations Tab */}
               <TabsContent value="consultations">
                 <Card className="border-2">
@@ -846,6 +792,96 @@ export const AdminPanelPage = () => {
                                     <Edit className="h-4 w-4" />
                                   </Button>
                                   <Button variant="ghost" size="sm" className="text-red-500" onClick={() => confirmDelete('consultation', item)}>
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* Orders Tab - All Orders (Services + Consultations) */}
+              <TabsContent value="orders">
+                <Card className="border-2">
+                  <CardHeader>
+                    <CardTitle>All Orders ({orders.length})</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="border-b bg-muted/30">
+                            <th className="text-left py-3 px-2 text-sm font-semibold">Type</th>
+                            <th className="text-left py-3 px-2 text-sm font-semibold">Package</th>
+                            <th className="text-left py-3 px-2 text-sm font-semibold">Customer</th>
+                            <th className="text-left py-3 px-2 text-sm font-semibold">Date & Time</th>
+                            <th className="text-left py-3 px-2 text-sm font-semibold">Status</th>
+                            <th className="text-left py-3 px-2 text-sm font-semibold">Payment</th>
+                            <th className="text-right py-3 px-2 text-sm font-semibold">Amount</th>
+                            <th className="text-center py-3 px-2 text-sm font-semibold">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {orders.slice(0, 100).map((item) => (
+                            <tr key={item.id} className="border-b hover:bg-muted/30">
+                              <td className="py-3 px-2">
+                                <Badge 
+                                  variant={item.order_type === 'consultation' ? 'secondary' : 'default'}
+                                  className={item.order_type === 'consultation' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}
+                                >
+                                  {item.order_type === 'consultation' ? 'Consultation' : 'Service'}
+                                </Badge>
+                                <p className="text-xs text-muted-foreground mt-1 capitalize">{item.listing_type?.replace(/_/g, ' ') || 'N/A'}</p>
+                              </td>
+                              <td className="py-3 px-2">
+                                <p className="font-medium text-sm">{item.package_details?.packageTitle || item.package_details?.title || 'N/A'}</p>
+                                <p className="text-xs text-muted-foreground font-mono">#{item.id?.slice(0, 8)}</p>
+                                {item.order_type === 'consultation' && item.package_details?.business_name && (
+                                  <p className="text-xs text-muted-foreground mt-1">{item.package_details.business_name}</p>
+                                )}
+                              </td>
+                              <td className="py-3 px-2">
+                                <p className="text-sm font-medium">{item.user_info?.name || 'N/A'}</p>
+                                <p className="text-xs text-muted-foreground">{item.user_info?.email || '-'}</p>
+                                {item.user_info?.phone && <p className="text-xs text-muted-foreground">{item.user_info.phone}</p>}
+                              </td>
+                              <td className="py-3 px-2">
+                                <p className="text-sm">{formatDate(item.created_at)}</p>
+                                {item.order_type === 'consultation' && item.scheduled_date && (
+                                  <div className="mt-1 px-2 py-1 bg-green-50 rounded text-xs">
+                                    <p className="text-green-700 font-medium">Scheduled:</p>
+                                    <p className="text-green-600">{item.scheduled_date} {item.scheduled_time}</p>
+                                  </div>
+                                )}
+                              </td>
+                              <td className="py-3 px-2">{getStatusBadge(item.order_status)}</td>
+                              <td className="py-3 px-2">
+                                {getStatusBadge(item.payment_status)}
+                                {item.payment_method && (
+                                  <p className="text-xs text-muted-foreground mt-1 capitalize">{item.payment_method}</p>
+                                )}
+                              </td>
+                              <td className="py-3 px-2 text-right font-semibold text-primary">{formatPrice(item.total_amount)}</td>
+                              <td className="py-3 px-2">
+                                <div className="flex items-center justify-center gap-1">
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    onClick={() => openEditModal(item.order_type === 'consultation' ? 'consultation' : 'order', item)}
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    className="text-red-500" 
+                                    onClick={() => confirmDelete(item.order_type === 'consultation' ? 'consultation' : 'order', item)}
+                                  >
                                     <Trash2 className="h-4 w-4" />
                                   </Button>
                                 </div>

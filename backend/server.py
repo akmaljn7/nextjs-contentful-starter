@@ -1612,12 +1612,57 @@ async def get_all_orders_admin(current_user: User = Depends(get_current_user)):
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     
+    # Get regular orders
     orders = await db.orders.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
     
-    # Get user info for each order
+    # Add user info and type to each order
     for order in orders:
         user = await db.users.find_one({"id": order.get("advertiser_id")}, {"_id": 0, "name": 1, "email": 1, "phone": 1})
         order["user_info"] = user or {}
+        order["order_type"] = "service"  # Regular service order
+        # Ensure package details has title
+        if not order.get("package_details"):
+            order["package_details"] = {}
+        if not order["package_details"].get("title") and not order["package_details"].get("packageTitle"):
+            order["package_details"]["title"] = order.get("listing_type", "Service").replace("_", " ").title()
+    
+    # Get consultations as orders
+    consultations = await db.consultations.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
+    
+    # Transform consultations to order format
+    for consultation in consultations:
+        user = await db.users.find_one({"id": consultation.get("user_id")}, {"_id": 0, "name": 1, "email": 1, "phone": 1})
+        
+        # Create order-like structure for consultation
+        consultation_order = {
+            "id": consultation.get("id"),
+            "order_type": "consultation",
+            "listing_type": "consultation",
+            "listing_id": consultation.get("id"),
+            "advertiser_id": consultation.get("user_id"),
+            "user_info": user or {"name": consultation.get("contact_name"), "email": consultation.get("contact_email"), "phone": consultation.get("contact_phone")},
+            "package_details": {
+                "title": consultation.get("package_title", "Consultation"),
+                "packageTitle": consultation.get("package_title", "Consultation"),
+                "consultation_type": consultation.get("consultation_type", "online"),
+                "business_name": consultation.get("business_name"),
+                "industry": consultation.get("industry")
+            },
+            "total_amount": consultation.get("price", 0),
+            "order_status": consultation.get("status", "pending"),
+            "payment_status": consultation.get("payment_status", "pending"),
+            "payment_method": consultation.get("payment_method", "online"),
+            "scheduled_date": consultation.get("scheduled_date"),
+            "scheduled_time": consultation.get("scheduled_time"),
+            "preferred_date": consultation.get("preferred_date"),
+            "preferred_time": consultation.get("preferred_time"),
+            "created_at": consultation.get("created_at"),
+            "updated_at": consultation.get("updated_at")
+        }
+        orders.append(consultation_order)
+    
+    # Sort combined list by created_at (most recent first)
+    orders.sort(key=lambda x: x.get("created_at", ""), reverse=True)
     
     return orders
 

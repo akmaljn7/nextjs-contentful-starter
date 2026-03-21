@@ -1,0 +1,118 @@
+{
+  "summary": "Admin Orders Combined View testing complete. All 11 backend tests passed. Frontend UI verified working correctly. The Orders tab now shows combined service orders (147) and consultation orders (26) totaling 173 orders. Tab order is correct with Consultations before Orders.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_admin_orders_combined.py",
+    "/app/test_reports/pytest/admin_orders_combined_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_admin_orders_combined.py"
+  ],
+  "success_rate": {
+    "backend": "100% (11/11 tests passed)",
+    "frontend": "100% (All UI elements verified)"
+  },
+  "test_credentials": {
+    "admin": {
+      "email": "admin@lightban.com",
+      "password": "LightbanAdmin2024"
+    }
+  },
+  "seed_data_creation": "None - used existing data",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Admin Orders tab now shows combined view of service orders and consultations. Backend endpoint GET /api/admin/orders returns both types with order_type field. Frontend displays Type badges (Service=blue, Consultation=purple).",
+  "features_tested": {
+    "Tab_Order": {
+      "status": "WORKING",
+      "description": "Tabs are in correct order: Overview, Influencers, Billboards, Kannywood, Digital Ads, Consultations, Orders, Users, Settings",
+      "verified": "Consultations tab (index 5) comes before Orders tab (index 6)"
+    },
+    "Combined_Orders_Count": {
+      "status": "WORKING",
+      "description": "Orders tab shows 173 total orders (147 service + 26 consultations)",
+      "verified": "Backend returns combined list, frontend displays 'All Orders (173)'"
+    },
+    "Type_Column_Badges": {
+      "status": "WORKING",
+      "description": "Type column shows Service (blue) and Consultation (purple) badges",
+      "verified": "Found 74 Service badges and 27 Consultation badges in UI"
+    },
+    "Package_Details": {
+      "status": "WORKING",
+      "description": "Shows package name, order ID, and business name for consultations",
+      "verified": "Package column shows title, #order_id, and business name"
+    },
+    "Customer_Info": {
+      "status": "WORKING",
+      "description": "Shows customer name, email, and phone",
+      "verified": "Customer column displays all contact information"
+    },
+    "Date_Time_Display": {
+      "status": "WORKING",
+      "description": "Shows created date and scheduled date/time for consultations",
+      "verified": "Date & Time column shows created date with scheduled info in green box"
+    },
+    "Status_Payment_Display": {
+      "status": "WORKING",
+      "description": "Shows order status, payment status, payment method, and amount",
+      "verified": "Status, Payment, and Amount columns all display correctly"
+    },
+    "Edit_Delete_Actions": {
+      "status": "WORKING",
+      "description": "Admin can edit and delete orders from combined view",
+      "verified": "Edit and delete buttons visible, backend update endpoints tested"
+    },
+    "Consultations_Tab_Separate": {
+      "status": "WORKING",
+      "description": "Consultations tab still works separately for consultation-specific management",
+      "verified": "Consultations tab shows 'Manage Consultations (26)'"
+    }
+  },
+  "api_endpoints_verified": {
+    "GET /api/admin/orders": {
+      "status": "200 OK",
+      "description": "Returns combined list of service orders and consultations with order_type field",
+      "response_count": 173
+    },
+    "GET /api/admin/consultations": {
+      "status": "200 OK",
+      "description": "Returns consultations separately for consultation-specific management",
+      "response_count": 26
+    },
+    "PUT /api/admin/orders/{id}": {
+      "status": "200 OK",
+      "description": "Admin can update service orders"
+    },
+    "PUT /api/admin/consultations/{id}": {
+      "status": "200 OK",
+      "description": "Admin can update consultations"
+    }
+  },
+  "data_structure_verified": {
+    "service_order_fields": [
+      "id", "order_type='service'", "listing_type", "package_details", 
+      "total_amount", "order_status", "payment_status", "payment_method",
+      "created_at", "user_info"
+    ],
+    "consultation_order_fields": [
+      "id", "order_type='consultation'", "listing_type='consultation'",
+      "package_details (with business_name)", "total_amount", "order_status",
+      "payment_status", "payment_method", "scheduled_date", "scheduled_time",
+      "created_at", "user_info"
+    ]
+  },
+  "mocked_integrations": {
+    "has_mocked_apis": false
+  }
+}
