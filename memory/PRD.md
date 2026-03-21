@@ -320,6 +320,29 @@ A conversion-focused, responsive marketplace website for "Lightban Ads Network" 
      - Placeholder text indicating searchable fields
 - **Test Status**: Verified - 100% pass rate (all 7 tabs tested, search functionality confirmed)
 
+### Bug Fix: User Dashboard "All Orders" Not Showing Consultations - FIXED (March 2026)
+- **Problem**: User dashboard "All Orders" tab only showed service orders, not consultation orders
+- **Solution**:
+  1. Updated `DashboardPage.js` "All Orders" tab to combine both `orders` and `consultations` arrays
+  2. Added "Type" column showing "Service" (blue badge) or "Consultation" (purple badge)
+  3. Sorted combined list by date (newest first)
+  4. Updated count to show combined total: "All Orders (X)"
+- **Test Status**: Verified - All Orders tab now shows both types with proper badges and count
+
+### Enhancement: Simplified User Registration - IMPLEMENTED (March 2026)
+- **Request**: Remove advertiser/supplier role selection - all users should have full access to both
+- **Implementation**:
+  1. **Frontend**: Removed role selector from registration form
+  2. **Backend**: Added "user" as valid role, all new registrations default to "user"
+  3. **Permissions**: Updated all role checks to treat "user" role same as both advertiser and supplier
+  4. **Dashboard Stats**: Updated endpoint to handle "user" role properly
+  5. **Profile Badge**: Shows "Member" instead of "user" in dashboard profile card
+- **Changes**:
+  - `RegisterPage.js`: Removed role dropdown, defaults to `role: 'user'`
+  - `server.py`: Updated UserCreate model, role checks, and dashboard stats endpoint
+  - `DashboardPage.js`: Profile badge shows "Member" for "user" role
+- **Test Status**: Verified - Registration has no role selector, new users get "user" role with full access
+
 ---
 
 ## Prioritized Backlog
@@ -377,6 +400,7 @@ A conversion-focused, responsive marketplace website for "Lightban Ads Network" 
 - `/app/test_reports/iteration_7.json` - Admin Orders combined view (100% pass - 11/11 backend, all UI elements verified)
 - `/app/test_reports/iteration_8.json` - View Order modal and date/time fix (100% pass - 12/12 backend, all UI verified)
 - `/app/test_reports/iteration_9.json` - Admin Panel Search Bar (100% pass - all 7 tabs verified with search functionality)
+- `/app/test_reports/iteration_10.json` - User Dashboard All Orders + Registration simplification (100% frontend, 86% backend - fixed 'user' role stats bug)
 
 ---
 

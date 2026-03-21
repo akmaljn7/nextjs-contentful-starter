@@ -1517,7 +1517,8 @@ async def get_messages(order_id: str, current_user: User = Depends(get_current_u
 # Dashboard Stats
 @api_router.get("/dashboard/stats")
 async def get_dashboard_stats(current_user: User = Depends(get_current_user)):
-    if current_user.role == "advertiser":
+    # 'user' role gets same treatment as 'advertiser' (full access to both)
+    if current_user.role in ["user", "advertiser"]:
         # Get all orders for this user
         all_orders = await db.orders.find({"advertiser_id": current_user.id}, {"_id": 0}).to_list(1000)
         
