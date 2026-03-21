@@ -195,6 +195,27 @@ A conversion-focused, responsive marketplace website for "Lightban Ads Network" 
   - `PUT /api/admin/consultations/{id}`: Triggers email when schedule is set
 - **Test Status**: Verified - 100% pass rate (8/8 tests, emails confirmed delivered)
 
+### Feature: Admin Orders Combined View - IMPLEMENTED (March 2026)
+- **Request**: 
+  1. Move Orders tab between Consultations and Users tabs
+  2. Fix Orders tab to include consultation orders
+  3. Show who made the order, which package, and when
+- **Implementation**:
+  1. **Tab Reordering**: Orders tab now comes after Consultations (correct sequence: Digital Ads → Consultations → Orders → Users → Settings)
+  2. **Backend Enhancement**: `GET /api/admin/orders` now returns combined list of:
+     - Service orders (147) with `order_type: 'service'`
+     - Consultation orders (26) with `order_type: 'consultation'`
+  3. **Frontend Enhancement**: Orders table now displays:
+     - **Type**: Service (blue badge) or Consultation (purple badge) + listing category
+     - **Package**: Package name, Order ID, business name (for consultations)
+     - **Customer**: Name, email, phone number
+     - **Date & Time**: Created date + Scheduled date/time for consultations (green box)
+     - **Status**: Order status badge
+     - **Payment**: Payment status + method (Cash/Online)
+     - **Amount**: Total amount
+  4. **Unified Actions**: Edit/delete works for both service orders and consultations
+- **Test Status**: Verified - 100% pass rate (11/11 backend tests, all frontend verified)
+
 ---
 
 ## Prioritized Backlog
@@ -249,6 +270,7 @@ A conversion-focused, responsive marketplace website for "Lightban Ads Network" 
 - `/app/test_reports/iteration_4.json` - Digital Ads visibility and 401 status code fixes (100% pass - 13/13 backend, all frontend verified)
 - `/app/test_reports/iteration_5.json` - Image upload feature (100% pass - 11/11 backend, all frontend verified)
 - `/app/test_reports/iteration_6.json` - Email notifications (100% pass - 8/8 backend, order & consultation emails verified)
+- `/app/test_reports/iteration_7.json` - Admin Orders combined view (100% pass - 11/11 backend, all UI elements verified)
 
 ---
 
