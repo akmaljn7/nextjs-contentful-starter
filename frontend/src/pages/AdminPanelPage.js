@@ -2188,29 +2188,100 @@ export const AdminPanelPage = () => {
                 </div>
               </div>
 
-              {/* Consultation-specific info */}
+              {/* Consultation-specific info - Show ALL form fields */}
               {selectedOrder.order_type === 'consultation' && (
-                <div className="bg-purple-50 rounded-lg p-4">
-                  <h3 className="font-semibold text-sm text-purple-700 mb-3">CONSULTATION DETAILS</h3>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <p className="text-muted-foreground">Business Name</p>
-                      <p className="font-medium">{selectedOrder.package_details?.business_name || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Industry</p>
-                      <p className="font-medium">{selectedOrder.package_details?.industry || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Type</p>
-                      <p className="font-medium capitalize">{selectedOrder.package_details?.consultation_type || 'online'}</p>
-                    </div>
-                    {selectedOrder.scheduled_date && (
-                      <div>
-                        <p className="text-muted-foreground">Scheduled</p>
-                        <p className="font-medium text-green-700">{selectedOrder.scheduled_date} {selectedOrder.scheduled_time}</p>
+                <div className="bg-purple-50 rounded-lg p-4 space-y-4">
+                  <h3 className="font-semibold text-sm text-purple-700 border-b border-purple-200 pb-2">CONSULTATION FORM DETAILS</h3>
+                  
+                  {/* Business Information */}
+                  <div>
+                    <h4 className="text-xs font-semibold text-purple-600 mb-2 uppercase tracking-wider">Business Information</h4>
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div className="bg-white/60 rounded p-2">
+                        <p className="text-xs text-muted-foreground">Business Name</p>
+                        <p className="font-medium">{selectedOrder.package_details?.business_name || 'N/A'}</p>
                       </div>
-                    )}
+                      <div className="bg-white/60 rounded p-2">
+                        <p className="text-xs text-muted-foreground">Industry</p>
+                        <p className="font-medium">{selectedOrder.package_details?.industry || 'N/A'}</p>
+                      </div>
+                      <div className="bg-white/60 rounded p-2">
+                        <p className="text-xs text-muted-foreground">Business Stage</p>
+                        <p className="font-medium capitalize">{selectedOrder.package_details?.business_stage?.replace(/-/g, ' ') || 'N/A'}</p>
+                      </div>
+                      <div className="bg-white/60 rounded p-2">
+                        <p className="text-xs text-muted-foreground">Budget Range</p>
+                        <p className="font-medium capitalize">{selectedOrder.package_details?.budget_range?.replace(/-/g, ' ') || 'N/A'}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Business Description */}
+                  {selectedOrder.package_details?.description && (
+                    <div>
+                      <h4 className="text-xs font-semibold text-purple-600 mb-2 uppercase tracking-wider">What does your business do?</h4>
+                      <div className="bg-white/60 rounded p-3">
+                        <p className="text-sm">{selectedOrder.package_details.description}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Advertising Goals */}
+                  {selectedOrder.package_details?.goals && (
+                    <div>
+                      <h4 className="text-xs font-semibold text-purple-600 mb-2 uppercase tracking-wider">Advertising Goals</h4>
+                      <div className="bg-white/60 rounded p-3">
+                        <p className="text-sm">{selectedOrder.package_details.goals}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Consultation Details */}
+                  <div>
+                    <h4 className="text-xs font-semibold text-purple-600 mb-2 uppercase tracking-wider">Consultation Details</h4>
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div className="bg-white/60 rounded p-2">
+                        <p className="text-xs text-muted-foreground">Type</p>
+                        <p className="font-medium capitalize">{selectedOrder.package_details?.consultation_type === 'physical' ? '🏢 In-Office' : '💻 Online'}</p>
+                      </div>
+                      {selectedOrder.preferred_date && (
+                        <div className="bg-white/60 rounded p-2">
+                          <p className="text-xs text-muted-foreground">Preferred Date</p>
+                          <p className="font-medium">{selectedOrder.preferred_date}</p>
+                        </div>
+                      )}
+                      {selectedOrder.preferred_time && (
+                        <div className="bg-white/60 rounded p-2">
+                          <p className="text-xs text-muted-foreground">Preferred Time</p>
+                          <p className="font-medium">{selectedOrder.preferred_time}</p>
+                        </div>
+                      )}
+                      {selectedOrder.scheduled_date && (
+                        <div className="bg-green-100 rounded p-2 border border-green-300">
+                          <p className="text-xs text-green-700">Confirmed Schedule</p>
+                          <p className="font-semibold text-green-800">{selectedOrder.scheduled_date} {selectedOrder.scheduled_time}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Contact Information */}
+                  <div>
+                    <h4 className="text-xs font-semibold text-purple-600 mb-2 uppercase tracking-wider">Contact Information</h4>
+                    <div className="grid grid-cols-3 gap-3 text-sm">
+                      <div className="bg-white/60 rounded p-2">
+                        <p className="text-xs text-muted-foreground">Name</p>
+                        <p className="font-medium">{selectedOrder.package_details?.contact_name || selectedOrder.user_info?.name || 'N/A'}</p>
+                      </div>
+                      <div className="bg-white/60 rounded p-2">
+                        <p className="text-xs text-muted-foreground">Email</p>
+                        <p className="font-medium text-xs break-all">{selectedOrder.package_details?.contact_email || selectedOrder.user_info?.email || 'N/A'}</p>
+                      </div>
+                      <div className="bg-white/60 rounded p-2">
+                        <p className="text-xs text-muted-foreground">Phone</p>
+                        <p className="font-medium">{selectedOrder.package_details?.contact_phone || selectedOrder.user_info?.phone || 'N/A'}</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}

@@ -1683,7 +1683,7 @@ async def get_all_orders_admin(current_user: User = Depends(get_current_user)):
     for consultation in consultations:
         user = await db.users.find_one({"id": consultation.get("user_id")}, {"_id": 0, "name": 1, "email": 1, "phone": 1})
         
-        # Create order-like structure for consultation
+        # Create order-like structure for consultation with ALL form fields
         consultation_order = {
             "id": consultation.get("id"),
             "order_type": "consultation",
@@ -1696,9 +1696,18 @@ async def get_all_orders_admin(current_user: User = Depends(get_current_user)):
                 "packageTitle": consultation.get("package_title", "Consultation"),
                 "consultation_type": consultation.get("consultation_type", "online"),
                 "business_name": consultation.get("business_name"),
-                "industry": consultation.get("industry")
+                "industry": consultation.get("industry"),
+                # Include ALL consultation form fields
+                "business_stage": consultation.get("business_stage"),
+                "description": consultation.get("description"),
+                "goals": consultation.get("goals"),
+                "budget_range": consultation.get("budget_range"),
+                "contact_name": consultation.get("contact_name"),
+                "contact_email": consultation.get("contact_email"),
+                "contact_phone": consultation.get("contact_phone"),
             },
             "total_amount": consultation.get("price", 0),
+            "supplier_payout": consultation.get("price", 0),  # For consultations, no platform fee
             "platform_fee": 0,
             "order_status": consultation.get("status", "pending"),
             "payment_status": consultation.get("payment_status", "pending"),
