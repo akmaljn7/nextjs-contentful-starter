@@ -269,6 +269,26 @@ A conversion-focused, responsive marketplace website for "Lightban Ads Network" 
      - **Contact Information**: Name, Email, Phone
 - **Test Status**: Verified - API returns all fields correctly
 
+### Bug Fix: Consultation Payment Status Not Reflecting - FIXED (March 2026)
+- **Problem**: When user paid for consultation, admin payment status remained "pending"
+- **Root Cause**: Payment verification and webhook only updated `orders` collection, not `consultations` collection
+- **Solution**:
+  1. Updated `verify_payment` endpoint to check for `type: "consultation"` in metadata
+  2. If consultation payment, update `consultations` collection with `payment_status: "paid"`
+  3. Updated `paystack_webhook` to handle both order and consultation payments
+- **Test Status**: Verified - Consultation payments now correctly show "paid" status
+
+### Bug Fix: Total Orders Not Including Consultations - FIXED (March 2026)
+- **Problem**: Admin dashboard "Total Orders" only counted service orders, not consultations
+- **Root Cause**: `/admin/stats/summary` endpoint only counted `db.orders.count_documents({})`
+- **Solution**:
+  1. Updated stats to combine service orders + consultations for total count
+  2. Added breakdown: `service_orders` and `consultations` fields
+  3. Updated pending/completed counts to include consultations
+  4. Revenue calculation now includes paid consultations
+- **Result**: Total Orders: 202 (171 service + 31 consultations)
+- **Test Status**: Verified - Stats now show combined totals
+
 ---
 
 ## Prioritized Backlog

@@ -1291,11 +1291,34 @@ async def verify_payment(reference: str, current_user: User = Depends(get_curren
             result = response.json()
         
         if result.get("status") and result["data"]["status"] == "success":
-            # Get order_id from reference or metadata
-            order_id = result["data"]["metadata"].get("order_id")
+            metadata = result["data"].get("metadata", {})
+            payment_type = metadata.get("type")
             
+            # Handle consultation payment
+            if payment_type == "consultation":
+                consultation_id = metadata.get("consultation_id")
+                if consultation_id:
+                    await db.consultations.update_one(
+                        {"id": consultation_id},
+                        {"$set": {
+                            "payment_status": "paid",
+                            "payment_reference": reference,
+                            "payment_verified_at": datetime.now(timezone.utc).isoformat(),
+                            "updated_at": datetime.now(timezone.utc).isoformat()
+                        }}
+                    )
+                    logger.info(f"Consultation payment verified for {consultation_id}")
+                    
+                    return {
+                        "status": "success",
+                        "message": "Payment verified successfully",
+                        "consultation_id": consultation_id,
+                        "amount": result["data"]["amount"] / 100
+                    }
+            
+            # Handle regular order payment
+            order_id = metadata.get("order_id")
             if order_id:
-                # Update order payment status
                 await db.orders.update_one(
                     {"id": order_id},
                     {"$set": {
@@ -1305,6 +1328,7 @@ async def verify_payment(reference: str, current_user: User = Depends(get_curren
                         "updated_at": datetime.now(timezone.utc).isoformat()
                     }}
                 )
+                logger.info(f"Order payment verified for {order_id}")
             
             return {
                 "status": "success",
@@ -1341,19 +1365,37 @@ async def paystack_webhook(request: Request):
     
     if event.get("event") == "charge.success":
         reference = event["data"]["reference"]
-        order_id = event["data"]["metadata"].get("order_id")
+        metadata = event["data"].get("metadata", {})
+        payment_type = metadata.get("type")
         
-        if order_id:
-            await db.orders.update_one(
-                {"id": order_id},
-                {"$set": {
-                    "payment_status": "paid",
-                    "payment_reference": reference,
-                    "payment_verified_at": datetime.now(timezone.utc).isoformat(),
-                    "updated_at": datetime.now(timezone.utc).isoformat()
-                }}
-            )
-            logger.info(f"Payment successful for order {order_id}")
+        # Handle consultation payment
+        if payment_type == "consultation":
+            consultation_id = metadata.get("consultation_id")
+            if consultation_id:
+                await db.consultations.update_one(
+                    {"id": consultation_id},
+                    {"$set": {
+                        "payment_status": "paid",
+                        "payment_reference": reference,
+                        "payment_verified_at": datetime.now(timezone.utc).isoformat(),
+                        "updated_at": datetime.now(timezone.utc).isoformat()
+                    }}
+                )
+                logger.info(f"Webhook: Payment successful for consultation {consultation_id}")
+        else:
+            # Handle regular order payment
+            order_id = metadata.get("order_id")
+            if order_id:
+                await db.orders.update_one(
+                    {"id": order_id},
+                    {"$set": {
+                        "payment_status": "paid",
+                        "payment_reference": reference,
+                        "payment_verified_at": datetime.now(timezone.utc).isoformat(),
+                        "updated_at": datetime.now(timezone.utc).isoformat()
+                    }}
+                )
+                logger.info(f"Webhook: Payment successful for order {order_id}")
     
     return {"status": "ok"}
 
@@ -2527,13 +2569,22 @@ async def admin_get_stats_summary(current_user: User = Depends(get_current_user)
     completed_orders = await db.orders.count_documents({"order_status": "completed"})
     cancelled_orders = await db.orders.count_documents({"order_status": "cancelled"})
     
-    # Revenue calculation
+    # Revenue calculation (include paid consultations)
     paid_orders = await db.orders.find({"payment_status": "paid"}, {"total_amount": 1}).to_list(10000)
-    total_revenue = sum(o.get("total_amount", 0) for o in paid_orders)
+    paid_consultations = await db.consultations.find({"payment_status": "paid"}, {"price": 1}).to_list(10000)
+    order_revenue = sum(o.get("total_amount", 0) for o in paid_orders)
+    consultation_revenue = sum(c.get("price", 0) for c in paid_consultations)
+    total_revenue = order_revenue + consultation_revenue
     
     # Consultation stats
     pending_consultations = await db.consultations.count_documents({"status": "pending"})
+    scheduled_consultations = await db.consultations.count_documents({"status": "scheduled"})
     completed_consultations = await db.consultations.count_documents({"status": "completed"})
+    
+    # Combined totals (orders + consultations)
+    combined_total = total_orders + total_consultations
+    combined_pending = pending_orders + pending_consultations + scheduled_consultations
+    combined_completed = completed_orders + completed_consultations
     
     return {
         "users": {
@@ -2549,9 +2600,11 @@ async def admin_get_stats_summary(current_user: User = Depends(get_current_user)
             "kannywood": total_kannywood
         },
         "orders": {
-            "total": total_orders,
-            "pending": pending_orders,
-            "completed": completed_orders,
+            "total": combined_total,  # Include consultations in total orders
+            "service_orders": total_orders,
+            "consultations": total_consultations,
+            "pending": combined_pending,
+            "completed": combined_completed,
             "cancelled": cancelled_orders,
             "revenue": total_revenue
         },
