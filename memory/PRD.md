@@ -216,6 +216,27 @@ A conversion-focused, responsive marketplace website for "Lightban Ads Network" 
   4. **Unified Actions**: Edit/delete works for both service orders and consultations
 - **Test Status**: Verified - 100% pass rate (11/11 backend tests, all frontend verified)
 
+### Feature: Order Detail View Modal - IMPLEMENTED (March 2026)
+- **Request**: 
+  1. Add "View Order" button in Actions column
+  2. Show popup with full order details like cart view (deliverables, turnaround, etc.)
+  3. Fix date/time to always show time regardless of order type
+- **Implementation**:
+  1. **View Button**: Added "View" button with Eye icon in Actions column for all orders
+  2. **Order Detail Modal**: Full-featured popup showing:
+     - Order ID and Order Date with time (format: "21 Mar 2026, 02:13 am")
+     - Customer Information (name, email, phone, order type badge)
+     - Package Details with image, title, price, service type
+     - Deliverables list with green checkmark icons
+     - Turnaround/Duration info
+     - Consultation-specific section (Business Name, Industry, Type)
+     - Order Summary (Subtotal, Platform Fee, Total)
+     - Order Status and Payment Status badges
+     - Close and Edit Order buttons
+  3. **Backend Enrichment**: Orders now include seller info (seller_name, handle, image_url) from listing tables
+  4. **Date/Time Fix**: Added `formatDateTime` function that shows both date AND time for all orders
+- **Test Status**: Verified - 100% pass rate (12/12 tests, all UI elements verified)
+
 ---
 
 ## Prioritized Backlog
@@ -271,6 +292,7 @@ A conversion-focused, responsive marketplace website for "Lightban Ads Network" 
 - `/app/test_reports/iteration_5.json` - Image upload feature (100% pass - 11/11 backend, all frontend verified)
 - `/app/test_reports/iteration_6.json` - Email notifications (100% pass - 8/8 backend, order & consultation emails verified)
 - `/app/test_reports/iteration_7.json` - Admin Orders combined view (100% pass - 11/11 backend, all UI elements verified)
+- `/app/test_reports/iteration_8.json` - View Order modal and date/time fix (100% pass - 12/12 backend, all UI verified)
 
 ---
 
