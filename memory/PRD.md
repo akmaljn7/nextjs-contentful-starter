@@ -289,6 +289,16 @@ A conversion-focused, responsive marketplace website for "Lightban Ads Network" 
 - **Result**: Total Orders: 202 (171 service + 31 consultations)
 - **Test Status**: Verified - Stats now show combined totals
 
+### Enhancement: Mandatory Preferred Date/Time in Consultation Form - IMPLEMENTED (March 2026)
+- **Request**: Make preferred date and time mandatory for both in-office and online consultations
+- **Implementation**:
+  1. Added validation in `handleSubmit` to check `preferredDate` and `preferredTime` before submission
+  2. Shows error toast if date or time is missing: "Please select your preferred date" / "Please select your preferred time"
+  3. Added red asterisk (*) visual indicators to both fields in UI
+  4. Added `required` attribute to date input and time select fields
+  5. Applied to both In-Office and Online consultation forms
+- **Test Status**: Verified - Form fields now show required indicators (*)
+
 ---
 
 ## Prioritized Backlog

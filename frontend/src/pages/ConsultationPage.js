@@ -181,6 +181,17 @@ export const ConsultationPage = () => {
       return;
     }
 
+    // Validate preferred date and time (mandatory for both online and in-office)
+    if (!formData.preferredDate) {
+      toast.error('Please select your preferred date');
+      return;
+    }
+
+    if (!formData.preferredTime) {
+      toast.error('Please select your preferred time');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -525,7 +536,9 @@ export const ConsultationPage = () => {
                       
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                          <Label htmlFor="preferredDate" className="text-xs sm:text-sm">Preferred Date</Label>
+                          <Label htmlFor="preferredDate" className="text-xs sm:text-sm">
+                            Preferred Date <span className="text-red-500">*</span>
+                          </Label>
                           <Input
                             id="preferredDate"
                             type="date"
@@ -533,11 +546,14 @@ export const ConsultationPage = () => {
                             onChange={(e) => handleInputChange('preferredDate', e.target.value)}
                             className="mt-1 text-sm"
                             min={new Date().toISOString().split('T')[0]}
+                            required
                           />
                         </div>
                         <div>
-                          <Label htmlFor="preferredTime" className="text-xs sm:text-sm">Preferred Time</Label>
-                          <Select value={formData.preferredTime} onValueChange={(v) => handleInputChange('preferredTime', v)}>
+                          <Label htmlFor="preferredTime" className="text-xs sm:text-sm">
+                            Preferred Time <span className="text-red-500">*</span>
+                          </Label>
+                          <Select value={formData.preferredTime} onValueChange={(v) => handleInputChange('preferredTime', v)} required>
                             <SelectTrigger className="mt-1 text-sm">
                               <SelectValue placeholder="Select time" />
                             </SelectTrigger>
@@ -577,7 +593,9 @@ export const ConsultationPage = () => {
                       
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                          <Label htmlFor="preferredDateOnline" className="text-xs sm:text-sm">Preferred Date</Label>
+                          <Label htmlFor="preferredDateOnline" className="text-xs sm:text-sm">
+                            Preferred Date <span className="text-red-500">*</span>
+                          </Label>
                           <Input
                             id="preferredDateOnline"
                             type="date"
@@ -585,11 +603,14 @@ export const ConsultationPage = () => {
                             onChange={(e) => handleInputChange('preferredDate', e.target.value)}
                             className="mt-1 text-sm"
                             min={new Date().toISOString().split('T')[0]}
+                            required
                           />
                         </div>
                         <div>
-                          <Label htmlFor="preferredTimeOnline" className="text-xs sm:text-sm">Preferred Time</Label>
-                          <Select value={formData.preferredTime} onValueChange={(v) => handleInputChange('preferredTime', v)}>
+                          <Label htmlFor="preferredTimeOnline" className="text-xs sm:text-sm">
+                            Preferred Time <span className="text-red-500">*</span>
+                          </Label>
+                          <Select value={formData.preferredTime} onValueChange={(v) => handleInputChange('preferredTime', v)} required>
                             <SelectTrigger className="mt-1 text-sm">
                               <SelectValue placeholder="Select time" />
                             </SelectTrigger>
