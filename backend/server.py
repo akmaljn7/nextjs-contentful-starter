@@ -1615,16 +1615,51 @@ async def get_all_orders_admin(current_user: User = Depends(get_current_user)):
     # Get regular orders
     orders = await db.orders.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
     
-    # Add user info and type to each order
+    # Add user info and type to each order, enriched with seller info
     for order in orders:
         user = await db.users.find_one({"id": order.get("advertiser_id")}, {"_id": 0, "name": 1, "email": 1, "phone": 1})
         order["user_info"] = user or {}
         order["order_type"] = "service"  # Regular service order
+        
         # Ensure package details has title
         if not order.get("package_details"):
             order["package_details"] = {}
         if not order["package_details"].get("title") and not order["package_details"].get("packageTitle"):
             order["package_details"]["title"] = order.get("listing_type", "Service").replace("_", " ").title()
+        
+        # Enrich with seller/listing information based on listing_type
+        listing_type = order.get("listing_type", "")
+        listing_id = order.get("listing_id", "")
+        
+        if listing_type == "influencer" and listing_id:
+            influencer = await db.influencers.find_one({"id": listing_id}, {"_id": 0, "name": 1, "handle": 1, "image_url": 1, "platform": 1})
+            if influencer:
+                order["package_details"]["seller_name"] = influencer.get("name", "")
+                order["package_details"]["handle"] = influencer.get("handle", "")
+                order["package_details"]["image_url"] = influencer.get("image_url", "")
+                order["package_details"]["platform"] = influencer.get("platform", "")
+        
+        elif listing_type == "billboard" and listing_id:
+            billboard = await db.billboards.find_one({"id": listing_id}, {"_id": 0, "name": 1, "type": 1, "image_url": 1, "location": 1})
+            if billboard:
+                order["package_details"]["seller_name"] = billboard.get("name", "")
+                order["package_details"]["billboard_type"] = billboard.get("type", "")
+                order["package_details"]["image_url"] = billboard.get("image_url", "")
+                order["package_details"]["location"] = billboard.get("location", "")
+        
+        elif listing_type == "kannywood" and listing_id:
+            kannywood = await db.kannywood.find_one({"id": listing_id}, {"_id": 0, "title": 1, "production_company": 1, "image_url": 1})
+            if kannywood:
+                order["package_details"]["seller_name"] = kannywood.get("title", "")
+                order["package_details"]["production_company"] = kannywood.get("production_company", "")
+                order["package_details"]["image_url"] = kannywood.get("image_url", "")
+        
+        elif listing_type == "digital_ad" and listing_id:
+            digital_ad = await db.digital_ads.find_one({"id": listing_id}, {"_id": 0, "name": 1, "platform": 1, "image_url": 1})
+            if digital_ad:
+                order["package_details"]["seller_name"] = digital_ad.get("name", "")
+                order["package_details"]["platform"] = digital_ad.get("platform", "")
+                order["package_details"]["image_url"] = digital_ad.get("image_url", "")
     
     # Get consultations as orders
     consultations = await db.consultations.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
@@ -1649,6 +1684,7 @@ async def get_all_orders_admin(current_user: User = Depends(get_current_user)):
                 "industry": consultation.get("industry")
             },
             "total_amount": consultation.get("price", 0),
+            "platform_fee": 0,
             "order_status": consultation.get("status", "pending"),
             "payment_status": consultation.get("payment_status", "pending"),
             "payment_method": consultation.get("payment_method", "online"),

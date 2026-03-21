@@ -106,6 +106,8 @@ export const AdminPanelPage = () => {
   const [deleting, setDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
+  const [showOrderDetail, setShowOrderDetail] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState(null);
 
   useEffect(() => {
     if (!user) {
@@ -212,6 +214,30 @@ export const AdminPanelPage = () => {
       setFormData({ ...item });
       setShowModal(true);
     }
+  };
+
+  // Format date with time
+  const formatDateTime = (dateString) => {
+    if (!dateString) return 'N/A';
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+    } catch {
+      return dateString;
+    }
+  };
+
+  // View order details
+  const viewOrderDetails = (order) => {
+    setSelectedOrder(order);
+    setShowOrderDetail(true);
   };
 
   const getDefaultFormData = (type) => {
@@ -851,7 +877,7 @@ export const AdminPanelPage = () => {
                                 {item.user_info?.phone && <p className="text-xs text-muted-foreground">{item.user_info.phone}</p>}
                               </td>
                               <td className="py-3 px-2">
-                                <p className="text-sm">{formatDate(item.created_at)}</p>
+                                <p className="text-sm">{formatDateTime(item.created_at)}</p>
                                 {item.order_type === 'consultation' && item.scheduled_date && (
                                   <div className="mt-1 px-2 py-1 bg-green-50 rounded text-xs">
                                     <p className="text-green-700 font-medium">Scheduled:</p>
@@ -869,6 +895,16 @@ export const AdminPanelPage = () => {
                               <td className="py-3 px-2 text-right font-semibold text-primary">{formatPrice(item.total_amount)}</td>
                               <td className="py-3 px-2">
                                 <div className="flex items-center justify-center gap-1">
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    className="text-xs"
+                                    onClick={() => viewOrderDetails(item)}
+                                    data-testid={`view-order-${item.id}`}
+                                  >
+                                    <Eye className="h-3 w-3 mr-1" />
+                                    View
+                                  </Button>
                                   <Button 
                                     variant="ghost" 
                                     size="sm" 
@@ -2008,6 +2044,228 @@ export const AdminPanelPage = () => {
             <Button onClick={handleDelete} disabled={deleting} className="bg-red-600 hover:bg-red-700">
               {deleting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Order Detail Modal */}
+      <Dialog open={showOrderDetail} onOpenChange={setShowOrderDetail}>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto" data-testid="order-detail-modal">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <ShoppingBag className="h-5 w-5 text-accent" />
+              Order Details
+            </DialogTitle>
+          </DialogHeader>
+          
+          {selectedOrder && (
+            <div className="space-y-6">
+              {/* Order Header */}
+              <div className="flex items-center justify-between pb-4 border-b">
+                <div>
+                  <p className="text-sm text-muted-foreground">Order ID</p>
+                  <p className="font-mono font-semibold">#{selectedOrder.id?.slice(0, 12).toUpperCase()}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm text-muted-foreground">Order Date</p>
+                  <p className="font-semibold">{formatDateTime(selectedOrder.created_at)}</p>
+                </div>
+              </div>
+
+              {/* Customer Info */}
+              <div className="bg-muted/30 rounded-lg p-4">
+                <h3 className="font-semibold text-sm text-muted-foreground mb-3 flex items-center gap-2">
+                  <User className="h-4 w-4" />
+                  CUSTOMER INFORMATION
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Name</p>
+                    <p className="font-medium">{selectedOrder.user_info?.name || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Email</p>
+                    <p className="font-medium">{selectedOrder.user_info?.email || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Phone</p>
+                    <p className="font-medium">{selectedOrder.user_info?.phone || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Order Type</p>
+                    <Badge className={selectedOrder.order_type === 'consultation' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}>
+                      {selectedOrder.order_type === 'consultation' ? 'Consultation' : 'Service Order'}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+
+              {/* Package Details Card - Similar to Cart View */}
+              <div className="border-2 rounded-xl overflow-hidden">
+                <div className="bg-gradient-to-r from-primary/10 to-accent/10 px-4 py-3 border-b">
+                  <h3 className="font-semibold flex items-center gap-2">
+                    <Package className="h-4 w-4 text-accent" />
+                    Package Details
+                  </h3>
+                </div>
+                <div className="p-4">
+                  <div className="flex gap-4">
+                    {/* Package Image */}
+                    <div className="w-20 h-20 rounded-full overflow-hidden bg-muted flex-shrink-0 border-2 border-accent/20">
+                      {selectedOrder.package_details?.image_url ? (
+                        <img 
+                          src={selectedOrder.package_details.image_url} 
+                          alt="Package" 
+                          className="w-full h-full object-cover"
+                          onError={(e) => { e.target.style.display = 'none'; }}
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                          <Package className="h-8 w-8" />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Package Info */}
+                    <div className="flex-1">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="font-bold text-lg">{selectedOrder.package_details?.packageTitle || selectedOrder.package_details?.title || 'Package'}</h4>
+                          <p className="text-sm text-muted-foreground capitalize">
+                            {selectedOrder.listing_type?.replace(/_/g, ' ')} 
+                            {selectedOrder.package_details?.seller_name && ` - ${selectedOrder.package_details.seller_name}`}
+                            {selectedOrder.package_details?.handle && ` (${selectedOrder.package_details.handle})`}
+                          </p>
+                        </div>
+                        <p className="font-bold text-xl text-accent">{formatPrice(selectedOrder.package_details?.price || selectedOrder.total_amount)}</p>
+                      </div>
+
+                      {/* Deliverables */}
+                      {selectedOrder.package_details?.deliverables && (
+                        <div className="mt-3 space-y-1">
+                          {(Array.isArray(selectedOrder.package_details.deliverables) 
+                            ? selectedOrder.package_details.deliverables 
+                            : selectedOrder.package_details.deliverables.split(',').map(d => d.trim())
+                          ).slice(0, 4).map((deliverable, idx) => (
+                            <div key={idx} className="flex items-center gap-2 text-sm">
+                              <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
+                              <span className="text-muted-foreground">{deliverable}</span>
+                            </div>
+                          ))}
+                          {(Array.isArray(selectedOrder.package_details.deliverables) 
+                            ? selectedOrder.package_details.deliverables.length > 4
+                            : selectedOrder.package_details.deliverables.split(',').length > 4
+                          ) && (
+                            <p className="text-xs text-muted-foreground ml-6">+ more deliverables</p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Additional Package Info */}
+                      <div className="mt-3 pt-3 border-t flex flex-wrap gap-4 text-sm">
+                        {selectedOrder.package_details?.turnaround && (
+                          <div>
+                            <span className="text-muted-foreground">Turnaround:</span>
+                            <span className="ml-1 font-medium">{selectedOrder.package_details.turnaround}</span>
+                          </div>
+                        )}
+                        {selectedOrder.package_details?.duration && (
+                          <div>
+                            <span className="text-muted-foreground">Duration:</span>
+                            <span className="ml-1 font-medium">{selectedOrder.package_details.duration}</span>
+                          </div>
+                        )}
+                        {selectedOrder.package_details?.location && (
+                          <div>
+                            <span className="text-muted-foreground">Location:</span>
+                            <span className="ml-1 font-medium">{selectedOrder.package_details.location}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Consultation-specific info */}
+              {selectedOrder.order_type === 'consultation' && (
+                <div className="bg-purple-50 rounded-lg p-4">
+                  <h3 className="font-semibold text-sm text-purple-700 mb-3">CONSULTATION DETAILS</h3>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="text-muted-foreground">Business Name</p>
+                      <p className="font-medium">{selectedOrder.package_details?.business_name || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Industry</p>
+                      <p className="font-medium">{selectedOrder.package_details?.industry || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Type</p>
+                      <p className="font-medium capitalize">{selectedOrder.package_details?.consultation_type || 'online'}</p>
+                    </div>
+                    {selectedOrder.scheduled_date && (
+                      <div>
+                        <p className="text-muted-foreground">Scheduled</p>
+                        <p className="font-medium text-green-700">{selectedOrder.scheduled_date} {selectedOrder.scheduled_time}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Order Summary */}
+              <div className="bg-gradient-to-r from-primary to-primary/80 text-white rounded-lg p-4">
+                <h3 className="font-semibold text-sm mb-3 opacity-90">ORDER SUMMARY</h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="opacity-80">Subtotal</span>
+                    <span>{formatPrice(selectedOrder.package_details?.price || selectedOrder.total_amount - (selectedOrder.platform_fee || 0))}</span>
+                  </div>
+                  {selectedOrder.platform_fee > 0 && (
+                    <div className="flex justify-between">
+                      <span className="opacity-80">Platform Fee</span>
+                      <span>{formatPrice(selectedOrder.platform_fee)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between pt-2 border-t border-white/20 text-lg font-bold">
+                    <span>Total</span>
+                    <span>{formatPrice(selectedOrder.total_amount)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Status Section */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="border rounded-lg p-4">
+                  <p className="text-xs text-muted-foreground mb-2">ORDER STATUS</p>
+                  {getStatusBadge(selectedOrder.order_status)}
+                </div>
+                <div className="border rounded-lg p-4">
+                  <p className="text-xs text-muted-foreground mb-2">PAYMENT STATUS</p>
+                  <div className="flex items-center gap-2">
+                    {getStatusBadge(selectedOrder.payment_status)}
+                    {selectedOrder.payment_method && (
+                      <span className="text-xs text-muted-foreground capitalize">({selectedOrder.payment_method})</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setShowOrderDetail(false)}>Close</Button>
+            <Button 
+              onClick={() => {
+                setShowOrderDetail(false);
+                openEditModal(selectedOrder?.order_type === 'consultation' ? 'consultation' : 'order', selectedOrder);
+              }}
+              className="bg-accent hover:bg-accent/90"
+            >
+              <Edit className="h-4 w-4 mr-2" />
+              Edit Order
             </Button>
           </DialogFooter>
         </DialogContent>
