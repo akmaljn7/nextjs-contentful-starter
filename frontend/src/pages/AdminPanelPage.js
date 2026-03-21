@@ -2138,7 +2138,7 @@ export const AdminPanelPage = () => {
                             {selectedOrder.package_details?.handle && ` (${selectedOrder.package_details.handle})`}
                           </p>
                         </div>
-                        <p className="font-bold text-xl text-accent">{formatPrice(selectedOrder.package_details?.price || selectedOrder.total_amount)}</p>
+                        <p className="font-bold text-xl text-accent">{formatPrice(selectedOrder.supplier_payout || selectedOrder.package_details?.price || (selectedOrder.total_amount - (selectedOrder.platform_fee || 0)))}</p>
                       </div>
 
                       {/* Deliverables */}
@@ -2220,8 +2220,8 @@ export const AdminPanelPage = () => {
                 <h3 className="font-semibold text-sm mb-3 opacity-90">ORDER SUMMARY</h3>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span className="opacity-80">Subtotal</span>
-                    <span>{formatPrice(selectedOrder.package_details?.price || selectedOrder.total_amount - (selectedOrder.platform_fee || 0))}</span>
+                    <span className="opacity-80">Subtotal (Package Price)</span>
+                    <span>{formatPrice(selectedOrder.supplier_payout || selectedOrder.package_details?.price || (selectedOrder.total_amount - (selectedOrder.platform_fee || 0)))}</span>
                   </div>
                   {selectedOrder.platform_fee > 0 && (
                     <div className="flex justify-between">

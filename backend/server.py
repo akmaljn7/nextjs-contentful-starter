@@ -221,6 +221,7 @@ class OrderCreate(BaseModel):
     listing_id: str
     package_details: dict
     total_amount: float
+    package_price: Optional[float] = None  # Original package price for fee calculation
     payment_method: Optional[str] = "online"  # online or cash (pay at office)
 
 class Order(BaseModel):
@@ -979,8 +980,17 @@ async def create_order(data: OrderCreate, current_user: User = Depends(get_curre
     settings = await get_site_settings()
     fee_percentage = settings.get('platform_fee_percentage', 10.0) / 100.0  # Convert to decimal
     
-    platform_fee = data.total_amount * fee_percentage
-    supplier_payout = data.total_amount - platform_fee
+    # Use package_price if provided, otherwise try to get from package_details, 
+    # otherwise reverse-calculate from total_amount
+    base_price = data.package_price
+    if not base_price:
+        base_price = data.package_details.get('price')
+    if not base_price:
+        # Reverse calculate: if total = base + base*fee%, then base = total / (1 + fee%)
+        base_price = data.total_amount / (1 + fee_percentage)
+    
+    platform_fee = base_price * fee_percentage
+    supplier_payout = base_price  # Supplier gets the base package price
     
     # Determine payment method and initial status
     payment_method = data.payment_method or "online"

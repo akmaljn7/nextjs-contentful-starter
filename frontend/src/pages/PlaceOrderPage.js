@@ -73,8 +73,10 @@ export const PlaceOrderPage = () => {
             packageTitle: item.packageTitle,
             deliverables: item.deliverables,
             turnaround: item.turnaround,
+            price: item.price,  // Original package price for correct fee calculation
           },
           total_amount: item.price + item.price * platformFeePercentage,
+          package_price: item.price,  // Send original price separately for backend fee calculation
         })
       );
 

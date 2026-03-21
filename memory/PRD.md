@@ -238,13 +238,21 @@ A conversion-focused, responsive marketplace website for "Lightban Ads Network" 
 - **Test Status**: Verified - 100% pass rate (12/12 tests, all UI elements verified)
 
 ### Bug Fix: Dynamic Platform Fee - FIXED (March 2026)
-- **Problem**: Order creation used hardcoded 10% platform fee instead of fetching from admin settings
-- **Root Cause**: `get_site_settings()` helper function was querying `db.settings` instead of `db.site_settings`
+- **Problem**: Order creation calculated platform fee incorrectly (20% of total instead of package price)
+- **Root Cause**: 
+  1. `get_site_settings()` was querying wrong collection (`db.settings` instead of `db.site_settings`)
+  2. Backend calculated fee from `total_amount` which already included the fee from frontend
 - **Solution**: 
   1. Fixed `get_site_settings()` to query correct collection (`db.site_settings`)
-  2. Order creation now fetches `platform_fee_percentage` from admin settings
-  3. New orders correctly calculate platform fee based on admin-configured percentage (currently 20%)
-- **Test Status**: Verified - New orders show 20% platform fee as configured in settings
+  2. Frontend now sends `package_price` separately in order creation request
+  3. Backend uses `package_price` for fee calculation, not `total_amount`
+  4. `supplier_payout` now correctly represents the original package price
+  5. Admin modal shows `supplier_payout` as Subtotal for correct display
+- **Example (20% fee):**
+  - Package Price: ₦100,000
+  - Platform Fee: ₦20,000
+  - Total: ₦120,000
+- **Test Status**: Verified - Orders now correctly calculate and display fees
 
 ---
 
