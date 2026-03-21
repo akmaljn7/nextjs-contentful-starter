@@ -778,12 +778,19 @@ export const AdminPanelPage = () => {
               <TabsContent value="kannywood">
                 <Card className="border-2">
                   <CardHeader className="flex flex-row items-center justify-between">
-                    <CardTitle>Manage Kannywood Productions</CardTitle>
+                    <CardTitle>Manage Kannywood Productions ({filteredKannywood.length})</CardTitle>
                     <Button onClick={() => openCreateModal('kannywood')} className="bg-accent hover:bg-accent/90">
                       <Plus className="h-4 w-4 mr-2" /> Add New
                     </Button>
                   </CardHeader>
                   <CardContent>
+                    <AdminSearchBar
+                      value={searchQueries.kannywood}
+                      onChange={(q) => updateSearchQuery('kannywood', q)}
+                      placeholder="Search by title, director, genre, production company..."
+                      resultCount={filteredKannywood.length}
+                      totalCount={kannywood.length}
+                    />
                     <div className="overflow-x-auto">
                       <table className="w-full">
                         <thead>
@@ -797,7 +804,7 @@ export const AdminPanelPage = () => {
                           </tr>
                         </thead>
                         <tbody>
-                          {kannywood.map((item) => (
+                          {filteredKannywood.map((item) => (
                             <tr key={item.id} className="border-b hover:bg-muted/30">
                               <td className="py-3 px-2 font-medium text-sm">{item.title}</td>
                               <td className="py-3 px-2 text-sm">{item.director}</td>
@@ -827,12 +834,19 @@ export const AdminPanelPage = () => {
               <TabsContent value="digitalads">
                 <Card className="border-2">
                   <CardHeader className="flex flex-row items-center justify-between">
-                    <CardTitle>Manage Digital Ad Platforms ({digitalAds.length})</CardTitle>
+                    <CardTitle>Manage Digital Ad Platforms ({filteredDigitalAds.length})</CardTitle>
                     <Button onClick={() => openCreateModal('digitalad')} className="bg-accent hover:bg-accent/90">
                       <Plus className="h-4 w-4 mr-2" /> Add Platform
                     </Button>
                   </CardHeader>
                   <CardContent>
+                    <AdminSearchBar
+                      value={searchQueries.digitalAds}
+                      onChange={(q) => updateSearchQuery('digitalAds', q)}
+                      placeholder="Search by platform name, service name..."
+                      resultCount={filteredDigitalAds.length}
+                      totalCount={digitalAds.length}
+                    />
                     <div className="overflow-x-auto">
                       <table className="w-full">
                         <thead>
@@ -845,7 +859,7 @@ export const AdminPanelPage = () => {
                           </tr>
                         </thead>
                         <tbody>
-                          {digitalAds.map((item) => (
+                          {filteredDigitalAds.map((item) => (
                             <tr key={item.id} className="border-b hover:bg-muted/30">
                               <td className="py-3 px-2 font-medium">{item.platform || item.id}</td>
                               <td className="py-3 px-2">{item.name || item.service_name}</td>
@@ -876,9 +890,16 @@ export const AdminPanelPage = () => {
               <TabsContent value="consultations">
                 <Card className="border-2">
                   <CardHeader>
-                    <CardTitle>Manage Consultations ({consultations.length})</CardTitle>
+                    <CardTitle>Manage Consultations ({filteredConsultations.length})</CardTitle>
                   </CardHeader>
                   <CardContent>
+                    <AdminSearchBar
+                      value={searchQueries.consultations}
+                      onChange={(q) => updateSearchQuery('consultations', q)}
+                      placeholder="Search by business name, contact name, email, phone, industry..."
+                      resultCount={filteredConsultations.length}
+                      totalCount={consultations.length}
+                    />
                     <div className="overflow-x-auto">
                       <table className="w-full">
                         <thead>
@@ -894,7 +915,7 @@ export const AdminPanelPage = () => {
                           </tr>
                         </thead>
                         <tbody>
-                          {consultations.map((item) => (
+                          {filteredConsultations.map((item) => (
                             <tr key={item.id} className="border-b hover:bg-muted/30">
                               <td className="py-3 px-2 font-medium text-sm">{item.package_title}</td>
                               <td className="py-3 px-2">
@@ -944,9 +965,16 @@ export const AdminPanelPage = () => {
               <TabsContent value="orders">
                 <Card className="border-2">
                   <CardHeader>
-                    <CardTitle>All Orders ({orders.length})</CardTitle>
+                    <CardTitle>All Orders ({filteredOrders.length})</CardTitle>
                   </CardHeader>
                   <CardContent>
+                    <AdminSearchBar
+                      value={searchQueries.orders}
+                      onChange={(q) => updateSearchQuery('orders', q)}
+                      placeholder="Search by order ID, customer name, email, phone, package..."
+                      resultCount={filteredOrders.length}
+                      totalCount={orders.length}
+                    />
                     <div className="overflow-x-auto">
                       <table className="w-full">
                         <thead>
@@ -962,7 +990,7 @@ export const AdminPanelPage = () => {
                           </tr>
                         </thead>
                         <tbody>
-                          {orders.slice(0, 100).map((item) => (
+                          {filteredOrders.slice(0, 100).map((item) => (
                             <tr key={item.id} className="border-b hover:bg-muted/30">
                               <td className="py-3 px-2">
                                 <Badge 
@@ -1044,9 +1072,16 @@ export const AdminPanelPage = () => {
               <TabsContent value="users">
                 <Card className="border-2">
                   <CardHeader>
-                    <CardTitle>Manage Users ({users.length})</CardTitle>
+                    <CardTitle>Manage Users ({filteredUsers.length})</CardTitle>
                   </CardHeader>
                   <CardContent>
+                    <AdminSearchBar
+                      value={searchQueries.users}
+                      onChange={(q) => updateSearchQuery('users', q)}
+                      placeholder="Search by name, email, phone, role, company..."
+                      resultCount={filteredUsers.length}
+                      totalCount={users.length}
+                    />
                     <div className="overflow-x-auto">
                       <table className="w-full">
                         <thead>
@@ -1060,7 +1095,7 @@ export const AdminPanelPage = () => {
                           </tr>
                         </thead>
                         <tbody>
-                          {users.map((item) => (
+                          {filteredUsers.map((item) => (
                             <tr key={item.id} className="border-b hover:bg-muted/30">
                               <td className="py-3 px-2 font-medium text-sm">{item.name}</td>
                               <td className="py-3 px-2 text-sm">{item.email}</td>
