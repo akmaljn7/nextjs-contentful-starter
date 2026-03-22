@@ -1211,9 +1211,9 @@ async def create_order(data: OrderCreate, current_user: User = Depends(get_curre
     # Normalize listing_type
     listing_type = data.listing_type
     
-    # Handle digital-ad type specially - these are platform-managed services
-    if listing_type == "digital-ad":
-        # Digital ads are managed by Lightban platform, use a default supplier
+    # Handle digital-ad and led_billboard types specially - these are platform-managed services
+    if listing_type in ["digital-ad", "led_billboard"]:
+        # Digital ads and LED billboards are managed by Lightban platform, use a default supplier
         supplier_id = "lightban-platform"
     else:
         if listing_type not in collection_map:

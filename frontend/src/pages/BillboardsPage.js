@@ -152,17 +152,24 @@ export const BillboardsPage = () => {
 
     const cartItem = {
       id: pkg.id,
-      type: 'billboard',
-      listingId: selectedBillboard?.id || 'led-billboard',
+      type: 'led_billboard',
+      listingType: 'led_billboard',  // For order creation
+      listingId: pkg.id,  // Use package ID as listing ID
+      influencerId: pkg.id,  // For compatibility with PlaceOrderPage
       listingName: `LED Billboard - ${state?.name || ''}, ${selectedRoad}`,
       packageId: pkg.id,
       packageTitle: pkg.title,
       price: pkg.price,
       duration: pkg.duration,
-      deliverables: pkg.deliverables,
+      deliverables: pkg.deliverables || [],
+      turnaround: pkg.duration,  // For compatibility
       image_url: pkg.image_url || selectedBillboard?.image_url,
       location: `${state?.name}, ${selectedRoad}`,
       size: size?.name,
+      // Additional metadata for order
+      state_name: state?.name,
+      road_name: selectedRoad,
+      size_name: size?.name,
     };
 
     addItem(cartItem);

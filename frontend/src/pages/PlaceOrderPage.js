@@ -66,14 +66,20 @@ export const PlaceOrderPage = () => {
       // Create orders for each cart item
       const orderPromises = items.map((item) =>
         api.post('/orders', {
-          listing_type: item.listingType || 'influencer',
-          listing_id: item.influencerId,
+          listing_type: item.listingType || item.type || 'influencer',
+          listing_id: item.listingId || item.influencerId,
           package_details: {
             packageId: item.packageId,
             packageTitle: item.packageTitle,
-            deliverables: item.deliverables,
-            turnaround: item.turnaround,
+            deliverables: item.deliverables || [],
+            turnaround: item.turnaround || item.duration,
             price: item.price,  // Original package price for correct fee calculation
+            // Additional LED billboard metadata
+            location: item.location,
+            size: item.size,
+            state_name: item.state_name,
+            road_name: item.road_name,
+            size_name: item.size_name,
           },
           total_amount: item.price + item.price * platformFeePercentage,
           package_price: item.price,  // Send original price separately for backend fee calculation
