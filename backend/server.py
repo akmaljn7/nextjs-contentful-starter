@@ -786,6 +786,322 @@ async def create_influencer(data: InfluencerCreate, current_user: User = Depends
     await db.influencers.insert_one(doc)
     return influencer
 
+# Global Search API
+@api_router.get("/search")
+async def global_search(
+    q: Optional[str] = None,
+    category: Optional[str] = None,  # influencer, billboard, digital_ad, kannywood, led_billboard, static_billboard
+    city: Optional[str] = None,
+    min_price: Optional[float] = None,
+    max_price: Optional[float] = None,
+    limit: int = 20
+):
+    """
+    Global search across all service categories with filters.
+    Returns combined results from influencers, billboards, digital ads, kannywood, and billboard packages.
+    """
+    results = []
+    
+    # Build text search query
+    text_query = {}
+    if q:
+        text_query["$or"] = [
+            {"name": {"$regex": q, "$options": "i"}},
+            {"title": {"$regex": q, "$options": "i"}},
+            {"location": {"$regex": q, "$options": "i"}},
+            {"location_name": {"$regex": q, "$options": "i"}},
+            {"description": {"$regex": q, "$options": "i"}},
+            {"niche": {"$regex": q, "$options": "i"}},
+            {"genre": {"$regex": q, "$options": "i"}},
+            {"platform": {"$regex": q, "$options": "i"}},
+            {"service_name": {"$regex": q, "$options": "i"}},
+            {"road_name": {"$regex": q, "$options": "i"}},
+            {"state_name": {"$regex": q, "$options": "i"}},
+        ]
+    
+    # Search Influencers
+    if not category or category == "influencer":
+        inf_query = {"status": "approved"}
+        if q:
+            inf_query["$or"] = [
+                {"name": {"$regex": q, "$options": "i"}},
+                {"handle": {"$regex": q, "$options": "i"}},
+                {"bio": {"$regex": q, "$options": "i"}},
+                {"niche": {"$regex": q, "$options": "i"}},
+                {"location": {"$regex": q, "$options": "i"}},
+            ]
+        if city:
+            inf_query["location"] = {"$regex": city, "$options": "i"}
+        if max_price:
+            inf_query["price_per_post"] = {"$lte": max_price}
+        if min_price:
+            inf_query.setdefault("price_per_post", {})["$gte"] = min_price
+        
+        influencers = await db.influencers.find(inf_query, {"_id": 0}).to_list(limit)
+        for inf in influencers:
+            results.append({
+                "id": inf["id"],
+                "type": "influencer",
+                "category": "Influencer",
+                "title": inf.get("name", ""),
+                "subtitle": f"@{inf.get('handle', '')} • {inf.get('platform', '')}",
+                "description": inf.get("bio", ""),
+                "location": inf.get("location", ""),
+                "price": inf.get("price_per_post", 0),
+                "price_label": "per post",
+                "image_url": inf.get("profile_image_url") or inf.get("image_url", ""),
+                "url": f"/influencers/{inf['id']}",
+                "stats": {
+                    "followers": inf.get("followers", 0),
+                    "engagement": inf.get("engagement_rate", 0)
+                }
+            })
+    
+    # Search Billboards
+    if not category or category == "billboard":
+        bb_query = {"status": "approved"}
+        if q:
+            bb_query["$or"] = [
+                {"location_name": {"$regex": q, "$options": "i"}},
+                {"description": {"$regex": q, "$options": "i"}},
+                {"billboard_type": {"$regex": q, "$options": "i"}},
+                {"location": {"$regex": q, "$options": "i"}},
+            ]
+        if city:
+            bb_query["$or"] = [
+                {"location": {"$regex": city, "$options": "i"}},
+                {"location_name": {"$regex": city, "$options": "i"}}
+            ]
+        if max_price:
+            bb_query["price_monthly"] = {"$lte": max_price}
+        if min_price:
+            bb_query.setdefault("price_monthly", {})["$gte"] = min_price
+        
+        billboards = await db.billboards.find(bb_query, {"_id": 0}).to_list(limit)
+        for bb in billboards:
+            results.append({
+                "id": bb["id"],
+                "type": "billboard",
+                "category": bb.get("billboard_type", "Billboard"),
+                "title": bb.get("location_name", ""),
+                "subtitle": bb.get("billboard_type", ""),
+                "description": bb.get("description", ""),
+                "location": bb.get("location", ""),
+                "price": bb.get("price_monthly", 0),
+                "price_label": "per month",
+                "image_url": bb.get("image_url", ""),
+                "url": f"/billboards/{bb['id']}",
+                "stats": {
+                    "traffic": bb.get("traffic_daily", 0)
+                }
+            })
+    
+    # Search LED Billboard Packages
+    if not category or category == "led_billboard":
+        led_query = {"status": "active"}
+        if q:
+            led_query["$or"] = [
+                {"title": {"$regex": q, "$options": "i"}},
+                {"description": {"$regex": q, "$options": "i"}},
+                {"state_name": {"$regex": q, "$options": "i"}},
+                {"road_name": {"$regex": q, "$options": "i"}},
+            ]
+        if city:
+            led_query["state_name"] = {"$regex": city, "$options": "i"}
+        if max_price:
+            led_query["price"] = {"$lte": max_price}
+        if min_price:
+            led_query.setdefault("price", {})["$gte"] = min_price
+        
+        led_packages = await db.led_billboard_packages.find(led_query, {"_id": 0}).to_list(limit)
+        for pkg in led_packages:
+            results.append({
+                "id": pkg["id"],
+                "type": "led_billboard",
+                "category": "LED Billboard",
+                "title": pkg.get("title", ""),
+                "subtitle": f"{pkg.get('state_name', '')} • {pkg.get('road_name', '')}",
+                "description": pkg.get("description", ""),
+                "location": f"{pkg.get('state_name', '')}, {pkg.get('road_name', '')}",
+                "price": pkg.get("price", 0),
+                "price_label": pkg.get("duration", ""),
+                "image_url": pkg.get("image_url", ""),
+                "url": "/billboards",
+                "stats": {
+                    "size": pkg.get("size_name", "")
+                }
+            })
+    
+    # Search Static Billboard Packages
+    if not category or category == "static_billboard":
+        static_query = {"status": "active"}
+        if q:
+            static_query["$or"] = [
+                {"title": {"$regex": q, "$options": "i"}},
+                {"description": {"$regex": q, "$options": "i"}},
+                {"state_name": {"$regex": q, "$options": "i"}},
+                {"road_name": {"$regex": q, "$options": "i"}},
+            ]
+        if city:
+            static_query["state_name"] = {"$regex": city, "$options": "i"}
+        if max_price:
+            static_query["price"] = {"$lte": max_price}
+        if min_price:
+            static_query.setdefault("price", {})["$gte"] = min_price
+        
+        static_packages = await db.static_billboard_packages.find(static_query, {"_id": 0}).to_list(limit)
+        for pkg in static_packages:
+            category_label = "Static Banner" if pkg.get("billboard_category") == "static_banner" else "Lightbox"
+            results.append({
+                "id": pkg["id"],
+                "type": pkg.get("billboard_category", "static_billboard"),
+                "category": category_label,
+                "title": pkg.get("title", ""),
+                "subtitle": f"{pkg.get('state_name', '')} • {pkg.get('road_name', '')}",
+                "description": pkg.get("description", ""),
+                "location": f"{pkg.get('state_name', '')}, {pkg.get('road_name', '')}",
+                "price": pkg.get("price", 0),
+                "price_label": pkg.get("duration", ""),
+                "image_url": pkg.get("image_url", ""),
+                "url": "/billboards",
+                "stats": {
+                    "type": pkg.get("type_name", "")
+                }
+            })
+    
+    # Search Digital Ads
+    if not category or category == "digital_ad":
+        da_query = {"status": "approved"}
+        if q:
+            da_query["$or"] = [
+                {"platform": {"$regex": q, "$options": "i"}},
+                {"service_name": {"$regex": q, "$options": "i"}},
+                {"name": {"$regex": q, "$options": "i"}},
+            ]
+        
+        digital_ads = await db.digital_ad_services.find(da_query, {"_id": 0}).to_list(limit)
+        for da in digital_ads:
+            packages = da.get("packages", [])
+            min_pkg_price = min([p.get("price", 0) for p in packages]) if packages else 0
+            
+            results.append({
+                "id": da["id"],
+                "type": "digital_ad",
+                "category": "Digital Ads",
+                "title": da.get("platform") or da.get("name", ""),
+                "subtitle": da.get("service_name", ""),
+                "description": da.get("description", ""),
+                "location": "Online",
+                "price": min_pkg_price,
+                "price_label": "starting from",
+                "image_url": da.get("image_url", ""),
+                "url": f"/digital-ads/{da['id']}",
+                "stats": {
+                    "packages": len(packages)
+                }
+            })
+    
+    # Search Kannywood
+    if not category or category == "kannywood":
+        kw_query = {"status": "approved"}
+        if q:
+            kw_query["$or"] = [
+                {"title": {"$regex": q, "$options": "i"}},
+                {"director": {"$regex": q, "$options": "i"}},
+                {"genre": {"$regex": q, "$options": "i"}},
+                {"production_company": {"$regex": q, "$options": "i"}},
+            ]
+        if max_price:
+            kw_query["price"] = {"$lte": max_price}
+        if min_price:
+            kw_query.setdefault("price", {})["$gte"] = min_price
+        
+        kannywood = await db.kannywood_placements.find(kw_query, {"_id": 0}).to_list(limit)
+        for kw in kannywood:
+            results.append({
+                "id": kw["id"],
+                "type": "kannywood",
+                "category": "Kannywood",
+                "title": kw.get("title", ""),
+                "subtitle": f"Directed by {kw.get('director', '')}",
+                "description": kw.get("description", ""),
+                "location": kw.get("production_company", ""),
+                "price": kw.get("price", 0),
+                "price_label": "per placement",
+                "image_url": kw.get("image_url", ""),
+                "url": f"/kannywood/{kw['id']}",
+                "stats": {
+                    "genre": kw.get("genre", "")
+                }
+            })
+    
+    # Sort by relevance (if search query) or by price
+    if q:
+        def relevance_score(item):
+            title = (item.get("title") or "").lower()
+            query = q.lower()
+            if title == query:
+                return 0
+            if title.startswith(query):
+                return 1
+            if query in title:
+                return 2
+            return 3
+        results.sort(key=relevance_score)
+    else:
+        results.sort(key=lambda x: x.get("price", 0))
+    
+    return {
+        "results": results[:limit],
+        "total": len(results),
+        "filters": {
+            "query": q,
+            "category": category,
+            "city": city,
+            "min_price": min_price,
+            "max_price": max_price
+        }
+    }
+
+# Get search suggestions (for autocomplete)
+@api_router.get("/search/suggestions")
+async def get_search_suggestions(q: str, limit: int = 5):
+    """Get search suggestions based on partial query"""
+    if not q or len(q) < 2:
+        return {"suggestions": []}
+    
+    suggestions = set()
+    
+    influencers = await db.influencers.find(
+        {"name": {"$regex": q, "$options": "i"}, "status": "approved"},
+        {"_id": 0, "name": 1}
+    ).to_list(limit)
+    for inf in influencers:
+        suggestions.add(inf["name"])
+    
+    billboards = await db.billboards.find(
+        {"location_name": {"$regex": q, "$options": "i"}, "status": "approved"},
+        {"_id": 0, "location_name": 1}
+    ).to_list(limit)
+    for bb in billboards:
+        suggestions.add(bb["location_name"])
+    
+    states = await db.billboard_states.find(
+        {"name": {"$regex": q, "$options": "i"}},
+        {"_id": 0, "name": 1}
+    ).to_list(limit)
+    for state in states:
+        suggestions.add(state["name"])
+    
+    kannywood = await db.kannywood_placements.find(
+        {"title": {"$regex": q, "$options": "i"}, "status": "approved"},
+        {"_id": 0, "title": 1}
+    ).to_list(limit)
+    for kw in kannywood:
+        suggestions.add(kw["title"])
+    
+    return {"suggestions": list(suggestions)[:limit]}
+
 @api_router.get("/influencers", response_model=List[Influencer])
 async def get_influencers(
     city: Optional[str] = None,

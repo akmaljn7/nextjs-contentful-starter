@@ -30,6 +30,7 @@ import { PaymentCallbackPage } from '@/pages/PaymentCallbackPage';
 import { KannywoodDetailPage } from '@/pages/KannywoodDetailPage';
 import { ConsultationPage } from '@/pages/ConsultationPage';
 import { AdminPanelPage } from '@/pages/AdminPanelPage';
+import { SearchResultsPage } from '@/pages/SearchResultsPage';
 
 function App() {
   return (
@@ -62,6 +63,7 @@ function App() {
               <Route path="/payment/callback" element={<PaymentCallbackPage />} />
               <Route path="/consultation" element={<ConsultationPage />} />
               <Route path="/admin" element={<AdminPanelPage />} />
+              <Route path="/search" element={<SearchResultsPage />} />
               
               {/* Billboard detail route */}
               <Route path="/billboards/:id" element={<BillboardDetailPage />} />

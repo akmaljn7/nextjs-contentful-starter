@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore, useLanguageStore, useThemeStore, useCartStore } from '@/lib/store';
 import { t } from '@/lib/translations';
 import { Button } from '@/components/ui/button';
-import { Globe, User, LogOut, Palette, ShoppingCart, Menu, X } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Globe, User, LogOut, Palette, ShoppingCart, Menu, X, Search } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,8 +17,10 @@ export const Header = () => {
   const { language, setLanguage } = useLanguageStore();
   const { theme, toggleTheme } = useThemeStore();
   const { items } = useCartStore();
+  const navigate = useNavigate();
   const cartItemCount = items.length;
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const toggleLanguage = () => {
     setLanguage(language === 'en' ? 'ha' : 'en');
@@ -25,6 +28,15 @@ export const Header = () => {
 
   const closeMobileMenu = () => {
     setMobileMenuOpen(false);
+  };
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+      setSearchQuery('');
+      closeMobileMenu();
+    }
   };
 
   return (
@@ -45,6 +57,21 @@ export const Header = () => {
 
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center space-x-2">
+            {/* Search Bar */}
+            <form onSubmit={handleSearch} className="relative mr-2">
+              <div className="flex items-center bg-white/10 rounded-full hover:bg-white/20 transition-colors">
+                <Search className="h-4 w-4 ml-3 text-white/70" />
+                <Input
+                  type="text"
+                  placeholder="Search..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-32 xl:w-48 h-9 bg-transparent border-0 text-white placeholder:text-white/50 focus-visible:ring-0 focus-visible:ring-offset-0"
+                  data-testid="header-search-input"
+                />
+              </div>
+            </form>
+            
             <Link to="/influencers" data-testid="nav-influencers">
               <Button 
                 variant="ghost" 
@@ -203,6 +230,28 @@ export const Header = () => {
       {mobileMenuOpen && (
         <div className="lg:hidden bg-primary border-t border-white/10">
           <div className="px-4 py-4 space-y-2">
+            {/* Mobile Search Bar */}
+            <form onSubmit={handleSearch} className="mb-4">
+              <div className="flex items-center bg-white/10 rounded-lg">
+                <Search className="h-5 w-5 ml-3 text-white/70" />
+                <Input
+                  type="text"
+                  placeholder="Search influencers, billboards..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="flex-1 h-11 bg-transparent border-0 text-white placeholder:text-white/50 focus-visible:ring-0 focus-visible:ring-offset-0"
+                  data-testid="mobile-search-input"
+                />
+                <Button 
+                  type="submit" 
+                  size="sm" 
+                  className="mr-1 bg-accent hover:bg-accent/90"
+                >
+                  Search
+                </Button>
+              </div>
+            </form>
+
             {/* Navigation Links */}
             <Link 
               to="/influencers" 
