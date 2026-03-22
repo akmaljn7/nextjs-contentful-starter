@@ -73,7 +73,7 @@ export const SearchResultsPage = () => {
   const [total, setTotal] = useState(0);
   const [showFilters, setShowFilters] = useState(false);
   
-  // Filter states
+  // Filter states - synced with URL params
   const [filters, setFilters] = useState({
     q: searchParams.get('q') || '',
     category: searchParams.get('category') || '',
@@ -82,17 +82,34 @@ export const SearchResultsPage = () => {
     max_price: searchParams.get('max_price') || '',
   });
 
-  // Fetch results
+  // Sync filters with URL params when they change
+  useEffect(() => {
+    setFilters({
+      q: searchParams.get('q') || '',
+      category: searchParams.get('category') || '',
+      city: searchParams.get('city') || '',
+      min_price: searchParams.get('min_price') || '',
+      max_price: searchParams.get('max_price') || '',
+    });
+  }, [searchParams]);
+
+  // Fetch results based on URL params
   useEffect(() => {
     const fetchResults = async () => {
       setLoading(true);
       try {
         const params = {};
-        if (filters.q) params.q = filters.q;
-        if (filters.category) params.category = filters.category;
-        if (filters.city) params.city = filters.city;
-        if (filters.min_price) params.min_price = parseFloat(filters.min_price);
-        if (filters.max_price) params.max_price = parseFloat(filters.max_price);
+        const q = searchParams.get('q');
+        const category = searchParams.get('category');
+        const city = searchParams.get('city');
+        const min_price = searchParams.get('min_price');
+        const max_price = searchParams.get('max_price');
+        
+        if (q) params.q = q;
+        if (category && category !== 'all') params.category = category;
+        if (city) params.city = city;
+        if (min_price) params.min_price = parseFloat(min_price);
+        if (max_price) params.max_price = parseFloat(max_price);
         
         const response = await api.get('/search', { params });
         setResults(response.data.results || []);
@@ -169,15 +186,15 @@ export const SearchResultsPage = () => {
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">Category</Label>
                   <Select 
-                    value={filters.category} 
-                    onValueChange={(v) => handleFilterChange('category', v)}
+                    value={filters.category || "all"} 
+                    onValueChange={(v) => handleFilterChange('category', v === 'all' ? '' : v)}
                   >
                     <SelectTrigger data-testid="category-filter">
                       <SelectValue placeholder="All Categories" />
                     </SelectTrigger>
                     <SelectContent>
                       {CATEGORIES.map((cat) => (
-                        <SelectItem key={cat.value} value={cat.value || "all"}>
+                        <SelectItem key={cat.value || "all"} value={cat.value || "all"}>
                           <div className="flex items-center gap-2">
                             <cat.icon className="h-4 w-4" />
                             {cat.label}
@@ -255,25 +272,38 @@ export const SearchResultsPage = () => {
         {activeFiltersCount > 0 && (
           <div className="flex flex-wrap gap-2 mb-6">
             {filters.category && (
-              <Badge variant="secondary" className="flex items-center gap-1">
+              <Badge variant="secondary" className="flex items-center gap-1 cursor-pointer hover:bg-muted">
                 {CATEGORIES.find(c => c.value === filters.category)?.label || filters.category}
-                <button onClick={() => handleFilterChange('category', '')}>
+                <button onClick={() => {
+                  const params = new URLSearchParams(searchParams);
+                  params.delete('category');
+                  setSearchParams(params);
+                }}>
                   <X className="h-3 w-3" />
                 </button>
               </Badge>
             )}
             {filters.city && (
-              <Badge variant="secondary" className="flex items-center gap-1">
+              <Badge variant="secondary" className="flex items-center gap-1 cursor-pointer hover:bg-muted">
                 <MapPin className="h-3 w-3" /> {filters.city}
-                <button onClick={() => handleFilterChange('city', '')}>
+                <button onClick={() => {
+                  const params = new URLSearchParams(searchParams);
+                  params.delete('city');
+                  setSearchParams(params);
+                }}>
                   <X className="h-3 w-3" />
                 </button>
               </Badge>
             )}
             {(filters.min_price || filters.max_price) && (
-              <Badge variant="secondary" className="flex items-center gap-1">
+              <Badge variant="secondary" className="flex items-center gap-1 cursor-pointer hover:bg-muted">
                 ₦{filters.min_price || '0'} - ₦{filters.max_price || '∞'}
-                <button onClick={() => { handleFilterChange('min_price', ''); handleFilterChange('max_price', ''); }}>
+                <button onClick={() => {
+                  const params = new URLSearchParams(searchParams);
+                  params.delete('min_price');
+                  params.delete('max_price');
+                  setSearchParams(params);
+                }}>
                   <X className="h-3 w-3" />
                 </button>
               </Badge>
