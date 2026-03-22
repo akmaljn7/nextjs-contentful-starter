@@ -470,6 +470,15 @@ A conversion-focused, responsive marketplace website for "Lightban Ads Network" 
 - `/app/test_reports/iteration_12.json` - LED Billboard Order Flow Fix (100% pass - 8/8 backend, full E2E flow verified)
 - `/app/test_reports/iteration_13.json` - Static Banner & Lightbox Billboard System (100% pass - 18/18 backend, all E2E flows verified)
 
+### Enhancement: Image Upload for Billboard Packages - IMPLEMENTED (March 2026)
+- **Request**: Replace image URL text input with actual image upload for LED and Static/Lightbox package forms
+- **Implementation**:
+  - Updated LEDConfigTab package form to use `ImageUpload` component
+  - Updated StaticBillboardConfigTab package form to use `ImageUpload` component
+  - Admins can now either upload images directly or paste URLs
+  - Supports drag & drop, JPG/PNG/GIF/WebP formats, max 5MB
+- **Test Status**: Verified via screenshot - Image upload component visible in package forms
+
 ---
 
 *Last Updated: March 2026*
