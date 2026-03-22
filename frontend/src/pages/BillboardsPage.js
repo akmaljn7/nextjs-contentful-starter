@@ -8,7 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Label } from '@/components/ui/label';
 import { CheckCircle, MapPin, Loader2, ShoppingCart, Monitor, Image, Lightbulb } from 'lucide-react';
 import { toast } from 'sonner';
@@ -375,18 +375,18 @@ export const BillboardsPage = () => {
               <Label htmlFor="state-select" className="text-base font-semibold">
                 1. Select State <span className="text-red-500">*</span>
               </Label>
-              <Select value={selectedState} onValueChange={handleStateChange}>
-                <SelectTrigger id="state-select" data-testid="billboard-state-select">
-                  <SelectValue placeholder="Choose a state..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {states.map((state) => (
-                    <SelectItem key={state.id} value={state.id}>
-                      {state.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                options={states.map(state => ({
+                  value: state.id,
+                  label: state.name,
+                }))}
+                value={selectedState}
+                onValueChange={handleStateChange}
+                placeholder="Choose a state..."
+                searchPlaceholder="Search states..."
+                emptyMessage="No states found."
+                data-testid="billboard-state-select"
+              />
               {states.length === 0 && (
                 <p className="text-sm text-muted-foreground">No states available. Please contact admin.</p>
               )}
@@ -397,27 +397,20 @@ export const BillboardsPage = () => {
               <Label htmlFor="road-select" className="text-base font-semibold">
                 2. Select Major Road <span className="text-red-500">*</span>
               </Label>
-              <Select 
-                value={selectedRoad} 
+              <SearchableSelect
+                options={availableRoads.map(road => ({
+                  value: road.name,
+                  label: road.name,
+                  description: road.description,
+                }))}
+                value={selectedRoad}
                 onValueChange={handleRoadChange}
+                placeholder={selectedState ? "Choose a road..." : "Select a state first"}
+                searchPlaceholder="Search roads..."
+                emptyMessage="No roads found."
                 disabled={!selectedState || availableRoads.length === 0}
-              >
-                <SelectTrigger id="road-select" data-testid="billboard-road-select">
-                  <SelectValue placeholder={selectedState ? "Choose a road..." : "Select a state first"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableRoads.map((road, idx) => (
-                    <SelectItem key={idx} value={road.name}>
-                      <div className="flex flex-col">
-                        <span>{road.name}</span>
-                        {road.description && (
-                          <span className="text-xs text-muted-foreground">{road.description}</span>
-                        )}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                data-testid="billboard-road-select"
+              />
               {selectedState && availableRoads.length === 0 && (
                 <p className="text-sm text-muted-foreground">No roads configured for this state.</p>
               )}
@@ -429,23 +422,19 @@ export const BillboardsPage = () => {
                 <Label htmlFor="size-select" className="text-base font-semibold">
                   3. Select LED Size <span className="text-red-500">*</span>
                 </Label>
-                <Select value={selectedSize} onValueChange={handleSizeChange}>
-                  <SelectTrigger id="size-select" data-testid="billboard-size-select">
-                    <SelectValue placeholder="Choose a size..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {sizes.map((size) => (
-                      <SelectItem key={size.id} value={size.id}>
-                        <div className="flex flex-col">
-                          <span>{size.name}</span>
-                          {size.description && (
-                            <span className="text-xs text-muted-foreground">{size.description}</span>
-                          )}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect
+                  options={sizes.map(size => ({
+                    value: size.id,
+                    label: size.name,
+                    description: size.description,
+                  }))}
+                  value={selectedSize}
+                  onValueChange={handleSizeChange}
+                  placeholder="Choose a size..."
+                  searchPlaceholder="Search sizes..."
+                  emptyMessage="No sizes found."
+                  data-testid="billboard-size-select"
+                />
                 {sizes.length === 0 && (
                   <p className="text-sm text-muted-foreground">No sizes available. Please contact admin.</p>
                 )}
@@ -458,23 +447,19 @@ export const BillboardsPage = () => {
                 <Label htmlFor="type-select" className="text-base font-semibold">
                   3. Select Billboard Type <span className="text-red-500">*</span>
                 </Label>
-                <Select value={selectedType} onValueChange={handleTypeChange}>
-                  <SelectTrigger id="type-select" data-testid="billboard-type-select">
-                    <SelectValue placeholder="Choose a type..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {filteredTypes.map((type) => (
-                      <SelectItem key={type.id} value={type.id}>
-                        <div className="flex flex-col">
-                          <span>{type.name}</span>
-                          {type.description && (
-                            <span className="text-xs text-muted-foreground">{type.description}</span>
-                          )}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect
+                  options={filteredTypes.map(type => ({
+                    value: type.id,
+                    label: type.name,
+                    description: type.description,
+                  }))}
+                  value={selectedType}
+                  onValueChange={handleTypeChange}
+                  placeholder="Choose a type..."
+                  searchPlaceholder="Search types..."
+                  emptyMessage="No types found."
+                  data-testid="billboard-type-select"
+                />
                 {filteredTypes.length === 0 && (
                   <p className="text-sm text-muted-foreground">No types available for {modalType === 'static_banner' ? 'Static Banner' : 'Lightbox'}. Please contact admin.</p>
                 )}
