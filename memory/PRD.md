@@ -479,6 +479,48 @@ A conversion-focused, responsive marketplace website for "Lightban Ads Network" 
   - Supports drag & drop, JPG/PNG/GIF/WebP formats, max 5MB
 - **Test Status**: Verified via screenshot - Image upload component visible in package forms
 
+### Feature: Global Search with Filters - IMPLEMENTED (March 2026)
+- **Request**: Add a global search bar with filters for the public site to search across all service categories
+- **Implementation**:
+  1. **Backend Search API** (`GET /api/search`):
+     - Searches across Influencers, Billboards, LED Billboard Packages, Static Billboard Packages, Digital Ads, Kannywood
+     - Filter parameters: `q` (query), `category`, `city`, `min_price`, `max_price`
+     - Returns unified results with: id, type, category, title, subtitle, description, location, price, price_label, image_url, url
+     - Relevance-based sorting when query provided
+  2. **Search Suggestions API** (`GET /api/search/suggestions`):
+     - Provides autocomplete suggestions from influencers, billboards, states, kannywood
+     - Returns up to 5 suggestions matching the partial query
+  3. **Header Search Bar**:
+     - Simple search input in both desktop and mobile navigation
+     - Navigates to `/search?q=query` on submit
+  4. **GlobalSearch Component** (`/components/GlobalSearch.jsx`):
+     - Full-featured search with suggestions dropdown
+     - Debounced API calls for suggestions
+     - Click-outside to close behavior
+  5. **SearchResultsPage** (`/pages/SearchResultsPage.js`):
+     - Displays results in responsive 3-column grid
+     - Category badges with icons and colors per type
+     - Filters panel with Category dropdown, City input, Min/Max Price inputs
+     - Active filter tags with X buttons to remove individual filters
+     - Clear Filters and Apply Filters buttons
+     - URL sync with filter state
+     - Empty results message with helpful actions
+- **Test Status**: Verified - 100% pass rate (16/16 backend tests, all frontend E2E flows verified)
+- **Test Report**: `/app/test_reports/iteration_14.json`
+
+---
+
+## Upcoming Tasks (P1-P2)
+- **P1**: Build user messaging center
+- **P2**: Implement Order Tracking page
+
+## Future/Backlog Tasks
+- Integrate SMS notifications with Termii
+- Implement bilingual (Hausa) localization support
+- Switch Paystack from test keys to live keys for production
+- Refactor monolithic `server.py` (~3,500 lines) into routers/models/services
+- Refactor `AdminPanelPage.js` (~3,500 lines) into separate tab components
+
 ---
 
 *Last Updated: March 2026*
