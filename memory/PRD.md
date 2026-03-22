@@ -366,10 +366,35 @@ A conversion-focused, responsive marketplace website for "Lightban Ads Network" 
   4. **Cascading Logic**: Road dropdown populated based on selected state
   5. **Denormalization**: Packages store state_name and size_name for display
 - **Files Changed**:
-  - `BillboardsPage.js`: Added LED modal with cascading dropdowns
+  - `BillboardsPage.js`: Added unified modal with cascading dropdowns
   - `AdminPanelPage.js`: Added LEDConfigTab component with full CRUD UI
   - `server.py`: Added new models and API endpoints
 - **Test Status**: Verified - 100% pass rate (20/20 backend tests, all UI features confirmed)
+
+### Feature: Static Banner & Lightbox Billboard System - IMPLEMENTED (March 2026)
+- **Request**: Same as LED but with Type dropdown instead of Size dropdown
+- **Frontend Implementation**:
+  1. **Unified Modal**: BillboardsPage now detects billboard category and shows appropriate modal:
+     - **LED**: State → Road → Size dropdowns
+     - **Static Banner**: State → Road → Type dropdowns
+     - **Lightbox**: State → Road → Type dropdowns
+  2. **Type Dropdown**: Only shows billboard types for current category (static_banner or lightbox)
+  3. **Admin Panel - Static/Lightbox Tab**: New tab with:
+     - **Category Toggle**: Switch between Static Banner and Lightbox
+     - **Billboard Types Section**: Add/edit/delete types per category
+     - **Packages Section**: Add/edit/delete packages linked to state + road + type
+- **Backend Implementation**:
+  1. **New Models**: `BillboardType`, `StaticBillboardPackage`
+  2. **New Collections**: `billboard_types`, `static_billboard_packages`
+  3. **Full CRUD APIs**:
+     - `GET/POST/PUT/DELETE /api/billboard-types` - Manage types with category filter
+     - `GET/POST/PUT/DELETE /api/static-billboard/packages` - Manage packages with filters
+  4. **Order Creation**: Updated to handle `static_banner` and `lightbox` listing types
+- **Files Changed**:
+  - `BillboardsPage.js`: Unified modal with category detection
+  - `AdminPanelPage.js`: Added StaticBillboardConfigTab component
+  - `server.py`: Added new models and API endpoints
+- **Test Status**: Verified - 100% pass rate (18/18 backend tests, all E2E flows verified)
 
 ---
 
@@ -443,6 +468,7 @@ A conversion-focused, responsive marketplace website for "Lightban Ads Network" 
 - `/app/test_reports/iteration_10.json` - User Dashboard All Orders + Registration simplification (100% frontend, 86% backend - fixed 'user' role stats bug)
 - `/app/test_reports/iteration_11.json` - LED Billboard Configuration System (100% pass - 20/20 backend, all UI features verified)
 - `/app/test_reports/iteration_12.json` - LED Billboard Order Flow Fix (100% pass - 8/8 backend, full E2E flow verified)
+- `/app/test_reports/iteration_13.json` - Static Banner & Lightbox Billboard System (100% pass - 18/18 backend, all E2E flows verified)
 
 ---
 
