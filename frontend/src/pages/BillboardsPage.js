@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { CheckCircle, MapPin, Loader2, ShoppingCart, Monitor } from 'lucide-react';
+import { CheckCircle, MapPin, Loader2, ShoppingCart, Monitor, Image, Lightbulb } from 'lucide-react';
 import { toast } from 'sonner';
 
 export const BillboardsPage = () => {
@@ -21,15 +21,26 @@ export const BillboardsPage = () => {
   const [billboards, setBillboards] = useState([]);
   const [loading, setLoading] = useState(true);
   
-  // LED Billboard Modal State
-  const [showLEDModal, setShowLEDModal] = useState(false);
+  // Generic Billboard Modal State
+  const [showModal, setShowModal] = useState(false);
+  const [modalType, setModalType] = useState(''); // 'led', 'static_banner', 'lightbox'
   const [selectedBillboard, setSelectedBillboard] = useState(null);
+  
+  // Shared states (used for all billboard types)
   const [states, setStates] = useState([]);
-  const [sizes, setSizes] = useState([]);
   const [selectedState, setSelectedState] = useState('');
   const [selectedRoad, setSelectedRoad] = useState('');
-  const [selectedSize, setSelectedSize] = useState('');
   const [availableRoads, setAvailableRoads] = useState([]);
+  
+  // LED-specific: Sizes
+  const [sizes, setSizes] = useState([]);
+  const [selectedSize, setSelectedSize] = useState('');
+  
+  // Static/Lightbox-specific: Types
+  const [billboardTypes, setBillboardTypes] = useState([]);
+  const [selectedType, setSelectedType] = useState('');
+  
+  // Packages
   const [packages, setPackages] = useState([]);
   const [loadingPackages, setLoadingPackages] = useState(false);
   const [showPackages, setShowPackages] = useState(false);
@@ -37,7 +48,7 @@ export const BillboardsPage = () => {
 
   useEffect(() => {
     fetchBillboards();
-    fetchLEDConfig();
+    fetchConfig();
   }, []);
 
   const fetchBillboards = async () => {
@@ -51,47 +62,54 @@ export const BillboardsPage = () => {
     }
   };
 
-  const fetchLEDConfig = async () => {
+  const fetchConfig = async () => {
     try {
-      const [statesRes, sizesRes] = await Promise.all([
+      const [statesRes, sizesRes, typesRes] = await Promise.all([
         api.get('/led-billboard/states'),
-        api.get('/led-billboard/sizes')
+        api.get('/led-billboard/sizes'),
+        api.get('/billboard-types')
       ]);
       setStates(statesRes.data);
       setSizes(sizesRes.data);
+      setBillboardTypes(typesRes.data);
     } catch (error) {
-      console.error('Failed to load LED config:', error);
+      console.error('Failed to load billboard config:', error);
     }
+  };
+
+  const getBillboardCategory = (billboard) => {
+    const type = (billboard.billboard_type || billboard.type || '').toLowerCase();
+    if (type.includes('led') || type.includes('digital')) return 'led';
+    if (type.includes('lightbox') || type.includes('light box')) return 'lightbox';
+    return 'static_banner';
   };
 
   const handleViewPackagesClick = (billboard, e) => {
     e.preventDefault();
     e.stopPropagation();
     
-    const isLED = (billboard.billboard_type || billboard.type || '').toLowerCase().includes('led');
+    const category = getBillboardCategory(billboard);
     
-    if (isLED) {
-      setSelectedBillboard(billboard);
-      setShowLEDModal(true);
-      setShowPackages(false);
-      setSelectedState('');
-      setSelectedRoad('');
-      setSelectedSize('');
-      setAvailableRoads([]);
-      setPackages([]);
-    } else {
-      // For non-LED billboards, navigate to detail page
-      navigate(`/billboards/${billboard.id}`);
-    }
+    setSelectedBillboard(billboard);
+    setModalType(category);
+    setShowModal(true);
+    setShowPackages(false);
+    setSelectedState('');
+    setSelectedRoad('');
+    setSelectedSize('');
+    setSelectedType('');
+    setAvailableRoads([]);
+    setPackages([]);
   };
 
   const handleStateChange = (stateId) => {
     setSelectedState(stateId);
     setSelectedRoad('');
+    setSelectedSize('');
+    setSelectedType('');
     setShowPackages(false);
     setPackages([]);
     
-    // Find state and get its roads
     const state = states.find(s => s.id === stateId);
     if (state) {
       setAvailableRoads(state.roads || []);
@@ -102,6 +120,8 @@ export const BillboardsPage = () => {
 
   const handleRoadChange = (roadName) => {
     setSelectedRoad(roadName);
+    setSelectedSize('');
+    setSelectedType('');
     setShowPackages(false);
     setPackages([]);
   };
@@ -112,21 +132,51 @@ export const BillboardsPage = () => {
     setPackages([]);
   };
 
+  const handleTypeChange = (typeId) => {
+    setSelectedType(typeId);
+    setShowPackages(false);
+    setPackages([]);
+  };
+
   const handleViewPackages = async () => {
-    if (!selectedState || !selectedRoad || !selectedSize) {
-      toast.error('Please select state, road, and size');
+    if (!selectedState || !selectedRoad) {
+      toast.error('Please select state and road');
+      return;
+    }
+    
+    if (modalType === 'led' && !selectedSize) {
+      toast.error('Please select LED size');
+      return;
+    }
+    
+    if ((modalType === 'static_banner' || modalType === 'lightbox') && !selectedType) {
+      toast.error('Please select billboard type');
       return;
     }
 
     setLoadingPackages(true);
     try {
-      const response = await api.get('/led-billboard/packages', {
-        params: {
-          state_id: selectedState,
-          road_name: selectedRoad,
-          size_id: selectedSize
-        }
-      });
+      let response;
+      
+      if (modalType === 'led') {
+        response = await api.get('/led-billboard/packages', {
+          params: {
+            state_id: selectedState,
+            road_name: selectedRoad,
+            size_id: selectedSize
+          }
+        });
+      } else {
+        response = await api.get('/static-billboard/packages', {
+          params: {
+            category: modalType,
+            state_id: selectedState,
+            road_name: selectedRoad,
+            type_id: selectedType
+          }
+        });
+      }
+      
       setPackages(response.data);
       setShowPackages(true);
       
@@ -148,34 +198,75 @@ export const BillboardsPage = () => {
     }
 
     const state = states.find(s => s.id === selectedState);
-    const size = sizes.find(s => s.id === selectedSize);
+    const size = modalType === 'led' ? sizes.find(s => s.id === selectedSize) : null;
+    const type = (modalType === 'static_banner' || modalType === 'lightbox') 
+      ? billboardTypes.find(t => t.id === selectedType) 
+      : null;
+
+    const listingTypeMap = {
+      'led': 'led_billboard',
+      'static_banner': 'static_banner',
+      'lightbox': 'lightbox'
+    };
 
     const cartItem = {
       id: pkg.id,
-      type: 'led_billboard',
-      listingType: 'led_billboard',  // For order creation
-      listingId: pkg.id,  // Use package ID as listing ID
-      influencerId: pkg.id,  // For compatibility with PlaceOrderPage
-      listingName: `LED Billboard - ${state?.name || ''}, ${selectedRoad}`,
+      type: modalType,
+      listingType: listingTypeMap[modalType],
+      listingId: pkg.id,
+      influencerId: pkg.id,
+      listingName: `${getModalTitle()} - ${state?.name || ''}, ${selectedRoad}`,
       packageId: pkg.id,
       packageTitle: pkg.title,
       price: pkg.price,
       duration: pkg.duration,
       deliverables: pkg.deliverables || [],
-      turnaround: pkg.duration,  // For compatibility
+      turnaround: pkg.duration,
       image_url: pkg.image_url || selectedBillboard?.image_url,
       location: `${state?.name}, ${selectedRoad}`,
       size: size?.name,
-      // Additional metadata for order
+      billboard_type: type?.name,
       state_name: state?.name,
       road_name: selectedRoad,
       size_name: size?.name,
+      type_name: type?.name,
     };
 
     addItem(cartItem);
     setAddedPackages(prev => ({ ...prev, [pkg.id]: true }));
     toast.success('Added to cart!');
   };
+
+  const getModalTitle = () => {
+    switch (modalType) {
+      case 'led': return 'LED Billboard';
+      case 'static_banner': return 'Static Banner Billboard';
+      case 'lightbox': return 'Lightbox Billboard';
+      default: return 'Billboard';
+    }
+  };
+
+  const getModalIcon = () => {
+    switch (modalType) {
+      case 'led': return <Monitor className="h-6 w-6 text-accent" />;
+      case 'static_banner': return <Image className="h-6 w-6 text-accent" />;
+      case 'lightbox': return <Lightbulb className="h-6 w-6 text-accent" />;
+      default: return <Monitor className="h-6 w-6 text-accent" />;
+    }
+  };
+
+  const getCardIcon = (billboard) => {
+    const category = getBillboardCategory(billboard);
+    switch (category) {
+      case 'led': return <Monitor className="h-4 w-4 mr-2" />;
+      case 'static_banner': return <Image className="h-4 w-4 mr-2" />;
+      case 'lightbox': return <Lightbulb className="h-4 w-4 mr-2" />;
+      default: return null;
+    }
+  };
+
+  // Filter types based on current modal type
+  const filteredTypes = billboardTypes.filter(t => t.billboard_category === modalType);
 
   return (
     <div className="min-h-screen bg-background" data-testid="billboards-page">
@@ -191,7 +282,7 @@ export const BillboardsPage = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="text-center mb-12">
           <h2 className="text-3xl font-bold text-foreground mb-3">Choose Your Billboard Type</h2>
-          <p className="text-lg text-muted-foreground">Select from our three billboard categories</p>
+          <p className="text-lg text-muted-foreground">Select from our billboard categories</p>
         </div>
 
         {loading ? (
@@ -205,81 +296,76 @@ export const BillboardsPage = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {billboards.map((billboard) => {
-              const isLED = (billboard.billboard_type || billboard.type || '').toLowerCase().includes('led');
-              
-              return (
-                <div key={billboard.id}>
-                  <Card
-                    className="group hover:shadow-2xl hover:-translate-y-2 h-full border-2 transition-all duration-300 cursor-pointer"
-                    data-testid={`billboard-card-${billboard.id}`}
-                    onClick={() => !isLED && navigate(`/billboards/${billboard.id}`)}
-                  >
-                    <CardContent className="p-0">
-                      <div className="relative h-64 overflow-hidden rounded-t-lg">
-                        {billboard.image_url && (
-                          <img
-                            src={billboard.image_url}
-                            alt={billboard.location_name}
-                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                          />
-                        )}
-                        {billboard.verified && (
-                          <Badge className="absolute top-3 right-3 bg-white/90 text-primary border-0">
-                            <CheckCircle className="h-3 w-3 mr-1" />
-                            {t('common.verified', language)}
-                          </Badge>
-                        )}
-                        <Badge className="absolute top-3 left-3 bg-accent text-white border-0 font-semibold">
-                          {billboard.billboard_type}
+            {billboards.map((billboard) => (
+              <div key={billboard.id}>
+                <Card
+                  className="group hover:shadow-2xl hover:-translate-y-2 h-full border-2 transition-all duration-300 cursor-pointer"
+                  data-testid={`billboard-card-${billboard.id}`}
+                >
+                  <CardContent className="p-0">
+                    <div className="relative h-64 overflow-hidden rounded-t-lg">
+                      {billboard.image_url && (
+                        <img
+                          src={billboard.image_url}
+                          alt={billboard.location_name}
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                        />
+                      )}
+                      {billboard.verified && (
+                        <Badge className="absolute top-3 right-3 bg-white/90 text-primary border-0">
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          {t('common.verified', language)}
                         </Badge>
+                      )}
+                      <Badge className="absolute top-3 left-3 bg-accent text-white border-0 font-semibold">
+                        {billboard.billboard_type}
+                      </Badge>
+                    </div>
+                    <div className="p-6 space-y-4">
+                      <div>
+                        <h3 className="text-2xl font-bold text-foreground mb-2">{billboard.location_name}</h3>
+                        <p className="text-sm text-muted-foreground">{billboard.description}</p>
                       </div>
-                      <div className="p-6 space-y-4">
+                      
+                      <div className="flex items-center justify-between text-sm pt-3 border-t">
                         <div>
-                          <h3 className="text-2xl font-bold text-foreground mb-2">{billboard.location_name}</h3>
-                          <p className="text-sm text-muted-foreground">{billboard.description}</p>
+                          <p className="text-xs text-muted-foreground">Avg. Daily Traffic</p>
+                          <p className="text-lg font-semibold text-foreground">{formatNumber(billboard.traffic_daily)}</p>
                         </div>
-                        
-                        <div className="flex items-center justify-between text-sm pt-3 border-t">
-                          <div>
-                            <p className="text-xs text-muted-foreground">Avg. Daily Traffic</p>
-                            <p className="text-lg font-semibold text-foreground">{formatNumber(billboard.traffic_daily)}</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-xs text-muted-foreground">{t('common.starting', language)}</p>
-                            <p className="text-2xl font-bold text-primary">{formatPrice(billboard.price_monthly)}</p>
-                            <p className="text-xs text-muted-foreground">{t('common.permonth', language)}</p>
-                          </div>
+                        <div className="text-right">
+                          <p className="text-xs text-muted-foreground">{t('common.starting', language)}</p>
+                          <p className="text-2xl font-bold text-primary">{formatPrice(billboard.price_monthly)}</p>
+                          <p className="text-xs text-muted-foreground">{t('common.permonth', language)}</p>
                         </div>
-
-                        <Button 
-                          className="w-full bg-accent hover:bg-accent/90 text-white font-semibold mt-4"
-                          data-testid={`view-packages-${billboard.id}`}
-                          onClick={(e) => handleViewPackagesClick(billboard, e)}
-                        >
-                          {isLED && <Monitor className="h-4 w-4 mr-2" />}
-                          View Packages & Book
-                        </Button>
                       </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              );
-            })}
+
+                      <Button 
+                        className="w-full bg-accent hover:bg-accent/90 text-white font-semibold mt-4"
+                        data-testid={`view-packages-${billboard.id}`}
+                        onClick={(e) => handleViewPackagesClick(billboard, e)}
+                      >
+                        {getCardIcon(billboard)}
+                        View Packages & Book
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            ))}
           </div>
         )}
       </div>
 
-      {/* LED Billboard Selection Modal */}
-      <Dialog open={showLEDModal} onOpenChange={setShowLEDModal}>
+      {/* Billboard Selection Modal - Unified for all types */}
+      <Dialog open={showModal} onOpenChange={setShowModal}>
         <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-2xl flex items-center gap-2">
-              <Monitor className="h-6 w-6 text-accent" />
-              LED Billboard Selection
+              {getModalIcon()}
+              {getModalTitle()} Selection
             </DialogTitle>
             <DialogDescription>
-              Select your preferred state, road, and billboard size to view available packages
+              Select your preferred {modalType === 'led' ? 'state, road, and size' : 'state, road, and type'} to view available packages
             </DialogDescription>
           </DialogHeader>
 
@@ -290,7 +376,7 @@ export const BillboardsPage = () => {
                 1. Select State <span className="text-red-500">*</span>
               </Label>
               <Select value={selectedState} onValueChange={handleStateChange}>
-                <SelectTrigger id="state-select" data-testid="led-state-select">
+                <SelectTrigger id="state-select" data-testid="billboard-state-select">
                   <SelectValue placeholder="Choose a state..." />
                 </SelectTrigger>
                 <SelectContent>
@@ -316,7 +402,7 @@ export const BillboardsPage = () => {
                 onValueChange={handleRoadChange}
                 disabled={!selectedState || availableRoads.length === 0}
               >
-                <SelectTrigger id="road-select" data-testid="led-road-select">
+                <SelectTrigger id="road-select" data-testid="billboard-road-select">
                   <SelectValue placeholder={selectedState ? "Choose a road..." : "Select a state first"} />
                 </SelectTrigger>
                 <SelectContent>
@@ -337,39 +423,76 @@ export const BillboardsPage = () => {
               )}
             </div>
 
-            {/* Size Selection */}
-            <div className="space-y-2">
-              <Label htmlFor="size-select" className="text-base font-semibold">
-                3. Select LED Size <span className="text-red-500">*</span>
-              </Label>
-              <Select value={selectedSize} onValueChange={handleSizeChange}>
-                <SelectTrigger id="size-select" data-testid="led-size-select">
-                  <SelectValue placeholder="Choose a size..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {sizes.map((size) => (
-                    <SelectItem key={size.id} value={size.id}>
-                      <div className="flex flex-col">
-                        <span>{size.name}</span>
-                        {size.description && (
-                          <span className="text-xs text-muted-foreground">{size.description}</span>
-                        )}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {sizes.length === 0 && (
-                <p className="text-sm text-muted-foreground">No sizes available. Please contact admin.</p>
-              )}
-            </div>
+            {/* Size Selection (LED only) */}
+            {modalType === 'led' && (
+              <div className="space-y-2">
+                <Label htmlFor="size-select" className="text-base font-semibold">
+                  3. Select LED Size <span className="text-red-500">*</span>
+                </Label>
+                <Select value={selectedSize} onValueChange={handleSizeChange}>
+                  <SelectTrigger id="size-select" data-testid="billboard-size-select">
+                    <SelectValue placeholder="Choose a size..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sizes.map((size) => (
+                      <SelectItem key={size.id} value={size.id}>
+                        <div className="flex flex-col">
+                          <span>{size.name}</span>
+                          {size.description && (
+                            <span className="text-xs text-muted-foreground">{size.description}</span>
+                          )}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {sizes.length === 0 && (
+                  <p className="text-sm text-muted-foreground">No sizes available. Please contact admin.</p>
+                )}
+              </div>
+            )}
+
+            {/* Type Selection (Static Banner & Lightbox) */}
+            {(modalType === 'static_banner' || modalType === 'lightbox') && (
+              <div className="space-y-2">
+                <Label htmlFor="type-select" className="text-base font-semibold">
+                  3. Select Billboard Type <span className="text-red-500">*</span>
+                </Label>
+                <Select value={selectedType} onValueChange={handleTypeChange}>
+                  <SelectTrigger id="type-select" data-testid="billboard-type-select">
+                    <SelectValue placeholder="Choose a type..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {filteredTypes.map((type) => (
+                      <SelectItem key={type.id} value={type.id}>
+                        <div className="flex flex-col">
+                          <span>{type.name}</span>
+                          {type.description && (
+                            <span className="text-xs text-muted-foreground">{type.description}</span>
+                          )}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {filteredTypes.length === 0 && (
+                  <p className="text-sm text-muted-foreground">No types available for {modalType === 'static_banner' ? 'Static Banner' : 'Lightbox'}. Please contact admin.</p>
+                )}
+              </div>
+            )}
 
             {/* View Packages Button */}
             <Button 
               className="w-full bg-accent hover:bg-accent/90 text-white font-semibold py-6 text-lg"
               onClick={handleViewPackages}
-              disabled={!selectedState || !selectedRoad || !selectedSize || loadingPackages}
-              data-testid="view-led-packages-btn"
+              disabled={
+                !selectedState || 
+                !selectedRoad || 
+                (modalType === 'led' && !selectedSize) ||
+                ((modalType === 'static_banner' || modalType === 'lightbox') && !selectedType) ||
+                loadingPackages
+              }
+              data-testid="view-packages-btn"
             >
               {loadingPackages ? (
                 <>
@@ -388,9 +511,9 @@ export const BillboardsPage = () => {
                 
                 {packages.length === 0 ? (
                   <div className="text-center py-8 bg-muted/30 rounded-lg">
-                    <Monitor className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
-                    <p className="text-muted-foreground">No packages found for this combination.</p>
-                    <p className="text-sm text-muted-foreground">Try a different state, road, or size.</p>
+                    {getModalIcon()}
+                    <p className="text-muted-foreground mt-3">No packages found for this combination.</p>
+                    <p className="text-sm text-muted-foreground">Try a different state, road, or {modalType === 'led' ? 'size' : 'type'}.</p>
                   </div>
                 ) : (
                   <div className="grid gap-4">

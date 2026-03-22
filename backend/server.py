@@ -270,6 +270,50 @@ class LEDBillboardPackage(BaseModel):
     status: str = "active"
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+# Static Banner & Lightbox Billboard Models
+class BillboardTypeCreate(BaseModel):
+    name: str  # e.g., "Standard", "Premium", "Illuminated"
+    description: Optional[str] = None
+    billboard_category: str  # "static_banner" or "lightbox"
+
+class BillboardType(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    description: Optional[str] = None
+    billboard_category: str  # "static_banner" or "lightbox"
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class StaticBillboardPackageCreate(BaseModel):
+    billboard_category: str  # "static_banner" or "lightbox"
+    state_id: str
+    road_name: str
+    type_id: str
+    title: str
+    description: str
+    price: float
+    duration: str
+    deliverables: List[str] = []
+    image_url: Optional[str] = None
+
+class StaticBillboardPackage(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    billboard_category: str  # "static_banner" or "lightbox"
+    state_id: str
+    state_name: Optional[str] = None
+    road_name: str
+    type_id: str
+    type_name: Optional[str] = None
+    title: str
+    description: str
+    price: float
+    duration: str
+    deliverables: List[str] = []
+    image_url: Optional[str] = None
+    status: str = "active"
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
 # Order Models
 class OrderCreate(BaseModel):
     listing_type: str  # influencer, billboard, digital_ad, kannywood
@@ -1061,6 +1105,150 @@ async def delete_led_billboard_package(package_id: str, current_user: User = Dep
     
     return {"status": "success", "message": "Package deleted"}
 
+# Static Banner & Lightbox Billboard Routes
+
+@api_router.get("/billboard-types")
+async def get_billboard_types(category: Optional[str] = None):
+    """Get billboard types (for Static Banner and Lightbox)"""
+    query = {}
+    if category:
+        query["billboard_category"] = category
+    types = await db.billboard_types.find(query, {"_id": 0}).to_list(100)
+    return types
+
+@api_router.post("/billboard-types", response_model=BillboardType)
+async def create_billboard_type(data: BillboardTypeCreate, current_user: User = Depends(get_current_user)):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Check if type already exists for this category
+    existing = await db.billboard_types.find_one({
+        "name": {"$regex": f"^{data.name}$", "$options": "i"},
+        "billboard_category": data.billboard_category
+    })
+    if existing:
+        raise HTTPException(status_code=400, detail="Type already exists for this category")
+    
+    billboard_type = BillboardType(**data.model_dump())
+    doc = billboard_type.model_dump()
+    doc['created_at'] = doc['created_at'].isoformat()
+    
+    await db.billboard_types.insert_one(doc)
+    return billboard_type
+
+@api_router.put("/billboard-types/{type_id}")
+async def update_billboard_type(type_id: str, data: BillboardTypeCreate, current_user: User = Depends(get_current_user)):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    result = await db.billboard_types.update_one(
+        {"id": type_id},
+        {"$set": {"name": data.name, "description": data.description, "billboard_category": data.billboard_category}}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Type not found")
+    
+    # Update type_name in existing packages
+    await db.static_billboard_packages.update_many(
+        {"type_id": type_id},
+        {"$set": {"type_name": data.name}}
+    )
+    
+    return {"status": "success", "message": "Type updated"}
+
+@api_router.delete("/billboard-types/{type_id}")
+async def delete_billboard_type(type_id: str, current_user: User = Depends(get_current_user)):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    result = await db.billboard_types.delete_one({"id": type_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Type not found")
+    
+    return {"status": "success", "message": "Type deleted"}
+
+@api_router.get("/static-billboard/packages")
+async def get_static_billboard_packages(
+    category: Optional[str] = None,
+    state_id: Optional[str] = None,
+    road_name: Optional[str] = None,
+    type_id: Optional[str] = None
+):
+    """Get Static Banner or Lightbox billboard packages with optional filters"""
+    query = {"status": "active"}
+    
+    if category:
+        query["billboard_category"] = category
+    if state_id:
+        query["state_id"] = state_id
+    if road_name:
+        query["road_name"] = {"$regex": road_name, "$options": "i"}
+    if type_id:
+        query["type_id"] = type_id
+    
+    packages = await db.static_billboard_packages.find(query, {"_id": 0}).to_list(100)
+    return packages
+
+@api_router.post("/static-billboard/packages", response_model=StaticBillboardPackage)
+async def create_static_billboard_package(data: StaticBillboardPackageCreate, current_user: User = Depends(get_current_user)):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Get state and type names for denormalization
+    state = await db.billboard_states.find_one({"id": data.state_id}, {"_id": 0, "name": 1})
+    billboard_type = await db.billboard_types.find_one({"id": data.type_id}, {"_id": 0, "name": 1})
+    
+    if not state:
+        raise HTTPException(status_code=400, detail="Invalid state ID")
+    if not billboard_type:
+        raise HTTPException(status_code=400, detail="Invalid type ID")
+    
+    package = StaticBillboardPackage(
+        state_name=state["name"],
+        type_name=billboard_type["name"],
+        **data.model_dump()
+    )
+    doc = package.model_dump()
+    doc['created_at'] = doc['created_at'].isoformat()
+    
+    await db.static_billboard_packages.insert_one(doc)
+    return package
+
+@api_router.put("/static-billboard/packages/{package_id}")
+async def update_static_billboard_package(package_id: str, data: StaticBillboardPackageCreate, current_user: User = Depends(get_current_user)):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Get state and type names
+    state = await db.billboard_states.find_one({"id": data.state_id}, {"_id": 0, "name": 1})
+    billboard_type = await db.billboard_types.find_one({"id": data.type_id}, {"_id": 0, "name": 1})
+    
+    update_data = data.model_dump()
+    update_data["state_name"] = state["name"] if state else None
+    update_data["type_name"] = billboard_type["name"] if billboard_type else None
+    
+    result = await db.static_billboard_packages.update_one(
+        {"id": package_id},
+        {"$set": update_data}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Package not found")
+    
+    return {"status": "success", "message": "Package updated"}
+
+@api_router.delete("/static-billboard/packages/{package_id}")
+async def delete_static_billboard_package(package_id: str, current_user: User = Depends(get_current_user)):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    result = await db.static_billboard_packages.delete_one({"id": package_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Package not found")
+    
+    return {"status": "success", "message": "Package deleted"}
+
 # Digital Ad Service Routes
 @api_router.post("/digital-ads", response_model=DigitalAdService)
 async def create_digital_ad_service(data: DigitalAdServiceCreate, current_user: User = Depends(get_current_user)):
@@ -1211,9 +1399,9 @@ async def create_order(data: OrderCreate, current_user: User = Depends(get_curre
     # Normalize listing_type
     listing_type = data.listing_type
     
-    # Handle digital-ad and led_billboard types specially - these are platform-managed services
-    if listing_type in ["digital-ad", "led_billboard"]:
-        # Digital ads and LED billboards are managed by Lightban platform, use a default supplier
+    # Handle platform-managed services (no listing lookup required)
+    if listing_type in ["digital-ad", "led_billboard", "static_banner", "lightbox"]:
+        # These are managed by Lightban platform, use a default supplier
         supplier_id = "lightban-platform"
     else:
         if listing_type not in collection_map:

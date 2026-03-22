@@ -42,7 +42,9 @@ import {
   BarChart3,
   AlertCircle,
   Search,
-  X
+  X,
+  Image,
+  Lightbulb
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -619,6 +621,424 @@ const LEDConfigTab = ({ states, sizes, packages, onRefresh }) => {
   );
 };
 
+// Static/Lightbox Billboard Config Tab Component
+const StaticBillboardConfigTab = ({ states, billboardTypes, staticPackages, onRefresh }) => {
+  const [activeSection, setActiveSection] = useState('types');
+  const [selectedCategory, setSelectedCategory] = useState('static_banner'); // 'static_banner' or 'lightbox'
+  const [showModal, setShowModal] = useState(false);
+  const [modalType, setModalType] = useState(''); // 'type', 'package'
+  const [modalMode, setModalMode] = useState('create');
+  const [formData, setFormData] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [newDeliverable, setNewDeliverable] = useState('');
+
+  const filteredTypes = billboardTypes.filter(t => t.billboard_category === selectedCategory);
+  const filteredPackages = staticPackages.filter(p => p.billboard_category === selectedCategory);
+
+  const openCreateModal = (type) => {
+    setModalType(type);
+    setModalMode('create');
+    if (type === 'type') {
+      setFormData({ name: '', description: '', billboard_category: selectedCategory });
+    } else if (type === 'package') {
+      setFormData({ billboard_category: selectedCategory, state_id: '', road_name: '', type_id: '', title: '', description: '', price: '', duration: '', deliverables: [], image_url: '' });
+    }
+    setShowModal(true);
+  };
+
+  const openEditModal = (type, item) => {
+    setModalType(type);
+    setModalMode('edit');
+    setFormData({ ...item });
+    setShowModal(true);
+  };
+
+  const addDeliverable = () => {
+    if (!newDeliverable.trim()) return;
+    setFormData(prev => ({
+      ...prev,
+      deliverables: [...(prev.deliverables || []), newDeliverable.trim()]
+    }));
+    setNewDeliverable('');
+  };
+
+  const removeDeliverable = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      deliverables: prev.deliverables.filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      let endpoint = '';
+      let data = { ...formData };
+
+      if (modalType === 'type') {
+        endpoint = modalMode === 'create' ? '/billboard-types' : `/billboard-types/${formData.id}`;
+        data.billboard_category = selectedCategory;
+      } else if (modalType === 'package') {
+        endpoint = modalMode === 'create' ? '/static-billboard/packages' : `/static-billboard/packages/${formData.id}`;
+        data.price = parseFloat(data.price) || 0;
+        data.billboard_category = selectedCategory;
+      }
+
+      if (modalMode === 'create') {
+        await api.post(endpoint, data);
+        toast.success(`${modalType} created successfully`);
+      } else {
+        await api.put(endpoint, data);
+        toast.success(`${modalType} updated successfully`);
+      }
+
+      setShowModal(false);
+      onRefresh();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || `Failed to save ${modalType}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (type, id) => {
+    if (!confirm(`Are you sure you want to delete this ${type}?`)) return;
+
+    try {
+      if (type === 'type') {
+        await api.delete(`/billboard-types/${id}`);
+      } else {
+        await api.delete(`/static-billboard/packages/${id}`);
+      }
+      toast.success(`${type} deleted successfully`);
+      onRefresh();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || `Failed to delete ${type}`);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Category Toggle */}
+      <div className="flex gap-4 p-4 bg-muted/30 rounded-lg">
+        <Button 
+          variant={selectedCategory === 'static_banner' ? 'default' : 'outline'}
+          onClick={() => setSelectedCategory('static_banner')}
+          className={selectedCategory === 'static_banner' ? 'bg-accent' : ''}
+        >
+          <Image className="h-4 w-4 mr-2" /> Static Banner
+        </Button>
+        <Button 
+          variant={selectedCategory === 'lightbox' ? 'default' : 'outline'}
+          onClick={() => setSelectedCategory('lightbox')}
+          className={selectedCategory === 'lightbox' ? 'bg-accent' : ''}
+        >
+          <Lightbulb className="h-4 w-4 mr-2" /> Lightbox
+        </Button>
+      </div>
+
+      {/* Section Tabs */}
+      <div className="flex gap-2 flex-wrap">
+        <Button 
+          variant={activeSection === 'types' ? 'default' : 'outline'}
+          onClick={() => setActiveSection('types')}
+          className={activeSection === 'types' ? 'bg-primary' : ''}
+        >
+          Billboard Types ({filteredTypes.length})
+        </Button>
+        <Button 
+          variant={activeSection === 'packages' ? 'default' : 'outline'}
+          onClick={() => setActiveSection('packages')}
+          className={activeSection === 'packages' ? 'bg-primary' : ''}
+        >
+          <Package className="h-4 w-4 mr-2" /> Packages ({filteredPackages.length})
+        </Button>
+      </div>
+
+      {/* Types Section */}
+      {activeSection === 'types' && (
+        <Card className="border-2">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>
+              {selectedCategory === 'static_banner' ? 'Static Banner' : 'Lightbox'} Types
+            </CardTitle>
+            <Button onClick={() => openCreateModal('type')} className="bg-accent hover:bg-accent/90">
+              <Plus className="h-4 w-4 mr-2" /> Add Type
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {filteredTypes.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Image className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                <p>No types configured yet for {selectedCategory === 'static_banner' ? 'Static Banner' : 'Lightbox'}.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left py-3 px-2 text-sm font-semibold">Type Name</th>
+                      <th className="text-left py-3 px-2 text-sm font-semibold">Description</th>
+                      <th className="text-center py-3 px-2 text-sm font-semibold">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredTypes.map((type) => (
+                      <tr key={type.id} className="border-b hover:bg-muted/30">
+                        <td className="py-3 px-2 font-medium">{type.name}</td>
+                        <td className="py-3 px-2 text-sm text-muted-foreground">{type.description || '-'}</td>
+                        <td className="py-3 px-2">
+                          <div className="flex items-center justify-center gap-1">
+                            <Button variant="ghost" size="sm" onClick={() => openEditModal('type', type)}>
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="sm" className="text-red-500" onClick={() => handleDelete('type', type.id)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Packages Section */}
+      {activeSection === 'packages' && (
+        <Card className="border-2">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>
+              {selectedCategory === 'static_banner' ? 'Static Banner' : 'Lightbox'} Packages
+            </CardTitle>
+            <Button onClick={() => openCreateModal('package')} className="bg-accent hover:bg-accent/90">
+              <Plus className="h-4 w-4 mr-2" /> Add Package
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {filteredPackages.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Package className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                <p>No packages configured yet. Create packages for state + road + type combinations.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left py-3 px-2 text-sm font-semibold">Title</th>
+                      <th className="text-left py-3 px-2 text-sm font-semibold">State</th>
+                      <th className="text-left py-3 px-2 text-sm font-semibold">Road</th>
+                      <th className="text-left py-3 px-2 text-sm font-semibold">Type</th>
+                      <th className="text-left py-3 px-2 text-sm font-semibold">Price</th>
+                      <th className="text-left py-3 px-2 text-sm font-semibold">Duration</th>
+                      <th className="text-center py-3 px-2 text-sm font-semibold">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredPackages.map((pkg) => (
+                      <tr key={pkg.id} className="border-b hover:bg-muted/30">
+                        <td className="py-3 px-2 font-medium">{pkg.title}</td>
+                        <td className="py-3 px-2 text-sm">{pkg.state_name}</td>
+                        <td className="py-3 px-2 text-sm">{pkg.road_name}</td>
+                        <td className="py-3 px-2 text-sm">{pkg.type_name}</td>
+                        <td className="py-3 px-2 font-semibold">{formatPrice(pkg.price)}</td>
+                        <td className="py-3 px-2 text-sm">{pkg.duration}</td>
+                        <td className="py-3 px-2">
+                          <div className="flex items-center justify-center gap-1">
+                            <Button variant="ghost" size="sm" onClick={() => openEditModal('package', pkg)}>
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="sm" className="text-red-500" onClick={() => handleDelete('package', pkg.id)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Modal for Create/Edit */}
+      <Dialog open={showModal} onOpenChange={setShowModal}>
+        <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {modalMode === 'create' ? 'Add' : 'Edit'} {modalType === 'type' ? `${selectedCategory === 'static_banner' ? 'Static Banner' : 'Lightbox'} Type` : 'Package'}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {/* Type Form */}
+            {modalType === 'type' && (
+              <>
+                <div className="space-y-2">
+                  <Label>Type Name *</Label>
+                  <Input
+                    value={formData.name || ''}
+                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="e.g., Standard, Premium, Illuminated"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Description</Label>
+                  <Input
+                    value={formData.description || ''}
+                    onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                    placeholder="e.g., High-quality vinyl print"
+                  />
+                </div>
+              </>
+            )}
+
+            {/* Package Form */}
+            {modalType === 'package' && (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>State *</Label>
+                    <Select
+                      value={formData.state_id || ''}
+                      onValueChange={(v) => setFormData(prev => ({ ...prev, state_id: v, road_name: '' }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select state" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {states.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Road *</Label>
+                    <Select
+                      value={formData.road_name || ''}
+                      onValueChange={(v) => setFormData(prev => ({ ...prev, road_name: v }))}
+                      disabled={!formData.state_id}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select road" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(states.find(s => s.id === formData.state_id)?.roads || []).map((r, idx) => (
+                          <SelectItem key={idx} value={r.name}>{r.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Billboard Type *</Label>
+                  <Select
+                    value={formData.type_id || ''}
+                    onValueChange={(v) => setFormData(prev => ({ ...prev, type_id: v }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {filteredTypes.map((t) => (
+                        <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Package Title *</Label>
+                  <Input
+                    value={formData.title || ''}
+                    onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                    placeholder="e.g., Monthly Premium Package"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Description</Label>
+                  <Textarea
+                    value={formData.description || ''}
+                    onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                    placeholder="Package description..."
+                    rows={2}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Price (NGN) *</Label>
+                    <Input
+                      type="number"
+                      value={formData.price || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
+                      placeholder="0"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Duration *</Label>
+                    <Input
+                      value={formData.duration || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, duration: e.target.value }))}
+                      placeholder="e.g., 1 Month"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Deliverables</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={newDeliverable}
+                      onChange={(e) => setNewDeliverable(e.target.value)}
+                      placeholder="e.g., Professional installation"
+                      className="flex-1"
+                      onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addDeliverable())}
+                    />
+                    <Button type="button" onClick={addDeliverable} variant="outline" size="sm">
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {(formData.deliverables || []).map((d, idx) => (
+                      <Badge key={idx} variant="secondary" className="flex items-center gap-1">
+                        {d}
+                        <button onClick={() => removeDeliverable(idx)} className="ml-1 hover:text-red-500">
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Image URL</Label>
+                  <Input
+                    value={formData.image_url || ''}
+                    onChange={(e) => setFormData(prev => ({ ...prev, image_url: e.target.value }))}
+                    placeholder="https://..."
+                  />
+                </div>
+              </>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowModal(false)}>Cancel</Button>
+            <Button onClick={handleSave} disabled={saving} className="bg-accent hover:bg-accent/90">
+              {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              {modalMode === 'create' ? 'Create' : 'Save Changes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+
 export const AdminPanelPage = () => {
   const { user } = useAuthStore();
   const navigate = useNavigate();
@@ -640,6 +1060,10 @@ export const AdminPanelPage = () => {
   const [ledStates, setLedStates] = useState([]);
   const [ledSizes, setLedSizes] = useState([]);
   const [ledPackages, setLedPackages] = useState([]);
+  
+  // Static/Lightbox Config states
+  const [billboardTypes, setBillboardTypes] = useState([]);
+  const [staticPackages, setStaticPackages] = useState([]);
   
   // Modal states
   const [showModal, setShowModal] = useState(false);
@@ -743,7 +1167,9 @@ export const AdminPanelPage = () => {
         settingsRes,
         ledStatesRes,
         ledSizesRes,
-        ledPackagesRes
+        ledPackagesRes,
+        billboardTypesRes,
+        staticPackagesRes
       ] = await Promise.all([
         api.get('/admin/stats/summary'),
         api.get('/admin/orders'),
@@ -757,6 +1183,8 @@ export const AdminPanelPage = () => {
         api.get('/led-billboard/states').catch(() => ({ data: [] })),
         api.get('/led-billboard/sizes').catch(() => ({ data: [] })),
         api.get('/led-billboard/packages').catch(() => ({ data: [] })),
+        api.get('/billboard-types').catch(() => ({ data: [] })),
+        api.get('/static-billboard/packages').catch(() => ({ data: [] })),
       ]);
       
       setStats(statsRes.data);
@@ -771,6 +1199,8 @@ export const AdminPanelPage = () => {
       setLedStates(ledStatesRes.data || []);
       setLedSizes(ledSizesRes.data || []);
       setLedPackages(ledPackagesRes.data || []);
+      setBillboardTypes(billboardTypesRes.data || []);
+      setStaticPackages(staticPackagesRes.data || []);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast.error('Failed to load admin data');
@@ -1085,6 +1515,7 @@ export const AdminPanelPage = () => {
                 <TabsTrigger value="influencers" className="data-[state=active]:bg-white text-xs sm:text-sm">Influencers</TabsTrigger>
                 <TabsTrigger value="billboards" className="data-[state=active]:bg-white text-xs sm:text-sm">Billboards</TabsTrigger>
                 <TabsTrigger value="ledconfig" className="data-[state=active]:bg-white text-xs sm:text-sm">LED Config</TabsTrigger>
+                <TabsTrigger value="staticconfig" className="data-[state=active]:bg-white text-xs sm:text-sm">Static/Lightbox</TabsTrigger>
                 <TabsTrigger value="kannywood" className="data-[state=active]:bg-white text-xs sm:text-sm">Kannywood</TabsTrigger>
                 <TabsTrigger value="digitalads" className="data-[state=active]:bg-white text-xs sm:text-sm">Digital Ads</TabsTrigger>
                 <TabsTrigger value="consultations" className="data-[state=active]:bg-white text-xs sm:text-sm">Consultations</TabsTrigger>
@@ -1301,6 +1732,16 @@ export const AdminPanelPage = () => {
                   states={ledStates}
                   sizes={ledSizes}
                   packages={ledPackages}
+                  onRefresh={fetchAllData}
+                />
+              </TabsContent>
+
+              {/* Static/Lightbox Config Tab */}
+              <TabsContent value="staticconfig">
+                <StaticBillboardConfigTab
+                  states={ledStates}
+                  billboardTypes={billboardTypes}
+                  staticPackages={staticPackages}
                   onRefresh={fetchAllData}
                 />
               </TabsContent>
