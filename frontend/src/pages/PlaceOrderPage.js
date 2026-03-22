@@ -114,11 +114,12 @@ export const PlaceOrderPage = () => {
     setIsInitializingPayment(true);
     
     try {
-      const orderId = orderIds[0];
+      // Send ALL order IDs (comma-separated) to pay for the entire cart at once
+      const allOrderIds = orderIds.join(',');
       const callbackUrl = `${window.location.origin}/payment/callback`;
       
       const response = await api.post('/payments/initialize', {
-        order_id: orderId,
+        order_id: allOrderIds,  // All order IDs for combined payment
         email: user.email,
         callback_url: callbackUrl,
       });

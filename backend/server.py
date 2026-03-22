@@ -215,6 +215,61 @@ class KannywoodPlacement(BaseModel):
     image_url: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+# Billboard Location Models (States, Roads, Sizes, Packages)
+class BillboardRoad(BaseModel):
+    name: str
+    description: Optional[str] = None
+
+class BillboardStateCreate(BaseModel):
+    name: str
+    roads: List[BillboardRoad] = []
+
+class BillboardState(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    roads: List[BillboardRoad] = []
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class BillboardSizeCreate(BaseModel):
+    name: str  # e.g., "40ft x 12ft"
+    description: Optional[str] = None
+
+class BillboardSize(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    description: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class LEDBillboardPackageCreate(BaseModel):
+    state_id: str
+    road_name: str
+    size_id: str
+    title: str
+    description: str
+    price: float
+    duration: str  # e.g., "1 Month", "1 Week", "1 Day"
+    deliverables: List[str] = []
+    image_url: Optional[str] = None
+
+class LEDBillboardPackage(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    state_id: str
+    state_name: Optional[str] = None
+    road_name: str
+    size_id: str
+    size_name: Optional[str] = None
+    title: str
+    description: str
+    price: float
+    duration: str
+    deliverables: List[str] = []
+    image_url: Optional[str] = None
+    status: str = "active"
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
 # Order Models
 class OrderCreate(BaseModel):
     listing_type: str  # influencer, billboard, digital_ad, kannywood
@@ -816,6 +871,196 @@ async def get_billboard(billboard_id: str):
     
     return normalized_bb
 
+# LED Billboard Location Routes (States, Roads, Sizes, Packages)
+
+@api_router.get("/led-billboard/states")
+async def get_billboard_states():
+    """Get all states with their roads"""
+    states = await db.billboard_states.find({}, {"_id": 0}).to_list(100)
+    return states
+
+@api_router.post("/led-billboard/states", response_model=BillboardState)
+async def create_billboard_state(data: BillboardStateCreate, current_user: User = Depends(get_current_user)):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Check if state already exists
+    existing = await db.billboard_states.find_one({"name": {"$regex": f"^{data.name}$", "$options": "i"}})
+    if existing:
+        raise HTTPException(status_code=400, detail="State already exists")
+    
+    state = BillboardState(**data.model_dump())
+    doc = state.model_dump()
+    doc['created_at'] = doc['created_at'].isoformat()
+    
+    await db.billboard_states.insert_one(doc)
+    return state
+
+@api_router.put("/led-billboard/states/{state_id}")
+async def update_billboard_state(state_id: str, data: BillboardStateCreate, current_user: User = Depends(get_current_user)):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    result = await db.billboard_states.update_one(
+        {"id": state_id},
+        {"$set": {"name": data.name, "roads": [r.model_dump() for r in data.roads]}}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="State not found")
+    
+    # Update state_name in existing packages
+    await db.led_billboard_packages.update_many(
+        {"state_id": state_id},
+        {"$set": {"state_name": data.name}}
+    )
+    
+    return {"status": "success", "message": "State updated"}
+
+@api_router.delete("/led-billboard/states/{state_id}")
+async def delete_billboard_state(state_id: str, current_user: User = Depends(get_current_user)):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    result = await db.billboard_states.delete_one({"id": state_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="State not found")
+    
+    return {"status": "success", "message": "State deleted"}
+
+@api_router.get("/led-billboard/sizes")
+async def get_billboard_sizes():
+    """Get all LED billboard sizes"""
+    sizes = await db.billboard_sizes.find({}, {"_id": 0}).to_list(100)
+    return sizes
+
+@api_router.post("/led-billboard/sizes", response_model=BillboardSize)
+async def create_billboard_size(data: BillboardSizeCreate, current_user: User = Depends(get_current_user)):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Check if size already exists
+    existing = await db.billboard_sizes.find_one({"name": {"$regex": f"^{data.name}$", "$options": "i"}})
+    if existing:
+        raise HTTPException(status_code=400, detail="Size already exists")
+    
+    size = BillboardSize(**data.model_dump())
+    doc = size.model_dump()
+    doc['created_at'] = doc['created_at'].isoformat()
+    
+    await db.billboard_sizes.insert_one(doc)
+    return size
+
+@api_router.put("/led-billboard/sizes/{size_id}")
+async def update_billboard_size(size_id: str, data: BillboardSizeCreate, current_user: User = Depends(get_current_user)):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    result = await db.billboard_sizes.update_one(
+        {"id": size_id},
+        {"$set": {"name": data.name, "description": data.description}}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Size not found")
+    
+    # Update size_name in existing packages
+    await db.led_billboard_packages.update_many(
+        {"size_id": size_id},
+        {"$set": {"size_name": data.name}}
+    )
+    
+    return {"status": "success", "message": "Size updated"}
+
+@api_router.delete("/led-billboard/sizes/{size_id}")
+async def delete_billboard_size(size_id: str, current_user: User = Depends(get_current_user)):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    result = await db.billboard_sizes.delete_one({"id": size_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Size not found")
+    
+    return {"status": "success", "message": "Size deleted"}
+
+@api_router.get("/led-billboard/packages")
+async def get_led_billboard_packages(
+    state_id: Optional[str] = None,
+    road_name: Optional[str] = None,
+    size_id: Optional[str] = None
+):
+    """Get LED billboard packages with optional filters"""
+    query = {"status": "active"}
+    
+    if state_id:
+        query["state_id"] = state_id
+    if road_name:
+        query["road_name"] = {"$regex": road_name, "$options": "i"}
+    if size_id:
+        query["size_id"] = size_id
+    
+    packages = await db.led_billboard_packages.find(query, {"_id": 0}).to_list(100)
+    return packages
+
+@api_router.post("/led-billboard/packages", response_model=LEDBillboardPackage)
+async def create_led_billboard_package(data: LEDBillboardPackageCreate, current_user: User = Depends(get_current_user)):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Get state and size names for denormalization
+    state = await db.billboard_states.find_one({"id": data.state_id}, {"_id": 0, "name": 1})
+    size = await db.billboard_sizes.find_one({"id": data.size_id}, {"_id": 0, "name": 1})
+    
+    if not state:
+        raise HTTPException(status_code=400, detail="Invalid state ID")
+    if not size:
+        raise HTTPException(status_code=400, detail="Invalid size ID")
+    
+    package = LEDBillboardPackage(
+        state_name=state["name"],
+        size_name=size["name"],
+        **data.model_dump()
+    )
+    doc = package.model_dump()
+    doc['created_at'] = doc['created_at'].isoformat()
+    
+    await db.led_billboard_packages.insert_one(doc)
+    return package
+
+@api_router.put("/led-billboard/packages/{package_id}")
+async def update_led_billboard_package(package_id: str, data: LEDBillboardPackageCreate, current_user: User = Depends(get_current_user)):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Get state and size names
+    state = await db.billboard_states.find_one({"id": data.state_id}, {"_id": 0, "name": 1})
+    size = await db.billboard_sizes.find_one({"id": data.size_id}, {"_id": 0, "name": 1})
+    
+    update_data = data.model_dump()
+    update_data["state_name"] = state["name"] if state else None
+    update_data["size_name"] = size["name"] if size else None
+    
+    result = await db.led_billboard_packages.update_one(
+        {"id": package_id},
+        {"$set": update_data}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Package not found")
+    
+    return {"status": "success", "message": "Package updated"}
+
+@api_router.delete("/led-billboard/packages/{package_id}")
+async def delete_led_billboard_package(package_id: str, current_user: User = Depends(get_current_user)):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    result = await db.led_billboard_packages.delete_one({"id": package_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Package not found")
+    
+    return {"status": "success", "message": "Package deleted"}
+
 # Digital Ad Service Routes
 @api_router.post("/digital-ads", response_model=DigitalAdService)
 async def create_digital_ad_service(data: DigitalAdServiceCreate, current_user: User = Depends(get_current_user)):
@@ -1137,7 +1382,7 @@ async def update_order_status(order_id: str, data: OrderStatusUpdate, current_us
 
 # Paystack Payment Models
 class PaymentInitialize(BaseModel):
-    order_id: str
+    order_id: str  # Can be single order ID or comma-separated list of order IDs
     email: str
     callback_url: str
     amount: Optional[float] = None  # Optional for direct amount (consultations)
@@ -1223,17 +1468,25 @@ async def initialize_payment(data: PaymentInitialize, current_user: User = Depen
             raise HTTPException(status_code=500, detail=f"Payment service error: {str(e)}")
     
     else:
-        # Handle order payment (original logic)
-        order = await db.orders.find_one({"id": data.order_id}, {"_id": 0})
-        if not order:
-            raise HTTPException(status_code=404, detail="Order not found")
+        # Handle order payment - supports multiple orders (comma-separated IDs)
+        order_ids = [oid.strip() for oid in data.order_id.split(',')]
         
-        if order['advertiser_id'] != current_user.id:
-            raise HTTPException(status_code=403, detail="Not authorized to pay for this order")
+        # Fetch all orders
+        orders = []
+        total_amount = 0
+        for oid in order_ids:
+            order = await db.orders.find_one({"id": oid}, {"_id": 0})
+            if not order:
+                raise HTTPException(status_code=404, detail=f"Order not found: {oid}")
+            if order['advertiser_id'] != current_user.id:
+                raise HTTPException(status_code=403, detail=f"Not authorized to pay for order: {oid}")
+            orders.append(order)
+            total_amount += order['total_amount']
         
         # Convert to kobo (smallest unit)
-        amount_kobo = int(order['total_amount'] * 100)
-        reference = f"lightban_{data.order_id}_{uuid.uuid4().hex[:8]}"
+        amount_kobo = int(total_amount * 100)
+        # Use first order ID for reference but store all IDs in metadata
+        reference = f"lightban_{order_ids[0]}_{uuid.uuid4().hex[:8]}"
         
         try:
             async with httpx.AsyncClient() as client:
@@ -1249,13 +1502,20 @@ async def initialize_payment(data: PaymentInitialize, current_user: User = Depen
                         "reference": reference,
                         "callback_url": data.callback_url,
                         "metadata": {
-                            "order_id": data.order_id,
+                            "order_id": data.order_id,  # Store all order IDs (comma-separated)
+                            "order_ids": order_ids,  # Also store as array for easier processing
+                            "order_count": len(order_ids),
                             "user_id": current_user.id,
                             "custom_fields": [
                                 {
-                                    "display_name": "Order ID",
-                                    "variable_name": "order_id",
+                                    "display_name": "Order IDs",
+                                    "variable_name": "order_ids",
                                     "value": data.order_id
+                                },
+                                {
+                                    "display_name": "Total Items",
+                                    "variable_name": "order_count",
+                                    "value": str(len(order_ids))
                                 }
                             ]
                         }
@@ -1264,14 +1524,15 @@ async def initialize_payment(data: PaymentInitialize, current_user: User = Depen
                 result = response.json()
             
             if result.get("status"):
-                # Store payment reference
-                await db.orders.update_one(
-                    {"id": data.order_id},
-                    {"$set": {
-                        "payment_reference": reference,
-                        "updated_at": datetime.now(timezone.utc).isoformat()
-                    }}
-                )
+                # Store payment reference in ALL orders
+                for oid in order_ids:
+                    await db.orders.update_one(
+                        {"id": oid},
+                        {"$set": {
+                            "payment_reference": reference,
+                            "updated_at": datetime.now(timezone.utc).isoformat()
+                        }}
+                    )
                 
                 return {
                     "status": "success",
@@ -1322,24 +1583,34 @@ async def verify_payment(reference: str, current_user: User = Depends(get_curren
                         "amount": result["data"]["amount"] / 100
                     }
             
-            # Handle regular order payment
+            # Handle regular order payment - supports multiple orders
             order_id = metadata.get("order_id")
-            if order_id:
+            order_ids = metadata.get("order_ids", [])
+            
+            # If we have order_ids array, use it; otherwise parse comma-separated string
+            if not order_ids and order_id:
+                order_ids = [oid.strip() for oid in order_id.split(',')]
+            
+            # Update all orders
+            for oid in order_ids:
                 await db.orders.update_one(
-                    {"id": order_id},
+                    {"id": oid},
                     {"$set": {
                         "payment_status": "paid",
+                        "payment_method": "online",
                         "payment_reference": reference,
                         "payment_verified_at": datetime.now(timezone.utc).isoformat(),
                         "updated_at": datetime.now(timezone.utc).isoformat()
                     }}
                 )
-                logger.info(f"Order payment verified for {order_id}")
+                logger.info(f"Order payment verified for {oid}")
             
             return {
                 "status": "success",
                 "message": "Payment verified successfully",
                 "order_id": order_id,
+                "order_ids": order_ids,
+                "order_count": len(order_ids),
                 "amount": result["data"]["amount"] / 100  # Convert from kobo
             }
         
@@ -1389,19 +1660,27 @@ async def paystack_webhook(request: Request):
                 )
                 logger.info(f"Webhook: Payment successful for consultation {consultation_id}")
         else:
-            # Handle regular order payment
+            # Handle regular order payment - supports multiple orders
             order_id = metadata.get("order_id")
-            if order_id:
+            order_ids = metadata.get("order_ids", [])
+            
+            # If we have order_ids array, use it; otherwise parse comma-separated string
+            if not order_ids and order_id:
+                order_ids = [oid.strip() for oid in order_id.split(',')]
+            
+            # Update all orders
+            for oid in order_ids:
                 await db.orders.update_one(
-                    {"id": order_id},
+                    {"id": oid},
                     {"$set": {
                         "payment_status": "paid",
+                        "payment_method": "online",
                         "payment_reference": reference,
                         "payment_verified_at": datetime.now(timezone.utc).isoformat(),
                         "updated_at": datetime.now(timezone.utc).isoformat()
                     }}
                 )
-                logger.info(f"Webhook: Payment successful for order {order_id}")
+                logger.info(f"Webhook: Payment successful for order {oid}")
     
     return {"status": "ok"}
 
