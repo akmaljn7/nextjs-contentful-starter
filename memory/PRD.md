@@ -508,6 +508,23 @@ A conversion-focused, responsive marketplace website for "Lightban Ads Network" 
 - **Test Status**: Verified - 100% pass rate (16/16 backend tests, all frontend E2E flows verified)
 - **Test Report**: `/app/test_reports/iteration_14.json`
 
+### Enhancement: Searchable Dropdowns for Billboard Booking - IMPLEMENTED (March 2026)
+- **Request**: Add search functionality to State, Road, and Size/Type dropdowns in LED and Static/Lightbox billboard booking modals
+- **Implementation**:
+  1. **SearchableSelect Component** (`/components/ui/searchable-select.jsx`):
+     - Uses cmdk (Command) and Popover for dropdown with search
+     - Search input at top of dropdown filters options as user types
+     - Options display with label and optional description
+     - Supports disabled state and data-testid for testing
+  2. **BillboardsPage.js Updated**:
+     - State dropdown: "Search states..."
+     - Road dropdown: "Search roads..."
+     - LED Size dropdown: "Search sizes..."
+     - Static/Lightbox Type dropdown: "Search types..."
+  3. **All three billboard modals updated**: LED, Static Banner, Lightbox
+- **Test Status**: Verified - 100% pass rate (all searchable dropdown features verified)
+- **Test Report**: `/app/test_reports/iteration_15.json`
+
 ---
 
 ## Upcoming Tasks (P1-P2)
