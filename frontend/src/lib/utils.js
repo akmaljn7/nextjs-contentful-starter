@@ -17,6 +17,16 @@ export const formatDate = (date) => {
   });
 };
 
+export const formatDateTime = (date) => {
+  return new Date(date).toLocaleString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
 export const formatNumber = (num) => {
   if (num >= 1000000) {
     return `${(num / 1000000).toFixed(1)}M`;

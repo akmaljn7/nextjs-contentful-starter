@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '@/lib/store';
 import api from '@/lib/api';
-import { formatDate } from '@/lib/utils';
+import { formatDateTime } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -18,10 +18,12 @@ import {
   User,
   Clock,
   CheckCircle,
+  CheckCheck,
   Package,
   Calendar,
   ChevronRight,
-  Inbox
+  Inbox,
+  RefreshCw
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -38,7 +40,9 @@ export const MessagingCenterPage = () => {
   const [sending, setSending] = useState(false);
   const [newMessage, setNewMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
   const messagesEndRef = useRef(null);
+  const refreshIntervalRef = useRef(null);
 
   useEffect(() => {
     if (!user) {
@@ -52,6 +56,17 @@ export const MessagingCenterPage = () => {
     if (selectedId) {
       fetchMessages(selectedId);
       markAsRead(selectedId);
+      
+      // Auto-refresh messages every 3 seconds
+      refreshIntervalRef.current = setInterval(() => {
+        fetchMessagesQuiet(selectedId);
+      }, 3000);
+      
+      return () => {
+        if (refreshIntervalRef.current) {
+          clearInterval(refreshIntervalRef.current);
+        }
+      };
     }
   }, [selectedId]);
 
@@ -83,6 +98,41 @@ export const MessagingCenterPage = () => {
       toast.error('Failed to load messages');
     } finally {
       setMessagesLoading(false);
+    }
+  };
+
+  // Quiet fetch for auto-refresh (no loading state)
+  const fetchMessagesQuiet = async (orderId) => {
+    try {
+      const response = await api.get(`/messages/${orderId}`);
+      setMessages(prev => {
+        // Only update if there are new messages
+        if (JSON.stringify(prev) !== JSON.stringify(response.data)) {
+          return response.data;
+        }
+        return prev;
+      });
+    } catch (error) {
+      console.error('Auto-refresh failed:', error);
+    }
+  };
+
+  // Manual refresh with visual feedback
+  const handleRefresh = async () => {
+    if (!selectedId) return;
+    setRefreshing(true);
+    try {
+      const [messagesRes, convoRes] = await Promise.all([
+        api.get(`/messages/${selectedId}`),
+        api.get('/conversations')
+      ]);
+      setMessages(messagesRes.data);
+      setConversations(convoRes.data);
+      markAsRead(selectedId);
+    } catch (error) {
+      toast.error('Failed to refresh');
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -284,6 +334,16 @@ export const MessagingCenterPage = () => {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleRefresh}
+                        disabled={refreshing}
+                        className="gap-1"
+                        data-testid="refresh-messages-btn"
+                      >
+                        <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+                      </Button>
                       <Badge className={getStatusColor(selectedConversation.status)}>
                         {selectedConversation.status?.replace(/_/g, ' ')}
                       </Badge>
@@ -319,6 +379,8 @@ export const MessagingCenterPage = () => {
                       <div className="space-y-4">
                         {messages.map((message) => {
                           const isOwn = message.sender_id === user.id;
+                          const isAdmin = user.role === 'admin';
+                          const showReadReceipt = isOwn && isAdmin;
                           return (
                             <div
                               key={message.id}
@@ -335,17 +397,30 @@ export const MessagingCenterPage = () => {
                                   <span className={`text-xs font-medium ${
                                     isOwn ? 'text-white/80' : 'text-muted-foreground'
                                   }`}>
-                                    {isOwn ? 'You' : (message.sender_role === 'admin' ? 'Support' : 'Seller')}
+                                    {isOwn ? 'You' : (message.sender_role === 'admin' ? 'Support' : (isAdmin ? 'Customer' : 'Seller'))}
                                   </span>
                                 </div>
                                 <p className={`text-sm ${isOwn ? 'text-white' : 'text-foreground'}`}>
                                   {message.message}
                                 </p>
-                                <p className={`text-xs mt-1 ${
-                                  isOwn ? 'text-white/60' : 'text-muted-foreground'
+                                <div className={`flex items-center gap-1 mt-1 ${
+                                  isOwn ? 'justify-end' : ''
                                 }`}>
-                                  {formatDate(message.created_at)}
-                                </p>
+                                  <span className={`text-xs ${
+                                    isOwn ? 'text-white/60' : 'text-muted-foreground'
+                                  }`}>
+                                    {formatDateTime(message.created_at)}
+                                  </span>
+                                  {showReadReceipt && (
+                                    <span title={message.read ? 'Read' : 'Sent'}>
+                                      {message.read ? (
+                                        <CheckCheck className="h-3 w-3 text-blue-300" />
+                                      ) : (
+                                        <CheckCircle className="h-3 w-3 text-white/60" />
+                                      )}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           );

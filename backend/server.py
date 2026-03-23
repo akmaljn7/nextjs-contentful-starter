@@ -2510,11 +2510,28 @@ async def get_order_tracking(order_id: str, current_user: User = Depends(get_cur
                 "is_disputed": True
             })
         
+        # Get customer info for admin
+        customer_info = None
+        if current_user.role == "admin":
+            advertiser_id = order.get("advertiser_id")
+            if advertiser_id:
+                customer = await db.users.find_one({"id": advertiser_id}, {"_id": 0, "password": 0})
+                if customer:
+                    customer_info = {
+                        "id": customer.get("id"),
+                        "name": customer.get("name"),
+                        "email": customer.get("email"),
+                        "phone": customer.get("phone"),
+                        "company_name": customer.get("company_name"),
+                        "created_at": customer.get("created_at")
+                    }
+        
         return {
             "order": order,
             "listing_info": listing_info,
             "timeline": timeline,
-            "type": "order"
+            "type": "order",
+            "customer_info": customer_info
         }
     
     # Try as consultation
@@ -2551,6 +2568,22 @@ async def get_order_tracking(order_id: str, current_user: User = Depends(get_cur
             }
         ]
         
+        # Get customer info for admin
+        customer_info = None
+        if current_user.role == "admin":
+            user_id = consultation.get("user_id")
+            if user_id:
+                customer = await db.users.find_one({"id": user_id}, {"_id": 0, "password": 0})
+                if customer:
+                    customer_info = {
+                        "id": customer.get("id"),
+                        "name": customer.get("name"),
+                        "email": customer.get("email"),
+                        "phone": customer.get("phone"),
+                        "company_name": customer.get("company_name"),
+                        "created_at": customer.get("created_at")
+                    }
+        
         return {
             "order": consultation,
             "listing_info": {
@@ -2558,7 +2591,8 @@ async def get_order_tracking(order_id: str, current_user: User = Depends(get_cur
                 "business_name": consultation.get("business_name")
             },
             "timeline": timeline,
-            "type": "consultation"
+            "type": "consultation",
+            "customer_info": customer_info
         }
     
     raise HTTPException(status_code=404, detail="Order not found")

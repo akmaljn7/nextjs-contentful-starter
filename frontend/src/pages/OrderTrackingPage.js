@@ -141,8 +141,9 @@ export const OrderTrackingPage = () => {
     );
   }
 
-  const { order, listing_info, timeline, type } = tracking;
+  const { order, listing_info, timeline, type, customer_info } = tracking;
   const isConsultation = type === 'consultation';
+  const isAdmin = user?.role === 'admin';
 
   return (
     <div className="min-h-screen bg-background" data-testid="order-tracking-page">
@@ -232,6 +233,56 @@ export const OrderTrackingPage = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Customer Information Card (Admin Only) */}
+        {isAdmin && customer_info && (
+          <Card className="mb-6 border-blue-200 bg-blue-50/50">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <User className="h-5 w-5 text-blue-600" />
+                Customer Information
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Customer Name</p>
+                  <p className="font-medium">{customer_info.name || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Email</p>
+                  <div className="flex items-center gap-2">
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                    <a href={`mailto:${customer_info.email}`} className="font-medium text-accent hover:underline">
+                      {customer_info.email}
+                    </a>
+                  </div>
+                </div>
+                {customer_info.phone && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Phone</p>
+                    <div className="flex items-center gap-2">
+                      <Phone className="h-4 w-4 text-muted-foreground" />
+                      <a href={`tel:${customer_info.phone}`} className="font-medium text-accent hover:underline">
+                        {customer_info.phone}
+                      </a>
+                    </div>
+                  </div>
+                )}
+                {customer_info.company_name && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Company</p>
+                    <p className="font-medium">{customer_info.company_name}</p>
+                  </div>
+                )}
+                <div>
+                  <p className="text-sm text-muted-foreground">Customer Since</p>
+                  <p className="font-medium">{formatDate(customer_info.created_at)}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Timeline Card */}
         <Card className="mb-6">
