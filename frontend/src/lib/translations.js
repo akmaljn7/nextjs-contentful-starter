@@ -10,14 +10,14 @@ export const translations = {
     'nav.signup': 'Sign Up',
     'nav.dashboard': 'Dashboard',
     'nav.logout': 'Logout',
-    'nav.buildcampaign': 'Build a Campaign',
+    'nav.buildcampaign': 'Get a Consultation',
 
     // Hero
     'hero.title': 'Book trusted ads across Northern Nigeria',
     'hero.subtitle': 'Connect with verified influencers, premium billboards, and Kannywood placements — all in one trusted marketplace.',
     'hero.cta1': 'Browse Influencers',
     'hero.cta2': 'Book a Billboard',
-    'hero.cta3': 'Build a Campaign',
+    'hero.cta3': 'Get a Consultation',
 
     // Categories
     'cat.influencers': 'Influencers',
@@ -86,14 +86,14 @@ export const translations = {
     'nav.signup': 'Yi Rajista',
     'nav.dashboard': 'Dashboard',
     'nav.logout': 'Fita',
-    'nav.buildcampaign': 'Gina Kamfen',
+    'nav.buildcampaign': 'Nemi Shawara',
 
     // Hero
     'hero.title': 'Yi tallace-tallacen da aka amintar a Arewacin Najeriya',
     'hero.subtitle': 'Haɗa kai da masu tasiri da aka tabbatar, alluna masu kyau, da wuraren Kannywood — duk a cikin kasuwa guda ɗaya.',
     'hero.cta1': 'Bincika Masu Tasiri',
     'hero.cta2': 'Yi Ajiyar Allon Talla',
-    'hero.cta3': 'Gina Kamfen',
+    'hero.cta3': 'Nemi Shawara',
 
     // Categories
     'cat.influencers': 'Masu Tasiri',

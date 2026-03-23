@@ -116,11 +116,11 @@ export const HomePage = () => {
                   {t('hero.cta2', language)}
                 </Button>
               </Link>
-              <Link to="/campaign-builder">
+              <Link to="/consultation">
                 <Button
                   size="lg"
                   className="bg-accent hover:bg-accent/90 text-foreground font-medium h-12 px-8"
-                  data-testid="hero-cta-campaign"
+                  data-testid="hero-cta-consultation"
                 >
                   {t('hero.cta3', language)}
                 </Button>
