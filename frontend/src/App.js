@@ -31,6 +31,8 @@ import { KannywoodDetailPage } from '@/pages/KannywoodDetailPage';
 import { ConsultationPage } from '@/pages/ConsultationPage';
 import { AdminPanelPage } from '@/pages/AdminPanelPage';
 import { SearchResultsPage } from '@/pages/SearchResultsPage';
+import { MessagingCenterPage } from '@/pages/MessagingCenterPage';
+import { OrderTrackingPage } from '@/pages/OrderTrackingPage';
 
 function App() {
   return (
@@ -64,6 +66,8 @@ function App() {
               <Route path="/consultation" element={<ConsultationPage />} />
               <Route path="/admin" element={<AdminPanelPage />} />
               <Route path="/search" element={<SearchResultsPage />} />
+              <Route path="/messages" element={<MessagingCenterPage />} />
+              <Route path="/orders/:orderId/tracking" element={<OrderTrackingPage />} />
               
               {/* Billboard detail route */}
               <Route path="/billboards/:id" element={<BillboardDetailPage />} />

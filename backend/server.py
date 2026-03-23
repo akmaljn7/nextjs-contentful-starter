@@ -2297,6 +2297,272 @@ async def get_messages(order_id: str, current_user: User = Depends(get_current_u
     
     return messages
 
+# Get all conversations for user (messaging center)
+@api_router.get("/conversations")
+async def get_conversations(current_user: User = Depends(get_current_user)):
+    """Get all orders with their latest message for the messaging center"""
+    # Get all orders for this user
+    if current_user.role == "admin":
+        orders = await db.orders.find({}, {"_id": 0}).to_list(1000)
+        consultations = await db.consultations.find({}, {"_id": 0}).to_list(1000)
+    else:
+        orders = await db.orders.find({"advertiser_id": current_user.id}, {"_id": 0}).to_list(1000)
+        consultations = await db.consultations.find({"user_id": current_user.id}, {"_id": 0}).to_list(1000)
+    
+    conversations = []
+    
+    # Process orders
+    for order in orders:
+        order_id = order.get("id")
+        messages = await db.messages.find({"order_id": order_id}, {"_id": 0}).sort("created_at", -1).to_list(1)
+        last_message = messages[0] if messages else None
+        unread_count = await db.messages.count_documents({
+            "order_id": order_id,
+            "sender_id": {"$ne": current_user.id},
+            "read": {"$ne": True}
+        })
+        
+        conversations.append({
+            "id": order_id,
+            "type": "order",
+            "title": order.get("package_details", {}).get("title", "Order"),
+            "subtitle": f"Order #{order_id[:8]}",
+            "status": order.get("order_status", "pending"),
+            "last_message": last_message.get("message") if last_message else None,
+            "last_message_time": last_message.get("created_at") if last_message else order.get("created_at"),
+            "unread_count": unread_count,
+            "created_at": order.get("created_at")
+        })
+    
+    # Process consultations
+    for consultation in consultations:
+        cons_id = consultation.get("id")
+        messages = await db.messages.find({"order_id": cons_id}, {"_id": 0}).sort("created_at", -1).to_list(1)
+        last_message = messages[0] if messages else None
+        unread_count = await db.messages.count_documents({
+            "order_id": cons_id,
+            "sender_id": {"$ne": current_user.id},
+            "read": {"$ne": True}
+        })
+        
+        conversations.append({
+            "id": cons_id,
+            "type": "consultation",
+            "title": f"{consultation.get('consultation_type', 'Consultation')} Consultation",
+            "subtitle": consultation.get("business_name", "Consultation"),
+            "status": consultation.get("status", "pending"),
+            "last_message": last_message.get("message") if last_message else None,
+            "last_message_time": last_message.get("created_at") if last_message else consultation.get("created_at"),
+            "unread_count": unread_count,
+            "created_at": consultation.get("created_at")
+        })
+    
+    # Sort by last message time (most recent first)
+    conversations.sort(key=lambda x: x.get("last_message_time") or x.get("created_at") or "", reverse=True)
+    
+    return conversations
+
+# Mark messages as read
+@api_router.put("/messages/{order_id}/read")
+async def mark_messages_read(order_id: str, current_user: User = Depends(get_current_user)):
+    """Mark all messages in a conversation as read"""
+    await db.messages.update_many(
+        {"order_id": order_id, "sender_id": {"$ne": current_user.id}},
+        {"$set": {"read": True}}
+    )
+    return {"status": "success"}
+
+# Get order tracking details
+@api_router.get("/orders/{order_id}/tracking")
+async def get_order_tracking(order_id: str, current_user: User = Depends(get_current_user)):
+    """Get detailed order tracking information with timeline"""
+    # Try to find as order first
+    order = await db.orders.find_one({"id": order_id}, {"_id": 0})
+    
+    if order:
+        # Verify ownership unless admin
+        if current_user.role != "admin" and order.get("advertiser_id") != current_user.id:
+            raise HTTPException(status_code=403, detail="Not authorized to view this order")
+        
+        # Get package/listing details
+        listing_type = order.get("listing_type", "")
+        listing_id = order.get("listing_id", "")
+        listing_info = {}
+        
+        # Fetch listing info based on type
+        if listing_type == "influencer":
+            listing = await db.influencers.find_one({"id": listing_id}, {"_id": 0})
+            if listing:
+                listing_info = {
+                    "name": listing.get("name"),
+                    "image_url": listing.get("profile_image_url") or listing.get("image_url"),
+                    "platform": listing.get("platform"),
+                    "handle": listing.get("handle")
+                }
+        elif listing_type in ["billboard", "led_billboard", "static_banner", "lightbox"]:
+            listing_info = {
+                "name": order.get("package_details", {}).get("title", "Billboard"),
+                "image_url": order.get("package_details", {}).get("image_url"),
+                "location": order.get("package_details", {}).get("location")
+            }
+        elif listing_type == "digital_ad":
+            listing = await db.digital_ad_services.find_one({"id": listing_id}, {"_id": 0})
+            if listing:
+                listing_info = {
+                    "name": listing.get("platform") or listing.get("name"),
+                    "image_url": listing.get("image_url")
+                }
+        elif listing_type == "kannywood":
+            listing = await db.kannywood_placements.find_one({"id": listing_id}, {"_id": 0})
+            if listing:
+                listing_info = {
+                    "name": listing.get("title"),
+                    "image_url": listing.get("image_url"),
+                    "director": listing.get("director")
+                }
+        
+        # Build timeline based on order status
+        timeline = []
+        status = order.get("order_status", "pending")
+        payment_status = order.get("payment_status", "pending")
+        created_at = order.get("created_at")
+        updated_at = order.get("updated_at")
+        
+        # Order placed
+        timeline.append({
+            "status": "placed",
+            "title": "Order Placed",
+            "description": "Your order has been submitted",
+            "date": created_at,
+            "completed": True
+        })
+        
+        # Payment status
+        if payment_status == "paid":
+            timeline.append({
+                "status": "paid",
+                "title": "Payment Confirmed",
+                "description": "Payment received successfully",
+                "date": updated_at,
+                "completed": True
+            })
+        else:
+            timeline.append({
+                "status": "payment_pending",
+                "title": "Awaiting Payment",
+                "description": "Complete payment to proceed",
+                "date": None,
+                "completed": False
+            })
+        
+        # Status-based timeline items
+        status_order = ["pending", "accepted", "in_progress", "proof_submitted", "completed"]
+        current_idx = status_order.index(status) if status in status_order else 0
+        
+        if status not in ["cancelled", "disputed"]:
+            timeline.append({
+                "status": "accepted",
+                "title": "Order Accepted",
+                "description": "Supplier has accepted your order",
+                "date": updated_at if current_idx >= 1 else None,
+                "completed": current_idx >= 1
+            })
+            
+            timeline.append({
+                "status": "in_progress",
+                "title": "In Progress",
+                "description": "Work is being done on your order",
+                "date": updated_at if current_idx >= 2 else None,
+                "completed": current_idx >= 2
+            })
+            
+            timeline.append({
+                "status": "proof_submitted",
+                "title": "Proof Submitted",
+                "description": "Supplier has submitted proof of work",
+                "date": updated_at if current_idx >= 3 else None,
+                "completed": current_idx >= 3
+            })
+            
+            timeline.append({
+                "status": "completed",
+                "title": "Completed",
+                "description": "Order has been completed successfully",
+                "date": updated_at if current_idx >= 4 else None,
+                "completed": current_idx >= 4
+            })
+        elif status == "cancelled":
+            timeline.append({
+                "status": "cancelled",
+                "title": "Order Cancelled",
+                "description": "This order has been cancelled",
+                "date": updated_at,
+                "completed": True,
+                "is_cancelled": True
+            })
+        elif status == "disputed":
+            timeline.append({
+                "status": "disputed",
+                "title": "Under Dispute",
+                "description": "This order is under review",
+                "date": updated_at,
+                "completed": True,
+                "is_disputed": True
+            })
+        
+        return {
+            "order": order,
+            "listing_info": listing_info,
+            "timeline": timeline,
+            "type": "order"
+        }
+    
+    # Try as consultation
+    consultation = await db.consultations.find_one({"id": order_id}, {"_id": 0})
+    if consultation:
+        if current_user.role != "admin" and consultation.get("user_id") != current_user.id:
+            raise HTTPException(status_code=403, detail="Not authorized to view this consultation")
+        
+        status = consultation.get("status", "pending")
+        created_at = consultation.get("created_at")
+        scheduled_date = consultation.get("scheduled_date")
+        
+        timeline = [
+            {
+                "status": "submitted",
+                "title": "Consultation Requested",
+                "description": "Your consultation request was submitted",
+                "date": created_at,
+                "completed": True
+            },
+            {
+                "status": "scheduled",
+                "title": "Scheduled",
+                "description": f"Consultation scheduled for {scheduled_date}" if scheduled_date else "Awaiting scheduling",
+                "date": scheduled_date,
+                "completed": status in ["scheduled", "completed"]
+            },
+            {
+                "status": "completed",
+                "title": "Completed",
+                "description": "Consultation completed",
+                "date": None,
+                "completed": status == "completed"
+            }
+        ]
+        
+        return {
+            "order": consultation,
+            "listing_info": {
+                "name": f"{consultation.get('consultation_type', 'Consultation')} Consultation",
+                "business_name": consultation.get("business_name")
+            },
+            "timeline": timeline,
+            "type": "consultation"
+        }
+    
+    raise HTTPException(status_code=404, detail="Order not found")
+
 # Dashboard Stats
 @api_router.get("/dashboard/stats")
 async def get_dashboard_stats(current_user: User = Depends(get_current_user)):

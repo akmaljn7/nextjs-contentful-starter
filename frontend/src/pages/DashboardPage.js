@@ -160,6 +160,16 @@ export const DashboardPage = () => {
               <Button
                 variant="outline"
                 size="sm"
+                onClick={() => navigate('/messages')}
+                className="h-9"
+                data-testid="messages-btn"
+              >
+                <MessageSquare className="h-4 w-4 mr-2" />
+                Messages
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={fetchDashboardData}
                 className="h-9"
               >
@@ -424,6 +434,7 @@ export const DashboardPage = () => {
                               <th className="text-left py-3 px-2 sm:px-4 text-xs sm:text-sm font-semibold text-muted-foreground">Status</th>
                               <th className="text-left py-3 px-2 sm:px-4 text-xs sm:text-sm font-semibold text-muted-foreground hidden md:table-cell">Payment</th>
                               <th className="text-right py-3 px-2 sm:px-4 text-xs sm:text-sm font-semibold text-muted-foreground">Amount</th>
+                              <th className="text-right py-3 px-2 sm:px-4 text-xs sm:text-sm font-semibold text-muted-foreground">Actions</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -474,6 +485,28 @@ export const DashboardPage = () => {
                                   <span className="font-bold text-foreground text-xs sm:text-sm">
                                     {formatPrice(item.total_amount)}
                                   </span>
+                                </td>
+                                <td className="py-3 px-2 sm:px-4 text-right">
+                                  <div className="flex items-center justify-end gap-1">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => navigate(`/orders/${item.id}/tracking`)}
+                                      className="h-8 px-2 text-xs"
+                                      data-testid={`track-order-${item.id}`}
+                                    >
+                                      <Eye className="h-3 w-3 mr-1" />
+                                      Track
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => navigate(`/messages?id=${item.id}`)}
+                                      className="h-8 px-2 text-xs"
+                                    >
+                                      <MessageSquare className="h-3 w-3" />
+                                    </Button>
+                                  </div>
                                 </td>
                               </tr>
                             ))}
