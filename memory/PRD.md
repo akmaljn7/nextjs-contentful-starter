@@ -549,14 +549,16 @@ A conversion-focused, responsive marketplace website for "Lightban Ads Network" 
 - **Request**: Implement an order tracking page with visual timeline showing order progress
 - **Implementation**:
   1. **Backend API**:
-     - `GET /api/orders/{order_id}/tracking` - Returns order details, listing info, and timeline
+     - `GET /api/orders/{order_id}/tracking` - Returns order details, listing info, timeline, and customer_info (for admin)
      - Supports both service orders and consultations
      - Timeline includes: Order Placed, Payment Confirmed, Order Accepted, In Progress, Proof Submitted, Completed
      - Handles cancelled/disputed states
+     - **Admin-only**: Returns customer_info with name, email, phone, company_name, created_at
   2. **OrderTrackingPage** (`/pages/OrderTrackingPage.js`):
      - Order summary card with image, title, status badges
      - Order details: amount, date, duration, payment method
      - Visual timeline with green checkmarks for completed steps
+     - **Customer Information card (Admin only)**: Shows customer name, email, phone, customer since date
      - "Send Message" button to messaging center
      - "Refresh" button to reload tracking data
      - Package deliverables section (for service orders)
@@ -565,6 +567,25 @@ A conversion-focused, responsive marketplace website for "Lightban Ads Network" 
      - "Track" button in All Orders table row
 - **Test Status**: Verified - 100% pass rate (all features verified)
 - **Test Report**: `/app/test_reports/iteration_16.json`
+
+### Enhancement: Messaging Center Improvements - IMPLEMENTED (March 2026)
+- **Request**: 
+  1. Chat should show date AND time
+  2. Add refresh button and auto-refresh
+  3. Admin should see customer details in order tracking
+  4. Admin should see read receipts
+- **Implementation**:
+  1. **Date + Time**: Added `formatDateTime` utility function, messages now show "23 Mar 2026, 14:30"
+  2. **Refresh**: Added manual refresh button + auto-refresh every 3 seconds using setInterval
+  3. **Customer Info**: Backend returns customer_info for admin, OrderTrackingPage displays Customer Information card
+  4. **Read Receipts**: Admin sees blue double-check (CheckCheck) for read messages, single check for sent
+- **Backend Optimizations**:
+  - Optimized `/api/conversations` with batch aggregation queries (eliminated N+1)
+  - Optimized `/api/admin/orders` with batch user and listing fetches
+  - Optimized `/api/admin/consultations` with batch user fetches
+  - Added projections to reduce data transfer
+- **Test Status**: Verified via API tests and screenshots
+- **Deployment Status**: READY ✅ - All health checks passed
 
 ---
 
