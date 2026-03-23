@@ -525,17 +525,58 @@ A conversion-focused, responsive marketplace website for "Lightban Ads Network" 
 - **Test Status**: Verified - 100% pass rate (all searchable dropdown features verified)
 - **Test Report**: `/app/test_reports/iteration_15.json`
 
+### Feature: User Messaging Center - IMPLEMENTED (March 2026)
+- **Request**: Build a messaging center for users to communicate about their orders and consultations
+- **Implementation**:
+  1. **Backend APIs**:
+     - `GET /api/conversations` - Returns all user's orders/consultations with last message, unread count
+     - `PUT /api/messages/{order_id}/read` - Marks messages as read
+     - `POST /api/messages` - Send new message (existing endpoint)
+  2. **MessagingCenterPage** (`/pages/MessagingCenterPage.js`):
+     - Two-column layout: conversation list + message thread
+     - Search/filter conversations
+     - Conversation selection with highlighted state
+     - Real-time message sending
+     - Unread message count badges
+     - "Track Order" button to navigate to tracking page
+  3. **Dashboard Integration**:
+     - "Messages" button in dashboard header
+     - Message icon button in All Orders table
+- **Test Status**: Verified - 100% pass rate (13/13 backend, all frontend verified)
+- **Test Report**: `/app/test_reports/iteration_16.json`
+
+### Feature: Order Tracking Page - IMPLEMENTED (March 2026)
+- **Request**: Implement an order tracking page with visual timeline showing order progress
+- **Implementation**:
+  1. **Backend API**:
+     - `GET /api/orders/{order_id}/tracking` - Returns order details, listing info, and timeline
+     - Supports both service orders and consultations
+     - Timeline includes: Order Placed, Payment Confirmed, Order Accepted, In Progress, Proof Submitted, Completed
+     - Handles cancelled/disputed states
+  2. **OrderTrackingPage** (`/pages/OrderTrackingPage.js`):
+     - Order summary card with image, title, status badges
+     - Order details: amount, date, duration, payment method
+     - Visual timeline with green checkmarks for completed steps
+     - "Send Message" button to messaging center
+     - "Refresh" button to reload tracking data
+     - Package deliverables section (for service orders)
+     - Consultation details section (for consultations)
+  3. **Dashboard Integration**:
+     - "Track" button in All Orders table row
+- **Test Status**: Verified - 100% pass rate (all features verified)
+- **Test Report**: `/app/test_reports/iteration_16.json`
+
 ---
 
 ## Upcoming Tasks (P1-P2)
-- **P1**: Build user messaging center
-- **P2**: Implement Order Tracking page
+- ~~**P1**: Build user messaging center~~ ✅ COMPLETED
+- ~~**P2**: Implement Order Tracking page~~ ✅ COMPLETED
 
 ## Future/Backlog Tasks
 - Integrate SMS notifications with Termii
 - Implement bilingual (Hausa) localization support
 - Switch Paystack from test keys to live keys for production
-- Refactor monolithic `server.py` (~3,500 lines) into routers/models/services
+- Refactor monolithic `server.py` (~3,700 lines) into routers/models/services
 - Refactor `AdminPanelPage.js` (~3,500 lines) into separate tab components
 
 ---
