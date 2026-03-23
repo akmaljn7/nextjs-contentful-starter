@@ -591,6 +591,17 @@ A conversion-focused, responsive marketplace website for "Lightban Ads Network" 
 - **Test Status**: Verified via API tests and screenshots
 - **Deployment Status**: READY ✅ - All health checks passed
 
+### Enhancement: Home Page & Messaging Updates - IMPLEMENTED (March 2026)
+- **Request 1**: Change "Build a Campaign" button to "Get a Consultation" and link to consultation page
+- **Implementation**: Updated hero.cta3 translation in both English and Hausa, changed link from /campaign-builder to /consultation
+- **Request 2**: Allow users to send messages without having an order
+- **Implementation**:
+  - Added "New Message" button at top of conversations list
+  - Created SUPPORT_CONVERSATION_ID for new support messages
+  - Backend stores support messages with order_id = 'support'
+  - Support conversations appear with green icon
+  - Users can start conversations with support team without an existing order
+
 ---
 
 ## Upcoming Tasks (P1-P2)

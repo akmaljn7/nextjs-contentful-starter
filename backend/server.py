@@ -2381,6 +2381,45 @@ async def get_conversations(current_user: User = Depends(get_current_user)):
     # Sort by last message time (most recent first)
     conversations.sort(key=lambda x: x.get("last_message_time") or x.get("created_at") or "", reverse=True)
     
+    # Check for support messages (messages with order_id = 'support')
+    if current_user.role == "admin":
+        # Admin sees all support messages
+        support_messages = await db.messages.find({"order_id": "support"}, {"_id": 0}).sort("created_at", -1).to_list(1)
+    else:
+        # User sees only their support messages
+        support_messages = await db.messages.find({
+            "order_id": "support",
+            "$or": [{"sender_id": current_user.id}, {"recipient_id": current_user.id}]
+        }, {"_id": 0}).sort("created_at", -1).to_list(1)
+    
+    if support_messages:
+        last_support = support_messages[0]
+        # Count unread support messages
+        if current_user.role == "admin":
+            unread_support = await db.messages.count_documents({
+                "order_id": "support",
+                "sender_role": {"$ne": "admin"},
+                "read": {"$ne": True}
+            })
+        else:
+            unread_support = await db.messages.count_documents({
+                "order_id": "support",
+                "sender_id": {"$ne": current_user.id},
+                "read": {"$ne": True}
+            })
+        
+        conversations.insert(0, {
+            "id": "support",
+            "type": "support",
+            "title": "Support",
+            "subtitle": "General Inquiry",
+            "status": "active",
+            "last_message": last_support.get("message"),
+            "last_message_time": last_support.get("created_at"),
+            "unread_count": unread_support,
+            "created_at": last_support.get("created_at")
+        })
+    
     return conversations
 
 # Mark messages as read

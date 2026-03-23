@@ -27,6 +27,9 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
+// Special ID for new support message
+const SUPPORT_CONVERSATION_ID = 'support-new';
+
 export const MessagingCenterPage = () => {
   const { user } = useAuthStore();
   const navigate = useNavigate();
@@ -41,6 +44,7 @@ export const MessagingCenterPage = () => {
   const [newMessage, setNewMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [showNewMessage, setShowNewMessage] = useState(false);
   const messagesEndRef = useRef(null);
   const refreshIntervalRef = useRef(null);
 
@@ -53,7 +57,18 @@ export const MessagingCenterPage = () => {
   }, [user, navigate]);
 
   useEffect(() => {
-    if (selectedId) {
+    if (selectedId === SUPPORT_CONVERSATION_ID) {
+      // New support message - show empty chat
+      setMessages([]);
+      setShowNewMessage(true);
+      setMessagesLoading(false);
+      
+      // Clear interval for new message
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current);
+      }
+    } else if (selectedId) {
+      setShowNewMessage(false);
       fetchMessages(selectedId);
       markAsRead(selectedId);
       
@@ -153,25 +168,50 @@ export const MessagingCenterPage = () => {
 
     setSending(true);
     try {
+      // For new support messages, use 'support' as order_id
+      const orderId = selectedId === SUPPORT_CONVERSATION_ID ? 'support' : selectedId;
+      
       const response = await api.post('/messages', {
-        order_id: selectedId,
+        order_id: orderId,
         message: newMessage.trim()
       });
       setMessages(prev => [...prev, response.data]);
       setNewMessage('');
       
-      // Update conversation preview
-      setConversations(prev => 
-        prev.map(c => c.id === selectedId 
-          ? { ...c, last_message: newMessage.trim(), last_message_time: new Date().toISOString() }
-          : c
-        ).sort((a, b) => new Date(b.last_message_time || b.created_at) - new Date(a.last_message_time || a.created_at))
-      );
+      // If this was a new support message, add it to conversations and select it
+      if (selectedId === SUPPORT_CONVERSATION_ID) {
+        const newConvo = {
+          id: 'support',
+          type: 'support',
+          title: 'Support',
+          subtitle: 'General Inquiry',
+          status: 'active',
+          last_message: newMessage.trim(),
+          last_message_time: new Date().toISOString(),
+          unread_count: 0,
+          created_at: new Date().toISOString()
+        };
+        setConversations(prev => [newConvo, ...prev.filter(c => c.id !== 'support')]);
+        setSearchParams({ id: 'support' });
+        setShowNewMessage(false);
+      } else {
+        // Update conversation preview
+        setConversations(prev => 
+          prev.map(c => c.id === selectedId 
+            ? { ...c, last_message: newMessage.trim(), last_message_time: new Date().toISOString() }
+            : c
+          ).sort((a, b) => new Date(b.last_message_time || b.created_at) - new Date(a.last_message_time || a.created_at))
+        );
+      }
     } catch (error) {
       toast.error('Failed to send message');
     } finally {
       setSending(false);
     }
+  };
+
+  const startNewMessage = () => {
+    setSearchParams({ id: SUPPORT_CONVERSATION_ID });
   };
 
   const selectConversation = (id) => {
@@ -224,7 +264,16 @@ export const MessagingCenterPage = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-200px)]">
           {/* Conversations List */}
           <Card className="lg:col-span-1 flex flex-col">
-            <CardHeader className="pb-3">
+            <CardHeader className="pb-3 space-y-3">
+              {/* New Message Button */}
+              <Button
+                onClick={startNewMessage}
+                className="w-full bg-accent hover:bg-accent/90 gap-2"
+                data-testid="new-message-btn"
+              >
+                <MessageSquare className="h-4 w-4" />
+                New Message
+              </Button>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -265,10 +314,13 @@ export const MessagingCenterPage = () => {
                       >
                         <div className="flex items-start gap-3">
                           <div className={`h-10 w-10 rounded-full flex items-center justify-center ${
-                            conversation.type === 'order' ? 'bg-primary/10' : 'bg-accent/10'
+                            conversation.type === 'order' ? 'bg-primary/10' : 
+                            conversation.type === 'support' ? 'bg-green-100' : 'bg-accent/10'
                           }`}>
                             {conversation.type === 'order' ? (
                               <Package className="h-5 w-5 text-primary" />
+                            ) : conversation.type === 'support' ? (
+                              <MessageSquare className="h-5 w-5 text-green-600" />
                             ) : (
                               <Calendar className="h-5 w-5 text-accent" />
                             )}
@@ -309,16 +361,20 @@ export const MessagingCenterPage = () => {
 
           {/* Messages Area */}
           <Card className="lg:col-span-2 flex flex-col">
-            {selectedId && selectedConversation ? (
+            {showNewMessage || (selectedId && selectedConversation) ? (
               <>
                 {/* Conversation Header */}
                 <CardHeader className="border-b pb-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className={`h-10 w-10 rounded-full flex items-center justify-center ${
-                        selectedConversation.type === 'order' ? 'bg-primary/10' : 'bg-accent/10'
+                        showNewMessage ? 'bg-green-100' :
+                        selectedConversation?.type === 'order' ? 'bg-primary/10' : 
+                        selectedConversation?.type === 'support' ? 'bg-green-100' : 'bg-accent/10'
                       }`}>
-                        {selectedConversation.type === 'order' ? (
+                        {showNewMessage || selectedConversation?.type === 'support' ? (
+                          <MessageSquare className="h-5 w-5 text-green-600" />
+                        ) : selectedConversation?.type === 'order' ? (
                           <Package className="h-5 w-5 text-primary" />
                         ) : (
                           <Calendar className="h-5 w-5 text-accent" />
@@ -326,36 +382,42 @@ export const MessagingCenterPage = () => {
                       </div>
                       <div>
                         <h3 className="font-semibold text-foreground">
-                          {selectedConversation.title}
+                          {showNewMessage ? 'New Message' : selectedConversation?.title}
                         </h3>
                         <p className="text-sm text-muted-foreground">
-                          {selectedConversation.subtitle}
+                          {showNewMessage ? 'Send a message to our support team' : selectedConversation?.subtitle}
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleRefresh}
-                        disabled={refreshing}
-                        className="gap-1"
-                        data-testid="refresh-messages-btn"
-                      >
-                        <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-                      </Button>
-                      <Badge className={getStatusColor(selectedConversation.status)}>
-                        {selectedConversation.status?.replace(/_/g, ' ')}
-                      </Badge>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => navigate(`/orders/${selectedId}/tracking`)}
-                        className="gap-1"
-                      >
-                        Track Order
-                        <ChevronRight className="h-4 w-4" />
-                      </Button>
+                      {!showNewMessage && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleRefresh}
+                            disabled={refreshing}
+                            className="gap-1"
+                            data-testid="refresh-messages-btn"
+                          >
+                            <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+                          </Button>
+                          <Badge className={getStatusColor(selectedConversation?.status)}>
+                            {selectedConversation?.status?.replace(/_/g, ' ')}
+                          </Badge>
+                          {selectedConversation?.type !== 'support' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => navigate(`/orders/${selectedId}/tracking`)}
+                              className="gap-1"
+                            >
+                              Track Order
+                              <ChevronRight className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </>
+                      )}
                     </div>
                   </div>
                 </CardHeader>
