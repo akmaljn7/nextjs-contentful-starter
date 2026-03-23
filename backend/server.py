@@ -2253,7 +2253,7 @@ async def create_review(data: ReviewCreate, current_user: User = Depends(get_cur
     }
     
     collection = db[collection_map.get(data.listing_type)]
-    reviews = await db.reviews.find({"listing_id": data.listing_id}).to_list(1000)
+    reviews = await db.reviews.find({"listing_id": data.listing_id}, {"_id": 0, "rating": 1}).to_list(1000)
     avg_rating = sum(r['rating'] for r in reviews) / len(reviews) if reviews else 0
     
     await collection.update_one(
@@ -2311,16 +2311,43 @@ async def get_conversations(current_user: User = Depends(get_current_user)):
     
     conversations = []
     
+    # Batch fetch all messages for orders and consultations to avoid N+1 queries
+    all_item_ids = [o.get("id") for o in orders] + [c.get("id") for c in consultations]
+    
+    if all_item_ids:
+        # Fetch latest message per order/consultation using aggregation
+        pipeline = [
+            {"$match": {"order_id": {"$in": all_item_ids}}},
+            {"$sort": {"created_at": -1}},
+            {"$group": {
+                "_id": "$order_id",
+                "last_message": {"$first": "$message"},
+                "last_message_time": {"$first": "$created_at"},
+                "last_sender_id": {"$first": "$sender_id"}
+            }}
+        ]
+        messages_agg = await db.messages.aggregate(pipeline).to_list(1000)
+        messages_map = {m["_id"]: m for m in messages_agg}
+        
+        # Batch count unread messages
+        unread_pipeline = [
+            {"$match": {
+                "order_id": {"$in": all_item_ids},
+                "sender_id": {"$ne": current_user.id},
+                "read": {"$ne": True}
+            }},
+            {"$group": {"_id": "$order_id", "count": {"$sum": 1}}}
+        ]
+        unread_agg = await db.messages.aggregate(unread_pipeline).to_list(1000)
+        unread_map = {u["_id"]: u["count"] for u in unread_agg}
+    else:
+        messages_map = {}
+        unread_map = {}
+    
     # Process orders
     for order in orders:
         order_id = order.get("id")
-        messages = await db.messages.find({"order_id": order_id}, {"_id": 0}).sort("created_at", -1).to_list(1)
-        last_message = messages[0] if messages else None
-        unread_count = await db.messages.count_documents({
-            "order_id": order_id,
-            "sender_id": {"$ne": current_user.id},
-            "read": {"$ne": True}
-        })
+        msg_data = messages_map.get(order_id, {})
         
         conversations.append({
             "id": order_id,
@@ -2328,22 +2355,16 @@ async def get_conversations(current_user: User = Depends(get_current_user)):
             "title": order.get("package_details", {}).get("title", "Order"),
             "subtitle": f"Order #{order_id[:8]}",
             "status": order.get("order_status", "pending"),
-            "last_message": last_message.get("message") if last_message else None,
-            "last_message_time": last_message.get("created_at") if last_message else order.get("created_at"),
-            "unread_count": unread_count,
+            "last_message": msg_data.get("last_message"),
+            "last_message_time": msg_data.get("last_message_time") or order.get("created_at"),
+            "unread_count": unread_map.get(order_id, 0),
             "created_at": order.get("created_at")
         })
     
     # Process consultations
     for consultation in consultations:
         cons_id = consultation.get("id")
-        messages = await db.messages.find({"order_id": cons_id}, {"_id": 0}).sort("created_at", -1).to_list(1)
-        last_message = messages[0] if messages else None
-        unread_count = await db.messages.count_documents({
-            "order_id": cons_id,
-            "sender_id": {"$ne": current_user.id},
-            "read": {"$ne": True}
-        })
+        msg_data = messages_map.get(cons_id, {})
         
         conversations.append({
             "id": cons_id,
@@ -2351,9 +2372,9 @@ async def get_conversations(current_user: User = Depends(get_current_user)):
             "title": f"{consultation.get('consultation_type', 'Consultation')} Consultation",
             "subtitle": consultation.get("business_name", "Consultation"),
             "status": consultation.get("status", "pending"),
-            "last_message": last_message.get("message") if last_message else None,
-            "last_message_time": last_message.get("created_at") if last_message else consultation.get("created_at"),
-            "unread_count": unread_count,
+            "last_message": msg_data.get("last_message"),
+            "last_message_time": msg_data.get("last_message_time") or consultation.get("created_at"),
+            "unread_count": unread_map.get(cons_id, 0),
             "created_at": consultation.get("created_at")
         })
     
@@ -2602,11 +2623,17 @@ async def get_order_tracking(order_id: str, current_user: User = Depends(get_cur
 async def get_dashboard_stats(current_user: User = Depends(get_current_user)):
     # 'user' role gets same treatment as 'advertiser' (full access to both)
     if current_user.role in ["user", "advertiser"]:
-        # Get all orders for this user
-        all_orders = await db.orders.find({"advertiser_id": current_user.id}, {"_id": 0}).to_list(1000)
+        # Get all orders for this user with only needed fields
+        all_orders = await db.orders.find(
+            {"advertiser_id": current_user.id}, 
+            {"_id": 0, "order_status": 1, "payment_status": 1, "total_amount": 1}
+        ).to_list(1000)
         
-        # Get all consultations for this user
-        all_consultations = await db.consultations.find({"user_id": current_user.id}, {"_id": 0}).to_list(1000)
+        # Get all consultations for this user with only needed fields
+        all_consultations = await db.consultations.find(
+            {"user_id": current_user.id}, 
+            {"_id": 0, "status": 1, "payment_status": 1, "price": 1}
+        ).to_list(1000)
         
         # Order stats
         order_total = len(all_orders)
@@ -2763,10 +2790,30 @@ async def get_all_orders_admin(current_user: User = Depends(get_current_user)):
     # Get regular orders
     orders = await db.orders.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
     
+    # Batch fetch all users for orders
+    advertiser_ids = list(set(o.get("advertiser_id") for o in orders if o.get("advertiser_id")))
+    users_list = await db.users.find({"id": {"$in": advertiser_ids}}, {"_id": 0, "id": 1, "name": 1, "email": 1, "phone": 1}).to_list(1000)
+    users_map = {u["id"]: u for u in users_list}
+    
+    # Batch fetch listing info by type
+    influencer_ids = list(set(o.get("listing_id") for o in orders if o.get("listing_type") == "influencer" and o.get("listing_id")))
+    billboard_ids = list(set(o.get("listing_id") for o in orders if o.get("listing_type") == "billboard" and o.get("listing_id")))
+    kannywood_ids = list(set(o.get("listing_id") for o in orders if o.get("listing_type") == "kannywood" and o.get("listing_id")))
+    digital_ad_ids = list(set(o.get("listing_id") for o in orders if o.get("listing_type") == "digital_ad" and o.get("listing_id")))
+    
+    influencers_list = await db.influencers.find({"id": {"$in": influencer_ids}}, {"_id": 0, "id": 1, "name": 1, "handle": 1, "image_url": 1, "platform": 1}).to_list(500) if influencer_ids else []
+    billboards_list = await db.billboards.find({"id": {"$in": billboard_ids}}, {"_id": 0, "id": 1, "name": 1, "type": 1, "image_url": 1, "location": 1}).to_list(500) if billboard_ids else []
+    kannywood_list = await db.kannywood.find({"id": {"$in": kannywood_ids}}, {"_id": 0, "id": 1, "title": 1, "production_company": 1, "image_url": 1}).to_list(500) if kannywood_ids else []
+    digital_ads_list = await db.digital_ads.find({"id": {"$in": digital_ad_ids}}, {"_id": 0, "id": 1, "name": 1, "platform": 1, "image_url": 1}).to_list(500) if digital_ad_ids else []
+    
+    influencers_map = {i["id"]: i for i in influencers_list}
+    billboards_map = {b["id"]: b for b in billboards_list}
+    kannywood_map = {k["id"]: k for k in kannywood_list}
+    digital_ads_map = {d["id"]: d for d in digital_ads_list}
+    
     # Add user info and type to each order, enriched with seller info
     for order in orders:
-        user = await db.users.find_one({"id": order.get("advertiser_id")}, {"_id": 0, "name": 1, "email": 1, "phone": 1})
-        order["user_info"] = user or {}
+        order["user_info"] = users_map.get(order.get("advertiser_id"), {})
         order["order_type"] = "service"  # Regular service order
         
         # Ensure package details has title
@@ -2780,7 +2827,7 @@ async def get_all_orders_admin(current_user: User = Depends(get_current_user)):
         listing_id = order.get("listing_id", "")
         
         if listing_type == "influencer" and listing_id:
-            influencer = await db.influencers.find_one({"id": listing_id}, {"_id": 0, "name": 1, "handle": 1, "image_url": 1, "platform": 1})
+            influencer = influencers_map.get(listing_id)
             if influencer:
                 order["package_details"]["seller_name"] = influencer.get("name", "")
                 order["package_details"]["handle"] = influencer.get("handle", "")
@@ -2788,7 +2835,7 @@ async def get_all_orders_admin(current_user: User = Depends(get_current_user)):
                 order["package_details"]["platform"] = influencer.get("platform", "")
         
         elif listing_type == "billboard" and listing_id:
-            billboard = await db.billboards.find_one({"id": listing_id}, {"_id": 0, "name": 1, "type": 1, "image_url": 1, "location": 1})
+            billboard = billboards_map.get(listing_id)
             if billboard:
                 order["package_details"]["seller_name"] = billboard.get("name", "")
                 order["package_details"]["billboard_type"] = billboard.get("type", "")
@@ -2796,14 +2843,14 @@ async def get_all_orders_admin(current_user: User = Depends(get_current_user)):
                 order["package_details"]["location"] = billboard.get("location", "")
         
         elif listing_type == "kannywood" and listing_id:
-            kannywood = await db.kannywood.find_one({"id": listing_id}, {"_id": 0, "title": 1, "production_company": 1, "image_url": 1})
+            kannywood = kannywood_map.get(listing_id)
             if kannywood:
                 order["package_details"]["seller_name"] = kannywood.get("title", "")
                 order["package_details"]["production_company"] = kannywood.get("production_company", "")
                 order["package_details"]["image_url"] = kannywood.get("image_url", "")
         
         elif listing_type == "digital_ad" and listing_id:
-            digital_ad = await db.digital_ads.find_one({"id": listing_id}, {"_id": 0, "name": 1, "platform": 1, "image_url": 1})
+            digital_ad = digital_ads_map.get(listing_id)
             if digital_ad:
                 order["package_details"]["seller_name"] = digital_ad.get("name", "")
                 order["package_details"]["platform"] = digital_ad.get("platform", "")
@@ -2812,9 +2859,14 @@ async def get_all_orders_admin(current_user: User = Depends(get_current_user)):
     # Get consultations as orders
     consultations = await db.consultations.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
     
+    # Batch fetch users for consultations
+    consultation_user_ids = list(set(c.get("user_id") for c in consultations if c.get("user_id")))
+    consultation_users_list = await db.users.find({"id": {"$in": consultation_user_ids}}, {"_id": 0, "id": 1, "name": 1, "email": 1, "phone": 1}).to_list(1000) if consultation_user_ids else []
+    consultation_users_map = {u["id"]: u for u in consultation_users_list}
+    
     # Transform consultations to order format
     for consultation in consultations:
-        user = await db.users.find_one({"id": consultation.get("user_id")}, {"_id": 0, "name": 1, "email": 1, "phone": 1})
+        user = consultation_users_map.get(consultation.get("user_id"))
         
         # Create order-like structure for consultation with ALL form fields
         consultation_order = {
@@ -2893,10 +2945,14 @@ async def get_all_consultations_admin(current_user: User = Depends(get_current_u
     
     consultations = await db.consultations.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
     
+    # Batch fetch user info for all consultations
+    user_ids = list(set(c.get("user_id") for c in consultations if c.get("user_id")))
+    users_list = await db.users.find({"id": {"$in": user_ids}}, {"_id": 0, "id": 1, "name": 1, "email": 1, "phone": 1}).to_list(1000) if user_ids else []
+    users_map = {u["id"]: u for u in users_list}
+    
     # Get user info for each consultation
     for consultation in consultations:
-        user = await db.users.find_one({"id": consultation.get("user_id")}, {"_id": 0, "name": 1, "email": 1, "phone": 1})
-        consultation["user_info"] = user or {}
+        consultation["user_info"] = users_map.get(consultation.get("user_id"), {})
     
     return consultations
 
