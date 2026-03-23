@@ -234,52 +234,164 @@ export const OrderTrackingPage = () => {
           </CardContent>
         </Card>
 
-        {/* Customer Information Card (Admin Only) */}
+        {/* Customer & Order Details Card (Admin Only) */}
         {isAdmin && customer_info && (
           <Card className="mb-6 border-blue-200 bg-blue-50/50">
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
                 <User className="h-5 w-5 text-blue-600" />
-                Customer Information
+                Customer & Order Details
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Customer Name</p>
-                  <p className="font-medium">{customer_info.name || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Email</p>
-                  <div className="flex items-center gap-2">
-                    <Mail className="h-4 w-4 text-muted-foreground" />
-                    <a href={`mailto:${customer_info.email}`} className="font-medium text-accent hover:underline">
-                      {customer_info.email}
-                    </a>
-                  </div>
-                </div>
-                {customer_info.phone && (
+            <CardContent className="space-y-6">
+              {/* Customer Info Section */}
+              <div>
+                <h4 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wide">Customer Information</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div>
-                    <p className="text-sm text-muted-foreground">Phone</p>
+                    <p className="text-sm text-muted-foreground">Customer Name</p>
+                    <p className="font-medium">{customer_info.name || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Email</p>
                     <div className="flex items-center gap-2">
-                      <Phone className="h-4 w-4 text-muted-foreground" />
-                      <a href={`tel:${customer_info.phone}`} className="font-medium text-accent hover:underline">
-                        {customer_info.phone}
+                      <Mail className="h-4 w-4 text-muted-foreground" />
+                      <a href={`mailto:${customer_info.email}`} className="font-medium text-accent hover:underline">
+                        {customer_info.email}
                       </a>
                     </div>
                   </div>
-                )}
-                {customer_info.company_name && (
+                  {customer_info.phone && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Phone</p>
+                      <div className="flex items-center gap-2">
+                        <Phone className="h-4 w-4 text-muted-foreground" />
+                        <a href={`tel:${customer_info.phone}`} className="font-medium text-accent hover:underline">
+                          {customer_info.phone}
+                        </a>
+                      </div>
+                    </div>
+                  )}
+                  {customer_info.company_name && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Company</p>
+                      <p className="font-medium">{customer_info.company_name}</p>
+                    </div>
+                  )}
                   <div>
-                    <p className="text-sm text-muted-foreground">Company</p>
-                    <p className="font-medium">{customer_info.company_name}</p>
+                    <p className="text-sm text-muted-foreground">Customer Since</p>
+                    <p className="font-medium">{formatDate(customer_info.created_at)}</p>
                   </div>
-                )}
-                <div>
-                  <p className="text-sm text-muted-foreground">Customer Since</p>
-                  <p className="font-medium">{formatDate(customer_info.created_at)}</p>
                 </div>
               </div>
+
+              <Separator />
+
+              {/* Order/Service Details Section */}
+              <div>
+                <h4 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wide">Service & Package Details</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Service Type</p>
+                    <p className="font-medium capitalize">{order?.listing_type?.replace(/_/g, ' ') || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Package Title</p>
+                    <p className="font-medium">{order?.package_details?.packageTitle || order?.package_details?.title || 'N/A'}</p>
+                  </div>
+                  {order?.package_details?.seller_name && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Seller/Provider</p>
+                      <p className="font-medium">
+                        {order.package_details.seller_name}
+                        {order.package_details.handle && ` (${order.package_details.handle})`}
+                      </p>
+                    </div>
+                  )}
+                  {order?.package_details?.platform && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Platform</p>
+                      <p className="font-medium capitalize">{order.package_details.platform}</p>
+                    </div>
+                  )}
+                  {order?.package_details?.location && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Location</p>
+                      <p className="font-medium">{order.package_details.location}</p>
+                    </div>
+                  )}
+                  {(order?.package_details?.state_name || order?.package_details?.road_name) && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Billboard Location</p>
+                      <p className="font-medium">
+                        {order.package_details.state_name}{order.package_details.road_name && `, ${order.package_details.road_name}`}
+                      </p>
+                    </div>
+                  )}
+                  {order?.package_details?.turnaround && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Duration/Turnaround</p>
+                      <p className="font-medium">{order.package_details.turnaround}</p>
+                    </div>
+                  )}
+                  {order?.package_details?.price && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Package Price</p>
+                      <p className="font-medium">{formatPrice(order.package_details.price)}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Financial Details Section */}
+              <div>
+                <h4 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wide">Financial Details</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total Amount</p>
+                    <p className="font-bold text-lg text-primary">{formatPrice(order?.total_amount || 0)}</p>
+                  </div>
+                  {order?.platform_fee !== undefined && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Platform Fee</p>
+                      <p className="font-medium">{formatPrice(order.platform_fee || 0)}</p>
+                    </div>
+                  )}
+                  {order?.supplier_payout !== undefined && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Supplier Payout</p>
+                      <p className="font-medium">{formatPrice(order.supplier_payout || 0)}</p>
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-sm text-muted-foreground">Payment Reference</p>
+                    <p className="font-mono text-xs break-all">{order?.payment_reference || 'N/A'}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Deliverables Section */}
+              {order?.package_details?.deliverables && order.package_details.deliverables.length > 0 && (
+                <>
+                  <Separator />
+                  <div>
+                    <h4 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wide">Package Deliverables</h4>
+                    <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {(Array.isArray(order.package_details.deliverables) 
+                        ? order.package_details.deliverables 
+                        : order.package_details.deliverables.split(',').map(d => d.trim())
+                      ).map((item, index) => (
+                        <li key={index} className="flex items-start gap-2">
+                          <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                          <span className="text-sm">{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
         )}

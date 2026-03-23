@@ -572,12 +572,16 @@ A conversion-focused, responsive marketplace website for "Lightban Ads Network" 
 - **Request**: 
   1. Chat should show date AND time
   2. Add refresh button and auto-refresh
-  3. Admin should see customer details in order tracking
+  3. Admin should see customer details AND full order details in order tracking
   4. Admin should see read receipts
 - **Implementation**:
   1. **Date + Time**: Added `formatDateTime` utility function, messages now show "23 Mar 2026, 14:30"
   2. **Refresh**: Added manual refresh button + auto-refresh every 3 seconds using setInterval
-  3. **Customer Info**: Backend returns customer_info for admin, OrderTrackingPage displays Customer Information card
+  3. **Customer & Order Details (Admin)**: 
+     - **Customer Information**: Name, Email, Phone, Company, Customer Since
+     - **Service & Package Details**: Service Type, Package Title, Seller/Provider, Platform, Location, Billboard Location, Duration, Package Price
+     - **Financial Details**: Total Amount, Platform Fee, Supplier Payout, Payment Reference
+     - **Package Deliverables**: List of all deliverables included in the package
   4. **Read Receipts**: Admin sees blue double-check (CheckCheck) for read messages, single check for sent
 - **Backend Optimizations**:
   - Optimized `/api/conversations` with batch aggregation queries (eliminated N+1)
