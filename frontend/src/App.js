@@ -33,6 +33,8 @@ import { AdminPanelPage } from '@/pages/AdminPanelPage';
 import { SearchResultsPage } from '@/pages/SearchResultsPage';
 import { MessagingCenterPage } from '@/pages/MessagingCenterPage';
 import { OrderTrackingPage } from '@/pages/OrderTrackingPage';
+import { ForgotPasswordPage } from '@/pages/ForgotPasswordPage';
+import { ResetPasswordPage } from '@/pages/ResetPasswordPage';
 
 function App() {
   return (
@@ -46,6 +48,8 @@ function App() {
               <Route path="/" element={<HomePage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
+              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/influencers" element={<InfluencersPage />} />
               <Route path="/influencers/:id" element={<InfluencerDetailPage />} />
               <Route path="/billboards" element={<BillboardsPage />} />

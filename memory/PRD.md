@@ -602,6 +602,29 @@ A conversion-focused, responsive marketplace website for "Lightban Ads Network" 
   - Support conversations appear with green icon
   - Users can start conversations with support team without an existing order
 
+### Feature: Forgot Password - IMPLEMENTED (March 2026)
+- **Request**: Add forgot password functionality to the login flow
+- **Implementation**:
+  1. **Backend Endpoints**:
+     - `POST /api/auth/forgot-password` - Sends reset email with token (1 hour expiry)
+     - `POST /api/auth/reset-password` - Validates token and updates password
+     - Stores tokens in `password_resets` collection
+  2. **Frontend Pages**:
+     - `ForgotPasswordPage.js` - Email input form with success state showing "Check Your Email"
+     - `ResetPasswordPage.js` - New password form with confirmation
+  3. **Login Page**: Added "Forgot password?" link next to password label
+  4. **Email Template**: Styled HTML email with reset link button
+
+### Enhancement: Mobile Messaging - IMPLEMENTED (March 2026)
+- **Request**: Fix messaging center to view perfectly on mobile
+- **Implementation**:
+  - Full-screen chat view on mobile when conversation is selected (using `fixed inset-0`)
+  - Back button in chat header returns to conversations list
+  - Responsive sizing for icons, text, and buttons
+  - Message input fixed at bottom
+  - Conversations list shows properly on mobile with compact layout
+  - No header/footer interference on mobile chat view
+
 ---
 
 ## Upcoming Tasks (P1-P2)

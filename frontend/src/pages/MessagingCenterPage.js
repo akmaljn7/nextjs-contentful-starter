@@ -239,32 +239,157 @@ export const MessagingCenterPage = () => {
 
   if (!user) return null;
 
+  // On mobile with conversation selected, render full-screen chat without header/footer interference
+  if (selectedId && typeof window !== 'undefined' && window.innerWidth < 1024) {
+    return (
+      <div className="fixed inset-0 z-50 bg-background flex flex-col" data-testid="messaging-center-page">
+        <Card className="flex-1 flex flex-col rounded-none border-0 shadow-none">
+          {/* Conversation Header */}
+          <CardHeader className="border-b pb-3 px-3 flex-shrink-0 bg-card">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSearchParams({})}
+                  className="p-2 flex-shrink-0"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                </Button>
+                <div className={`h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                  showNewMessage || selectedId === 'support' ? 'bg-green-100' :
+                  selectedConversation?.type === 'order' ? 'bg-primary/10' : 
+                  selectedConversation?.type === 'support' ? 'bg-green-100' : 'bg-accent/10'
+                }`}>
+                  {showNewMessage || selectedId === 'support' || selectedConversation?.type === 'support' ? (
+                    <MessageSquare className="h-4 w-4 text-green-600" />
+                  ) : selectedConversation?.type === 'order' ? (
+                    <Package className="h-4 w-4 text-primary" />
+                  ) : (
+                    <Calendar className="h-4 w-4 text-accent" />
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <h3 className="font-semibold text-foreground text-sm truncate">
+                    {showNewMessage ? 'New Message' : (selectedId === 'support' ? 'Support' : selectedConversation?.title || 'Chat')}
+                  </h3>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {showNewMessage ? 'Send to support' : (selectedId === 'support' ? 'General Inquiry' : selectedConversation?.subtitle || '')}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleRefresh}
+                  disabled={refreshing}
+                  className="p-1"
+                >
+                  <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+                </Button>
+                {selectedConversation?.type !== 'support' && selectedId !== 'support' && !showNewMessage && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate(`/orders/${selectedId}/tracking`)}
+                    className="text-xs px-2"
+                  >
+                    Track
+                  </Button>
+                )}
+              </div>
+            </div>
+          </CardHeader>
+
+          {/* Messages */}
+          <CardContent className="flex-1 overflow-hidden p-0">
+            {messagesLoading ? (
+              <div className="flex items-center justify-center h-full">
+                <Loader2 className="h-6 w-6 animate-spin text-accent" />
+              </div>
+            ) : messages.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-center px-4">
+                <MessageSquare className="h-12 w-12 text-muted-foreground/30 mb-3" />
+                <p className="text-muted-foreground">No messages yet</p>
+                <p className="text-sm text-muted-foreground">Start the conversation below</p>
+              </div>
+            ) : (
+              <ScrollArea className="h-full p-3">
+                <div className="space-y-3">
+                  {messages.map((message) => {
+                    const isOwn = message.sender_id === user.id;
+                    const isAdmin = user.role === 'admin';
+                    const showReadReceipt = isOwn && isAdmin;
+                    return (
+                      <div key={message.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`max-w-[85%] ${isOwn ? 'bg-accent text-white rounded-l-lg rounded-tr-lg' : 'bg-muted rounded-r-lg rounded-tl-lg'} p-2`}>
+                          <p className={`text-sm ${isOwn ? 'text-white' : 'text-foreground'}`}>{message.message}</p>
+                          <div className={`flex items-center gap-1 mt-1 ${isOwn ? 'justify-end' : ''}`}>
+                            <span className={`text-xs ${isOwn ? 'text-white/60' : 'text-muted-foreground'}`}>
+                              {formatDateTime(message.created_at)}
+                            </span>
+                            {showReadReceipt && (
+                              message.read ? <CheckCheck className="h-3 w-3 text-blue-300" /> : <CheckCircle className="h-3 w-3 text-white/60" />
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <div ref={messagesEndRef} />
+                </div>
+              </ScrollArea>
+            )}
+          </CardContent>
+
+          {/* Input */}
+          <div className="p-3 border-t flex-shrink-0 bg-card">
+            <form onSubmit={sendMessage} className="flex gap-2">
+              <Input
+                placeholder="Type a message..."
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                disabled={sending}
+                className="flex-1 text-base"
+                data-testid="message-input"
+              />
+              <Button type="submit" disabled={!newMessage.trim() || sending} className="bg-accent hover:bg-accent/90" data-testid="send-message-btn">
+                {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              </Button>
+            </form>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background" data-testid="messaging-center-page">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
         {/* Header */}
-        <div className="flex items-center gap-4 mb-6">
+        <div className="flex items-center gap-3 mb-4 sm:mb-6">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => navigate('/dashboard')}
-            className="gap-2"
+            className="gap-2 px-2 sm:px-3"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back to Dashboard
+            <span className="hidden sm:inline">Back to Dashboard</span>
           </Button>
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Messages</h1>
-            <p className="text-sm text-muted-foreground">
+            <h1 className="text-xl sm:text-2xl font-bold text-foreground">Messages</h1>
+            <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block">
               Communicate about your orders and consultations
             </p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-200px)]">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 h-[calc(100vh-160px)] sm:h-[calc(100vh-200px)]">
           {/* Conversations List */}
           <Card className="lg:col-span-1 flex flex-col">
-            <CardHeader className="pb-3 space-y-3">
+            <CardHeader className="pb-3 space-y-3 px-3 sm:px-6">
               {/* New Message Button */}
               <Button
                 onClick={startNewMessage}
@@ -277,7 +402,7 @@ export const MessagingCenterPage = () => {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search conversations..."
+                  placeholder="Search..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-9"
@@ -299,30 +424,30 @@ export const MessagingCenterPage = () => {
                   </p>
                 </div>
               ) : (
-                <ScrollArea className="h-[calc(100vh-340px)]">
+                <ScrollArea className="h-[calc(100vh-320px)] sm:h-[calc(100vh-340px)]">
                   <div className="space-y-1 p-2">
                     {filteredConversations.map((conversation) => (
                       <button
                         key={conversation.id}
                         onClick={() => selectConversation(conversation.id)}
-                        className={`w-full p-3 rounded-lg text-left transition-colors ${
+                        className={`w-full p-2 sm:p-3 rounded-lg text-left transition-colors ${
                           selectedId === conversation.id
                             ? 'bg-accent/10 border-l-4 border-accent'
                             : 'hover:bg-muted/50'
                         }`}
                         data-testid={`conversation-${conversation.id}`}
                       >
-                        <div className="flex items-start gap-3">
-                          <div className={`h-10 w-10 rounded-full flex items-center justify-center ${
+                        <div className="flex items-start gap-2 sm:gap-3">
+                          <div className={`h-8 w-8 sm:h-10 sm:w-10 rounded-full flex items-center justify-center flex-shrink-0 ${
                             conversation.type === 'order' ? 'bg-primary/10' : 
                             conversation.type === 'support' ? 'bg-green-100' : 'bg-accent/10'
                           }`}>
                             {conversation.type === 'order' ? (
-                              <Package className="h-5 w-5 text-primary" />
+                              <Package className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                             ) : conversation.type === 'support' ? (
-                              <MessageSquare className="h-5 w-5 text-green-600" />
+                              <MessageSquare className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
                             ) : (
-                              <Calendar className="h-5 w-5 text-accent" />
+                              <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-accent" />
                             )}
                           </div>
                           <div className="flex-1 min-w-0">
@@ -359,37 +484,46 @@ export const MessagingCenterPage = () => {
             </CardContent>
           </Card>
 
-          {/* Messages Area */}
-          <Card className="lg:col-span-2 flex flex-col">
-            {showNewMessage || (selectedId && selectedConversation) ? (
+          {/* Messages Area - Show on mobile when conversation selected */}
+          <Card className={`lg:col-span-2 flex flex-col rounded-none lg:rounded-lg ${!selectedId ? 'hidden lg:flex' : 'flex h-[100dvh] lg:h-auto'}`}>
+            {showNewMessage || selectedId ? (
               <>
                 {/* Conversation Header */}
-                <CardHeader className="border-b pb-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className={`h-10 w-10 rounded-full flex items-center justify-center ${
-                        showNewMessage ? 'bg-green-100' :
+                <CardHeader className="border-b pb-3 sm:pb-4 px-3 sm:px-6 flex-shrink-0 bg-card">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                      {/* Back button for mobile */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setSearchParams({})}
+                        className="lg:hidden p-2 flex-shrink-0"
+                      >
+                        <ArrowLeft className="h-5 w-5" />
+                      </Button>
+                      <div className={`h-8 w-8 sm:h-10 sm:w-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                        showNewMessage || selectedId === 'support' ? 'bg-green-100' :
                         selectedConversation?.type === 'order' ? 'bg-primary/10' : 
                         selectedConversation?.type === 'support' ? 'bg-green-100' : 'bg-accent/10'
                       }`}>
-                        {showNewMessage || selectedConversation?.type === 'support' ? (
-                          <MessageSquare className="h-5 w-5 text-green-600" />
+                        {showNewMessage || selectedId === 'support' || selectedConversation?.type === 'support' ? (
+                          <MessageSquare className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
                         ) : selectedConversation?.type === 'order' ? (
-                          <Package className="h-5 w-5 text-primary" />
+                          <Package className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                         ) : (
-                          <Calendar className="h-5 w-5 text-accent" />
+                          <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-accent" />
                         )}
                       </div>
-                      <div>
-                        <h3 className="font-semibold text-foreground">
-                          {showNewMessage ? 'New Message' : selectedConversation?.title}
+                      <div className="min-w-0">
+                        <h3 className="font-semibold text-foreground text-sm sm:text-base truncate">
+                          {showNewMessage ? 'New Message' : (selectedId === 'support' ? 'Support' : selectedConversation?.title || 'Chat')}
                         </h3>
-                        <p className="text-sm text-muted-foreground">
-                          {showNewMessage ? 'Send a message to our support team' : selectedConversation?.subtitle}
+                        <p className="text-xs sm:text-sm text-muted-foreground truncate">
+                          {showNewMessage ? 'Send to support' : (selectedId === 'support' ? 'General Inquiry' : selectedConversation?.subtitle || '')}
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
                       {!showNewMessage && (
                         <>
                           <Button
@@ -397,12 +531,12 @@ export const MessagingCenterPage = () => {
                             size="sm"
                             onClick={handleRefresh}
                             disabled={refreshing}
-                            className="gap-1"
+                            className="p-1 sm:p-2"
                             data-testid="refresh-messages-btn"
                           >
                             <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
                           </Button>
-                          <Badge className={getStatusColor(selectedConversation?.status)}>
+                          <Badge className={`text-xs hidden sm:flex ${getStatusColor(selectedConversation?.status)}`}>
                             {selectedConversation?.status?.replace(/_/g, ' ')}
                           </Badge>
                           {selectedConversation?.type !== 'support' && (
@@ -410,9 +544,10 @@ export const MessagingCenterPage = () => {
                               variant="outline"
                               size="sm"
                               onClick={() => navigate(`/orders/${selectedId}/tracking`)}
-                              className="gap-1"
+                              className="gap-1 text-xs sm:text-sm px-2 sm:px-3"
                             >
-                              Track Order
+                              <span className="hidden sm:inline">Track Order</span>
+                              <span className="sm:hidden">Track</span>
                               <ChevronRight className="h-4 w-4" />
                             </Button>
                           )}
@@ -437,8 +572,8 @@ export const MessagingCenterPage = () => {
                       </p>
                     </div>
                   ) : (
-                    <ScrollArea className="h-[calc(100vh-420px)] p-4">
-                      <div className="space-y-4">
+                    <ScrollArea className="h-[calc(100vh-300px)] sm:h-[calc(100vh-420px)] p-3 sm:p-4">
+                      <div className="space-y-3 sm:space-y-4">
                         {messages.map((message) => {
                           const isOwn = message.sender_id === user.id;
                           const isAdmin = user.role === 'admin';
@@ -449,11 +584,11 @@ export const MessagingCenterPage = () => {
                               className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
                             >
                               <div
-                                className={`max-w-[80%] ${
+                                className={`max-w-[85%] sm:max-w-[80%] ${
                                   isOwn
                                     ? 'bg-accent text-white rounded-l-lg rounded-tr-lg'
                                     : 'bg-muted rounded-r-lg rounded-tl-lg'
-                                } p-3`}
+                                } p-2 sm:p-3`}
                               >
                                 <div className="flex items-center gap-2 mb-1">
                                   <span className={`text-xs font-medium ${
@@ -493,15 +628,15 @@ export const MessagingCenterPage = () => {
                   )}
                 </CardContent>
 
-                {/* Message Input */}
-                <div className="p-4 border-t">
+                {/* Message Input - Fixed at bottom on mobile */}
+                <div className="p-3 sm:p-4 border-t flex-shrink-0 bg-background">
                   <form onSubmit={sendMessage} className="flex gap-2">
                     <Input
-                      placeholder="Type your message..."
+                      placeholder="Type a message..."
                       value={newMessage}
                       onChange={(e) => setNewMessage(e.target.value)}
                       disabled={sending}
-                      className="flex-1"
+                      className="flex-1 text-base"
                       data-testid="message-input"
                     />
                     <Button
