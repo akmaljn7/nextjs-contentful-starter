@@ -45,6 +45,10 @@ export const BillboardsPage = () => {
   const [loadingPackages, setLoadingPackages] = useState(false);
   const [showPackages, setShowPackages] = useState(false);
   const [addedPackages, setAddedPackages] = useState({});
+  
+  // Independent billboard types
+  const [independentTypes, setIndependentTypes] = useState([]);
+  const [selectedIndependentType, setSelectedIndependentType] = useState(null);
 
   useEffect(() => {
     fetchBillboards();
@@ -64,14 +68,17 @@ export const BillboardsPage = () => {
 
   const fetchConfig = async () => {
     try {
-      const [statesRes, sizesRes, typesRes] = await Promise.all([
+      const [statesRes, sizesRes, typesRes, independentTypesRes] = await Promise.all([
         api.get('/led-billboard/states'),
         api.get('/led-billboard/sizes'),
-        api.get('/billboard-types')
+        api.get('/billboard-types'),
+        api.get('/billboard-types?independent_only=true')
       ]);
       setStates(statesRes.data);
       setSizes(sizesRes.data);
-      setBillboardTypes(typesRes.data);
+      // Filter out independent types from the regular types
+      setBillboardTypes((typesRes.data || []).filter(t => !t.is_independent));
+      setIndependentTypes(independentTypesRes.data || []);
     } catch (error) {
       console.error('Failed to load billboard config:', error);
     }
@@ -92,6 +99,25 @@ export const BillboardsPage = () => {
     
     setSelectedBillboard(billboard);
     setModalType(category);
+    setSelectedIndependentType(null);
+    setShowModal(true);
+    setShowPackages(false);
+    setSelectedState('');
+    setSelectedRoad('');
+    setSelectedSize('');
+    setSelectedType('');
+    setAvailableRoads([]);
+    setPackages([]);
+  };
+
+  // Handler for independent type cards
+  const handleIndependentTypeClick = (independentType, e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    setSelectedBillboard(null);
+    setSelectedIndependentType(independentType);
+    setModalType('independent');
     setShowModal(true);
     setShowPackages(false);
     setSelectedState('');
@@ -166,6 +192,15 @@ export const BillboardsPage = () => {
             size_id: selectedSize
           }
         });
+      } else if (modalType === 'independent' && selectedIndependentType) {
+        // Query packages for independent billboard type
+        response = await api.get('/static-billboard/packages', {
+          params: {
+            billboard_type_id: selectedIndependentType.id,
+            state_id: selectedState,
+            road_name: selectedRoad
+          }
+        });
       } else {
         response = await api.get('/static-billboard/packages', {
           params: {
@@ -206,13 +241,14 @@ export const BillboardsPage = () => {
     const listingTypeMap = {
       'led': 'led_billboard',
       'static_banner': 'static_banner',
-      'lightbox': 'lightbox'
+      'lightbox': 'lightbox',
+      'independent': 'independent_billboard'
     };
 
     const cartItem = {
       id: pkg.id,
       type: modalType,
-      listingType: listingTypeMap[modalType],
+      listingType: listingTypeMap[modalType] || 'independent_billboard',
       listingId: pkg.id,
       influencerId: pkg.id,
       listingName: `${getModalTitle()} - ${state?.name || ''}, ${selectedRoad}`,
@@ -222,14 +258,15 @@ export const BillboardsPage = () => {
       duration: pkg.duration,
       deliverables: pkg.deliverables || [],
       turnaround: pkg.duration,
-      image_url: pkg.image_url || selectedBillboard?.image_url,
+      image_url: pkg.image_url || selectedBillboard?.image_url || selectedIndependentType?.image_url,
       location: `${state?.name}, ${selectedRoad}`,
       size: size?.name,
-      billboard_type: type?.name,
+      billboard_type: type?.name || selectedIndependentType?.name,
       state_name: state?.name,
       road_name: selectedRoad,
       size_name: size?.name,
-      type_name: type?.name,
+      type_name: type?.name || selectedIndependentType?.name,
+      billboard_type_id: selectedIndependentType?.id,
     };
 
     addItem(cartItem);
@@ -242,6 +279,7 @@ export const BillboardsPage = () => {
       case 'led': return 'LED Billboard';
       case 'static_banner': return 'Static Banner Billboard';
       case 'lightbox': return 'Lightbox Billboard';
+      case 'independent': return selectedIndependentType?.name || 'Custom Billboard';
       default: return 'Billboard';
     }
   };
@@ -251,6 +289,7 @@ export const BillboardsPage = () => {
       case 'led': return <Monitor className="h-6 w-6 text-accent" />;
       case 'static_banner': return <Image className="h-6 w-6 text-accent" />;
       case 'lightbox': return <Lightbulb className="h-6 w-6 text-accent" />;
+      case 'independent': return <Monitor className="h-6 w-6 text-accent" />;
       default: return <Monitor className="h-6 w-6 text-accent" />;
     }
   };
@@ -290,12 +329,13 @@ export const BillboardsPage = () => {
             <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
             <p className="text-muted-foreground mt-2">{t('common.loading', language)}</p>
           </div>
-        ) : billboards.length === 0 ? (
+        ) : billboards.length === 0 && independentTypes.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-muted-foreground">No billboard categories found</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {/* Default Billboard Categories (LED, Static, Lightbox) */}
             {billboards.map((billboard) => (
               <div key={billboard.id}>
                 <Card
@@ -352,6 +392,62 @@ export const BillboardsPage = () => {
                 </Card>
               </div>
             ))}
+            
+            {/* Independent/Custom Billboard Types */}
+            {independentTypes.map((indType) => (
+              <div key={indType.id}>
+                <Card
+                  className="group hover:shadow-2xl hover:-translate-y-2 h-full border-2 transition-all duration-300 cursor-pointer"
+                  data-testid={`independent-billboard-card-${indType.id}`}
+                >
+                  <CardContent className="p-0">
+                    <div className="relative h-64 overflow-hidden rounded-t-lg bg-gradient-to-br from-primary/10 to-accent/10">
+                      {indType.image_url ? (
+                        <img
+                          src={indType.image_url}
+                          alt={indType.name}
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Monitor className="h-20 w-20 text-accent/50" />
+                        </div>
+                      )}
+                      <Badge className="absolute top-3 left-3 bg-green-600 text-white border-0 font-semibold">
+                        {indType.name}
+                      </Badge>
+                    </div>
+                    <div className="p-6 space-y-4">
+                      <div>
+                        <h3 className="text-2xl font-bold text-foreground mb-2">{indType.name}</h3>
+                        <p className="text-sm text-muted-foreground">{indType.description || 'Custom billboard advertising solution'}</p>
+                      </div>
+                      
+                      <div className="flex items-center justify-between text-sm pt-3 border-t">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Avg. Daily Traffic</p>
+                          <p className="text-lg font-semibold text-foreground">{formatNumber(indType.traffic_daily || 0)}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-muted-foreground">{t('common.starting', language)}</p>
+                          <p className="text-2xl font-bold text-primary">{formatPrice(indType.price_starting || 0)}</p>
+                          <p className="text-xs text-muted-foreground">{t('common.permonth', language)}</p>
+                        </div>
+                      </div>
+
+                      <Button 
+                        className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold mt-4"
+                        data-testid={`view-packages-${indType.id}`}
+                        onClick={(e) => handleIndependentTypeClick(indType, e)}
+                      >
+                        <Monitor className="h-4 w-4 mr-2" />
+                        View Packages & Book
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -365,7 +461,11 @@ export const BillboardsPage = () => {
               {getModalTitle()} Selection
             </DialogTitle>
             <DialogDescription>
-              Select your preferred {modalType === 'led' ? 'state, road, and size' : 'state, road, and type'} to view available packages
+              {modalType === 'independent' 
+                ? 'Select your preferred state and road to view available packages'
+                : modalType === 'led' 
+                  ? 'Select your preferred state, road, and size to view available packages' 
+                  : 'Select your preferred state, road, and type to view available packages'}
             </DialogDescription>
           </DialogHeader>
 
@@ -498,7 +598,11 @@ export const BillboardsPage = () => {
                   <div className="text-center py-8 bg-muted/30 rounded-lg">
                     {getModalIcon()}
                     <p className="text-muted-foreground mt-3">No packages found for this combination.</p>
-                    <p className="text-sm text-muted-foreground">Try a different state, road, or {modalType === 'led' ? 'size' : 'type'}.</p>
+                    <p className="text-sm text-muted-foreground">
+                      {modalType === 'independent' 
+                        ? 'Try a different state or road.'
+                        : `Try a different state, road, or ${modalType === 'led' ? 'size' : 'type'}.`}
+                    </p>
                   </div>
                 ) : (
                   <div className="grid gap-4">

@@ -270,25 +270,34 @@ class LEDBillboardPackage(BaseModel):
     status: str = "active"
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-# Static Banner & Lightbox Billboard Models
+# Static Banner & Lightbox Billboard Models (also supports independent types)
 class BillboardTypeCreate(BaseModel):
-    name: str  # e.g., "Standard", "Premium", "Illuminated"
+    name: str  # e.g., "Standard", "Premium", "Illuminated", or independent like "LED CAR"
     description: Optional[str] = None
-    billboard_category: str  # "static_banner" or "lightbox"
+    billboard_category: Optional[str] = None  # "static_banner", "lightbox", or None for independent
+    is_independent: bool = False  # True for top-level categories that appear on billboard page
+    image_url: Optional[str] = None  # Image for independent types displayed on public page
+    traffic_daily: Optional[int] = 0  # Traffic info for independent types
+    price_starting: Optional[float] = 0  # Starting price for display
 
 class BillboardType(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     name: str
     description: Optional[str] = None
-    billboard_category: str  # "static_banner" or "lightbox"
+    billboard_category: Optional[str] = None  # "static_banner", "lightbox", or None for independent
+    is_independent: bool = False  # True for top-level categories
+    image_url: Optional[str] = None
+    traffic_daily: int = 0
+    price_starting: float = 0
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class StaticBillboardPackageCreate(BaseModel):
-    billboard_category: str  # "static_banner" or "lightbox"
+    billboard_category: Optional[str] = None  # "static_banner", "lightbox", or None for independent types
+    billboard_type_id: Optional[str] = None  # For independent billboard types
     state_id: str
     road_name: str
-    type_id: str
+    type_id: Optional[str] = None  # Optional for independent types (size equivalent)
     title: str
     description: str
     price: float
@@ -299,11 +308,13 @@ class StaticBillboardPackageCreate(BaseModel):
 class StaticBillboardPackage(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    billboard_category: str  # "static_banner" or "lightbox"
+    billboard_category: Optional[str] = None  # "static_banner", "lightbox", or None for independent
+    billboard_type_id: Optional[str] = None  # For independent billboard types
+    billboard_type_name: Optional[str] = None  # Name of the independent type
     state_id: str
     state_name: Optional[str] = None
     road_name: str
-    type_id: str
+    type_id: Optional[str] = None
     type_name: Optional[str] = None
     title: str
     description: str
@@ -1606,11 +1617,14 @@ async def delete_led_billboard_package(package_id: str, current_user: User = Dep
 # Static Banner & Lightbox Billboard Routes
 
 @api_router.get("/billboard-types")
-async def get_billboard_types(category: Optional[str] = None):
-    """Get billboard types (for Static Banner and Lightbox)"""
+async def get_billboard_types(category: Optional[str] = None, independent_only: bool = False):
+    """Get billboard types (for Static Banner, Lightbox, or independent types)"""
     query = {}
-    if category:
+    if independent_only:
+        query["is_independent"] = True
+    elif category:
         query["billboard_category"] = category
+        query["$or"] = [{"is_independent": False}, {"is_independent": {"$exists": False}}]
     types = await db.billboard_types.find(query, {"_id": 0}).to_list(100)
     return types
 
@@ -1619,13 +1633,23 @@ async def create_billboard_type(data: BillboardTypeCreate, current_user: User = 
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     
-    # Check if type already exists for this category
-    existing = await db.billboard_types.find_one({
-        "name": {"$regex": f"^{data.name}$", "$options": "i"},
-        "billboard_category": data.billboard_category
-    })
+    # Check if type already exists
+    if data.is_independent:
+        # For independent types, check unique name globally
+        existing = await db.billboard_types.find_one({
+            "name": {"$regex": f"^{data.name}$", "$options": "i"},
+            "is_independent": True
+        })
+    else:
+        # For category-specific types, check unique within category
+        existing = await db.billboard_types.find_one({
+            "name": {"$regex": f"^{data.name}$", "$options": "i"},
+            "billboard_category": data.billboard_category,
+            "$or": [{"is_independent": False}, {"is_independent": {"$exists": False}}]
+        })
+    
     if existing:
-        raise HTTPException(status_code=400, detail="Type already exists for this category")
+        raise HTTPException(status_code=400, detail="Type already exists")
     
     billboard_type = BillboardType(**data.model_dump())
     doc = billboard_type.model_dump()
@@ -1639,9 +1663,23 @@ async def update_billboard_type(type_id: str, data: BillboardTypeCreate, current
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     
+    update_data = {
+        "name": data.name, 
+        "description": data.description, 
+        "is_independent": data.is_independent
+    }
+    
+    if data.is_independent:
+        update_data["billboard_category"] = None
+        update_data["image_url"] = data.image_url
+        update_data["traffic_daily"] = data.traffic_daily or 0
+        update_data["price_starting"] = data.price_starting or 0
+    else:
+        update_data["billboard_category"] = data.billboard_category
+    
     result = await db.billboard_types.update_one(
         {"id": type_id},
-        {"$set": {"name": data.name, "description": data.description, "billboard_category": data.billboard_category}}
+        {"$set": update_data}
     )
     
     if result.modified_count == 0:
@@ -1651,6 +1689,12 @@ async def update_billboard_type(type_id: str, data: BillboardTypeCreate, current
     await db.static_billboard_packages.update_many(
         {"type_id": type_id},
         {"$set": {"type_name": data.name}}
+    )
+    
+    # Also update packages that reference this as billboard_type_id (for independent types)
+    await db.static_billboard_packages.update_many(
+        {"billboard_type_id": type_id},
+        {"$set": {"billboard_type_name": data.name}}
     )
     
     return {"status": "success", "message": "Type updated"}
@@ -1669,15 +1713,20 @@ async def delete_billboard_type(type_id: str, current_user: User = Depends(get_c
 @api_router.get("/static-billboard/packages")
 async def get_static_billboard_packages(
     category: Optional[str] = None,
+    billboard_type_id: Optional[str] = None,  # For independent billboard types
     state_id: Optional[str] = None,
     road_name: Optional[str] = None,
     type_id: Optional[str] = None
 ):
-    """Get Static Banner or Lightbox billboard packages with optional filters"""
+    """Get Static Banner, Lightbox, or independent billboard packages with optional filters"""
     query = {"status": "active"}
     
-    if category:
+    if billboard_type_id:
+        # Query for independent type packages
+        query["billboard_type_id"] = billboard_type_id
+    elif category:
         query["billboard_category"] = category
+    
     if state_id:
         query["state_id"] = state_id
     if road_name:
@@ -1693,18 +1742,32 @@ async def create_static_billboard_package(data: StaticBillboardPackageCreate, cu
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     
-    # Get state and type names for denormalization
+    # Get state name for denormalization
     state = await db.billboard_states.find_one({"id": data.state_id}, {"_id": 0, "name": 1})
-    billboard_type = await db.billboard_types.find_one({"id": data.type_id}, {"_id": 0, "name": 1})
-    
     if not state:
         raise HTTPException(status_code=400, detail="Invalid state ID")
-    if not billboard_type:
-        raise HTTPException(status_code=400, detail="Invalid type ID")
+    
+    # Handle type_id for category-specific packages or billboard_type_id for independent types
+    type_name = None
+    billboard_type_name = None
+    
+    if data.billboard_type_id:
+        # This is a package for an independent billboard type
+        independent_type = await db.billboard_types.find_one({"id": data.billboard_type_id, "is_independent": True}, {"_id": 0, "name": 1})
+        if not independent_type:
+            raise HTTPException(status_code=400, detail="Invalid independent billboard type ID")
+        billboard_type_name = independent_type["name"]
+    elif data.type_id:
+        # This is a category-specific package (static_banner or lightbox)
+        billboard_type = await db.billboard_types.find_one({"id": data.type_id}, {"_id": 0, "name": 1})
+        if not billboard_type:
+            raise HTTPException(status_code=400, detail="Invalid type ID")
+        type_name = billboard_type["name"]
     
     package = StaticBillboardPackage(
         state_name=state["name"],
-        type_name=billboard_type["name"],
+        type_name=type_name,
+        billboard_type_name=billboard_type_name,
         **data.model_dump()
     )
     doc = package.model_dump()
@@ -1718,13 +1781,24 @@ async def update_static_billboard_package(package_id: str, data: StaticBillboard
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     
-    # Get state and type names
+    # Get state name
     state = await db.billboard_states.find_one({"id": data.state_id}, {"_id": 0, "name": 1})
-    billboard_type = await db.billboard_types.find_one({"id": data.type_id}, {"_id": 0, "name": 1})
+    
+    # Get type names based on whether it's independent or category-specific
+    type_name = None
+    billboard_type_name = None
+    
+    if data.billboard_type_id:
+        independent_type = await db.billboard_types.find_one({"id": data.billboard_type_id, "is_independent": True}, {"_id": 0, "name": 1})
+        billboard_type_name = independent_type["name"] if independent_type else None
+    elif data.type_id:
+        billboard_type = await db.billboard_types.find_one({"id": data.type_id}, {"_id": 0, "name": 1})
+        type_name = billboard_type["name"] if billboard_type else None
     
     update_data = data.model_dump()
     update_data["state_name"] = state["name"] if state else None
-    update_data["type_name"] = billboard_type["name"] if billboard_type else None
+    update_data["type_name"] = type_name
+    update_data["billboard_type_name"] = billboard_type_name
     
     result = await db.static_billboard_packages.update_one(
         {"id": package_id},

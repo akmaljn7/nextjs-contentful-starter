@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { ImageUpload } from '@/components/ImageUpload';
-import { formatPrice, formatDate } from '@/lib/utils';
+import { formatPrice, formatDate, formatNumber } from '@/lib/utils';
 import { 
   Users, 
   ShoppingBag,
@@ -1033,6 +1033,496 @@ const StaticBillboardConfigTab = ({ states, billboardTypes, staticPackages, onRe
   );
 };
 
+// Independent Billboard Types Config Tab Component
+const IndependentBillboardConfigTab = ({ states, independentTypes, independentPackages, onRefresh }) => {
+  const [activeSection, setActiveSection] = useState('types');
+  const [selectedType, setSelectedType] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const [modalType, setModalType] = useState(''); // 'type', 'package'
+  const [modalMode, setModalMode] = useState('create');
+  const [formData, setFormData] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [newDeliverable, setNewDeliverable] = useState('');
+
+  const filteredPackages = selectedType 
+    ? independentPackages.filter(p => p.billboard_type_id === selectedType.id)
+    : [];
+
+  const openCreateTypeModal = () => {
+    setModalType('type');
+    setModalMode('create');
+    setFormData({ 
+      name: '', 
+      description: '', 
+      is_independent: true,
+      image_url: '',
+      traffic_daily: 0,
+      price_starting: 0
+    });
+    setShowModal(true);
+  };
+
+  const openEditTypeModal = (item) => {
+    setModalType('type');
+    setModalMode('edit');
+    setFormData({ ...item, is_independent: true });
+    setShowModal(true);
+  };
+
+  const openCreatePackageModal = () => {
+    if (!selectedType) {
+      toast.error('Please select a billboard type first');
+      return;
+    }
+    setModalType('package');
+    setModalMode('create');
+    setFormData({ 
+      billboard_type_id: selectedType.id,
+      state_id: '', 
+      road_name: '', 
+      title: '', 
+      description: '', 
+      price: '', 
+      duration: '', 
+      deliverables: [], 
+      image_url: '' 
+    });
+    setShowModal(true);
+  };
+
+  const openEditPackageModal = (item) => {
+    setModalType('package');
+    setModalMode('edit');
+    setFormData({ ...item });
+    setShowModal(true);
+  };
+
+  const addDeliverable = () => {
+    if (!newDeliverable.trim()) return;
+    setFormData(prev => ({
+      ...prev,
+      deliverables: [...(prev.deliverables || []), newDeliverable.trim()]
+    }));
+    setNewDeliverable('');
+  };
+
+  const removeDeliverable = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      deliverables: prev.deliverables.filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      let endpoint = '';
+      let data = { ...formData };
+
+      if (modalType === 'type') {
+        endpoint = modalMode === 'create' ? '/billboard-types' : `/billboard-types/${formData.id}`;
+        data.is_independent = true;
+        data.billboard_category = null;
+        data.traffic_daily = parseInt(data.traffic_daily) || 0;
+        data.price_starting = parseFloat(data.price_starting) || 0;
+      } else if (modalType === 'package') {
+        endpoint = modalMode === 'create' ? '/static-billboard/packages' : `/static-billboard/packages/${formData.id}`;
+        data.price = parseFloat(data.price) || 0;
+        data.billboard_type_id = selectedType.id;
+        data.billboard_category = null;
+      }
+
+      if (modalMode === 'create') {
+        await api.post(endpoint, data);
+        toast.success(`${modalType === 'type' ? 'Billboard type' : 'Package'} created successfully`);
+      } else {
+        await api.put(endpoint, data);
+        toast.success(`${modalType === 'type' ? 'Billboard type' : 'Package'} updated successfully`);
+      }
+
+      setShowModal(false);
+      onRefresh();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || `Failed to save ${modalType}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteType = async (id) => {
+    if (!confirm('Are you sure you want to delete this billboard type? This will also affect its packages.')) return;
+
+    try {
+      await api.delete(`/billboard-types/${id}`);
+      toast.success('Billboard type deleted successfully');
+      if (selectedType?.id === id) {
+        setSelectedType(null);
+      }
+      onRefresh();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Failed to delete billboard type');
+    }
+  };
+
+  const handleDeletePackage = async (id) => {
+    if (!confirm('Are you sure you want to delete this package?')) return;
+
+    try {
+      await api.delete(`/static-billboard/packages/${id}`);
+      toast.success('Package deleted successfully');
+      onRefresh();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Failed to delete package');
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Info Banner */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="flex items-start gap-3">
+          <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5" />
+          <div>
+            <h3 className="font-semibold text-blue-800">Independent Billboard Types</h3>
+            <p className="text-sm text-blue-700 mt-1">
+              Create custom billboard categories (e.g., "LED CAR", "Mobile Billboard") that will appear as separate cards on the public Billboards page alongside LED, Static Banner, and Lightbox.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Section Tabs */}
+      <div className="flex gap-2 flex-wrap">
+        <Button 
+          variant={activeSection === 'types' ? 'default' : 'outline'}
+          onClick={() => setActiveSection('types')}
+          className={activeSection === 'types' ? 'bg-accent' : ''}
+        >
+          <Monitor className="h-4 w-4 mr-2" /> Billboard Types ({independentTypes.length})
+        </Button>
+        <Button 
+          variant={activeSection === 'packages' ? 'default' : 'outline'}
+          onClick={() => setActiveSection('packages')}
+          className={activeSection === 'packages' ? 'bg-accent' : ''}
+          disabled={!selectedType}
+        >
+          <Package className="h-4 w-4 mr-2" /> 
+          {selectedType ? `${selectedType.name} Packages (${filteredPackages.length})` : 'Select a Type First'}
+        </Button>
+      </div>
+
+      {/* Types Section */}
+      {activeSection === 'types' && (
+        <Card className="border-2">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Independent Billboard Types</CardTitle>
+            <Button onClick={openCreateTypeModal} className="bg-accent hover:bg-accent/90">
+              <Plus className="h-4 w-4 mr-2" /> Create New Type
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {independentTypes.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Monitor className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                <p>No independent billboard types created yet.</p>
+                <p className="text-sm mt-2">Create your first custom billboard category to get started.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {independentTypes.map((type) => (
+                  <Card 
+                    key={type.id} 
+                    className={`border-2 cursor-pointer transition-all hover:shadow-lg ${selectedType?.id === type.id ? 'border-accent ring-2 ring-accent/30' : ''}`}
+                    onClick={() => setSelectedType(type)}
+                  >
+                    <CardContent className="p-4">
+                      {type.image_url && (
+                        <img 
+                          src={type.image_url} 
+                          alt={type.name}
+                          className="w-full h-32 object-cover rounded-lg mb-3"
+                        />
+                      )}
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <h3 className="font-semibold text-lg">{type.name}</h3>
+                          <p className="text-sm text-muted-foreground mt-1">{type.description || 'No description'}</p>
+                        </div>
+                        <Badge className="bg-green-100 text-green-800 border-0">Independent</Badge>
+                      </div>
+                      <div className="flex items-center justify-between mt-3 pt-3 border-t text-sm">
+                        <span className="text-muted-foreground">Traffic: {formatNumber(type.traffic_daily || 0)}/day</span>
+                        <span className="font-semibold text-primary">{formatPrice(type.price_starting || 0)}</span>
+                      </div>
+                      <div className="flex gap-2 mt-3">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="flex-1"
+                          onClick={(e) => { e.stopPropagation(); openEditTypeModal(type); }}
+                        >
+                          <Edit className="h-4 w-4 mr-1" /> Edit
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="text-red-500 hover:text-red-700"
+                          onClick={(e) => { e.stopPropagation(); handleDeleteType(type.id); }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Packages Section */}
+      {activeSection === 'packages' && selectedType && (
+        <Card className="border-2">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Monitor className="h-5 w-5 text-accent" />
+              {selectedType.name} Packages
+            </CardTitle>
+            <Button onClick={openCreatePackageModal} className="bg-accent hover:bg-accent/90">
+              <Plus className="h-4 w-4 mr-2" /> Add Package
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {filteredPackages.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Package className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                <p>No packages configured for {selectedType.name}.</p>
+                <p className="text-sm mt-2">Create packages with state + road combinations.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left py-3 px-2 text-sm font-semibold">Title</th>
+                      <th className="text-left py-3 px-2 text-sm font-semibold">State</th>
+                      <th className="text-left py-3 px-2 text-sm font-semibold">Road</th>
+                      <th className="text-left py-3 px-2 text-sm font-semibold">Price</th>
+                      <th className="text-left py-3 px-2 text-sm font-semibold">Duration</th>
+                      <th className="text-center py-3 px-2 text-sm font-semibold">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredPackages.map((pkg) => (
+                      <tr key={pkg.id} className="border-b hover:bg-muted/30">
+                        <td className="py-3 px-2 font-medium">{pkg.title}</td>
+                        <td className="py-3 px-2 text-sm">{pkg.state_name}</td>
+                        <td className="py-3 px-2 text-sm">{pkg.road_name}</td>
+                        <td className="py-3 px-2 font-semibold">{formatPrice(pkg.price)}</td>
+                        <td className="py-3 px-2 text-sm">{pkg.duration}</td>
+                        <td className="py-3 px-2">
+                          <div className="flex items-center justify-center gap-1">
+                            <Button variant="ghost" size="sm" onClick={() => openEditPackageModal(pkg)}>
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="sm" className="text-red-500" onClick={() => handleDeletePackage(pkg.id)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Modal for Create/Edit */}
+      <Dialog open={showModal} onOpenChange={setShowModal}>
+        <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {modalMode === 'create' ? 'Create' : 'Edit'} {modalType === 'type' ? 'Independent Billboard Type' : 'Package'}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {/* Type Form */}
+            {modalType === 'type' && (
+              <>
+                <div className="space-y-2">
+                  <Label>Type Name *</Label>
+                  <Input
+                    value={formData.name || ''}
+                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="e.g., LED CAR, Mobile Billboard, Transit Ads"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Description</Label>
+                  <Textarea
+                    value={formData.description || ''}
+                    onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                    placeholder="Brief description of this billboard type..."
+                    rows={2}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Daily Traffic (Est.)</Label>
+                    <Input
+                      type="number"
+                      value={formData.traffic_daily || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, traffic_daily: e.target.value }))}
+                      placeholder="e.g., 50000"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Starting Price (NGN)</Label>
+                    <Input
+                      type="number"
+                      value={formData.price_starting || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, price_starting: e.target.value }))}
+                      placeholder="e.g., 100000"
+                    />
+                  </div>
+                </div>
+                <ImageUpload
+                  label="Display Image (shown on public page)"
+                  value={formData.image_url || ''}
+                  onChange={(url) => setFormData(prev => ({ ...prev, image_url: url }))}
+                />
+              </>
+            )}
+
+            {/* Package Form */}
+            {modalType === 'package' && (
+              <>
+                <div className="p-3 bg-muted/50 rounded-lg mb-2">
+                  <p className="text-sm">Creating package for: <strong>{selectedType?.name}</strong></p>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>State *</Label>
+                    <Select
+                      value={formData.state_id || ''}
+                      onValueChange={(v) => setFormData(prev => ({ ...prev, state_id: v, road_name: '' }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select state" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {states.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Road *</Label>
+                    <Select
+                      value={formData.road_name || ''}
+                      onValueChange={(v) => setFormData(prev => ({ ...prev, road_name: v }))}
+                      disabled={!formData.state_id}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select road" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(states.find(s => s.id === formData.state_id)?.roads || []).map((r, idx) => (
+                          <SelectItem key={idx} value={r.name}>{r.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Package Title *</Label>
+                  <Input
+                    value={formData.title || ''}
+                    onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                    placeholder="e.g., Premium Monthly Package"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Description</Label>
+                  <Textarea
+                    value={formData.description || ''}
+                    onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                    placeholder="Package description..."
+                    rows={2}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Price (NGN) *</Label>
+                    <Input
+                      type="number"
+                      value={formData.price || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
+                      placeholder="0"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Duration *</Label>
+                    <Input
+                      value={formData.duration || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, duration: e.target.value }))}
+                      placeholder="e.g., 1 Month"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Deliverables</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={newDeliverable}
+                      onChange={(e) => setNewDeliverable(e.target.value)}
+                      placeholder="e.g., Full city coverage"
+                      className="flex-1"
+                      onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addDeliverable())}
+                    />
+                    <Button type="button" onClick={addDeliverable} variant="outline" size="sm">
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {(formData.deliverables || []).map((d, idx) => (
+                      <Badge key={idx} variant="secondary" className="flex items-center gap-1">
+                        {d}
+                        <button onClick={() => removeDeliverable(idx)} className="ml-1 hover:text-red-500">
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+                <ImageUpload
+                  label="Package Image"
+                  value={formData.image_url || ''}
+                  onChange={(url) => setFormData(prev => ({ ...prev, image_url: url }))}
+                />
+              </>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowModal(false)}>Cancel</Button>
+            <Button onClick={handleSave} disabled={saving} className="bg-accent hover:bg-accent/90">
+              {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              {modalMode === 'create' ? 'Create' : 'Save Changes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+
 export const AdminPanelPage = () => {
   const { user } = useAuthStore();
   const navigate = useNavigate();
@@ -1058,6 +1548,10 @@ export const AdminPanelPage = () => {
   // Static/Lightbox Config states
   const [billboardTypes, setBillboardTypes] = useState([]);
   const [staticPackages, setStaticPackages] = useState([]);
+  
+  // Independent Billboard Types states
+  const [independentTypes, setIndependentTypes] = useState([]);
+  const [independentPackages, setIndependentPackages] = useState([]);
   
   // Modal states
   const [showModal, setShowModal] = useState(false);
@@ -1163,7 +1657,9 @@ export const AdminPanelPage = () => {
         ledSizesRes,
         ledPackagesRes,
         billboardTypesRes,
-        staticPackagesRes
+        staticPackagesRes,
+        independentTypesRes,
+        independentPackagesRes
       ] = await Promise.all([
         api.get('/admin/stats/summary'),
         api.get('/admin/orders'),
@@ -1179,6 +1675,8 @@ export const AdminPanelPage = () => {
         api.get('/led-billboard/packages').catch(() => ({ data: [] })),
         api.get('/billboard-types').catch(() => ({ data: [] })),
         api.get('/static-billboard/packages').catch(() => ({ data: [] })),
+        api.get('/billboard-types?independent_only=true').catch(() => ({ data: [] })),
+        api.get('/static-billboard/packages').catch(() => ({ data: [] })),
       ]);
       
       setStats(statsRes.data);
@@ -1193,8 +1691,15 @@ export const AdminPanelPage = () => {
       setLedStates(ledStatesRes.data || []);
       setLedSizes(ledSizesRes.data || []);
       setLedPackages(ledPackagesRes.data || []);
-      setBillboardTypes(billboardTypesRes.data || []);
+      // Filter billboardTypes to exclude independent types for the Static/Lightbox tab
+      const allTypes = billboardTypesRes.data || [];
+      setBillboardTypes(allTypes.filter(t => !t.is_independent));
       setStaticPackages(staticPackagesRes.data || []);
+      // Set independent types and their packages
+      setIndependentTypes(independentTypesRes.data || []);
+      // Filter packages that have billboard_type_id (independent type packages)
+      const allPackages = independentPackagesRes.data || [];
+      setIndependentPackages(allPackages.filter(p => p.billboard_type_id));
     } catch (error) {
       console.error('Error fetching data:', error);
       toast.error('Failed to load admin data');
@@ -1510,6 +2015,7 @@ export const AdminPanelPage = () => {
                 <TabsTrigger value="billboards" className="data-[state=active]:bg-white text-xs sm:text-sm">Billboards</TabsTrigger>
                 <TabsTrigger value="ledconfig" className="data-[state=active]:bg-white text-xs sm:text-sm">LED Config</TabsTrigger>
                 <TabsTrigger value="staticconfig" className="data-[state=active]:bg-white text-xs sm:text-sm">Static/Lightbox</TabsTrigger>
+                <TabsTrigger value="independentconfig" className="data-[state=active]:bg-white text-xs sm:text-sm">Custom Types</TabsTrigger>
                 <TabsTrigger value="kannywood" className="data-[state=active]:bg-white text-xs sm:text-sm">Kannywood</TabsTrigger>
                 <TabsTrigger value="digitalads" className="data-[state=active]:bg-white text-xs sm:text-sm">Digital Ads</TabsTrigger>
                 <TabsTrigger value="consultations" className="data-[state=active]:bg-white text-xs sm:text-sm">Consultations</TabsTrigger>
@@ -1736,6 +2242,16 @@ export const AdminPanelPage = () => {
                   states={ledStates}
                   billboardTypes={billboardTypes}
                   staticPackages={staticPackages}
+                  onRefresh={fetchAllData}
+                />
+              </TabsContent>
+
+              {/* Independent/Custom Billboard Types Tab */}
+              <TabsContent value="independentconfig">
+                <IndependentBillboardConfigTab
+                  states={ledStates}
+                  independentTypes={independentTypes}
+                  independentPackages={independentPackages}
                   onRefresh={fetchAllData}
                 />
               </TabsContent>
