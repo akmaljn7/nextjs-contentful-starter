@@ -45,13 +45,13 @@ export const Header = () => {
       <div className="h-1 sm:h-2 bg-gradient-to-r from-accent via-orange-500 to-accent"></div>
       
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-        <div className="flex h-14 sm:h-20 items-center justify-between">
-          {/* Logo */}
-          <Link to="/" className="flex items-center" data-testid="logo-link" onClick={closeMobileMenu}>
+        <div className="flex h-16 sm:h-24 items-center justify-between">
+          {/* Logo - Shifted left with negative margin and increased size */}
+          <Link to="/" className="flex items-center shrink-0 -ml-2 sm:-ml-4" data-testid="logo-link" onClick={closeMobileMenu}>
             <img 
               src="https://customer-assets.emergentagent.com/job_ads-kano/artifacts/r3mtjzen_logo_no_background.png" 
               alt="Lightban Technology" 
-              className="h-12 sm:h-20 w-auto"
+              className="h-14 sm:h-24 w-auto"
             />
           </Link>
 
