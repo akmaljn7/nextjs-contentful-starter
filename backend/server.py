@@ -1113,17 +1113,22 @@ async def global_search(
                 {"name": {"$regex": q, "$options": "i"}},
             ]
         
-        digital_ads = await db.digital_ad_services.find(da_query, {"_id": 0}).to_list(limit)
-        for da in digital_ads:
+        # Search both collections: digital_ad_services (legacy) and digital_ads (admin-managed)
+        digital_ads_legacy = await db.digital_ad_services.find(da_query, {"_id": 0}).to_list(limit)
+        digital_ads_admin = await db.digital_ads.find(da_query, {"_id": 0}).to_list(limit)
+        
+        all_digital_ads = digital_ads_legacy + digital_ads_admin
+        
+        for da in all_digital_ads:
             packages = da.get("packages", [])
-            min_pkg_price = min([p.get("price", 0) for p in packages]) if packages else 0
+            min_pkg_price = min([p.get("price", 0) for p in packages]) if packages else da.get("price", 0)
             
             results.append({
                 "id": da["id"],
                 "type": "digital_ad",
                 "category": "Digital Ads",
                 "title": da.get("platform") or da.get("name", ""),
-                "subtitle": da.get("service_name", ""),
+                "subtitle": da.get("service_name", "") or da.get("description", "")[:50],
                 "description": da.get("description", ""),
                 "location": "Online",
                 "price": min_pkg_price,
@@ -1141,6 +1146,7 @@ async def global_search(
         if q:
             kw_query["$or"] = [
                 {"title": {"$regex": q, "$options": "i"}},
+                {"production_name": {"$regex": q, "$options": "i"}},
                 {"director": {"$regex": q, "$options": "i"}},
                 {"genre": {"$regex": q, "$options": "i"}},
                 {"production_company": {"$regex": q, "$options": "i"}},
@@ -1150,14 +1156,21 @@ async def global_search(
         if min_price:
             kw_query.setdefault("price", {})["$gte"] = min_price
         
-        kannywood = await db.kannywood_placements.find(kw_query, {"_id": 0}).to_list(limit)
-        for kw in kannywood:
+        # Search both collections: kannywood_placements (legacy) and kannywood (admin-managed)
+        kannywood_legacy = await db.kannywood_placements.find(kw_query, {"_id": 0}).to_list(limit)
+        kannywood_admin = await db.kannywood.find(kw_query, {"_id": 0}).to_list(limit)
+        
+        all_kannywood = kannywood_legacy + kannywood_admin
+        
+        for kw in all_kannywood:
+            # Use title or production_name
+            title = kw.get("title") or kw.get("production_name", "")
             results.append({
                 "id": kw["id"],
                 "type": "kannywood",
                 "category": "Kannywood",
-                "title": kw.get("title", ""),
-                "subtitle": f"Directed by {kw.get('director', '')}",
+                "title": title,
+                "subtitle": f"Directed by {kw.get('director', '')}" if kw.get('director') else kw.get("placement_type", ""),
                 "description": kw.get("description", ""),
                 "location": kw.get("production_company", ""),
                 "price": kw.get("price", 0),
@@ -1165,7 +1178,8 @@ async def global_search(
                 "image_url": kw.get("image_url", ""),
                 "url": f"/kannywood/{kw['id']}",
                 "stats": {
-                    "genre": kw.get("genre", "")
+                    "genre": kw.get("genre", ""),
+                    "reach": kw.get("estimated_reach", 0)
                 }
             })
     
@@ -1228,11 +1242,45 @@ async def get_search_suggestions(q: str, limit: int = 5):
         suggestions.add(state["name"])
     
     kannywood = await db.kannywood_placements.find(
-        {"title": {"$regex": q, "$options": "i"}, "status": "approved"},
-        {"_id": 0, "title": 1}
+        {"$or": [
+            {"title": {"$regex": q, "$options": "i"}},
+            {"production_name": {"$regex": q, "$options": "i"}}
+        ], "status": "approved"},
+        {"_id": 0, "title": 1, "production_name": 1}
     ).to_list(limit)
     for kw in kannywood:
-        suggestions.add(kw["title"])
+        if kw.get("title"):
+            suggestions.add(kw["title"])
+        if kw.get("production_name"):
+            suggestions.add(kw["production_name"])
+    
+    # Also search admin-managed kannywood collection
+    kannywood_admin = await db.kannywood.find(
+        {"$or": [
+            {"title": {"$regex": q, "$options": "i"}},
+            {"production_name": {"$regex": q, "$options": "i"}}
+        ], "status": "approved"},
+        {"_id": 0, "title": 1, "production_name": 1}
+    ).to_list(limit)
+    for kw in kannywood_admin:
+        if kw.get("title"):
+            suggestions.add(kw["title"])
+        if kw.get("production_name"):
+            suggestions.add(kw["production_name"])
+    
+    # Search digital ads
+    digital_ads = await db.digital_ads.find(
+        {"$or": [
+            {"name": {"$regex": q, "$options": "i"}},
+            {"platform": {"$regex": q, "$options": "i"}}
+        ], "status": "approved"},
+        {"_id": 0, "name": 1, "platform": 1}
+    ).to_list(limit)
+    for da in digital_ads:
+        if da.get("name"):
+            suggestions.add(da["name"])
+        if da.get("platform"):
+            suggestions.add(da["platform"])
     
     return {"suggestions": list(suggestions)[:limit]}
 
