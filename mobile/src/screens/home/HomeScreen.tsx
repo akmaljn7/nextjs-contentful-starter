@@ -19,11 +19,11 @@ import { influencersApi, billboardsApi } from '../../api';
 import { Influencer, Billboard } from '../../types/api';
 import { formatNumber, formatPrice } from '../../utils/formatters';
 
-const CATEGORIES = [
-  { id: 'influencers', name: 'Influencers', icon: 'people', color: '#8b5cf6' },
-  { id: 'billboards', name: 'Billboards', icon: 'tv', color: '#f59e0b' },
-  { id: 'digital', name: 'Digital Ads', icon: 'globe', color: '#3b82f6' },
-  { id: 'kannywood', name: 'Kannywood', icon: 'film', color: '#ec4899' },
+const SERVICES = [
+  { id: 'influencers', name: 'Influencers', icon: 'people', color: '#8b5cf6', description: 'Social media marketing' },
+  { id: 'billboards', name: 'Billboards', icon: 'tv', color: '#f59e0b', description: 'Outdoor advertising' },
+  { id: 'digital', name: 'Digital Ads', icon: 'globe', color: '#3b82f6', description: 'Online campaigns' },
+  { id: 'kannywood', name: 'Kannywood', icon: 'film', color: '#ec4899', description: 'Movie placements' },
 ];
 
 export const HomeScreen: React.FC = () => {
@@ -123,29 +123,40 @@ export const HomeScreen: React.FC = () => {
           <Text style={styles.heroSubtitle}>
             Connect with verified influencers, premium billboards, and Kannywood placements
           </Text>
-          <TouchableOpacity
-            style={styles.heroButton}
-            onPress={() => navigation.navigate('ExploreTab', { screen: 'Consultation' })}
-          >
-            <Text style={styles.heroButtonText}>Get a Consultation</Text>
-            <Ionicons name="arrow-forward" size={18} color={Colors.white} />
-          </TouchableOpacity>
         </Card>
 
-        {/* Categories */}
+        {/* Consultation CTA */}
+        <TouchableOpacity
+          style={styles.consultationButton}
+          onPress={() => navigation.navigate('ExploreTab', { screen: 'Consultation' })}
+        >
+          <View style={styles.consultationContent}>
+            <View style={styles.consultationIcon}>
+              <Ionicons name="calendar" size={24} color={Colors.white} />
+            </View>
+            <View style={styles.consultationText}>
+              <Text style={styles.consultationTitle}>Get a Free Consultation</Text>
+              <Text style={styles.consultationSubtitle}>Speak with our advertising experts</Text>
+            </View>
+          </View>
+          <Ionicons name="arrow-forward" size={20} color={Colors.white} />
+        </TouchableOpacity>
+
+        {/* Our Services */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Categories</Text>
-          <View style={styles.categoriesGrid}>
-            {CATEGORIES.map((category) => (
+          <Text style={styles.sectionTitle}>Our Services</Text>
+          <View style={styles.servicesGrid}>
+            {SERVICES.map((service) => (
               <TouchableOpacity
-                key={category.id}
-                style={styles.categoryCard}
-                onPress={() => handleCategoryPress(category.id)}
+                key={service.id}
+                style={styles.serviceCard}
+                onPress={() => handleCategoryPress(service.id)}
               >
-                <View style={[styles.categoryIcon, { backgroundColor: category.color + '20' }]}>
-                  <Ionicons name={category.icon as any} size={28} color={category.color} />
+                <View style={[styles.serviceIcon, { backgroundColor: service.color }]}>
+                  <Ionicons name={service.icon as any} size={32} color={Colors.white} />
                 </View>
-                <Text style={styles.categoryName}>{category.name}</Text>
+                <Text style={styles.serviceName}>{service.name}</Text>
+                <Text style={styles.serviceDescription}>{service.description}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -306,22 +317,44 @@ const styles = StyleSheet.create({
   heroSubtitle: {
     fontSize: Fonts.size.sm,
     color: Colors.white + 'cc',
-    marginBottom: 16,
     lineHeight: 20,
   },
-  heroButton: {
+  consultationButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     backgroundColor: Colors.accent,
-    alignSelf: 'flex-start',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
+    marginHorizontal: 20,
+    marginTop: 16,
+    padding: 16,
+    borderRadius: 12,
   },
-  heroButtonText: {
+  consultationContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  consultationIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  consultationText: {
+    flex: 1,
+  },
+  consultationTitle: {
+    fontSize: Fonts.size.md,
+    fontWeight: Fonts.weight.bold,
     color: Colors.white,
-    fontWeight: Fonts.weight.semibold,
-    marginRight: 8,
+  },
+  consultationSubtitle: {
+    fontSize: Fonts.size.sm,
+    color: Colors.white + 'cc',
+    marginTop: 2,
   },
   section: {
     marginTop: 24,
@@ -337,11 +370,40 @@ const styles = StyleSheet.create({
     fontSize: Fonts.size.lg,
     fontWeight: Fonts.weight.bold,
     color: Colors.textPrimary,
+    marginBottom: 16,
   },
   seeAllText: {
     fontSize: Fonts.size.sm,
     color: Colors.accent,
     fontWeight: Fonts.weight.medium,
+  },
+  servicesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginHorizontal: -8,
+  },
+  serviceCard: {
+    width: '50%',
+    paddingHorizontal: 8,
+    marginBottom: 16,
+  },
+  serviceIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  serviceName: {
+    fontSize: Fonts.size.md,
+    fontWeight: Fonts.weight.bold,
+    color: Colors.textPrimary,
+    marginBottom: 4,
+  },
+  serviceDescription: {
+    fontSize: Fonts.size.sm,
+    color: Colors.textSecondary,
   },
   categoriesGrid: {
     flexDirection: 'row',

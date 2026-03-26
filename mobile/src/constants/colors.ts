@@ -77,3 +77,45 @@ export const DarkTheme = {
   textSecondary: '#9ca3af',
   border: '#374151',
 };
+
+// Dark Mode Colors (full version for ThemeContext)
+export const DarkColors = {
+  // Primary brand colors remain the same
+  primary: '#1a3a5c',
+  accent: '#c4a35a',
+
+  // Backgrounds - dark versions
+  background: '#0d1b2a',
+  surface: '#1b3a5c',
+  card: '#1b3a5c',
+  white: '#1b3a5c',
+
+  // Text colors - inverted
+  textPrimary: '#ffffff',
+  textSecondary: '#b0b0b0',
+  textMuted: '#707070',
+  textInverse: '#0d1b2a',
+
+  // Status colors remain the same
+  success: '#10b981',
+  warning: '#f59e0b',
+  error: '#ef4444',
+  info: '#3b82f6',
+
+  // Border - darker
+  border: '#374151',
+
+  // Grayscale - inverted
+  gray: {
+    50: '#1a1a1a',
+    100: '#2a2a2a',
+    200: '#3a3a3a',
+    300: '#4a4a4a',
+    400: '#5a5a5a',
+    500: '#6a6a6a',
+    600: '#7a7a7a',
+    700: '#8a8a8a',
+    800: '#9a9a9a',
+    900: '#aaaaaa',
+  },
+};

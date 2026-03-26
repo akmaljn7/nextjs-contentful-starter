@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   Switch,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/colors';
@@ -15,6 +16,17 @@ import { useSettingsStore } from '../../store';
 export const SettingsScreen: React.FC = () => {
   const { theme, language, notificationsEnabled, setTheme, setLanguage, toggleNotifications } = useSettingsStore();
 
+  const isDarkMode = theme === 'dark';
+
+  const handleDarkModeToggle = async (value: boolean) => {
+    await setTheme(value ? 'dark' : 'light');
+    Alert.alert(
+      'Theme Changed',
+      `${value ? 'Dark' : 'Light'} mode has been enabled. Some screens may require restarting the app to fully apply the theme.`,
+      [{ text: 'OK' }]
+    );
+  };
+
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* Appearance */}
@@ -23,12 +35,19 @@ export const SettingsScreen: React.FC = () => {
         <Card variant="default" padding="none">
           <View style={styles.settingItem}>
             <View style={styles.settingLeft}>
-              <Ionicons name="moon-outline" size={20} color={Colors.textPrimary} />
-              <Text style={styles.settingLabel}>Dark Mode</Text>
+              <View style={[styles.iconContainer, { backgroundColor: isDarkMode ? Colors.accent : Colors.gray[200] }]}>
+                <Ionicons name={isDarkMode ? "moon" : "moon-outline"} size={20} color={isDarkMode ? Colors.white : Colors.textPrimary} />
+              </View>
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingLabel}>Dark Mode</Text>
+                <Text style={styles.settingDescription}>
+                  {isDarkMode ? 'Dark theme enabled' : 'Light theme enabled'}
+                </Text>
+              </View>
             </View>
             <Switch
-              value={theme === 'dark'}
-              onValueChange={(value) => setTheme(value ? 'dark' : 'light')}
+              value={isDarkMode}
+              onValueChange={handleDarkModeToggle}
               trackColor={{ false: Colors.gray[300], true: Colors.accent }}
               thumbColor={Colors.white}
             />
@@ -42,24 +61,34 @@ export const SettingsScreen: React.FC = () => {
         <Card variant="default" padding="none">
           <View style={styles.settingItem}>
             <View style={styles.settingLeft}>
-              <Ionicons name="language-outline" size={20} color={Colors.textPrimary} />
-              <Text style={styles.settingLabel}>English</Text>
+              <View style={[styles.iconContainer, { backgroundColor: language === 'en' ? Colors.accent : Colors.gray[200] }]}>
+                <Text style={[styles.langIcon, { color: language === 'en' ? Colors.white : Colors.textPrimary }]}>EN</Text>
+              </View>
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingLabel}>English</Text>
+                <Text style={styles.settingDescription}>English language</Text>
+              </View>
             </View>
             <Switch
               value={language === 'en'}
-              onValueChange={(value) => setLanguage(value ? 'en' : 'ha')}
+              onValueChange={(value) => { if (value) setLanguage('en'); }}
               trackColor={{ false: Colors.gray[300], true: Colors.accent }}
               thumbColor={Colors.white}
             />
           </View>
           <View style={[styles.settingItem, styles.borderTop]}>
             <View style={styles.settingLeft}>
-              <Ionicons name="language-outline" size={20} color={Colors.textPrimary} />
-              <Text style={styles.settingLabel}>Hausa</Text>
+              <View style={[styles.iconContainer, { backgroundColor: language === 'ha' ? Colors.accent : Colors.gray[200] }]}>
+                <Text style={[styles.langIcon, { color: language === 'ha' ? Colors.white : Colors.textPrimary }]}>HA</Text>
+              </View>
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingLabel}>Hausa</Text>
+                <Text style={styles.settingDescription}>Yaren Hausa</Text>
+              </View>
             </View>
             <Switch
               value={language === 'ha'}
-              onValueChange={(value) => setLanguage(value ? 'ha' : 'en')}
+              onValueChange={(value) => { if (value) setLanguage('ha'); }}
               trackColor={{ false: Colors.gray[300], true: Colors.accent }}
               thumbColor={Colors.white}
             />
@@ -73,8 +102,19 @@ export const SettingsScreen: React.FC = () => {
         <Card variant="default" padding="none">
           <View style={styles.settingItem}>
             <View style={styles.settingLeft}>
-              <Ionicons name="notifications-outline" size={20} color={Colors.textPrimary} />
-              <Text style={styles.settingLabel}>Push Notifications</Text>
+              <View style={[styles.iconContainer, { backgroundColor: notificationsEnabled ? Colors.accent : Colors.gray[200] }]}>
+                <Ionicons 
+                  name={notificationsEnabled ? "notifications" : "notifications-outline"} 
+                  size={20} 
+                  color={notificationsEnabled ? Colors.white : Colors.textPrimary} 
+                />
+              </View>
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingLabel}>Push Notifications</Text>
+                <Text style={styles.settingDescription}>
+                  {notificationsEnabled ? 'Notifications enabled' : 'Notifications disabled'}
+                </Text>
+              </View>
             </View>
             <Switch
               value={notificationsEnabled}
@@ -82,20 +122,6 @@ export const SettingsScreen: React.FC = () => {
               trackColor={{ false: Colors.gray[300], true: Colors.accent }}
               thumbColor={Colors.white}
             />
-          </View>
-        </Card>
-      </View>
-
-      {/* About */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>About</Text>
-        <Card variant="default" padding="none">
-          <View style={styles.settingItem}>
-            <View style={styles.settingLeft}>
-              <Ionicons name="information-circle-outline" size={20} color={Colors.textPrimary} />
-              <Text style={styles.settingLabel}>Version</Text>
-            </View>
-            <Text style={styles.settingValue}>1.0.0</Text>
           </View>
         </Card>
       </View>
@@ -111,38 +137,57 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   section: {
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingTop: 24,
   },
   sectionTitle: {
     fontSize: Fonts.size.sm,
     fontWeight: Fonts.weight.semibold,
     color: Colors.textSecondary,
     textTransform: 'uppercase',
-    marginBottom: 8,
+    letterSpacing: 0.5,
+    marginBottom: 12,
+    marginLeft: 4,
   },
   settingItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-  },
-  borderTop: {
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
+    padding: 16,
   },
   settingLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
+  },
+  iconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  langIcon: {
+    fontSize: 14,
+    fontWeight: Fonts.weight.bold,
+  },
+  settingTextContainer: {
+    flex: 1,
   },
   settingLabel: {
     fontSize: Fonts.size.md,
+    fontWeight: Fonts.weight.medium,
     color: Colors.textPrimary,
-    marginLeft: 12,
   },
-  settingValue: {
-    fontSize: Fonts.size.md,
+  settingDescription: {
+    fontSize: Fonts.size.sm,
     color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  borderTop: {
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
   },
   bottomSpacing: {
     height: 32,

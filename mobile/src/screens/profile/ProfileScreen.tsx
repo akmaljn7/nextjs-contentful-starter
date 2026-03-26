@@ -53,13 +53,13 @@ export const ProfileScreen: React.FC = () => {
       id: 'help',
       icon: 'help-circle-outline',
       label: 'Help & Support',
-      onPress: () => {},
+      onPress: () => navigation.navigate('HelpSupport'),
     },
     {
       id: 'about',
       icon: 'information-circle-outline',
       label: 'About',
-      onPress: () => {},
+      onPress: () => navigation.navigate('About'),
     },
   ];
 

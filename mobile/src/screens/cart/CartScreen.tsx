@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,23 +6,28 @@ import {
   FlatList,
   SafeAreaView,
   Alert,
-  Linking,
+  Modal,
+  TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { WebView } from 'react-native-webview';
 import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 import { Card, Button, EmptyState } from '../../components/common';
 import { useCartStore, useAuthStore } from '../../store';
 import { formatPrice } from '../../utils/formatters';
 import { ordersApi } from '../../api';
-import * as WebBrowser from 'expo-web-browser';
 
 export const CartScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const { user } = useAuthStore();
   const { items, removeItem, clearCart, totalAmount } = useCartStore();
-  const [isCheckingOut, setIsCheckingOut] = React.useState(false);
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const [paymentModalVisible, setPaymentModalVisible] = useState(false);
+  const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
+  const [currentOrderId, setCurrentOrderId] = useState<string | null>(null);
 
   const handleRemoveItem = (id: string) => {
     Alert.alert(
@@ -33,6 +38,26 @@ export const CartScreen: React.FC = () => {
         { text: 'Remove', style: 'destructive', onPress: () => removeItem(id) },
       ]
     );
+  };
+
+  const handlePaymentComplete = (success: boolean) => {
+    setPaymentModalVisible(false);
+    setPaymentUrl(null);
+    
+    if (currentOrderId) {
+      navigation.navigate('OrdersTab', { 
+        screen: 'OrderDetail', 
+        params: { id: currentOrderId } 
+      });
+    }
+    setCurrentOrderId(null);
+  };
+
+  const handleWebViewNavigationStateChange = (navState: any) => {
+    // Check if payment completed (redirected to callback URL)
+    if (navState.url.includes('/payment/callback') || navState.url.includes('trxref=')) {
+      handlePaymentComplete(true);
+    }
   };
 
   const handleCheckout = async (paymentMethod: 'online' | 'cash') => {
@@ -72,6 +97,7 @@ export const CartScreen: React.FC = () => {
       });
 
       await clearCart();
+      setCurrentOrderId(order.id);
 
       if (paymentMethod === 'online') {
         // Initialize Paystack payment
@@ -84,18 +110,9 @@ export const CartScreen: React.FC = () => {
           });
           
           if (paymentData.authorization_url) {
-            // Open Paystack payment page in browser
-            const result = await WebBrowser.openBrowserAsync(paymentData.authorization_url, {
-              dismissButtonStyle: 'close',
-              showTitle: true,
-              enableBarCollapsing: false,
-            });
-            
-            // After browser closes, navigate to order
-            navigation.navigate('OrdersTab', { 
-              screen: 'OrderDetail', 
-              params: { id: order.id } 
-            });
+            // Open payment in modal WebView
+            setPaymentUrl(paymentData.authorization_url);
+            setPaymentModalVisible(true);
           } else {
             throw new Error('Payment initialization failed');
           }
@@ -213,6 +230,40 @@ export const CartScreen: React.FC = () => {
           style={styles.checkoutButton}
         />
       </View>
+
+      {/* Payment WebView Modal */}
+      <Modal
+        visible={paymentModalVisible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => handlePaymentComplete(false)}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Complete Payment</Text>
+            <TouchableOpacity 
+              onPress={() => handlePaymentComplete(false)}
+              style={styles.closeButton}
+            >
+              <Ionicons name="close" size={24} color={Colors.textPrimary} />
+            </TouchableOpacity>
+          </View>
+          {paymentUrl && (
+            <WebView
+              source={{ uri: paymentUrl }}
+              onNavigationStateChange={handleWebViewNavigationStateChange}
+              startInLoadingState={true}
+              renderLoading={() => (
+                <View style={styles.webviewLoading}>
+                  <ActivityIndicator size="large" color={Colors.accent} />
+                  <Text style={styles.loadingText}>Loading payment page...</Text>
+                </View>
+              )}
+              style={styles.webview}
+            />
+          )}
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -317,4 +368,42 @@ const styles = StyleSheet.create({
     color: Colors.accent,
   },
   checkoutButton: {},
+  modalContainer: {
+    flex: 1,
+    backgroundColor: Colors.white,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  modalTitle: {
+    fontSize: Fonts.size.lg,
+    fontWeight: Fonts.weight.bold,
+    color: Colors.textPrimary,
+  },
+  closeButton: {
+    padding: 4,
+  },
+  webview: {
+    flex: 1,
+  },
+  webviewLoading: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.white,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: Fonts.size.md,
+    color: Colors.textSecondary,
+  },
 });

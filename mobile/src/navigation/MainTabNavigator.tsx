@@ -43,6 +43,8 @@ import { ChatScreen } from '../screens/messages/ChatScreen';
 // Profile Stack Screens
 import { ProfileScreen } from '../screens/profile/ProfileScreen';
 import { SettingsScreen } from '../screens/profile/SettingsScreen';
+import { AboutScreen } from '../screens/profile/AboutScreen';
+import { HelpSupportScreen } from '../screens/profile/HelpSupportScreen';
 import { AdminScreen } from '../screens/admin/AdminScreen';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -180,6 +182,16 @@ const ProfileStackNavigator = () => (
       name="Settings" 
       component={SettingsScreen}
       options={{ title: 'Settings' }}
+    />
+    <ProfileStack.Screen 
+      name="About" 
+      component={AboutScreen}
+      options={{ title: 'About' }}
+    />
+    <ProfileStack.Screen 
+      name="HelpSupport" 
+      component={HelpSupportScreen}
+      options={{ title: 'Help & Support' }}
     />
     <ProfileStack.Screen 
       name="AdminPanel" 

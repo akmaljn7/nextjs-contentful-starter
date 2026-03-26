@@ -93,14 +93,29 @@ export const DigitalAdsScreen: React.FC = () => {
         onPress={() => navigation.navigate('DigitalAdDetail', { id: item.id })}
       >
         <Card variant="elevated" padding="none" style={styles.adCard}>
-          {/* Header with platform color */}
-          <View style={[styles.adHeader, { backgroundColor: platformColor }]}>
-            <Ionicons name={platformIcon as any} size={32} color={Colors.white} />
-            <Text style={styles.platformName}>{item.name || item.id}</Text>
-          </View>
+          {/* Image from Backend or fallback to colored header */}
+          {item.image_url ? (
+            <Image 
+              source={{ uri: item.image_url }} 
+              style={styles.adImage}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={[styles.adHeader, { backgroundColor: platformColor }]}>
+              <Ionicons name={platformIcon as any} size={32} color={Colors.white} />
+              <Text style={styles.platformName}>{item.name || item.id}</Text>
+            </View>
+          )}
           
           {/* Content */}
           <View style={styles.adContent}>
+            {item.image_url && (
+              <View style={styles.platformRow}>
+                <Ionicons name={platformIcon as any} size={20} color={platformColor} />
+                <Text style={[styles.platformNameSmall, { color: platformColor }]}>{item.name || item.id}</Text>
+              </View>
+            )}
+            
             <Text style={styles.adDescription} numberOfLines={2}>
               {item.description}
             </Text>
@@ -202,11 +217,26 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     overflow: 'hidden',
   },
+  adImage: {
+    width: '100%',
+    height: 160,
+  },
   adHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
     gap: 12,
+  },
+  platformRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 8,
+  },
+  platformNameSmall: {
+    fontSize: Fonts.size.md,
+    fontWeight: Fonts.weight.bold,
+    textTransform: 'capitalize',
   },
   platformName: {
     fontSize: Fonts.size.lg,
