@@ -55,6 +55,13 @@ Northern Nigeria's trusted advertising marketplace connecting advertisers with v
 - ✅ Dark mode theme context properly implemented
 - ⚠️ Kannywood images - DATA ISSUE (null in database, needs admin upload)
 
+## Bug Fixes (December 2024 - Session 2)
+- ✅ Settings screen crash fixed (reverted complex theme imports)
+- ✅ Splash screen color updated to exact logo color `#1A1F3A`
+- ✅ Kannywood mobile images now mapped (same as web frontend)
+- ✅ Admin Kannywood tab now shows all 3 productions from both collections
+- ✅ Admin can edit/update Kannywood productions including images
+
 ## Pending Tasks
 
 ### P1 (High Priority)

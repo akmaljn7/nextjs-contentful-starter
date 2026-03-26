@@ -3708,8 +3708,22 @@ class AdminKannywoodUpdate(BaseModel):
 @api_router.get("/admin/kannywood")
 async def admin_get_all_kannywood(current_user: User = Depends(get_current_user)):
     await check_admin(current_user)
-    kannywood = await db.kannywood.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
-    return kannywood
+    # Get from both collections so admin can see and edit all Kannywood productions
+    admin_kannywood = await db.kannywood.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
+    legacy_kannywood = await db.kannywood_placements.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
+    
+    # Normalize both collections to have consistent field names
+    normalized = []
+    for item in admin_kannywood + legacy_kannywood:
+        normalized.append({
+            **item,
+            "title": item.get("title") or item.get("production_name", ""),
+            "production_name": item.get("production_name") or item.get("title", ""),
+            "genre": item.get("genre") or item.get("placement_type", ""),
+            "director": item.get("director", ""),
+        })
+    
+    return normalized
 
 @api_router.post("/admin/kannywood")
 async def admin_create_kannywood(
@@ -3735,16 +3749,24 @@ async def admin_update_kannywood(
 ):
     await check_admin(current_user)
     
+    # Check both collections for the item
     existing = await db.kannywood.find_one({"id": kannywood_id})
+    collection = db.kannywood
+    
+    if not existing:
+        # Check legacy collection
+        existing = await db.kannywood_placements.find_one({"id": kannywood_id})
+        collection = db.kannywood_placements
+    
     if not existing:
         raise HTTPException(status_code=404, detail="Kannywood production not found")
     
     update_data = {k: v for k, v in kannywood.model_dump().items() if v is not None}
     update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
     
-    await db.kannywood.update_one({"id": kannywood_id}, {"$set": update_data})
+    await collection.update_one({"id": kannywood_id}, {"$set": update_data})
     
-    updated = await db.kannywood.find_one({"id": kannywood_id}, {"_id": 0})
+    updated = await collection.find_one({"id": kannywood_id}, {"_id": 0})
     return {"status": "success", "message": "Kannywood production updated", "kannywood": updated}
 
 @api_router.delete("/admin/kannywood/{kannywood_id}")
@@ -3754,9 +3776,13 @@ async def admin_delete_kannywood(
 ):
     await check_admin(current_user)
     
+    # Try deleting from both collections
     result = await db.kannywood.delete_one({"id": kannywood_id})
     if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Kannywood production not found")
+        # Try legacy collection
+        result = await db.kannywood_placements.delete_one({"id": kannywood_id})
+        if result.deleted_count == 0:
+            raise HTTPException(status_code=404, detail="Kannywood production not found")
     
     return {"status": "success", "message": "Kannywood production deleted"}
 
