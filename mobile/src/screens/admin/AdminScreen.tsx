@@ -1,0 +1,17 @@
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { Colors } from '../../constants/colors';
+import { Fonts } from '../../constants/fonts';
+
+export const AdminScreen: React.FC = () => (
+  <View style={styles.container}>
+    <Text style={styles.title}>Admin Panel</Text>
+    <Text style={styles.subtitle}>Admin features available on web</Text>
+  </View>
+);
+
+const styles = StyleSheet.create({
+  container: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.background },
+  title: { fontSize: Fonts.size['2xl'], fontWeight: Fonts.weight.bold, color: Colors.textPrimary },
+  subtitle: { fontSize: Fonts.size.md, color: Colors.textSecondary, marginTop: 8 },
+});
