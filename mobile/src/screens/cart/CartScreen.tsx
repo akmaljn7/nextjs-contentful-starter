@@ -96,11 +96,10 @@ export const CartScreen: React.FC = () => {
         payment_method: paymentMethod,
       });
 
-      await clearCart();
       setCurrentOrderId(order.id);
 
       if (paymentMethod === 'online') {
-        // Initialize Paystack payment
+        // Initialize Paystack payment FIRST, then clear cart
         try {
           const paymentData = await ordersApi.initializePayment({
             order_id: order.id,
@@ -110,9 +109,11 @@ export const CartScreen: React.FC = () => {
           });
           
           if (paymentData.authorization_url) {
-            // Open payment in modal WebView
+            // Open payment modal IMMEDIATELY
             setPaymentUrl(paymentData.authorization_url);
             setPaymentModalVisible(true);
+            // Clear cart AFTER modal is shown
+            await clearCart();
           } else {
             throw new Error('Payment initialization failed');
           }
@@ -126,6 +127,8 @@ export const CartScreen: React.FC = () => {
           );
         }
       } else {
+        // For cash payment, clear cart and show confirmation
+        await clearCart();
         Alert.alert(
           'Order Placed',
           'Your order has been placed. Please visit our office to complete payment.',

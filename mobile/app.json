@@ -10,7 +10,7 @@
     "splash": {
       "image": "./src/assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0d1b2a"
+      "backgroundColor": "#1a3a5c"
     },
     "assetBundlePatterns": [
       "**/*"
@@ -27,7 +27,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./src/assets/adaptive-icon.png",
-        "backgroundColor": "#0d1b2a"
+        "backgroundColor": "#1a3a5c"
       },
       "package": "com.lightban.ads",
       "versionCode": 1,
@@ -46,10 +46,11 @@
         "expo-notifications",
         {
           "icon": "./src/assets/notification-icon.png",
-          "color": "#ff6b35"
+          "color": "#c4a35a"
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-splash-screen"
     ],
     "extra": {
       "eas": {
