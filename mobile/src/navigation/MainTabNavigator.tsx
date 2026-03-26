@@ -36,6 +36,7 @@ import { CartScreen } from '../screens/cart/CartScreen';
 // Orders Stack Screens
 import { OrdersScreen } from '../screens/orders/OrdersScreen';
 import { OrderDetailScreen } from '../screens/orders/OrderDetailScreen';
+import { OrderTrackingScreen } from '../screens/orders/OrderTrackingScreen';
 import { MessagesScreen } from '../screens/messages/MessagesScreen';
 import { ChatScreen } from '../screens/messages/ChatScreen';
 
@@ -148,6 +149,11 @@ const OrdersStackNavigator = () => (
       name="OrderDetail" 
       component={OrderDetailScreen}
       options={{ title: 'Order Details' }}
+    />
+    <OrdersStack.Screen 
+      name="OrderTracking" 
+      component={OrderTrackingScreen}
+      options={{ title: 'Order Tracking' }}
     />
     <OrdersStack.Screen 
       name="Messages" 

@@ -16,17 +16,17 @@ import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 import { Card, Button, LoadingSpinner } from '../../components/common';
 import { useAuthStore } from '../../store';
-import { consultationsApi } from '../../api';
+import { consultationsApi, settingsApi, SiteSettings } from '../../api';
 import { formatPrice } from '../../utils/formatters';
 
-// Consultation packages
-const CONSULTATION_PACKAGES = [
+// Default consultation packages (prices will be overridden by settings)
+const getConsultationPackages = (settings: SiteSettings | null) => [
   {
     id: 'physical',
     title: 'In-Office Consultation',
     subtitle: 'Face-to-face meeting with our experts',
     icon: 'business-outline',
-    price: 25000,
+    price: settings?.consultation_price_office || 25000,
     duration: '1-2 Hours',
     color: Colors.primary,
     features: [
@@ -44,7 +44,7 @@ const CONSULTATION_PACKAGES = [
     title: 'Online Consultation',
     subtitle: 'Video call from anywhere',
     icon: 'videocam-outline',
-    price: 15000,
+    price: settings?.consultation_price_online || 15000,
     duration: '45-60 Minutes',
     color: Colors.accent,
     features: [
@@ -77,7 +77,9 @@ export const ConsultationScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const { user, isAuthenticated } = useAuthStore();
   
-  const [selectedPackage, setSelectedPackage] = useState<typeof CONSULTATION_PACKAGES[0] | null>(null);
+  const [settings, setSettings] = useState<SiteSettings | null>(null);
+  const [isLoadingSettings, setIsLoadingSettings] = useState(true);
+  const [selectedPackage, setSelectedPackage] = useState<ReturnType<typeof getConsultationPackages>[0] | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
@@ -93,6 +95,25 @@ export const ConsultationScreen: React.FC = () => {
     contactPhone: user?.phone || '',
     contactEmail: user?.email || '',
   });
+
+  // Fetch settings on mount
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
+  const loadSettings = async () => {
+    try {
+      const data = await settingsApi.getSettings();
+      setSettings(data);
+    } catch (error) {
+      console.error('Failed to load settings:', error);
+    } finally {
+      setIsLoadingSettings(false);
+    }
+  };
+
+  // Get packages with dynamic prices from settings
+  const CONSULTATION_PACKAGES = getConsultationPackages(settings);
 
   const handlePackageSelect = (pkg: typeof CONSULTATION_PACKAGES[0]) => {
     if (!isAuthenticated) {

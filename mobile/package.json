@@ -28,6 +28,7 @@
     "expo-secure-store": "~14.1.0",
     "expo-splash-screen": "~0.30.0",
     "expo-status-bar": "~2.2.0",
+    "expo-web-browser": "^55.0.10",
     "react": "19.1.0",
     "react-native": "0.81.4",
     "react-native-safe-area-context": "5.4.0",
@@ -37,9 +38,9 @@
   "devDependencies": {
     "@babel/core": "^7.26.0",
     "@types/react": "~19.1.0",
+    "babel-plugin-module-resolver": "^5.0.2",
     "babel-preset-expo": "~13.2.0",
-    "typescript": "^5.8.0",
-    "babel-plugin-module-resolver": "^5.0.2"
+    "typescript": "^5.8.0"
   },
   "private": true
 }

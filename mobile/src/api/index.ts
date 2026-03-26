@@ -8,3 +8,4 @@ export * from './orders';
 export * from './consultations';
 export * from './messages';
 export * from './search';
+export * from './settings';

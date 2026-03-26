@@ -6,6 +6,7 @@ import {
   FlatList,
   SafeAreaView,
   Alert,
+  Linking,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +16,7 @@ import { Card, Button, EmptyState } from '../../components/common';
 import { useCartStore, useAuthStore } from '../../store';
 import { formatPrice } from '../../utils/formatters';
 import { ordersApi } from '../../api';
+import * as WebBrowser from 'expo-web-browser';
 
 export const CartScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -72,19 +74,40 @@ export const CartScreen: React.FC = () => {
       await clearCart();
 
       if (paymentMethod === 'online') {
-        // Initialize payment
-        const paymentData = await ordersApi.initializePayment({
-          order_id: order.id,
-          email: user.email,
-          callback_url: 'lightban://payment-callback',
-          amount: total,
-        });
-        // Handle payment URL - in real app, use WebView or Linking
-        Alert.alert(
-          'Payment',
-          'You will be redirected to complete payment.',
-          [{ text: 'OK', onPress: () => navigation.navigate('OrdersTab', { screen: 'OrderDetail', params: { id: order.id } }) }]
-        );
+        // Initialize Paystack payment
+        try {
+          const paymentData = await ordersApi.initializePayment({
+            order_id: order.id,
+            email: user.email,
+            callback_url: 'https://www.lightban.com/payment/callback',
+            amount: total,
+          });
+          
+          if (paymentData.authorization_url) {
+            // Open Paystack payment page in browser
+            const result = await WebBrowser.openBrowserAsync(paymentData.authorization_url, {
+              dismissButtonStyle: 'close',
+              showTitle: true,
+              enableBarCollapsing: false,
+            });
+            
+            // After browser closes, navigate to order
+            navigation.navigate('OrdersTab', { 
+              screen: 'OrderDetail', 
+              params: { id: order.id } 
+            });
+          } else {
+            throw new Error('Payment initialization failed');
+          }
+        } catch (paymentError: any) {
+          Alert.alert(
+            'Payment Error',
+            'Could not initialize payment. Please try again or pay at our office.',
+            [
+              { text: 'View Order', onPress: () => navigation.navigate('OrdersTab', { screen: 'OrderDetail', params: { id: order.id } }) }
+            ]
+          );
+        }
       } else {
         Alert.alert(
           'Order Placed',
