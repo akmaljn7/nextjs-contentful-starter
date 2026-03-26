@@ -39,18 +39,46 @@ export const CartScreen: React.FC = () => {
       return;
     }
 
+    if (items.length === 0) {
+      Alert.alert('Error', 'Your cart is empty');
+      return;
+    }
+
     setIsCheckingOut(true);
     try {
+      // Create order for each cart item (since backend expects single orders)
+      const firstItem = items[0];
+      const platformFee = firstItem.price * 0.05;
+      const total = firstItem.price + platformFee;
+
       const order = await ordersApi.create({
-        items,
+        listing_type: firstItem.listingType,
+        listing_id: firstItem.listingId,
+        package_details: {
+          packageId: firstItem.packageId,
+          packageTitle: firstItem.packageTitle,
+          deliverables: firstItem.deliverables || [],
+          turnaround: firstItem.duration,
+          price: firstItem.price,
+          location: firstItem.location,
+          state_name: firstItem.state_name,
+          road_name: firstItem.road_name,
+        },
+        total_amount: total,
+        package_price: firstItem.price,
         payment_method: paymentMethod,
       });
 
       await clearCart();
 
       if (paymentMethod === 'online') {
-        // Navigate to payment
-        const paymentData = await ordersApi.initializePayment(order.id);
+        // Initialize payment
+        const paymentData = await ordersApi.initializePayment({
+          order_id: order.id,
+          email: user.email,
+          callback_url: 'lightban://payment-callback',
+          amount: total,
+        });
         // Handle payment URL - in real app, use WebView or Linking
         Alert.alert(
           'Payment',

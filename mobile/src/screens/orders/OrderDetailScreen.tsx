@@ -62,7 +62,7 @@ export const OrderDetailScreen: React.FC = () => {
       <Card variant="elevated" padding="lg" style={styles.headerCard}>
         <View style={styles.orderIdRow}>
           <Text style={styles.orderId}>Order #{order.id.slice(-8).toUpperCase()}</Text>
-          <Badge variant="status" status={order.status} text="" />
+          <Badge variant="status" status={order.order_status} text="" />
         </View>
         <Text style={styles.orderDate}>{formatDateTime(order.created_at)}</Text>
 
@@ -80,25 +80,44 @@ export const OrderDetailScreen: React.FC = () => {
         </View>
       </Card>
 
-      {/* Order Items */}
+      {/* Order Details */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Order Items</Text>
-        {order.items.map((item, index) => (
-          <Card key={index} variant="outlined" padding="md" style={styles.itemCard}>
-            <Text style={styles.itemName}>{item.listingName}</Text>
-            <Text style={styles.packageTitle}>{item.packageTitle}</Text>
-            {item.location && (
-              <View style={styles.locationRow}>
-                <Ionicons name="location-outline" size={14} color={Colors.textSecondary} />
-                <Text style={styles.location}>{item.location}</Text>
-              </View>
-            )}
-            <View style={styles.itemFooter}>
-              <Text style={styles.duration}>{item.duration}</Text>
-              <Text style={styles.itemPrice}>{formatPrice(item.price)}</Text>
+        <Text style={styles.sectionTitle}>Order Details</Text>
+        <Card variant="outlined" padding="md" style={styles.itemCard}>
+          <Text style={styles.itemName}>
+            {order.package_details?.packageTitle || order.package_details?.title || order.listing_type?.replace(/_/g, ' ')}
+          </Text>
+          <Text style={styles.packageTitle}>
+            {order.listing_type?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+          </Text>
+          {order.package_details?.location && (
+            <View style={styles.locationRow}>
+              <Ionicons name="location-outline" size={14} color={Colors.textSecondary} />
+              <Text style={styles.location}>{order.package_details.location}</Text>
             </View>
-          </Card>
-        ))}
+          )}
+          {order.package_details?.state_name && order.package_details?.road_name && (
+            <View style={styles.locationRow}>
+              <Ionicons name="location-outline" size={14} color={Colors.textSecondary} />
+              <Text style={styles.location}>{order.package_details.state_name} - {order.package_details.road_name}</Text>
+            </View>
+          )}
+          {order.package_details?.deliverables && order.package_details.deliverables.length > 0 && (
+            <View style={styles.deliverablesContainer}>
+              <Text style={styles.deliverablesTitle}>Deliverables:</Text>
+              {order.package_details.deliverables.map((item: string, idx: number) => (
+                <View key={idx} style={styles.deliverableItem}>
+                  <Ionicons name="checkmark-circle" size={14} color={Colors.success} />
+                  <Text style={styles.deliverableText}>{item}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+          <View style={styles.itemFooter}>
+            <Text style={styles.duration}>{order.package_details?.turnaround || ''}</Text>
+            <Text style={styles.itemPrice}>{formatPrice(order.package_details?.price || order.total_amount)}</Text>
+          </View>
+        </Card>
       </View>
 
       {/* Order Summary */}
@@ -242,6 +261,28 @@ const styles = StyleSheet.create({
     fontSize: Fonts.size.md,
     fontWeight: Fonts.weight.bold,
     color: Colors.textPrimary,
+  },
+  deliverablesContainer: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+  },
+  deliverablesTitle: {
+    fontSize: Fonts.size.sm,
+    fontWeight: Fonts.weight.semibold,
+    color: Colors.textPrimary,
+    marginBottom: 8,
+  },
+  deliverableItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  deliverableText: {
+    fontSize: Fonts.size.sm,
+    color: Colors.textSecondary,
+    marginLeft: 6,
   },
   summaryRow: {
     flexDirection: 'row',

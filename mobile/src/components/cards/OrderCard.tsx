@@ -17,11 +17,44 @@ export const OrderCard: React.FC<OrderCardProps> = ({
   order,
   onPress,
 }) => {
-  const getItemsSummary = () => {
-    if (order.items.length === 1) {
-      return order.items[0].listingName;
+  // Get order title from package_details
+  const getOrderTitle = () => {
+    if (order.package_details) {
+      return order.package_details.packageTitle || 
+             order.package_details.title || 
+             order.listing_type?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) ||
+             'Service Order';
     }
-    return `${order.items.length} items`;
+    return 'Service Order';
+  };
+
+  // Get listing type display name
+  const getListingTypeLabel = () => {
+    const typeMap: Record<string, string> = {
+      'influencer': 'Influencer',
+      'billboard': 'Billboard',
+      'led_billboard': 'LED Billboard',
+      'static_banner': 'Static Banner',
+      'lightbox': 'Lightbox',
+      'digital_ad': 'Digital Ads',
+      'kannywood': 'Kannywood',
+      'consultation': 'Consultation',
+    };
+    return typeMap[order.listing_type] || order.listing_type?.replace(/_/g, ' ');
+  };
+
+  // Get status color
+  const getStatusVariant = (status: string) => {
+    const statusColors: Record<string, string> = {
+      'pending': 'warning',
+      'accepted': 'info',
+      'in_progress': 'info',
+      'proof_submitted': 'info',
+      'completed': 'success',
+      'cancelled': 'error',
+      'disputed': 'error',
+    };
+    return statusColors[status] || 'default';
   };
 
   return (
@@ -32,15 +65,19 @@ export const OrderCard: React.FC<OrderCardProps> = ({
             <Text style={styles.orderId}>Order #{order.id.slice(-8).toUpperCase()}</Text>
             <Text style={styles.date}>{formatDate(order.created_at)}</Text>
           </View>
-          <Badge variant="status" status={order.status} text="" />
+          <Badge 
+            variant={getStatusVariant(order.order_status) as any} 
+            text={order.order_status.replace(/_/g, ' ')} 
+          />
         </View>
 
         <View style={styles.divider} />
 
         <View style={styles.content}>
           <Text style={styles.itemsSummary} numberOfLines={2}>
-            {getItemsSummary()}
+            {getOrderTitle()}
           </Text>
+          <Text style={styles.listingType}>{getListingTypeLabel()}</Text>
           
           <View style={styles.footer}>
             <View>
@@ -50,9 +87,8 @@ export const OrderCard: React.FC<OrderCardProps> = ({
             
             <View style={styles.paymentInfo}>
               <Badge
-                variant="status"
-                status={order.payment_status}
-                text=""
+                variant={order.payment_status === 'paid' ? 'success' : 'warning'}
+                text={order.payment_status.replace(/_/g, ' ')}
                 size="sm"
               />
             </View>
@@ -97,6 +133,12 @@ const styles = StyleSheet.create({
   },
   content: {},
   itemsSummary: {
+    fontSize: Fonts.size.md,
+    fontWeight: Fonts.weight.medium,
+    color: Colors.textPrimary,
+    marginBottom: 4,
+  },
+  listingType: {
     fontSize: Fonts.size.sm,
     color: Colors.textSecondary,
     marginBottom: 12,

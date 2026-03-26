@@ -1,17 +1,349 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  Image,
+  RefreshControl,
+} from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
+import { Card, LoadingSpinner, ErrorMessage, EmptyState, Badge } from '../../components/common';
+import { kannywoodApi } from '../../api';
+import { KannywoodProduction } from '../../types/api';
+import { formatPrice, formatNumber } from '../../utils/formatters';
 
-export const KannywoodScreen: React.FC = () => (
-  <View style={styles.container}>
-    <Text style={styles.title}>Kannywood</Text>
-    <Text style={styles.subtitle}>Coming soon...</Text>
-  </View>
-);
+export const KannywoodScreen: React.FC = () => {
+  const navigation = useNavigation<any>();
+  
+  const [productions, setProductions] = useState<KannywoodProduction[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadProductions();
+  }, []);
+
+  const loadProductions = async () => {
+    try {
+      setError(null);
+      const data = await kannywoodApi.getAll();
+      setProductions(data);
+    } catch (err: any) {
+      setError(err.message || 'Failed to load Kannywood productions');
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  };
+
+  const onRefresh = () => {
+    setIsRefreshing(true);
+    loadProductions();
+  };
+
+  const getPlacementIcon = (type: string): string => {
+    const icons: Record<string, string> = {
+      'product_placement': 'cube-outline',
+      'scene_integration': 'film-outline',
+      'title_sponsorship': 'trophy-outline',
+      'trailer_mention': 'play-circle-outline',
+    };
+    return icons[type?.toLowerCase()] || 'film-outline';
+  };
+
+  const renderProductionCard = ({ item }: { item: KannywoodProduction }) => (
+    <TouchableOpacity
+      activeOpacity={0.9}
+      onPress={() => navigation.navigate('KannywoodDetail', { id: item.id })}
+    >
+      <Card variant="elevated" padding="none" style={styles.productionCard}>
+        {/* Image */}
+        <View style={styles.imageContainer}>
+          {item.image_url ? (
+            <Image source={{ uri: item.image_url }} style={styles.image} />
+          ) : (
+            <View style={styles.imagePlaceholder}>
+              <Ionicons name="film" size={48} color={Colors.gray[400]} />
+            </View>
+          )}
+          {item.genre && (
+            <View style={styles.genreBadge}>
+              <Text style={styles.genreText}>{item.genre}</Text>
+            </View>
+          )}
+        </View>
+        
+        {/* Content */}
+        <View style={styles.content}>
+          <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
+          
+          {item.placement_type && (
+            <View style={styles.placementRow}>
+              <Ionicons 
+                name={getPlacementIcon(item.placement_type) as any} 
+                size={16} 
+                color={Colors.textSecondary} 
+              />
+              <Text style={styles.placementType}>
+                {item.placement_type.replace(/_/g, ' ')}
+              </Text>
+            </View>
+          )}
+          
+          <Text style={styles.description} numberOfLines={2}>{item.description}</Text>
+          
+          {/* Meta Info */}
+          <View style={styles.metaRow}>
+            {item.director && (
+              <View style={styles.metaItem}>
+                <Ionicons name="videocam-outline" size={14} color={Colors.textMuted} />
+                <Text style={styles.metaText}>{item.director}</Text>
+              </View>
+            )}
+            {item.release_date && (
+              <View style={styles.metaItem}>
+                <Ionicons name="calendar-outline" size={14} color={Colors.textMuted} />
+                <Text style={styles.metaText}>{item.release_date}</Text>
+              </View>
+            )}
+          </View>
+          
+          {/* Stats */}
+          <View style={styles.statsRow}>
+            {(item.estimated_reach || item.est_reach) && (
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>
+                  {formatNumber(item.estimated_reach || parseInt(item.est_reach || '0'))}
+                </Text>
+                <Text style={styles.statLabel}>Est. Reach</Text>
+              </View>
+            )}
+            {item.packages && item.packages.length > 0 && (
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>{item.packages.length}</Text>
+                <Text style={styles.statLabel}>Packages</Text>
+              </View>
+            )}
+          </View>
+          
+          {/* Footer */}
+          <View style={styles.footer}>
+            <View>
+              <Text style={styles.priceLabel}>Starting from</Text>
+              <Text style={styles.priceValue}>{formatPrice(item.price)}</Text>
+            </View>
+            <TouchableOpacity 
+              style={styles.viewButton}
+              onPress={() => navigation.navigate('KannywoodDetail', { id: item.id })}
+            >
+              <Text style={styles.viewButtonText}>View Details</Text>
+              <Ionicons name="chevron-forward" size={16} color={Colors.white} />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Card>
+    </TouchableOpacity>
+  );
+
+  if (isLoading) {
+    return <LoadingSpinner fullScreen message="Loading Kannywood productions..." />;
+  }
+
+  if (error) {
+    return <ErrorMessage message={error} onRetry={loadProductions} fullScreen />;
+  }
+
+  if (productions.length === 0) {
+    return (
+      <EmptyState
+        icon="film-outline"
+        title="No Kannywood productions available"
+        description="Check back later for movie and TV placement opportunities"
+      />
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      {/* Header */}
+      <View style={styles.headerContainer}>
+        <Text style={styles.headerTitle}>Kannywood Placements</Text>
+        <Text style={styles.headerSubtitle}>
+          Feature your brand in Northern Nigeria's top productions
+        </Text>
+      </View>
+      
+      <FlatList
+        data={productions}
+        renderItem={renderProductionCard}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.list}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
+        }
+      />
+    </View>
+  );
+};
 
 const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.background },
-  title: { fontSize: Fonts.size['2xl'], fontWeight: Fonts.weight.bold, color: Colors.textPrimary },
-  subtitle: { fontSize: Fonts.size.md, color: Colors.textSecondary, marginTop: 8 },
+  container: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+  headerContainer: {
+    padding: 20,
+    backgroundColor: Colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  headerTitle: {
+    fontSize: Fonts.size.xl,
+    fontWeight: Fonts.weight.bold,
+    color: Colors.textPrimary,
+    marginBottom: 4,
+  },
+  headerSubtitle: {
+    fontSize: Fonts.size.sm,
+    color: Colors.textSecondary,
+  },
+  list: {
+    padding: 16,
+    paddingBottom: 32,
+  },
+  productionCard: {
+    marginBottom: 20,
+    overflow: 'hidden',
+  },
+  imageContainer: {
+    height: 180,
+    backgroundColor: Colors.gray[200],
+    position: 'relative',
+  },
+  image: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  imagePlaceholder: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.gray[100],
+  },
+  genreBadge: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    backgroundColor: Colors.accent,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  genreText: {
+    color: Colors.white,
+    fontSize: Fonts.size.xs,
+    fontWeight: Fonts.weight.semibold,
+    textTransform: 'capitalize',
+  },
+  content: {
+    padding: 16,
+  },
+  title: {
+    fontSize: Fonts.size.lg,
+    fontWeight: Fonts.weight.bold,
+    color: Colors.textPrimary,
+    marginBottom: 8,
+  },
+  placementRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  placementType: {
+    fontSize: Fonts.size.sm,
+    color: Colors.textSecondary,
+    marginLeft: 6,
+    textTransform: 'capitalize',
+  },
+  description: {
+    fontSize: Fonts.size.sm,
+    color: Colors.textSecondary,
+    lineHeight: 20,
+    marginBottom: 12,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 16,
+    marginBottom: 12,
+  },
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  metaText: {
+    fontSize: Fonts.size.xs,
+    color: Colors.textMuted,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: 24,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    marginBottom: 12,
+  },
+  statItem: {
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: Fonts.size.lg,
+    fontWeight: Fonts.weight.bold,
+    color: Colors.textPrimary,
+  },
+  statLabel: {
+    fontSize: Fonts.size.xs,
+    color: Colors.textSecondary,
+  },
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+  },
+  priceLabel: {
+    fontSize: Fonts.size.xs,
+    color: Colors.textSecondary,
+  },
+  priceValue: {
+    fontSize: Fonts.size.xl,
+    fontWeight: Fonts.weight.bold,
+    color: Colors.accent,
+  },
+  viewButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.accent,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    gap: 4,
+  },
+  viewButtonText: {
+    color: Colors.white,
+    fontSize: Fonts.size.sm,
+    fontWeight: Fonts.weight.semibold,
+  },
 });

@@ -4,12 +4,13 @@ import {
   StyleSheet,
   ViewStyle,
   Platform,
+  StyleProp,
 } from 'react-native';
 import { Colors } from '../../constants/colors';
 
 interface CardProps {
   children: React.ReactNode;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   variant?: 'default' | 'elevated' | 'outlined';
   padding?: 'none' | 'sm' | 'md' | 'lg';
 }

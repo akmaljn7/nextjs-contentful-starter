@@ -222,7 +222,7 @@ export const BillboardDetailScreen: React.FC = () => {
               >
                 <Picker.Item label="Select Size" value="" />
                 {sizes.map((size) => (
-                  <Picker.Item key={size.id} label={`${size.name} (${size.dimensions})`} value={size.id} />
+                  <Picker.Item key={size.id} label={`${size.name}${size.description ? ` - ${size.description}` : ''}`} value={size.id} />
                 ))}
               </Picker>
             </View>

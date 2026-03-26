@@ -1,10 +1,16 @@
 import apiClient from './client';
-import { Influencer, Package } from '../types/api';
+import { Influencer } from '../types/api';
 
 export const influencersApi = {
-  // Get all influencers
-  async getAll(): Promise<Influencer[]> {
-    const response = await apiClient.get<Influencer[]>('/influencers');
+  // Get all influencers (only approved ones by default)
+  async getAll(params?: {
+    city?: string;
+    niche?: string;
+    min_followers?: number;
+    max_price?: number;
+    status?: string;
+  }): Promise<Influencer[]> {
+    const response = await apiClient.get<Influencer[]>('/influencers', { params });
     return response.data;
   },
 
@@ -14,26 +20,13 @@ export const influencersApi = {
     return response.data;
   },
 
-  // Get influencer packages
-  async getPackages(id: string): Promise<Package[]> {
-    const response = await apiClient.get<Package[]>(`/influencers/${id}/packages`);
-    return response.data;
-  },
-
-  // Search influencers
-  async search(query: string): Promise<Influencer[]> {
-    const response = await apiClient.get<Influencer[]>('/influencers/search', {
-      params: { q: query },
-    });
-    return response.data;
-  },
-
-  // Filter influencers
+  // Filter influencers by platform, niche, location, etc.
   async filter(params: {
     platform?: string;
-    category?: string;
-    minFollowers?: number;
-    maxFollowers?: number;
+    niche?: string;
+    city?: string;
+    min_followers?: number;
+    max_price?: number;
   }): Promise<Influencer[]> {
     const response = await apiClient.get<Influencer[]>('/influencers', { params });
     return response.data;

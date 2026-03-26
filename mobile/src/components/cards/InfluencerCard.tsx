@@ -17,13 +17,24 @@ export const InfluencerCard: React.FC<InfluencerCardProps> = ({
   influencer,
   onPress,
 }) => {
+  // Get display price - from packages or price_per_post
+  const getDisplayPrice = () => {
+    if (influencer.packages && influencer.packages.length > 0) {
+      return Math.min(...influencer.packages.map(p => p.price));
+    }
+    return influencer.price_per_post;
+  };
+
+  // Use profile_image_url or image_url
+  const imageUrl = influencer.profile_image_url || influencer.image_url;
+
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.9}>
       <Card variant="elevated" padding="none" style={styles.card}>
         {/* Image */}
         <View style={styles.imageContainer}>
-          {influencer.image_url ? (
-            <Image source={{ uri: influencer.image_url }} style={styles.image} />
+          {imageUrl ? (
+            <Image source={{ uri: imageUrl }} style={styles.image} />
           ) : (
             <View style={styles.imagePlaceholder}>
               <Ionicons name="person-outline" size={40} color={Colors.gray[400]} />
@@ -53,7 +64,7 @@ export const InfluencerCard: React.FC<InfluencerCardProps> = ({
               <Text style={styles.statValue}>{formatNumber(influencer.followers)}</Text>
               <Text style={styles.statLabel}>Followers</Text>
             </View>
-            {influencer.engagement_rate && (
+            {influencer.engagement_rate !== undefined && influencer.engagement_rate > 0 && (
               <View style={styles.stat}>
                 <Text style={styles.statValue}>{influencer.engagement_rate}%</Text>
                 <Text style={styles.statLabel}>Engagement</Text>
@@ -62,12 +73,10 @@ export const InfluencerCard: React.FC<InfluencerCardProps> = ({
           </View>
 
           <View style={styles.footer}>
-            <Badge text={influencer.category} variant="default" size="sm" />
-            {influencer.packages && influencer.packages.length > 0 && (
-              <Text style={styles.price}>
-                From {formatPrice(Math.min(...influencer.packages.map(p => p.price)))}
-              </Text>
-            )}
+            <Badge text={influencer.niche || influencer.platform} variant="default" size="sm" />
+            <Text style={styles.price}>
+              From {formatPrice(getDisplayPrice())}
+            </Text>
           </View>
         </View>
       </Card>

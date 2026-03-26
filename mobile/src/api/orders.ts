@@ -1,13 +1,9 @@
 import apiClient from './client';
-import { Order, CartItem, UserStats } from '../types/api';
+import { Order, UserStats, OrderCreateData } from '../types/api';
 
 export const ordersApi = {
-  // Create order
-  async create(data: {
-    items: CartItem[];
-    payment_method: 'online' | 'cash';
-    notes?: string;
-  }): Promise<Order> {
+  // Create order (for individual service booking)
+  async create(data: OrderCreateData): Promise<Order> {
     const response = await apiClient.post<Order>('/orders', data);
     return response.data;
   },
@@ -24,30 +20,53 @@ export const ordersApi = {
     return response.data;
   },
 
-  // Get order tracking
-  async getTracking(id: string): Promise<any> {
+  // Get order tracking with timeline
+  async getTracking(id: string): Promise<{
+    order: Order;
+    listing_info: any;
+    timeline: Array<{
+      status: string;
+      title: string;
+      description: string;
+      date: string | null;
+      completed: boolean;
+    }>;
+    type: string;
+  }> {
     const response = await apiClient.get(`/orders/${id}/tracking`);
     return response.data;
   },
 
-  // Cancel order
-  async cancel(id: string): Promise<Order> {
-    const response = await apiClient.post<Order>(`/orders/${id}/cancel`);
+  // Update order status
+  async updateStatus(id: string, data: {
+    payment_status?: string;
+    order_status?: string;
+    payment_method?: string;
+  }): Promise<{ status: string; message: string }> {
+    const response = await apiClient.put(`/orders/${id}/status`, data);
     return response.data;
   },
 
-  // Get user stats
+  // Get dashboard stats
   async getStats(): Promise<UserStats> {
-    const response = await apiClient.get<UserStats>('/user/stats');
+    const response = await apiClient.get<UserStats>('/dashboard/stats');
     return response.data;
   },
 
-  // Initialize payment
-  async initializePayment(orderId: string): Promise<{
+  // Initialize Paystack payment
+  async initializePayment(data: {
+    order_id: string;
+    email: string;
+    callback_url: string;
+    amount?: number;
+    metadata?: any;
+  }): Promise<{
+    status: string;
     authorization_url: string;
+    access_code: string;
     reference: string;
   }> {
-    const response = await apiClient.post(`/payments/initialize`, { order_id: orderId });
+    const response = await apiClient.post('/payments/initialize', data);
     return response.data;
   },
 
@@ -55,8 +74,16 @@ export const ordersApi = {
   async verifyPayment(reference: string): Promise<{
     status: string;
     message: string;
+    order_id?: string;
+    amount?: number;
   }> {
     const response = await apiClient.get(`/payments/verify/${reference}`);
+    return response.data;
+  },
+
+  // Get Paystack public key
+  async getPaymentConfig(): Promise<{ public_key: string }> {
+    const response = await apiClient.get('/payments/config');
     return response.data;
   },
 };

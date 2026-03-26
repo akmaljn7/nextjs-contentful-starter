@@ -171,8 +171,8 @@ export const HomeScreen: React.FC = () => {
                   })}
                 >
                   <View style={styles.influencerImageContainer}>
-                    {influencer.image_url ? (
-                      <Image source={{ uri: influencer.image_url }} style={styles.influencerImage} />
+                    {(influencer.profile_image_url || influencer.image_url) ? (
+                      <Image source={{ uri: influencer.profile_image_url || influencer.image_url }} style={styles.influencerImage} />
                     ) : (
                       <View style={styles.influencerImagePlaceholder}>
                         <Ionicons name="person" size={32} color={Colors.gray[400]} />

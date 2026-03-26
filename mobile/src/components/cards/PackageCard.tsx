@@ -21,14 +21,15 @@ export const PackageCard: React.FC<PackageCardProps> = ({
   isSelected = false,
   isInCart = false,
 }) => {
+  const cardStyle = isSelected 
+    ? [styles.card, styles.cardSelected] 
+    : styles.card;
+
   return (
     <Card
       variant={isSelected ? 'elevated' : 'outlined'}
       padding="md"
-      style={[
-        styles.card,
-        isSelected && styles.cardSelected,
-      ]}
+      style={cardStyle}
     >
       <View style={styles.header}>
         <Text style={styles.title}>{package_.title}</Text>

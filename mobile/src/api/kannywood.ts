@@ -1,5 +1,5 @@
 import apiClient from './client';
-import { KannywoodProduction, Package } from '../types/api';
+import { KannywoodProduction } from '../types/api';
 
 export const kannywoodApi = {
   // Get all Kannywood productions
@@ -14,15 +14,9 @@ export const kannywoodApi = {
     return response.data;
   },
 
-  // Get packages for a production
-  async getPackages(id: string): Promise<Package[]> {
-    const response = await apiClient.get<Package[]>(`/kannywood/${id}/packages`);
-    return response.data;
-  },
-
-  // Filter productions
+  // Filter productions by type or genre
   async filter(params: {
-    type?: string;
+    placement_type?: string;
     genre?: string;
   }): Promise<KannywoodProduction[]> {
     const response = await apiClient.get<KannywoodProduction[]>('/kannywood', { params });

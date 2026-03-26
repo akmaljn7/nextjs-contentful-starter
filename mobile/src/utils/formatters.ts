@@ -94,16 +94,28 @@ export const formatPhoneNumber = (phone: string): string => {
 // Status Badge Colors
 export const getStatusColor = (status: string): { bg: string; text: string } => {
   const statusColors: Record<string, { bg: string; text: string }> = {
+    // Order statuses
     pending: { bg: '#fef3c7', text: '#b45309' },
-    confirmed: { bg: '#dbeafe', text: '#1d4ed8' },
+    accepted: { bg: '#dbeafe', text: '#1d4ed8' },
     in_progress: { bg: '#ede9fe', text: '#7c3aed' },
+    proof_submitted: { bg: '#e0e7ff', text: '#4338ca' },
     completed: { bg: '#d1fae5', text: '#047857' },
     cancelled: { bg: '#fee2e2', text: '#b91c1c' },
+    disputed: { bg: '#fef2f2', text: '#dc2626' },
+    confirmed: { bg: '#dbeafe', text: '#1d4ed8' },
+    // Payment statuses
     paid: { bg: '#d1fae5', text: '#047857' },
     pending_cash: { bg: '#fef3c7', text: '#b45309' },
+    held: { bg: '#e0e7ff', text: '#4338ca' },
+    released: { bg: '#d1fae5', text: '#047857' },
     failed: { bg: '#fee2e2', text: '#b91c1c' },
     refunded: { bg: '#f3f4f6', text: '#4b5563' },
+    // Consultation statuses
     scheduled: { bg: '#dbeafe', text: '#1d4ed8' },
+    // Misc
+    active: { bg: '#d1fae5', text: '#047857' },
+    approved: { bg: '#d1fae5', text: '#047857' },
+    rejected: { bg: '#fee2e2', text: '#b91c1c' },
   };
 
   return statusColors[status] || { bg: '#f3f4f6', text: '#4b5563' };
@@ -112,19 +124,31 @@ export const getStatusColor = (status: string): { bg: string; text: string } => 
 // Status Label
 export const getStatusLabel = (status: string): string => {
   const labels: Record<string, string> = {
+    // Order statuses
     pending: 'Pending',
-    confirmed: 'Confirmed',
+    accepted: 'Accepted',
     in_progress: 'In Progress',
+    proof_submitted: 'Proof Submitted',
     completed: 'Completed',
     cancelled: 'Cancelled',
+    disputed: 'Disputed',
+    confirmed: 'Confirmed',
+    // Payment statuses
     paid: 'Paid',
     pending_cash: 'Pay at Office',
+    held: 'Held',
+    released: 'Released',
     failed: 'Failed',
     refunded: 'Refunded',
+    // Consultation statuses
     scheduled: 'Scheduled',
+    // Misc
+    active: 'Active',
+    approved: 'Approved',
+    rejected: 'Rejected',
   };
 
-  return labels[status] || status;
+  return labels[status] || status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 };
 
 // Truncate Text

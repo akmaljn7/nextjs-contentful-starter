@@ -121,7 +121,11 @@ export const Button: React.FC<ButtonProps> = ({
       ) : (
         <>
           {icon && iconPosition === 'left' && <>{icon}</>}
-          <Text style={[getTextStyle(), icon && { marginLeft: iconPosition === 'left' ? 8 : 0, marginRight: iconPosition === 'right' ? 8 : 0 }, textStyle]}>
+          <Text style={[
+            getTextStyle(), 
+            icon ? { marginLeft: iconPosition === 'left' ? 8 : 0, marginRight: iconPosition === 'right' ? 8 : 0 } : undefined, 
+            textStyle
+          ]}>
             {title}
           </Text>
           {icon && iconPosition === 'right' && <>{icon}</>}

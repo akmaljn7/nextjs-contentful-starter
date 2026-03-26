@@ -16,7 +16,7 @@ import { PackageCard } from '../../components/cards';
 import { influencersApi } from '../../api';
 import { useCartStore } from '../../store';
 import { Influencer } from '../../types/api';
-import { formatNumber, getPlatformIcon } from '../../utils/formatters';
+import { formatNumber, formatPrice, getPlatformIcon } from '../../utils/formatters';
 
 export const InfluencerDetailScreen: React.FC = () => {
   const route = useRoute<any>();
@@ -48,6 +48,8 @@ export const InfluencerDetailScreen: React.FC = () => {
   const handleAddToCart = (pkg: any) => {
     if (!influencer) return;
 
+    const imageUrl = influencer.profile_image_url || influencer.image_url;
+
     addItem({
       id: `${influencer.id}-${pkg.id}`,
       listingType: 'influencer',
@@ -58,7 +60,7 @@ export const InfluencerDetailScreen: React.FC = () => {
       price: pkg.price,
       duration: pkg.duration,
       deliverables: pkg.deliverables || [],
-      image_url: influencer.image_url,
+      image_url: imageUrl,
     });
   };
 
@@ -74,6 +76,9 @@ export const InfluencerDetailScreen: React.FC = () => {
     return <ErrorMessage message={error || 'Influencer not found'} onRetry={loadInfluencer} fullScreen />;
   }
 
+  // Get image URL
+  const imageUrl = influencer.profile_image_url || influencer.image_url;
+
   return (
     <ScrollView
       style={styles.container}
@@ -84,8 +89,8 @@ export const InfluencerDetailScreen: React.FC = () => {
     >
       {/* Header Image */}
       <View style={styles.headerImage}>
-        {influencer.image_url ? (
-          <Image source={{ uri: influencer.image_url }} style={styles.image} />
+        {imageUrl ? (
+          <Image source={{ uri: imageUrl }} style={styles.image} />
         ) : (
           <View style={styles.imagePlaceholder}>
             <Ionicons name="person" size={64} color={Colors.gray[400]} />
@@ -109,6 +114,12 @@ export const InfluencerDetailScreen: React.FC = () => {
         </View>
 
         <Text style={styles.handle}>@{influencer.handle}</Text>
+        {influencer.location && (
+          <View style={styles.locationRow}>
+            <Ionicons name="location-outline" size={16} color={Colors.textSecondary} />
+            <Text style={styles.locationText}>{influencer.location}</Text>
+          </View>
+        )}
 
         {/* Stats */}
         <View style={styles.statsRow}>
@@ -116,22 +127,45 @@ export const InfluencerDetailScreen: React.FC = () => {
             <Text style={styles.statValue}>{formatNumber(influencer.followers)}</Text>
             <Text style={styles.statLabel}>Followers</Text>
           </View>
-          {influencer.engagement_rate && (
+          {influencer.engagement_rate !== undefined && influencer.engagement_rate > 0 && (
             <View style={styles.stat}>
               <Text style={styles.statValue}>{influencer.engagement_rate}%</Text>
               <Text style={styles.statLabel}>Engagement</Text>
             </View>
           )}
-          <View style={styles.stat}>
-            <Badge text={influencer.category} variant="default" size="sm" />
-            <Text style={styles.statLabel}>Category</Text>
-          </View>
+          {influencer.rating > 0 && (
+            <View style={styles.stat}>
+              <View style={styles.ratingRow}>
+                <Ionicons name="star" size={16} color={Colors.warning} />
+                <Text style={styles.statValue}>{influencer.rating.toFixed(1)}</Text>
+              </View>
+              <Text style={styles.statLabel}>{influencer.total_reviews} reviews</Text>
+            </View>
+          )}
         </View>
+
+        {/* Niche Badge */}
+        <View style={styles.nicheBadge}>
+          <Badge text={influencer.niche || influencer.platform} variant="default" />
+        </View>
+
+        {/* Price Info */}
+        <Card variant="outlined" padding="md" style={styles.priceCard}>
+          <Text style={styles.priceLabel}>Starting Price</Text>
+          <Text style={styles.priceValue}>{formatPrice(influencer.price_per_post)}</Text>
+          <Text style={styles.priceSubtext}>per post</Text>
+        </Card>
 
         {/* Description */}
         <Card variant="outlined" padding="md" style={styles.descriptionCard}>
           <Text style={styles.sectionTitle}>About</Text>
-          <Text style={styles.description}>{influencer.description}</Text>
+          <Text style={styles.description}>{influencer.bio}</Text>
+          {influencer.audience_demographics && (
+            <>
+              <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Audience</Text>
+              <Text style={styles.description}>{influencer.audience_demographics}</Text>
+            </>
+          )}
         </Card>
 
         {/* Packages */}
@@ -214,7 +248,17 @@ const styles = StyleSheet.create({
   handle: {
     fontSize: Fonts.size.md,
     color: Colors.textSecondary,
-    marginBottom: 20,
+    marginBottom: 8,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  locationText: {
+    fontSize: Fonts.size.sm,
+    color: Colors.textSecondary,
+    marginLeft: 4,
   },
   statsRow: {
     flexDirection: 'row',
@@ -235,6 +279,34 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   statLabel: {
+    fontSize: Fonts.size.sm,
+    color: Colors.textSecondary,
+  },
+  ratingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  nicheBadge: {
+    marginBottom: 16,
+  },
+  priceCard: {
+    marginBottom: 16,
+    alignItems: 'center',
+    backgroundColor: Colors.accent + '10',
+    borderColor: Colors.accent + '30',
+  },
+  priceLabel: {
+    fontSize: Fonts.size.sm,
+    color: Colors.textSecondary,
+    marginBottom: 4,
+  },
+  priceValue: {
+    fontSize: Fonts.size['2xl'],
+    fontWeight: Fonts.weight.bold,
+    color: Colors.accent,
+  },
+  priceSubtext: {
     fontSize: Fonts.size.sm,
     color: Colors.textSecondary,
   },

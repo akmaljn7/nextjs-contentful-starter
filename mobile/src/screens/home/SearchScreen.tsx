@@ -36,8 +36,8 @@ export const SearchScreen: React.FC = () => {
     setIsLoading(true);
     setHasSearched(true);
     try {
-      const data = await searchApi.search(searchQuery.trim());
-      setResults(data);
+      const response = await searchApi.search(searchQuery.trim());
+      setResults(response.results || []);
     } catch (error) {
       console.error('Search error:', error);
       setResults([]);
@@ -103,7 +103,7 @@ export const SearchScreen: React.FC = () => {
             <Ionicons name={getTypeIcon(item.type) as any} size={24} color={getTypeColor(item.type)} />
           </View>
           <View style={styles.resultText}>
-            <Text style={styles.resultName} numberOfLines={1}>{item.name}</Text>
+            <Text style={styles.resultName} numberOfLines={1}>{item.title}</Text>
             <Text style={styles.resultDescription} numberOfLines={2}>{item.description}</Text>
             <View style={styles.resultMeta}>
               <Text style={styles.resultType}>{item.type.replace('_', ' ')}</Text>
