@@ -1,5 +1,5 @@
 // API Configuration
-export const API_URL = process.env.API_URL || 'https://ads-kano.preview.emergentagent.com/api';
+export const API_URL = process.env.API_URL || 'https://www.lightban.com/api';
 
 // App Configuration
 export const Config = {
