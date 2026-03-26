@@ -4,48 +4,49 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
 import { AppNavigator } from './src/navigation';
 import { useCartStore, useSettingsStore } from './src/store';
+import { SplashScreenComponent } from './src/components/SplashScreen';
 
-// Prevent splash screen from auto-hiding
+// Prevent native splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
 
 export default function App() {
   const loadCart = useCartStore((state) => state.loadCart);
   const loadSettings = useSettingsStore((state) => state.loadSettings);
   const [appIsReady, setAppIsReady] = React.useState(false);
+  const [showSplash, setShowSplash] = React.useState(true);
 
   useEffect(() => {
     async function prepare() {
       try {
+        // Hide native splash immediately
+        await SplashScreen.hideAsync();
+        
         // Load persisted data
         await Promise.all([
           loadCart(),
           loadSettings(),
         ]);
-        // Minimum splash display time for branding
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        
+        // Show our custom splash for 2 seconds
+        await new Promise(resolve => setTimeout(resolve, 2000));
       } catch (e) {
         console.warn('Error loading app data:', e);
       } finally {
         setAppIsReady(true);
+        setShowSplash(false);
       }
     }
 
     prepare();
   }, []);
 
-  const onLayoutRootView = useCallback(async () => {
-    if (appIsReady) {
-      // Hide splash screen after app is ready
-      await SplashScreen.hideAsync();
-    }
-  }, [appIsReady]);
-
-  if (!appIsReady) {
-    return null;
+  // Show custom splash screen while loading
+  if (showSplash || !appIsReady) {
+    return <SplashScreenComponent />;
   }
 
   return (
-    <SafeAreaProvider onLayout={onLayoutRootView}>
+    <SafeAreaProvider>
       <StatusBar style="light" />
       <AppNavigator />
     </SafeAreaProvider>

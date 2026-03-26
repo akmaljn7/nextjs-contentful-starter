@@ -135,8 +135,8 @@ export const HomeScreen: React.FC = () => {
               <Ionicons name="calendar" size={24} color={Colors.white} />
             </View>
             <View style={styles.consultationText}>
-              <Text style={styles.consultationTitle}>Get a Free Consultation</Text>
-              <Text style={styles.consultationSubtitle}>Speak with our advertising experts</Text>
+              <Text style={styles.consultationTitle}>Need a Marketing Strategy?</Text>
+              <Text style={styles.consultationSubtitle}>Book a consultation with our professionals</Text>
             </View>
           </View>
           <Ionicons name="arrow-forward" size={20} color={Colors.white} />
