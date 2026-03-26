@@ -48,16 +48,22 @@ export const BillboardDetailScreen: React.FC = () => {
 
   const loadConfig = async () => {
     try {
+      console.log('Loading billboard config...');
       const [statesData, sizesData, typesData] = await Promise.all([
         billboardsApi.getStates(),
         billboardsApi.getSizes(),
         billboardsApi.getTypes({ category: billboardCategory === 'led' ? undefined : billboardCategory }),
       ]);
-      setStates(statesData);
-      setSizes(sizesData);
-      setTypes(typesData.filter(t => !t.is_independent));
+      console.log('States loaded:', statesData?.length || 0);
+      console.log('Sizes loaded:', sizesData?.length || 0);
+      console.log('Types loaded:', typesData?.length || 0);
+      
+      setStates(statesData || []);
+      setSizes(sizesData || []);
+      setTypes((typesData || []).filter(t => !t.is_independent));
     } catch (error) {
       console.error('Error loading config:', error);
+      Alert.alert('Error', 'Failed to load billboard options. Please try again.');
     } finally {
       setIsLoading(false);
     }

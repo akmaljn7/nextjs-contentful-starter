@@ -1,11 +1,14 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useColorScheme } from 'react-native';
 import { useSettingsStore } from '../store/settingsStore';
-import { Colors } from '../constants/colors';
+import { Colors, DarkColors } from '../constants/colors';
+
+// Create a merged type that includes all color properties
+type ThemeColors = typeof Colors;
 
 interface ThemeContextType {
   isDark: boolean;
-  colors: typeof Colors;
+  colors: ThemeColors;
   toggleTheme: () => void;
 }
 
@@ -33,8 +36,10 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setTheme(newTheme);
   };
 
-  // For now, always use light colors - dark mode colors can be enhanced later
-  const colors = Colors;
+  // Use dark colors when dark mode is active
+  const colors: ThemeColors = isDark 
+    ? { ...Colors, ...DarkColors } as ThemeColors
+    : Colors;
 
   return (
     <ThemeContext.Provider value={{ isDark, colors, toggleTheme }}>

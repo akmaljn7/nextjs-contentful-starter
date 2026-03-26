@@ -10,7 +10,7 @@
     "splash": {
       "image": "./src/assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#1a3a5c"
+      "backgroundColor": "#0d1b2a"
     },
     "assetBundlePatterns": [
       "**/*"
@@ -27,7 +27,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./src/assets/adaptive-icon.png",
-        "backgroundColor": "#1a3a5c"
+        "backgroundColor": "#0d1b2a"
       },
       "package": "com.lightban.ads",
       "versionCode": 1,

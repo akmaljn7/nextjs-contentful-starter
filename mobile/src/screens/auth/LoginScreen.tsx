@@ -57,9 +57,11 @@ export const LoginScreen: React.FC = () => {
         >
           {/* Logo */}
           <View style={styles.logoContainer}>
-            <View style={styles.logoPlaceholder}>
-              <Text style={styles.logoText}>LIGHTBAN</Text>
-            </View>
+            <Image
+              source={require('../../assets/icon.png')}
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
             <Text style={styles.tagline}>Book trusted ads across Northern Nigeria</Text>
           </View>
 
@@ -149,19 +151,10 @@ const styles = StyleSheet.create({
     marginBottom: 40,
     marginTop: 20,
   },
-  logoPlaceholder: {
-    width: 120,
-    height: 60,
-    backgroundColor: Colors.primary,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
+  logoImage: {
+    width: 140,
+    height: 80,
     marginBottom: 12,
-  },
-  logoText: {
-    color: Colors.white,
-    fontSize: Fonts.size.lg,
-    fontWeight: Fonts.weight.bold,
   },
   tagline: {
     fontSize: Fonts.size.sm,
