@@ -22,7 +22,7 @@ export const SplashScreenComponent: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1A1F3A',
+    backgroundColor: '#161433',
     justifyContent: 'center',
     alignItems: 'center',
   },

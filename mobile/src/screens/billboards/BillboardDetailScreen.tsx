@@ -183,12 +183,14 @@ export const BillboardDetailScreen: React.FC = () => {
       <View style={styles.filters}>
         {/* State Picker */}
         <View style={styles.pickerContainer}>
-          <Text style={styles.pickerLabel}>State</Text>
+          <Text style={styles.pickerLabel}>State ({states.length} available)</Text>
           <View style={styles.picker}>
             <Picker
+              key={`state-picker-${states.length}`}
               selectedValue={selectedState}
               onValueChange={handleStateChange}
               style={styles.pickerInput}
+              itemStyle={styles.pickerItem}
             >
               <Picker.Item label="Select State" value="" />
               {states.map((state) => (
@@ -200,17 +202,19 @@ export const BillboardDetailScreen: React.FC = () => {
 
         {/* Road Picker */}
         <View style={styles.pickerContainer}>
-          <Text style={styles.pickerLabel}>Road</Text>
+          <Text style={styles.pickerLabel}>Road ({availableRoads.length} available)</Text>
           <View style={styles.picker}>
             <Picker
+              key={`road-picker-${selectedState}-${availableRoads.length}`}
               selectedValue={selectedRoad}
               onValueChange={(value) => { setSelectedRoad(value); setShowPackages(false); }}
               style={styles.pickerInput}
+              itemStyle={styles.pickerItem}
               enabled={availableRoads.length > 0}
             >
-              <Picker.Item label="Select Road" value="" />
+              <Picker.Item label={availableRoads.length > 0 ? "Select Road" : "Select State First"} value="" />
               {availableRoads.map((road, idx) => (
-                <Picker.Item key={idx} label={road.name} value={road.name} />
+                <Picker.Item key={`road-${idx}-${road.name}`} label={road.name} value={road.name} />
               ))}
             </Picker>
           </View>
@@ -222,9 +226,11 @@ export const BillboardDetailScreen: React.FC = () => {
             <Text style={styles.pickerLabel}>LED Size</Text>
             <View style={styles.picker}>
               <Picker
+                key={`size-picker-${sizes.length}`}
                 selectedValue={selectedSize}
                 onValueChange={(value) => { setSelectedSize(value); setShowPackages(false); }}
                 style={styles.pickerInput}
+                itemStyle={styles.pickerItem}
               >
                 <Picker.Item label="Select Size" value="" />
                 {sizes.map((size) => (
@@ -241,13 +247,15 @@ export const BillboardDetailScreen: React.FC = () => {
             <Text style={styles.pickerLabel}>Type</Text>
             <View style={styles.picker}>
               <Picker
+                key={`type-picker-${types.length}`}
                 selectedValue={selectedType}
                 onValueChange={(value) => { setSelectedType(value); setShowPackages(false); }}
                 style={styles.pickerInput}
+                itemStyle={styles.pickerItem}
               >
                 <Picker.Item label="Select Type" value="" />
-                {types.filter(t => t.billboard_category === billboardCategory).map((type) => (
-                  <Picker.Item key={type.id} label={type.name} value={type.id} />
+                {types.filter(t => t.billboard_category === billboardCategory).map((t) => (
+                  <Picker.Item key={t.id} label={t.name} value={t.id} />
                 ))}
               </Picker>
             </View>
@@ -342,6 +350,9 @@ const styles = StyleSheet.create({
   },
   pickerInput: {
     height: 50,
+  },
+  pickerItem: {
+    fontSize: 16,
   },
   viewButton: {
     marginTop: 8,

@@ -10,6 +10,9 @@ export const Colors = {
   accentLight: '#ff8c5a',
   accentDark: '#e55a2b',
   
+  // Brand Gold/Orange
+  gold: '#c4a35a',
+  
   // Neutral Colors
   white: '#ffffff',
   black: '#000000',
@@ -36,8 +39,10 @@ export const Colors = {
   info: '#3b82f6',
   infoLight: '#dbeafe',
   
-  // Background Colors
-  background: '#f9fafb',
+  // Background Colors - Cream/Beige like website
+  background: '#f5f0e8',
+  backgroundGradientStart: '#f5f0e8',
+  backgroundGradientEnd: '#ebe5db',
   surface: '#ffffff',
   surfaceElevated: '#ffffff',
   

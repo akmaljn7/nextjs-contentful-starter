@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { Picker } from '@react-native-picker/picker';
 import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 import { Card, Button, LoadingSpinner } from '../../components/common';
@@ -60,17 +61,49 @@ const getConsultationPackages = (settings: SiteSettings | null) => [
 
 const INDUSTRIES = [
   'Retail & E-commerce',
-  'Food & Beverage',
-  'Fashion & Apparel',
+  'Food & Restaurant',
+  'Fashion & Beauty',
   'Real Estate',
-  'Healthcare',
-  'Education',
-  'Finance & Banking',
-  'Technology',
-  'Entertainment',
+  'Education & Training',
+  'Healthcare & Pharmacy',
+  'Technology & IT',
   'Agriculture',
+  'Transportation & Logistics',
+  'Entertainment & Events',
+  'Financial Services',
   'Manufacturing',
+  'Hospitality & Tourism',
+  'Professional Services',
   'Other'
+];
+
+const BUSINESS_STAGES = [
+  { value: 'idea', label: 'Just an idea' },
+  { value: 'new', label: 'New business (0-1 year)' },
+  { value: 'growing', label: 'Growing business (1-3 years)' },
+  { value: 'established', label: 'Established business (3+ years)' },
+  { value: 'expanding', label: 'Expanding to new markets' }
+];
+
+const BUDGET_RANGES = [
+  { value: 'under-100k', label: 'Under ₦100,000' },
+  { value: '100k-500k', label: '₦100,000 - ₦500,000' },
+  { value: '500k-1m', label: '₦500,000 - ₦1,000,000' },
+  { value: '1m-5m', label: '₦1,000,000 - ₦5,000,000' },
+  { value: 'above-5m', label: 'Above ₦5,000,000' },
+  { value: 'not-sure', label: 'Not sure yet' }
+];
+
+const TIME_SLOTS = [
+  '9:00 AM',
+  '10:00 AM',
+  '11:00 AM',
+  '12:00 PM',
+  '1:00 PM',
+  '2:00 PM',
+  '3:00 PM',
+  '4:00 PM',
+  '5:00 PM'
 ];
 
 export const ConsultationScreen: React.FC = () => {
@@ -86,6 +119,7 @@ export const ConsultationScreen: React.FC = () => {
   const [formData, setFormData] = useState({
     businessName: '',
     industry: '',
+    businessStage: '',
     description: '',
     goals: '',
     budgetRange: '',
@@ -115,6 +149,29 @@ export const ConsultationScreen: React.FC = () => {
   // Get packages with dynamic prices from settings
   const CONSULTATION_PACKAGES = getConsultationPackages(settings);
 
+  // Generate date options for next 30 days
+  const getDateOptions = () => {
+    const dates = [];
+    const today = new Date();
+    for (let i = 1; i <= 30; i++) {
+      const date = new Date(today);
+      date.setDate(today.getDate() + i);
+      // Skip weekends
+      if (date.getDay() !== 0 && date.getDay() !== 6) {
+        const formattedDate = date.toLocaleDateString('en-US', {
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric'
+        });
+        dates.push({
+          value: date.toISOString().split('T')[0],
+          label: formattedDate
+        });
+      }
+    }
+    return dates;
+  };
+
   const handlePackageSelect = (pkg: typeof CONSULTATION_PACKAGES[0]) => {
     if (!isAuthenticated) {
       Alert.alert(
@@ -140,6 +197,16 @@ export const ConsultationScreen: React.FC = () => {
       return;
     }
 
+    if (!formData.preferredDate) {
+      Alert.alert('Missing Information', 'Please select your preferred date');
+      return;
+    }
+
+    if (!formData.preferredTime) {
+      Alert.alert('Missing Information', 'Please select your preferred time');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -150,7 +217,7 @@ export const ConsultationScreen: React.FC = () => {
         price: selectedPackage.price,
         business_name: formData.businessName,
         industry: formData.industry,
-        business_stage: '',
+        business_stage: formData.businessStage,
         description: formData.description,
         goals: formData.goals,
         budget_range: formData.budgetRange,
@@ -178,6 +245,7 @@ export const ConsultationScreen: React.FC = () => {
       setFormData({
         businessName: '',
         industry: '',
+        businessStage: '',
         description: '',
         goals: '',
         budgetRange: '',
@@ -306,23 +374,35 @@ export const ConsultationScreen: React.FC = () => {
             {/* Industry */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Industry *</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.industryScroll}>
-                {INDUSTRIES.map((industry) => (
-                  <TouchableOpacity
-                    key={industry}
-                    style={[
-                      styles.industryChip,
-                      formData.industry === industry && styles.industryChipSelected
-                    ]}
-                    onPress={() => setFormData({ ...formData, industry })}
-                  >
-                    <Text style={[
-                      styles.industryChipText,
-                      formData.industry === industry && styles.industryChipTextSelected
-                    ]}>{industry}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+              <View style={styles.pickerContainer}>
+                <Picker
+                  selectedValue={formData.industry}
+                  onValueChange={(value) => setFormData({ ...formData, industry: value })}
+                  style={styles.picker}
+                >
+                  <Picker.Item label="Select Industry" value="" />
+                  {INDUSTRIES.map((industry) => (
+                    <Picker.Item key={industry} label={industry} value={industry} />
+                  ))}
+                </Picker>
+              </View>
+            </View>
+
+            {/* Business Stage */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Business Stage *</Text>
+              <View style={styles.pickerContainer}>
+                <Picker
+                  selectedValue={formData.businessStage}
+                  onValueChange={(value) => setFormData({ ...formData, businessStage: value })}
+                  style={styles.picker}
+                >
+                  <Picker.Item label="Select Business Stage" value="" />
+                  {BUSINESS_STAGES.map((stage) => (
+                    <Picker.Item key={stage.value} label={stage.label} value={stage.value} />
+                  ))}
+                </Picker>
+              </View>
             </View>
 
             {/* Description */}
@@ -353,6 +433,73 @@ export const ConsultationScreen: React.FC = () => {
               />
             </View>
 
+            {/* Budget Range */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Advertising Budget</Text>
+              <View style={styles.pickerContainer}>
+                <Picker
+                  selectedValue={formData.budgetRange}
+                  onValueChange={(value) => setFormData({ ...formData, budgetRange: value })}
+                  style={styles.picker}
+                >
+                  <Picker.Item label="Select Budget Range" value="" />
+                  {BUDGET_RANGES.map((range) => (
+                    <Picker.Item key={range.value} label={range.label} value={range.value} />
+                  ))}
+                </Picker>
+              </View>
+            </View>
+
+            <Text style={styles.sectionTitle}>Preferred Schedule</Text>
+
+            {/* Preferred Date */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Preferred Date *</Text>
+              <View style={styles.pickerContainer}>
+                <Picker
+                  selectedValue={formData.preferredDate}
+                  onValueChange={(value) => setFormData({ ...formData, preferredDate: value })}
+                  style={styles.picker}
+                >
+                  <Picker.Item label="Select Date" value="" />
+                  {getDateOptions().map((date) => (
+                    <Picker.Item key={date.value} label={date.label} value={date.value} />
+                  ))}
+                </Picker>
+              </View>
+            </View>
+
+            {/* Preferred Time */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Preferred Time *</Text>
+              <View style={styles.pickerContainer}>
+                <Picker
+                  selectedValue={formData.preferredTime}
+                  onValueChange={(value) => setFormData({ ...formData, preferredTime: value })}
+                  style={styles.picker}
+                >
+                  <Picker.Item label="Select Time" value="" />
+                  {TIME_SLOTS.map((time) => (
+                    <Picker.Item key={time} label={time} value={time} />
+                  ))}
+                </Picker>
+              </View>
+            </View>
+
+            <Text style={styles.sectionTitle}>Contact Information</Text>
+
+            {/* Contact Name */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Contact Name</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Your name"
+                placeholderTextColor={Colors.textMuted}
+                value={formData.contactName}
+                onChangeText={(text) => setFormData({ ...formData, contactName: text })}
+              />
+            </View>
+
             {/* Contact Phone */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Phone Number *</Text>
@@ -363,6 +510,20 @@ export const ConsultationScreen: React.FC = () => {
                 value={formData.contactPhone}
                 onChangeText={(text) => setFormData({ ...formData, contactPhone: text })}
                 keyboardType="phone-pad"
+              />
+            </View>
+
+            {/* Contact Email */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Email Address</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Your email"
+                placeholderTextColor={Colors.textMuted}
+                value={formData.contactEmail}
+                onChangeText={(text) => setFormData({ ...formData, contactEmail: text })}
+                keyboardType="email-address"
+                autoCapitalize="none"
               />
             </View>
 
@@ -413,6 +574,7 @@ const styles = StyleSheet.create({
     fontWeight: Fonts.weight.bold,
     color: Colors.textPrimary,
     marginBottom: 16,
+    marginTop: 8,
   },
   packageCard: {
     marginBottom: 20,
@@ -527,30 +689,15 @@ const styles = StyleSheet.create({
     minHeight: 100,
     textAlignVertical: 'top',
   },
-  industryScroll: {
-    marginHorizontal: -20,
-    paddingHorizontal: 20,
-  },
-  industryChip: {
+  pickerContainer: {
     backgroundColor: Colors.white,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    marginRight: 10,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: Colors.border,
+    overflow: 'hidden',
   },
-  industryChipSelected: {
-    backgroundColor: Colors.accent,
-    borderColor: Colors.accent,
-  },
-  industryChipText: {
-    fontSize: Fonts.size.sm,
-    color: Colors.textSecondary,
-  },
-  industryChipTextSelected: {
-    color: Colors.white,
-    fontWeight: Fonts.weight.medium,
+  picker: {
+    height: 50,
   },
   submitButton: {
     marginTop: 10,
