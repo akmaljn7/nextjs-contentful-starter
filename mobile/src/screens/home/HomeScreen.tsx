@@ -170,10 +170,14 @@ export const HomeScreen: React.FC = () => {
                 <TouchableOpacity
                   key={influencer.id}
                   style={styles.influencerCard}
-                  onPress={() => navigation.navigate('ExploreTab', { 
-                    screen: 'InfluencerDetail', 
-                    params: { id: influencer.id } 
-                  })}
+                  onPress={() => {
+                    // Navigate to Influencers list first, then to detail
+                    navigation.navigate('ExploreTab', { 
+                      screen: 'InfluencerDetail', 
+                      params: { id: influencer.id },
+                      initial: false,
+                    });
+                  }}
                 >
                   <View style={styles.influencerImageContainer}>
                     {(influencer.profile_image_url || influencer.image_url) ? (

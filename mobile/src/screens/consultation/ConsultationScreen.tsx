@@ -444,8 +444,16 @@ export const ConsultationScreen: React.FC = () => {
           </Text>
         </View>
 
+        {/* Loading State */}
+        {isLoadingSettings && (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={Colors.accent} />
+            <Text style={styles.loadingText}>Loading packages...</Text>
+          </View>
+        )}
+
         {/* Package Selection */}
-        {!showForm && (
+        {!showForm && !isLoadingSettings && (
           <View style={styles.packagesSection}>
             <Text style={styles.sectionTitle}>Choose Your Package</Text>
             {CONSULTATION_PACKAGES.map(renderPackageCard)}
@@ -704,6 +712,16 @@ const styles = StyleSheet.create({
   },
   packagesSection: {
     padding: 20,
+  },
+  loadingContainer: {
+    padding: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: Fonts.size.md,
+    color: Colors.textSecondary,
   },
   sectionTitle: {
     fontSize: Fonts.size.lg,

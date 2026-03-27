@@ -1,8 +1,9 @@
 import React from 'react';
-import { Platform } from 'react-native';
+import { Platform, TouchableOpacity } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { Colors } from '../constants/colors';
 import { Fonts } from '../constants/fonts';
 import { useCartStore } from '../store';
@@ -84,6 +85,26 @@ const HomeStackNavigator = () => (
   </HomeStack.Navigator>
 );
 
+// Custom back button component for detail screens
+const DetailBackButton = ({ fallbackScreen }: { fallbackScreen: string }) => {
+  const navigation = useNavigation<any>();
+  return (
+    <TouchableOpacity
+      onPress={() => {
+        if (navigation.canGoBack()) {
+          navigation.goBack();
+        } else {
+          // Navigate to the fallback screen if can't go back
+          navigation.navigate(fallbackScreen);
+        }
+      }}
+      style={{ marginLeft: Platform.OS === 'ios' ? 0 : -8, padding: 8 }}
+    >
+      <Ionicons name="arrow-back" size={24} color={Colors.white} />
+    </TouchableOpacity>
+  );
+};
+
 // Explore Stack Navigator
 const ExploreStackNavigator = () => (
   <ExploreStack.Navigator screenOptions={stackScreenOptions}>
@@ -95,47 +116,74 @@ const ExploreStackNavigator = () => (
     <ExploreStack.Screen 
       name="Influencers" 
       component={InfluencersScreen}
-      options={{ title: 'Influencers' }}
+      options={{ 
+        title: 'Influencers',
+        headerLeft: () => <DetailBackButton fallbackScreen="Explore" />,
+      }}
     />
     <ExploreStack.Screen 
       name="InfluencerDetail" 
       component={InfluencerDetailScreen}
-      options={{ title: 'Influencer' }}
+      options={{ 
+        title: 'Influencer',
+        headerLeft: () => <DetailBackButton fallbackScreen="Influencers" />,
+      }}
     />
     <ExploreStack.Screen 
       name="Billboards" 
       component={BillboardsScreen}
-      options={{ title: 'Billboards' }}
+      options={{ 
+        title: 'Billboards',
+        headerLeft: () => <DetailBackButton fallbackScreen="Explore" />,
+      }}
     />
     <ExploreStack.Screen 
       name="BillboardDetail" 
       component={BillboardDetailScreen}
-      options={{ title: 'Billboard' }}
+      options={{ 
+        title: 'Billboard',
+        headerLeft: () => <DetailBackButton fallbackScreen="Billboards" />,
+      }}
     />
     <ExploreStack.Screen 
       name="DigitalAds" 
       component={DigitalAdsScreen}
-      options={{ title: 'Digital Ads' }}
+      options={{ 
+        title: 'Digital Ads',
+        headerLeft: () => <DetailBackButton fallbackScreen="Explore" />,
+      }}
     />
     <ExploreStack.Screen 
       name="DigitalAdDetail" 
       component={DigitalAdDetailScreen}
-      options={{ title: 'Digital Ad' }}
+      options={{ 
+        title: 'Digital Ad',
+        headerLeft: () => <DetailBackButton fallbackScreen="DigitalAds" />,
+      }}
     />
     <ExploreStack.Screen 
       name="Kannywood" 
       component={KannywoodScreen}
-      options={{ title: 'Kannywood' }}
+      options={{ 
+        title: 'Kannywood',
+        headerLeft: () => <DetailBackButton fallbackScreen="Explore" />,
+      }}
     />
     <ExploreStack.Screen 
       name="KannywoodDetail" 
       component={KannywoodDetailScreen}
-      options={{ title: 'Production' }}
+      options={{ 
+        title: 'Production',
+        headerLeft: () => <DetailBackButton fallbackScreen="Kannywood" />,
+      }}
     />
     <ExploreStack.Screen 
       name="Consultation" 
       component={ConsultationScreen}
-      options={{ title: 'Get a Consultation' }}
+      options={{ 
+        title: 'Get a Consultation',
+        headerLeft: () => <DetailBackButton fallbackScreen="Explore" />,
+      }}
     />
   </ExploreStack.Navigator>
 );
