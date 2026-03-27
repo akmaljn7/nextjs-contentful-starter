@@ -123,40 +123,29 @@ export const HomeScreen: React.FC = () => {
           <Text style={styles.heroSubtitle}>
             Connect with verified influencers, premium billboards, and Kannywood placements
           </Text>
+          <TouchableOpacity
+            style={styles.consultationCTA}
+            onPress={() => navigation.navigate('ExploreTab', { screen: 'Consultation' })}
+          >
+            <Text style={styles.consultationCTAText}>Get a Consultation</Text>
+            <Ionicons name="arrow-forward" size={18} color={Colors.white} />
+          </TouchableOpacity>
         </Card>
 
-        {/* Consultation CTA */}
-        <TouchableOpacity
-          style={styles.consultationButton}
-          onPress={() => navigation.navigate('ExploreTab', { screen: 'Consultation' })}
-        >
-          <View style={styles.consultationContent}>
-            <View style={styles.consultationIcon}>
-              <Ionicons name="calendar" size={24} color={Colors.white} />
-            </View>
-            <View style={styles.consultationText}>
-              <Text style={styles.consultationTitle}>Need a Marketing Strategy?</Text>
-              <Text style={styles.consultationSubtitle}>Book a consultation with our professionals</Text>
-            </View>
-          </View>
-          <Ionicons name="arrow-forward" size={20} color={Colors.white} />
-        </TouchableOpacity>
-
-        {/* Our Services */}
+        {/* Categories - 4 in a row */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Our Services</Text>
-          <View style={styles.servicesGrid}>
+          <Text style={styles.sectionTitle}>Categories</Text>
+          <View style={styles.categoriesRow}>
             {SERVICES.map((service) => (
               <TouchableOpacity
                 key={service.id}
-                style={styles.serviceCard}
+                style={styles.categoryItem}
                 onPress={() => handleCategoryPress(service.id)}
               >
-                <View style={[styles.serviceIcon, { backgroundColor: service.color }]}>
-                  <Ionicons name={service.icon as any} size={32} color={Colors.white} />
+                <View style={[styles.categoryIconBox, { backgroundColor: service.color + '15' }]}>
+                  <Ionicons name={service.icon as any} size={28} color={service.color} />
                 </View>
-                <Text style={styles.serviceName}>{service.name}</Text>
-                <Text style={styles.serviceDescription}>{service.description}</Text>
+                <Text style={styles.categoryLabel}>{service.name}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -318,43 +307,22 @@ const styles = StyleSheet.create({
     fontSize: Fonts.size.sm,
     color: Colors.white + 'cc',
     lineHeight: 20,
+    marginBottom: 16,
   },
-  consultationButton: {
+  consultationCTA: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     backgroundColor: Colors.accent,
-    marginHorizontal: 20,
-    marginTop: 16,
-    padding: 16,
-    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 25,
+    alignSelf: 'flex-start',
+    gap: 8,
   },
-  consultationContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  consultationIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  consultationText: {
-    flex: 1,
-  },
-  consultationTitle: {
+  consultationCTAText: {
     fontSize: Fonts.size.md,
-    fontWeight: Fonts.weight.bold,
+    fontWeight: Fonts.weight.semibold,
     color: Colors.white,
-  },
-  consultationSubtitle: {
-    fontSize: Fonts.size.sm,
-    color: Colors.white + 'cc',
-    marginTop: 2,
   },
   section: {
     marginTop: 24,
@@ -377,33 +345,27 @@ const styles = StyleSheet.create({
     color: Colors.accent,
     fontWeight: Fonts.weight.medium,
   },
-  servicesGrid: {
+  categoriesRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginHorizontal: -8,
+    justifyContent: 'space-between',
   },
-  serviceCard: {
-    width: '50%',
-    paddingHorizontal: 8,
-    marginBottom: 16,
+  categoryItem: {
+    alignItems: 'center',
+    width: '23%',
   },
-  serviceIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 16,
+  categoryIconBox: {
+    width: 70,
+    height: 70,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
   },
-  serviceName: {
-    fontSize: Fonts.size.md,
-    fontWeight: Fonts.weight.bold,
+  categoryLabel: {
+    fontSize: Fonts.size.xs,
     color: Colors.textPrimary,
-    marginBottom: 4,
-  },
-  serviceDescription: {
-    fontSize: Fonts.size.sm,
-    color: Colors.textSecondary,
+    fontWeight: Fonts.weight.medium,
+    textAlign: 'center',
   },
   categoriesGrid: {
     flexDirection: 'row',
