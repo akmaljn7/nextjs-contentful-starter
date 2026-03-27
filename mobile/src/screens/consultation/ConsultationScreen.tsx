@@ -12,10 +12,9 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { Picker } from '@react-native-picker/picker';
 import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
-import { Card, Button, LoadingSpinner } from '../../components/common';
+import { Card, Button, CustomDropdown } from '../../components/common';
 import { useAuthStore } from '../../store';
 import { consultationsApi, settingsApi, SiteSettings } from '../../api';
 import { formatPrice } from '../../utils/formatters';
@@ -59,51 +58,51 @@ const getConsultationPackages = (settings: SiteSettings | null) => [
   }
 ];
 
-const INDUSTRIES = [
-  'Retail & E-commerce',
-  'Food & Restaurant',
-  'Fashion & Beauty',
-  'Real Estate',
-  'Education & Training',
-  'Healthcare & Pharmacy',
-  'Technology & IT',
-  'Agriculture',
-  'Transportation & Logistics',
-  'Entertainment & Events',
-  'Financial Services',
-  'Manufacturing',
-  'Hospitality & Tourism',
-  'Professional Services',
-  'Other'
+const INDUSTRY_OPTIONS = [
+  { value: 'retail', label: 'Retail & E-commerce' },
+  { value: 'food', label: 'Food & Restaurant' },
+  { value: 'fashion', label: 'Fashion & Beauty' },
+  { value: 'realestate', label: 'Real Estate' },
+  { value: 'education', label: 'Education & Training' },
+  { value: 'healthcare', label: 'Healthcare & Pharmacy' },
+  { value: 'technology', label: 'Technology & IT' },
+  { value: 'agriculture', label: 'Agriculture' },
+  { value: 'transport', label: 'Transportation & Logistics' },
+  { value: 'entertainment', label: 'Entertainment & Events' },
+  { value: 'finance', label: 'Financial Services' },
+  { value: 'manufacturing', label: 'Manufacturing' },
+  { value: 'hospitality', label: 'Hospitality & Tourism' },
+  { value: 'professional', label: 'Professional Services' },
+  { value: 'other', label: 'Other' },
 ];
 
-const BUSINESS_STAGES = [
+const BUSINESS_STAGE_OPTIONS = [
   { value: 'idea', label: 'Just an idea' },
   { value: 'new', label: 'New business (0-1 year)' },
   { value: 'growing', label: 'Growing business (1-3 years)' },
   { value: 'established', label: 'Established business (3+ years)' },
-  { value: 'expanding', label: 'Expanding to new markets' }
+  { value: 'expanding', label: 'Expanding to new markets' },
 ];
 
-const BUDGET_RANGES = [
+const BUDGET_RANGE_OPTIONS = [
   { value: 'under-100k', label: 'Under ₦100,000' },
   { value: '100k-500k', label: '₦100,000 - ₦500,000' },
   { value: '500k-1m', label: '₦500,000 - ₦1,000,000' },
   { value: '1m-5m', label: '₦1,000,000 - ₦5,000,000' },
   { value: 'above-5m', label: 'Above ₦5,000,000' },
-  { value: 'not-sure', label: 'Not sure yet' }
+  { value: 'not-sure', label: 'Not sure yet' },
 ];
 
-const TIME_SLOTS = [
-  '9:00 AM',
-  '10:00 AM',
-  '11:00 AM',
-  '12:00 PM',
-  '1:00 PM',
-  '2:00 PM',
-  '3:00 PM',
-  '4:00 PM',
-  '5:00 PM'
+const TIME_SLOT_OPTIONS = [
+  { value: '9:00 AM', label: '9:00 AM' },
+  { value: '10:00 AM', label: '10:00 AM' },
+  { value: '11:00 AM', label: '11:00 AM' },
+  { value: '12:00 PM', label: '12:00 PM' },
+  { value: '1:00 PM', label: '1:00 PM' },
+  { value: '2:00 PM', label: '2:00 PM' },
+  { value: '3:00 PM', label: '3:00 PM' },
+  { value: '4:00 PM', label: '4:00 PM' },
+  { value: '5:00 PM', label: '5:00 PM' },
 ];
 
 export const ConsultationScreen: React.FC = () => {
@@ -372,42 +371,22 @@ export const ConsultationScreen: React.FC = () => {
             </View>
 
             {/* Industry */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Industry *</Text>
-              <View style={styles.pickerContainer}>
-                <Picker
-                  selectedValue={formData.industry}
-                  onValueChange={(value) => setFormData({ ...formData, industry: value })}
-                  style={styles.picker}
-                  itemStyle={styles.pickerItemStyle}
-                  dropdownIconColor="#111827"
-                >
-                  <Picker.Item label="Select Industry" value="" color="#6b7280" />
-                  {INDUSTRIES.map((industry) => (
-                    <Picker.Item key={industry} label={industry} value={industry} color="#111827" />
-                  ))}
-                </Picker>
-              </View>
-            </View>
+            <CustomDropdown
+              label="Industry *"
+              placeholder="Select Industry"
+              value={formData.industry}
+              options={INDUSTRY_OPTIONS}
+              onValueChange={(value) => setFormData({ ...formData, industry: value })}
+            />
 
             {/* Business Stage */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Business Stage *</Text>
-              <View style={styles.pickerContainer}>
-                <Picker
-                  selectedValue={formData.businessStage}
-                  onValueChange={(value) => setFormData({ ...formData, businessStage: value })}
-                  style={styles.picker}
-                  itemStyle={styles.pickerItemStyle}
-                  dropdownIconColor="#111827"
-                >
-                  <Picker.Item label="Select Business Stage" value="" color="#6b7280" />
-                  {BUSINESS_STAGES.map((stage) => (
-                    <Picker.Item key={stage.value} label={stage.label} value={stage.value} color="#111827" />
-                  ))}
-                </Picker>
-              </View>
-            </View>
+            <CustomDropdown
+              label="Business Stage *"
+              placeholder="Select Business Stage"
+              value={formData.businessStage}
+              options={BUSINESS_STAGE_OPTIONS}
+              onValueChange={(value) => setFormData({ ...formData, businessStage: value })}
+            />
 
             {/* Description */}
             <View style={styles.inputGroup}>
@@ -438,63 +417,33 @@ export const ConsultationScreen: React.FC = () => {
             </View>
 
             {/* Budget Range */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Advertising Budget</Text>
-              <View style={styles.pickerContainer}>
-                <Picker
-                  selectedValue={formData.budgetRange}
-                  onValueChange={(value) => setFormData({ ...formData, budgetRange: value })}
-                  style={styles.picker}
-                  itemStyle={styles.pickerItemStyle}
-                  dropdownIconColor="#111827"
-                >
-                  <Picker.Item label="Select Budget Range" value="" color="#6b7280" />
-                  {BUDGET_RANGES.map((range) => (
-                    <Picker.Item key={range.value} label={range.label} value={range.value} color="#111827" />
-                  ))}
-                </Picker>
-              </View>
-            </View>
+            <CustomDropdown
+              label="Advertising Budget"
+              placeholder="Select Budget Range"
+              value={formData.budgetRange}
+              options={BUDGET_RANGE_OPTIONS}
+              onValueChange={(value) => setFormData({ ...formData, budgetRange: value })}
+            />
 
             <Text style={styles.sectionTitle}>Preferred Schedule</Text>
 
             {/* Preferred Date */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Preferred Date *</Text>
-              <View style={styles.pickerContainer}>
-                <Picker
-                  selectedValue={formData.preferredDate}
-                  onValueChange={(value) => setFormData({ ...formData, preferredDate: value })}
-                  style={styles.picker}
-                  itemStyle={styles.pickerItemStyle}
-                  dropdownIconColor="#111827"
-                >
-                  <Picker.Item label="Select Date" value="" color="#6b7280" />
-                  {getDateOptions().map((date) => (
-                    <Picker.Item key={date.value} label={date.label} value={date.value} color="#111827" />
-                  ))}
-                </Picker>
-              </View>
-            </View>
+            <CustomDropdown
+              label="Preferred Date *"
+              placeholder="Select Date"
+              value={formData.preferredDate}
+              options={getDateOptions()}
+              onValueChange={(value) => setFormData({ ...formData, preferredDate: value })}
+            />
 
             {/* Preferred Time */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Preferred Time *</Text>
-              <View style={styles.pickerContainer}>
-                <Picker
-                  selectedValue={formData.preferredTime}
-                  onValueChange={(value) => setFormData({ ...formData, preferredTime: value })}
-                  style={styles.picker}
-                  itemStyle={styles.pickerItemStyle}
-                  dropdownIconColor="#111827"
-                >
-                  <Picker.Item label="Select Time" value="" color="#6b7280" />
-                  {TIME_SLOTS.map((time) => (
-                    <Picker.Item key={time} label={time} value={time} color="#111827" />
-                  ))}
-                </Picker>
-              </View>
-            </View>
+            <CustomDropdown
+              label="Preferred Time *"
+              placeholder="Select Time"
+              value={formData.preferredTime}
+              options={TIME_SLOT_OPTIONS}
+              onValueChange={(value) => setFormData({ ...formData, preferredTime: value })}
+            />
 
             <Text style={styles.sectionTitle}>Contact Information</Text>
 
@@ -677,11 +626,11 @@ const styles = StyleSheet.create({
     color: Colors.accent,
   },
   inputGroup: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   label: {
-    fontSize: Fonts.size.sm,
-    fontWeight: Fonts.weight.medium,
+    fontSize: 14,
+    fontWeight: '500',
     color: Colors.textPrimary,
     marginBottom: 8,
   },
@@ -690,7 +639,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
-    fontSize: Fonts.size.md,
+    fontSize: 16,
     color: Colors.textPrimary,
     borderWidth: 1,
     borderColor: Colors.border,
@@ -698,21 +647,6 @@ const styles = StyleSheet.create({
   textArea: {
     minHeight: 100,
     textAlignVertical: 'top',
-  },
-  pickerContainer: {
-    backgroundColor: Colors.white,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    overflow: 'hidden',
-  },
-  picker: {
-    height: 50,
-    color: '#111827',
-  },
-  pickerItemStyle: {
-    fontSize: 16,
-    color: '#111827',
   },
   submitButton: {
     marginTop: 10,

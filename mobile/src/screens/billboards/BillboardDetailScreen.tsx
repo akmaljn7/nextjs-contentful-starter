@@ -4,15 +4,13 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
   Alert,
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { Picker } from '@react-native-picker/picker';
 import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
-import { Card, Button, LoadingSpinner, EmptyState } from '../../components/common';
+import { Card, Button, LoadingSpinner, EmptyState, CustomDropdown } from '../../components/common';
 import { PackageCard } from '../../components/cards';
 import { billboardsApi } from '../../api';
 import { useCartStore } from '../../store';
@@ -69,55 +67,38 @@ export const BillboardDetailScreen: React.FC = () => {
     }
   };
 
-  const handleStateChange = (stateId: string) => {
-    setSelectedState(stateId);
+  const handleStateChange = (value: string) => {
+    setSelectedState(value);
     setSelectedRoad('');
     setShowPackages(false);
-    setPackages([]);
   };
 
   const handleViewPackages = async () => {
     if (!selectedState || !selectedRoad) {
-      Alert.alert('Required', 'Please select state and road');
-      return;
-    }
-
-    if (billboardCategory === 'led' && !selectedSize) {
-      Alert.alert('Required', 'Please select LED size');
-      return;
-    }
-
-    if ((billboardCategory === 'static_banner' || billboardCategory === 'lightbox') && !selectedType) {
-      Alert.alert('Required', 'Please select billboard type');
+      Alert.alert('Selection Required', 'Please select a state and road');
       return;
     }
 
     setIsLoadingPackages(true);
     try {
-      let data: BillboardPackage[];
-
+      let pkgs: BillboardPackage[];
+      
       if (billboardCategory === 'led') {
-        data = await billboardsApi.getLedPackages({
+        pkgs = await billboardsApi.getLedPackages({
           state_id: selectedState,
           road_name: selectedRoad,
-          size_id: selectedSize,
-        });
-      } else if (isIndependent) {
-        data = await billboardsApi.getStaticPackages({
-          billboard_type_id: id,
-          state_id: selectedState,
-          road_name: selectedRoad,
+          size_id: selectedSize || undefined,
         });
       } else {
-        data = await billboardsApi.getStaticPackages({
+        pkgs = await billboardsApi.getStaticPackages({
           category: billboardCategory,
           state_id: selectedState,
           road_name: selectedRoad,
-          type_id: selectedType,
+          type_id: selectedType || undefined,
         });
       }
 
-      setPackages(data);
+      setPackages(pkgs);
       setShowPackages(true);
     } catch (error) {
       console.error('Error loading packages:', error);
@@ -134,10 +115,9 @@ export const BillboardDetailScreen: React.FC = () => {
 
     addItem({
       id: pkg.id,
-      listingType: billboardCategory === 'led' ? 'led_billboard' : 
-        isIndependent ? 'independent_billboard' : billboardCategory,
-      listingId: pkg.id,
-      listingName: `${type} - ${state?.name}, ${selectedRoad}`,
+      listingType: 'billboard',
+      listingId: id,
+      listingName: type || 'Billboard',
       packageId: pkg.id,
       packageTitle: pkg.title,
       price: pkg.price,
@@ -160,6 +140,32 @@ export const BillboardDetailScreen: React.FC = () => {
     ? states.find(s => s.id === selectedState)?.roads || []
     : [];
 
+  // Convert states to dropdown options
+  const stateOptions = states.map(state => ({
+    label: state.name,
+    value: state.id,
+  }));
+
+  // Convert roads to dropdown options
+  const roadOptions = availableRoads.map(road => ({
+    label: road.name,
+    value: road.name,
+  }));
+
+  // Convert sizes to dropdown options
+  const sizeOptions = sizes.map(size => ({
+    label: `${size.name}${size.description ? ` - ${size.description}` : ''}`,
+    value: size.id,
+  }));
+
+  // Convert types to dropdown options
+  const typeOptions = types
+    .filter(t => t.billboard_category === billboardCategory)
+    .map(t => ({
+      label: t.name,
+      value: t.id,
+    }));
+
   if (isLoading) {
     return <LoadingSpinner fullScreen message="Loading..." />;
   }
@@ -175,95 +181,56 @@ export const BillboardDetailScreen: React.FC = () => {
             color={Colors.accent} 
           />
         </View>
-        <Text style={styles.headerTitle}>{type}</Text>
-        <Text style={styles.headerSubtitle}>Select your preferences below to view available packages</Text>
+        <Text style={styles.headerTitle}>
+          {billboardCategory === 'led' ? 'Digital LED' : 
+           billboardCategory === 'lightbox' ? 'Lightbox' : 'Static Banner'}
+        </Text>
+        <Text style={styles.headerSubtitle}>
+          Select your preferences below to view available packages
+        </Text>
       </Card>
 
       {/* Filters */}
       <View style={styles.filters}>
-        {/* State Picker */}
-        <View style={styles.pickerContainer}>
-          <Text style={styles.pickerLabel}>State ({states.length} available)</Text>
-          <View style={styles.picker}>
-            <Picker
-              key={`state-picker-${states.length}`}
-              selectedValue={selectedState}
-              onValueChange={handleStateChange}
-              style={styles.pickerInput}
-              itemStyle={styles.pickerItem}
-              dropdownIconColor="#111827"
-            >
-              <Picker.Item label="Select State" value="" color="#6b7280" />
-              {states.map((state) => (
-                <Picker.Item key={state.id} label={state.name} value={state.id} color="#111827" />
-              ))}
-            </Picker>
-          </View>
-        </View>
+        {/* State Dropdown */}
+        <CustomDropdown
+          label={`State (${states.length} available)`}
+          placeholder="Select State"
+          value={selectedState}
+          options={stateOptions}
+          onValueChange={handleStateChange}
+        />
 
-        {/* Road Picker */}
-        <View style={styles.pickerContainer}>
-          <Text style={styles.pickerLabel}>Road ({availableRoads.length} available)</Text>
-          <View style={styles.picker}>
-            <Picker
-              key={`road-picker-${selectedState}-${availableRoads.length}`}
-              selectedValue={selectedRoad}
-              onValueChange={(value) => { setSelectedRoad(value); setShowPackages(false); }}
-              style={styles.pickerInput}
-              itemStyle={styles.pickerItem}
-              dropdownIconColor="#111827"
-              enabled={availableRoads.length > 0}
-            >
-              <Picker.Item label={availableRoads.length > 0 ? "Select Road" : "Select State First"} value="" color="#6b7280" />
-              {availableRoads.map((road, idx) => (
-                <Picker.Item key={`road-${idx}-${road.name}`} label={road.name} value={road.name} color="#111827" />
-              ))}
-            </Picker>
-          </View>
-        </View>
+        {/* Road Dropdown */}
+        <CustomDropdown
+          label={`Road (${availableRoads.length} available)`}
+          placeholder={availableRoads.length > 0 ? "Select Road" : "Select State First"}
+          value={selectedRoad}
+          options={roadOptions}
+          onValueChange={(value) => { setSelectedRoad(value); setShowPackages(false); }}
+          disabled={availableRoads.length === 0}
+        />
 
-        {/* LED Size Picker */}
+        {/* LED Size Dropdown */}
         {billboardCategory === 'led' && (
-          <View style={styles.pickerContainer}>
-            <Text style={styles.pickerLabel}>LED Size</Text>
-            <View style={styles.picker}>
-              <Picker
-                key={`size-picker-${sizes.length}`}
-                selectedValue={selectedSize}
-                onValueChange={(value) => { setSelectedSize(value); setShowPackages(false); }}
-                style={styles.pickerInput}
-                itemStyle={styles.pickerItem}
-                dropdownIconColor="#111827"
-              >
-                <Picker.Item label="Select Size" value="" color="#6b7280" />
-                {sizes.map((size) => (
-                  <Picker.Item key={size.id} label={`${size.name}${size.description ? ` - ${size.description}` : ''}`} value={size.id} color="#111827" />
-                ))}
-              </Picker>
-            </View>
-          </View>
+          <CustomDropdown
+            label="LED Size"
+            placeholder="Select Size"
+            value={selectedSize}
+            options={sizeOptions}
+            onValueChange={(value) => { setSelectedSize(value); setShowPackages(false); }}
+          />
         )}
 
-        {/* Billboard Type Picker (for Static/Lightbox) */}
+        {/* Billboard Type Dropdown (for Static/Lightbox) */}
         {(billboardCategory === 'static_banner' || billboardCategory === 'lightbox') && !isIndependent && (
-          <View style={styles.pickerContainer}>
-            <Text style={styles.pickerLabel}>Type</Text>
-            <View style={styles.picker}>
-              <Picker
-                key={`type-picker-${types.length}`}
-                selectedValue={selectedType}
-                onValueChange={(value) => { setSelectedType(value); setShowPackages(false); }}
-                style={styles.pickerInput}
-                itemStyle={styles.pickerItem}
-                dropdownIconColor="#111827"
-              >
-                <Picker.Item label="Select Type" value="" color="#6b7280" />
-                {types.filter(t => t.billboard_category === billboardCategory).map((t) => (
-                  <Picker.Item key={t.id} label={t.name} value={t.id} color="#111827" />
-                ))}
-              </Picker>
-            </View>
-          </View>
+          <CustomDropdown
+            label="Type"
+            placeholder="Select Type"
+            value={selectedType}
+            options={typeOptions}
+            onValueChange={(value) => { setSelectedType(value); setShowPackages(false); }}
+          />
         )}
 
         {/* View Packages Button */}
@@ -280,18 +247,28 @@ export const BillboardDetailScreen: React.FC = () => {
       {/* Packages */}
       {showPackages && (
         <View style={styles.packagesSection}>
-          <Text style={styles.packagesTitle}>Available Packages</Text>
+          <Text style={styles.packagesTitle}>
+            Available Packages ({packages.length})
+          </Text>
+          
           {packages.length === 0 ? (
             <EmptyState
-              icon="folder-open-outline"
-              title="No packages found"
-              description="Try different selections"
+              icon="cube-outline"
+              title="No Packages Found"
+              description="Try different filter options"
             />
           ) : (
             packages.map((pkg) => (
               <PackageCard
                 key={pkg.id}
-                package_={pkg}
+                package_={{
+                  id: pkg.id,
+                  title: pkg.title,
+                  description: pkg.description,
+                  price: pkg.price,
+                  duration: pkg.duration,
+                  deliverables: pkg.deliverables || [],
+                }}
                 onSelect={() => handleAddToCart(pkg)}
                 isInCart={isInCart(pkg.id)}
               />
@@ -324,7 +301,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   headerTitle: {
-    fontSize: Fonts.size['2xl'],
+    fontSize: Fonts.size.xl,
     fontWeight: Fonts.weight.bold,
     color: Colors.textPrimary,
     marginBottom: 8,
@@ -336,29 +313,6 @@ const styles = StyleSheet.create({
   },
   filters: {
     padding: 16,
-  },
-  pickerContainer: {
-    marginBottom: 16,
-  },
-  pickerLabel: {
-    fontSize: Fonts.size.sm,
-    fontWeight: Fonts.weight.medium,
-    color: Colors.textPrimary,
-    marginBottom: 8,
-  },
-  picker: {
-    backgroundColor: Colors.white,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  pickerInput: {
-    height: 50,
-    color: '#111827',
-  },
-  pickerItem: {
-    fontSize: 16,
-    color: '#111827',
   },
   viewButton: {
     marginTop: 8,

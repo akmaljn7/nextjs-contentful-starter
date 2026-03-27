@@ -6,3 +6,4 @@ export { ErrorMessage } from './ErrorMessage';
 export { Badge } from './Badge';
 export { Avatar } from './Avatar';
 export { EmptyState } from './EmptyState';
+export { CustomDropdown } from './CustomDropdown';
