@@ -191,10 +191,11 @@ export const BillboardDetailScreen: React.FC = () => {
               onValueChange={handleStateChange}
               style={styles.pickerInput}
               itemStyle={styles.pickerItem}
+              dropdownIconColor="#111827"
             >
-              <Picker.Item label="Select State" value="" />
+              <Picker.Item label="Select State" value="" color="#6b7280" />
               {states.map((state) => (
-                <Picker.Item key={state.id} label={state.name} value={state.id} />
+                <Picker.Item key={state.id} label={state.name} value={state.id} color="#111827" />
               ))}
             </Picker>
           </View>
@@ -210,11 +211,12 @@ export const BillboardDetailScreen: React.FC = () => {
               onValueChange={(value) => { setSelectedRoad(value); setShowPackages(false); }}
               style={styles.pickerInput}
               itemStyle={styles.pickerItem}
+              dropdownIconColor="#111827"
               enabled={availableRoads.length > 0}
             >
-              <Picker.Item label={availableRoads.length > 0 ? "Select Road" : "Select State First"} value="" />
+              <Picker.Item label={availableRoads.length > 0 ? "Select Road" : "Select State First"} value="" color="#6b7280" />
               {availableRoads.map((road, idx) => (
-                <Picker.Item key={`road-${idx}-${road.name}`} label={road.name} value={road.name} />
+                <Picker.Item key={`road-${idx}-${road.name}`} label={road.name} value={road.name} color="#111827" />
               ))}
             </Picker>
           </View>
@@ -231,10 +233,11 @@ export const BillboardDetailScreen: React.FC = () => {
                 onValueChange={(value) => { setSelectedSize(value); setShowPackages(false); }}
                 style={styles.pickerInput}
                 itemStyle={styles.pickerItem}
+                dropdownIconColor="#111827"
               >
-                <Picker.Item label="Select Size" value="" />
+                <Picker.Item label="Select Size" value="" color="#6b7280" />
                 {sizes.map((size) => (
-                  <Picker.Item key={size.id} label={`${size.name}${size.description ? ` - ${size.description}` : ''}`} value={size.id} />
+                  <Picker.Item key={size.id} label={`${size.name}${size.description ? ` - ${size.description}` : ''}`} value={size.id} color="#111827" />
                 ))}
               </Picker>
             </View>
@@ -252,10 +255,11 @@ export const BillboardDetailScreen: React.FC = () => {
                 onValueChange={(value) => { setSelectedType(value); setShowPackages(false); }}
                 style={styles.pickerInput}
                 itemStyle={styles.pickerItem}
+                dropdownIconColor="#111827"
               >
-                <Picker.Item label="Select Type" value="" />
+                <Picker.Item label="Select Type" value="" color="#6b7280" />
                 {types.filter(t => t.billboard_category === billboardCategory).map((t) => (
-                  <Picker.Item key={t.id} label={t.name} value={t.id} />
+                  <Picker.Item key={t.id} label={t.name} value={t.id} color="#111827" />
                 ))}
               </Picker>
             </View>
@@ -350,9 +354,11 @@ const styles = StyleSheet.create({
   },
   pickerInput: {
     height: 50,
+    color: '#111827',
   },
   pickerItem: {
     fontSize: 16,
+    color: '#111827',
   },
   viewButton: {
     marginTop: 8,

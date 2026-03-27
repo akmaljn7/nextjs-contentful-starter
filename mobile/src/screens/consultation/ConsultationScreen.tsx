@@ -379,10 +379,12 @@ export const ConsultationScreen: React.FC = () => {
                   selectedValue={formData.industry}
                   onValueChange={(value) => setFormData({ ...formData, industry: value })}
                   style={styles.picker}
+                  itemStyle={styles.pickerItemStyle}
+                  dropdownIconColor="#111827"
                 >
-                  <Picker.Item label="Select Industry" value="" />
+                  <Picker.Item label="Select Industry" value="" color="#6b7280" />
                   {INDUSTRIES.map((industry) => (
-                    <Picker.Item key={industry} label={industry} value={industry} />
+                    <Picker.Item key={industry} label={industry} value={industry} color="#111827" />
                   ))}
                 </Picker>
               </View>
@@ -396,10 +398,12 @@ export const ConsultationScreen: React.FC = () => {
                   selectedValue={formData.businessStage}
                   onValueChange={(value) => setFormData({ ...formData, businessStage: value })}
                   style={styles.picker}
+                  itemStyle={styles.pickerItemStyle}
+                  dropdownIconColor="#111827"
                 >
-                  <Picker.Item label="Select Business Stage" value="" />
+                  <Picker.Item label="Select Business Stage" value="" color="#6b7280" />
                   {BUSINESS_STAGES.map((stage) => (
-                    <Picker.Item key={stage.value} label={stage.label} value={stage.value} />
+                    <Picker.Item key={stage.value} label={stage.label} value={stage.value} color="#111827" />
                   ))}
                 </Picker>
               </View>
@@ -441,10 +445,12 @@ export const ConsultationScreen: React.FC = () => {
                   selectedValue={formData.budgetRange}
                   onValueChange={(value) => setFormData({ ...formData, budgetRange: value })}
                   style={styles.picker}
+                  itemStyle={styles.pickerItemStyle}
+                  dropdownIconColor="#111827"
                 >
-                  <Picker.Item label="Select Budget Range" value="" />
+                  <Picker.Item label="Select Budget Range" value="" color="#6b7280" />
                   {BUDGET_RANGES.map((range) => (
-                    <Picker.Item key={range.value} label={range.label} value={range.value} />
+                    <Picker.Item key={range.value} label={range.label} value={range.value} color="#111827" />
                   ))}
                 </Picker>
               </View>
@@ -460,10 +466,12 @@ export const ConsultationScreen: React.FC = () => {
                   selectedValue={formData.preferredDate}
                   onValueChange={(value) => setFormData({ ...formData, preferredDate: value })}
                   style={styles.picker}
+                  itemStyle={styles.pickerItemStyle}
+                  dropdownIconColor="#111827"
                 >
-                  <Picker.Item label="Select Date" value="" />
+                  <Picker.Item label="Select Date" value="" color="#6b7280" />
                   {getDateOptions().map((date) => (
-                    <Picker.Item key={date.value} label={date.label} value={date.value} />
+                    <Picker.Item key={date.value} label={date.label} value={date.value} color="#111827" />
                   ))}
                 </Picker>
               </View>
@@ -477,10 +485,12 @@ export const ConsultationScreen: React.FC = () => {
                   selectedValue={formData.preferredTime}
                   onValueChange={(value) => setFormData({ ...formData, preferredTime: value })}
                   style={styles.picker}
+                  itemStyle={styles.pickerItemStyle}
+                  dropdownIconColor="#111827"
                 >
-                  <Picker.Item label="Select Time" value="" />
+                  <Picker.Item label="Select Time" value="" color="#6b7280" />
                   {TIME_SLOTS.map((time) => (
-                    <Picker.Item key={time} label={time} value={time} />
+                    <Picker.Item key={time} label={time} value={time} color="#111827" />
                   ))}
                 </Picker>
               </View>
@@ -698,6 +708,11 @@ const styles = StyleSheet.create({
   },
   picker: {
     height: 50,
+    color: '#111827',
+  },
+  pickerItemStyle: {
+    fontSize: 16,
+    color: '#111827',
   },
   submitButton: {
     marginTop: 10,
