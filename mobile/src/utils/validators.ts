@@ -14,19 +14,10 @@ export const isValidPhone = (phone: string): boolean => {
   );
 };
 
-// Password Validation
+// Password Validation - Simple (allow any password with min length)
 export const isValidPassword = (password: string): { valid: boolean; message: string } => {
-  if (password.length < 8) {
-    return { valid: false, message: 'Password must be at least 8 characters' };
-  }
-  if (!/[A-Z]/.test(password)) {
-    return { valid: false, message: 'Password must contain an uppercase letter' };
-  }
-  if (!/[a-z]/.test(password)) {
-    return { valid: false, message: 'Password must contain a lowercase letter' };
-  }
-  if (!/[0-9]/.test(password)) {
-    return { valid: false, message: 'Password must contain a number' };
+  if (password.length < 4) {
+    return { valid: false, message: 'Password must be at least 4 characters' };
   }
   return { valid: true, message: '' };
 };
@@ -93,7 +84,8 @@ export const validateRegisterForm = (
   name: string,
   email: string,
   password: string,
-  confirmPassword: string
+  confirmPassword: string,
+  phone?: string
 ): Record<string, string> => {
   const errors: Record<string, string> = {};
 
@@ -107,6 +99,13 @@ export const validateRegisterForm = (
     errors.email = 'Email is required';
   } else if (!isValidEmail(email)) {
     errors.email = 'Please enter a valid email';
+  }
+
+  // Phone is required
+  if (!phone || !isRequired(phone)) {
+    errors.phone = 'Phone number is required';
+  } else if (!isValidPhone(phone)) {
+    errors.phone = 'Please enter a valid Nigerian phone number';
   }
 
   if (!isRequired(password)) {

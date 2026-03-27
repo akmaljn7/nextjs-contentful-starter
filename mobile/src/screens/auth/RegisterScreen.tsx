@@ -35,15 +35,15 @@ export const RegisterScreen: React.FC = () => {
   const handleRegister = async () => {
     clearError();
     
-    // Validate form
-    const errors = validateRegisterForm(name, email, password, confirmPassword);
+    // Validate form (now includes phone)
+    const errors = validateRegisterForm(name, email, password, confirmPassword, phone);
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
       return;
     }
     
     setFormErrors({});
-    await register({ name, email, password, phone: phone || undefined });
+    await register({ name, email, password, phone });
   };
 
   return (
@@ -102,11 +102,12 @@ export const RegisterScreen: React.FC = () => {
             />
 
             <Input
-              label="Phone (Optional)"
+              label="Phone Number *"
               value={phone}
               onChangeText={setPhone}
               placeholder="Enter your phone number"
               keyboardType="phone-pad"
+              error={formErrors.phone}
               leftIcon={<Ionicons name="call-outline" size={20} color={Colors.textMuted} />}
             />
 
