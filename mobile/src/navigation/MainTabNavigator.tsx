@@ -64,6 +64,7 @@ const stackScreenOptions = {
     fontSize: Fonts.size.lg,
   },
   headerBackTitleVisible: false,
+  headerBackVisible: true,
   contentStyle: { backgroundColor: Colors.background },
 };
 

@@ -24,6 +24,7 @@ const SERVICES = [
   { id: 'billboards', name: 'Billboards', icon: 'tv', color: '#f59e0b', description: 'Outdoor advertising' },
   { id: 'digital', name: 'Digital Ads', icon: 'globe', color: '#3b82f6', description: 'Online campaigns' },
   { id: 'kannywood', name: 'Kannywood', icon: 'film', color: '#ec4899', description: 'Movie placements' },
+  { id: 'consultation', name: 'Consultation', icon: 'calendar', color: '#10b981', description: 'Marketing strategy' },
 ];
 
 export const HomeScreen: React.FC = () => {
@@ -74,6 +75,9 @@ export const HomeScreen: React.FC = () => {
         break;
       case 'kannywood':
         navigation.navigate('ExploreTab', { screen: 'Kannywood' });
+        break;
+      case 'consultation':
+        navigation.navigate('ExploreTab', { screen: 'Consultation' });
         break;
     }
   };
@@ -132,23 +136,24 @@ export const HomeScreen: React.FC = () => {
           </TouchableOpacity>
         </Card>
 
-        {/* Categories - 4 in a row */}
+        {/* Our Services - Horizontal Scroll */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Categories</Text>
-          <View style={styles.categoriesRow}>
+          <Text style={styles.sectionTitle}>Our Services</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.servicesScroll}>
             {SERVICES.map((service) => (
               <TouchableOpacity
                 key={service.id}
-                style={styles.categoryItem}
+                style={styles.serviceCard}
                 onPress={() => handleCategoryPress(service.id)}
               >
-                <View style={[styles.categoryIconBox, { backgroundColor: service.color + '15' }]}>
-                  <Ionicons name={service.icon as any} size={28} color={service.color} />
+                <View style={[styles.serviceIconBox, { backgroundColor: service.color + '15' }]}>
+                  <Ionicons name={service.icon as any} size={32} color={service.color} />
                 </View>
-                <Text style={styles.categoryLabel}>{service.name}</Text>
+                <Text style={styles.serviceLabel}>{service.name}</Text>
+                <Text style={styles.serviceDesc}>{service.description}</Text>
               </TouchableOpacity>
             ))}
-          </View>
+          </ScrollView>
         </View>
 
         {/* Featured Influencers */}
@@ -345,52 +350,36 @@ const styles = StyleSheet.create({
     color: Colors.accent,
     fontWeight: Fonts.weight.medium,
   },
-  categoriesRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  servicesScroll: {
+    marginHorizontal: -20,
+    paddingHorizontal: 20,
   },
-  categoryItem: {
+  serviceCard: {
+    width: 110,
+    backgroundColor: Colors.white,
+    borderRadius: 16,
+    padding: 16,
+    marginRight: 12,
     alignItems: 'center',
-    width: '23%',
   },
-  categoryIconBox: {
-    width: 70,
-    height: 70,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-  categoryLabel: {
-    fontSize: Fonts.size.xs,
-    color: Colors.textPrimary,
-    fontWeight: Fonts.weight.medium,
-    textAlign: 'center',
-  },
-  categoriesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: 12,
-    marginHorizontal: -6,
-  },
-  categoryCard: {
-    width: '25%',
-    alignItems: 'center',
-    paddingHorizontal: 6,
-    marginBottom: 16,
-  },
-  categoryIcon: {
+  serviceIconBox: {
     width: 60,
     height: 60,
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
+    marginBottom: 10,
   },
-  categoryName: {
-    fontSize: Fonts.size.xs,
+  serviceLabel: {
+    fontSize: Fonts.size.sm,
     color: Colors.textPrimary,
-    fontWeight: Fonts.weight.medium,
+    fontWeight: Fonts.weight.semibold,
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  serviceDesc: {
+    fontSize: Fonts.size.xs,
+    color: Colors.textSecondary,
     textAlign: 'center',
   },
   horizontalScroll: {
@@ -399,7 +388,7 @@ const styles = StyleSheet.create({
   },
   influencerCard: {
     width: 140,
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.primary,
     borderRadius: 16,
     padding: 12,
     marginRight: 12,
@@ -426,7 +415,7 @@ const styles = StyleSheet.create({
   influencerName: {
     fontSize: Fonts.size.sm,
     fontWeight: Fonts.weight.semibold,
-    color: Colors.textPrimary,
+    color: Colors.white,
     marginBottom: 2,
   },
   influencerPlatform: {
@@ -436,7 +425,7 @@ const styles = StyleSheet.create({
   },
   influencerFollowers: {
     fontSize: Fonts.size.xs,
-    color: Colors.textSecondary,
+    color: Colors.white + 'aa',
   },
   billboardCard: {
     flexDirection: 'row',
