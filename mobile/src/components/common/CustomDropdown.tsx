@@ -6,12 +6,13 @@ import {
   TouchableOpacity,
   Modal,
   FlatList,
-  SafeAreaView,
-  Platform,
+  Dimensions,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/colors';
-import { Fonts } from '../../constants/fonts';
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 interface DropdownOption {
   label: string;
@@ -47,6 +48,29 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({
     setModalVisible(false);
   };
 
+  const renderOption = ({ item }: { item: DropdownOption }) => (
+    <TouchableOpacity
+      style={[
+        styles.optionItem,
+        item.value === value && styles.optionItemSelected,
+      ]}
+      onPress={() => handleSelect(item.value)}
+      activeOpacity={0.7}
+    >
+      <Text
+        style={[
+          styles.optionText,
+          item.value === value && styles.optionTextSelected,
+        ]}
+      >
+        {item.label}
+      </Text>
+      {item.value === value && (
+        <Ionicons name="checkmark" size={22} color={Colors.accent} />
+      )}
+    </TouchableOpacity>
+  );
+
   return (
     <View style={styles.container}>
       {label && <Text style={styles.label}>{label}</Text>}
@@ -80,60 +104,44 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({
 
       <Modal
         visible={modalVisible}
-        transparent
+        transparent={true}
         animationType="slide"
         onRequestClose={() => setModalVisible(false)}
       >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setModalVisible(false)}
-        >
-          <View style={styles.modalContent}>
-            <SafeAreaView style={styles.modalInner}>
-              {/* Header */}
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>{label || 'Select Option'}</Text>
-                <TouchableOpacity
-                  onPress={() => setModalVisible(false)}
-                  style={styles.closeButton}
-                >
-                  <Ionicons name="close" size={24} color={Colors.textPrimary} />
-                </TouchableOpacity>
-              </View>
+        <View style={styles.modalContainer}>
+          {/* Backdrop */}
+          <TouchableWithoutFeedback onPress={() => setModalVisible(false)}>
+            <View style={styles.modalBackdrop} />
+          </TouchableWithoutFeedback>
+          
+          {/* Bottom Sheet Content */}
+          <View style={styles.bottomSheet}>
+            {/* Handle bar */}
+            <View style={styles.handleBar} />
+            
+            {/* Header */}
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{label || 'Select Option'}</Text>
+              <TouchableOpacity
+                onPress={() => setModalVisible(false)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="close-circle" size={28} color={Colors.textMuted} />
+              </TouchableOpacity>
+            </View>
 
-              {/* Options List */}
-              <FlatList
-                data={options}
-                keyExtractor={(item) => item.value}
-                renderItem={({ item }) => (
-                  <TouchableOpacity
-                    style={[
-                      styles.optionItem,
-                      item.value === value && styles.optionItemSelected,
-                    ]}
-                    onPress={() => handleSelect(item.value)}
-                  >
-                    <Text
-                      style={[
-                        styles.optionText,
-                        item.value === value && styles.optionTextSelected,
-                      ]}
-                    >
-                      {item.label}
-                    </Text>
-                    {item.value === value && (
-                      <Ionicons name="checkmark" size={22} color={Colors.accent} />
-                    )}
-                  </TouchableOpacity>
-                )}
-                ItemSeparatorComponent={() => <View style={styles.separator} />}
-                showsVerticalScrollIndicator={false}
-                style={styles.optionsList}
-              />
-            </SafeAreaView>
+            {/* Options List */}
+            <FlatList
+              data={options}
+              keyExtractor={(item) => item.value}
+              renderItem={renderOption}
+              showsVerticalScrollIndicator={true}
+              style={styles.optionsList}
+              contentContainerStyle={styles.optionsContent}
+              ItemSeparatorComponent={() => <View style={styles.separator} />}
+            />
           </View>
-        </TouchableOpacity>
+        </View>
       </Modal>
     </View>
   );
@@ -182,26 +190,37 @@ const styles = StyleSheet.create({
     color: Colors.error,
     marginTop: 4,
   },
-  modalOverlay: {
+  modalContainer: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
   },
-  modalContent: {
-    backgroundColor: Colors.white,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '70%',
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
-  modalInner: {
-    flex: 1,
+  bottomSheet: {
+    backgroundColor: Colors.white,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: SCREEN_HEIGHT * 0.6,
+    minHeight: 200,
+    paddingBottom: 34, // Safe area for iPhone home indicator
+  },
+  handleBar: {
+    width: 40,
+    height: 4,
+    backgroundColor: Colors.gray[300],
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginTop: 12,
+    marginBottom: 8,
   },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
@@ -210,21 +229,23 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.textPrimary,
   },
-  closeButton: {
-    padding: 4,
-  },
   optionsList: {
-    flex: 1,
+    flexGrow: 0,
+  },
+  optionsContent: {
+    paddingHorizontal: 8,
+    paddingVertical: 8,
   },
   optionItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingVertical: 16,
+    borderRadius: 12,
   },
   optionItemSelected: {
-    backgroundColor: Colors.accent + '10',
+    backgroundColor: Colors.accent + '15',
   },
   optionText: {
     fontSize: 16,
@@ -237,7 +258,7 @@ const styles = StyleSheet.create({
   },
   separator: {
     height: 1,
-    backgroundColor: Colors.border,
-    marginHorizontal: 20,
+    backgroundColor: Colors.gray[100],
+    marginHorizontal: 16,
   },
 });
