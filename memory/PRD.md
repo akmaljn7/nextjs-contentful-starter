@@ -66,6 +66,19 @@ Northern Nigeria's trusted advertising marketplace connecting advertisers with v
   - Card component (auto adapts)
   - MainTabNavigator (tab bar colors)
 
+### Feature: Push Notifications (March 2024) ✅
+- Backend push notification system using Expo Push API
+- Push token registration/unregistration endpoints
+- Notifications triggered for:
+  - All order status changes (pending, confirmed, in_progress, completed, cancelled)
+  - Consultation status updates and schedule confirmations
+  - New messages (user-to-admin and admin-to-user)
+- Mobile app integration:
+  - `notificationService.ts` - handles token registration with Expo and backend
+  - `InAppNotification.tsx` - animated in-app notification banner
+  - Auto-registers push token on login
+- In-app banners show for foreground notifications with type-specific icons
+
 ## Bug Fixes (December 2024)
 - ✅ Splash screen color matched to web (from #1a3a5c to #0d1b2a)
 - ✅ Login screen uses logo image instead of text
@@ -89,6 +102,7 @@ Northern Nigeria's trusted advertising marketplace connecting advertisers with v
 - [ ] Hausa localization support
 - [ ] Kannywood image uploads (admin task)
 - [ ] Create "Abdool gaya" influencer in database
+- [ ] Add notification navigation (tap notification to go to relevant screen)
 
 ### Future/Backlog
 - [ ] Refactor `/app/backend/server.py` monolith into routers/services

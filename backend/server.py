@@ -57,11 +57,64 @@ SMTP_PORT = int(os.environ.get('SMTP_PORT', 587))
 # Thread pool for sending emails in background
 email_executor = ThreadPoolExecutor(max_workers=2)
 
+# Thread pool for push notifications
+notification_executor = ThreadPoolExecutor(max_workers=3)
+
 security = HTTPBearer(auto_error=False)
 
 # Create the main app
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
+
+# ============= PUSH NOTIFICATION HELPER =============
+
+async def send_push_notification(user_id: str, title: str, body: str, data: dict = None):
+    """Send push notification to a user via Expo Push Service"""
+    try:
+        # Get user's push tokens
+        tokens = await db.push_tokens.find({"user_id": user_id}).to_list(100)
+        if not tokens:
+            logging.info(f"No push tokens found for user {user_id}")
+            return
+        
+        expo_push_url = "https://exp.host/--/api/v2/push/send"
+        
+        messages = []
+        for token_doc in tokens:
+            push_token = token_doc.get("token")
+            if push_token and push_token.startswith("ExponentPushToken"):
+                message = {
+                    "to": push_token,
+                    "sound": "default",
+                    "title": title,
+                    "body": body,
+                    "data": data or {},
+                    "priority": "high",
+                }
+                messages.append(message)
+        
+        if not messages:
+            return
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                expo_push_url,
+                json=messages,
+                headers={
+                    "Accept": "application/json",
+                    "Content-Type": "application/json",
+                }
+            )
+            if response.status_code == 200:
+                logging.info(f"Push notification sent to user {user_id}: {title}")
+            else:
+                logging.error(f"Failed to send push notification: {response.text}")
+    except Exception as e:
+        logging.error(f"Error sending push notification: {e}")
+
+async def send_push_notification_background(user_id: str, title: str, body: str, data: dict = None):
+    """Send push notification in background without blocking"""
+    asyncio.create_task(send_push_notification(user_id, title, body, data))
 
 # ============= MODELS =============
 
@@ -93,6 +146,16 @@ class Token(BaseModel):
     access_token: str
     token_type: str
     user: User
+
+# Push Notification Models
+class PushTokenRegister(BaseModel):
+    token: str
+    device_type: Optional[str] = "mobile"  # mobile, web
+
+class NotificationData(BaseModel):
+    type: str  # order_update, message, consultation_update
+    reference_id: Optional[str] = None
+    extra: Optional[dict] = None
 
 # Listing Models
 class InfluencerCreate(BaseModel):
@@ -918,6 +981,38 @@ async def reset_password(data: ResetPasswordRequest):
     await db.password_resets.delete_one({"token": data.token})
     
     return {"message": "Password reset successful. You can now login with your new password."}
+
+# Push Token Registration
+@api_router.post("/push-tokens/register")
+async def register_push_token(data: PushTokenRegister, current_user: User = Depends(get_current_user)):
+    """Register a push notification token for the current user"""
+    if not data.token or not data.token.startswith("ExponentPushToken"):
+        raise HTTPException(status_code=400, detail="Invalid push token format")
+    
+    # Upsert the token (update if exists, insert if new)
+    await db.push_tokens.update_one(
+        {"user_id": current_user.id, "token": data.token},
+        {
+            "$set": {
+                "user_id": current_user.id,
+                "token": data.token,
+                "device_type": data.device_type,
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            },
+            "$setOnInsert": {
+                "created_at": datetime.now(timezone.utc).isoformat()
+            }
+        },
+        upsert=True
+    )
+    
+    return {"message": "Push token registered successfully"}
+
+@api_router.delete("/push-tokens/unregister")
+async def unregister_push_token(token: str, current_user: User = Depends(get_current_user)):
+    """Unregister a push notification token (e.g., on logout)"""
+    await db.push_tokens.delete_one({"user_id": current_user.id, "token": token})
+    return {"message": "Push token unregistered"}
 
 # Influencer Routes
 @api_router.post("/influencers", response_model=Influencer)
@@ -2544,6 +2639,75 @@ async def create_message(data: MessageCreate, current_user: User = Depends(get_c
     doc['created_at'] = doc['created_at'].isoformat()
     
     await db.messages.insert_one(doc)
+    
+    # Send push notification to the recipient
+    recipient_id = None
+    sender_name = current_user.name or "Someone"
+    
+    # Determine recipient based on order/consultation
+    if data.order_id == "support":
+        # Support chat - notify admins if user sent, notify user if admin sent
+        if current_user.role != "admin":
+            # User sent message to support - notify admins
+            admins = await db.users.find({"role": "admin"}, {"_id": 0, "id": 1}).to_list(10)
+            for admin in admins:
+                await send_push_notification_background(
+                    user_id=admin["id"],
+                    title="New Support Message",
+                    body=f"{sender_name}: {data.message[:100]}",
+                    data={"type": "message", "order_id": "support", "sender_id": current_user.id}
+                )
+        else:
+            # Admin sent message - find the user from recent support messages
+            recent_msg = await db.messages.find_one(
+                {"order_id": "support", "sender_role": {"$ne": "admin"}},
+                {"_id": 0, "sender_id": 1},
+                sort=[("created_at", -1)]
+            )
+            if recent_msg:
+                recipient_id = recent_msg.get("sender_id")
+    else:
+        # Order or consultation message
+        order = await db.orders.find_one({"id": data.order_id}, {"_id": 0, "user_id": 1})
+        if order:
+            if current_user.role == "admin":
+                # Admin sent to user
+                recipient_id = order.get("user_id")
+            else:
+                # User sent to admin - notify admins
+                admins = await db.users.find({"role": "admin"}, {"_id": 0, "id": 1}).to_list(10)
+                for admin in admins:
+                    await send_push_notification_background(
+                        user_id=admin["id"],
+                        title="New Order Message",
+                        body=f"{sender_name}: {data.message[:100]}",
+                        data={"type": "message", "order_id": data.order_id, "sender_id": current_user.id}
+                    )
+        else:
+            # Check if it's a consultation
+            consultation = await db.consultations.find_one({"id": data.order_id}, {"_id": 0, "user_id": 1})
+            if consultation:
+                if current_user.role == "admin":
+                    recipient_id = consultation.get("user_id")
+                else:
+                    admins = await db.users.find({"role": "admin"}, {"_id": 0, "id": 1}).to_list(10)
+                    for admin in admins:
+                        await send_push_notification_background(
+                            user_id=admin["id"],
+                            title="New Consultation Message",
+                            body=f"{sender_name}: {data.message[:100]}",
+                            data={"type": "message", "order_id": data.order_id, "sender_id": current_user.id}
+                        )
+    
+    # Send notification to specific recipient
+    if recipient_id:
+        await send_push_notification_background(
+            user_id=recipient_id,
+            title="New Message",
+            body=f"{sender_name}: {data.message[:100]}",
+            data={"type": "message", "order_id": data.order_id, "sender_id": current_user.id}
+        )
+    
     return message
 
 @api_router.get("/messages/{order_id}")
@@ -3222,6 +3386,8 @@ async def admin_update_order_status(
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
     
+    old_status = order.get("order_status", "pending")
+    
     update_data = {
         "order_status": order_status,
         "updated_at": datetime.now(timezone.utc).isoformat()
@@ -3231,6 +3397,29 @@ async def admin_update_order_status(
         update_data["payment_status"] = payment_status
     
     await db.orders.update_one({"id": order_id}, {"$set": update_data})
+    
+    # Send push notification if status changed
+    if old_status != order_status and order.get("user_id"):
+        status_messages = {
+            "pending": "Your order is pending review",
+            "confirmed": "Your order has been confirmed!",
+            "in_progress": "Your order is now in progress",
+            "completed": "Your order has been completed!",
+            "cancelled": "Your order has been cancelled",
+            "rejected": "Your order was not approved"
+        }
+        notification_body = status_messages.get(order_status, f"Order status changed to {order_status}")
+        
+        await send_push_notification_background(
+            user_id=order["user_id"],
+            title="Order Update",
+            body=notification_body,
+            data={
+                "type": "order_update",
+                "order_id": order_id,
+                "status": order_status
+            }
+        )
     
     return {"status": "success", "message": f"Order status updated to {order_status}"}
 
@@ -3267,6 +3456,8 @@ async def admin_update_consultation_status(
     if not consultation:
         raise HTTPException(status_code=404, detail="Consultation not found")
     
+    old_status = consultation.get("status", "pending")
+    
     update_data = {
         "status": status,
         "updated_at": datetime.now(timezone.utc).isoformat()
@@ -3276,6 +3467,28 @@ async def admin_update_consultation_status(
         update_data["payment_status"] = payment_status
     
     await db.consultations.update_one({"id": consultation_id}, {"$set": update_data})
+    
+    # Send push notification if status changed
+    if old_status != status and consultation.get("user_id"):
+        status_messages = {
+            "pending": "Your consultation request is pending",
+            "confirmed": "Your consultation has been confirmed!",
+            "scheduled": "Your consultation has been scheduled!",
+            "completed": "Your consultation has been completed!",
+            "cancelled": "Your consultation has been cancelled"
+        }
+        notification_body = status_messages.get(status, f"Consultation status changed to {status}")
+        
+        await send_push_notification_background(
+            user_id=consultation["user_id"],
+            title="Consultation Update",
+            body=notification_body,
+            data={
+                "type": "consultation_update",
+                "consultation_id": consultation_id,
+                "status": status
+            }
+        )
     
     return {"status": "success", "message": f"Consultation status updated to {status}"}
 
@@ -3920,7 +4133,7 @@ async def admin_update_consultation_full(
     update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
     
     # Check if schedule is being set (send email notification)
-    should_send_email = (
+    should_send_notification = (
         consultation_update.scheduled_date and 
         consultation_update.scheduled_time and
         (existing.get('scheduled_date') != consultation_update.scheduled_date or
@@ -3931,17 +4144,32 @@ async def admin_update_consultation_full(
     
     updated = await db.consultations.find_one({"id": consultation_id}, {"_id": 0})
     
-    # Send scheduling confirmation email
-    if should_send_email:
+    # Send notifications if schedule is being confirmed
+    if should_send_notification and existing.get('user_id'):
+        scheduled_date = consultation_update.scheduled_date
+        scheduled_time = consultation_update.scheduled_time
+        
+        # Send push notification
+        await send_push_notification_background(
+            user_id=existing['user_id'],
+            title="Consultation Scheduled!",
+            body=f"Your consultation has been scheduled for {scheduled_date} at {scheduled_time}",
+            data={
+                "type": "consultation_scheduled",
+                "consultation_id": consultation_id,
+                "scheduled_date": scheduled_date,
+                "scheduled_time": scheduled_time
+            }
+        )
+        
+        # Also send email
         try:
-            # Get user info
             user = await db.users.find_one({"id": existing.get('user_id')}, {"_id": 0})
             if user and user.get('email'):
                 settings = await get_site_settings()
                 user_data = {"name": user.get('name', 'Valued Customer'), "email": user.get('email')}
                 
                 email_html = generate_consultation_scheduled_email(updated, user_data, settings)
-                # Send email in background
                 asyncio.create_task(send_email_async(
                     user['email'],
                     "Consultation Scheduled | Lightban Ads Network",
