@@ -237,7 +237,7 @@ export const CartScreen: React.FC = () => {
           title="Your cart is empty"
           description="Add items to your cart to proceed with checkout"
           actionLabel="Explore Services"
-          onAction={() => navigation.navigate('ExploreTab')}
+          onAction={() => navigation.navigate('ExploreTab', { screen: 'Explore' })}
         />
       </SafeAreaView>
     );

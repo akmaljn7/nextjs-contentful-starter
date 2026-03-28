@@ -401,7 +401,7 @@ export const ConsultationScreen: React.FC = () => {
           
           {/* Message */}
           <Text style={styles.successMessage}>
-            Your consultation has been booked successfully. We've sent a confirmation email with all the details.
+            Your consultation has been booked successfully. {paymentMethod === 'cash' ? 'Please pay at the office on your appointment day.' : 'Your payment has been processed.'}
           </Text>
           
           {/* Package Info */}
