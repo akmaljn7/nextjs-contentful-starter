@@ -2668,11 +2668,11 @@ async def create_message(data: MessageCreate, current_user: User = Depends(get_c
                 recipient_id = recent_msg.get("sender_id")
     else:
         # Order or consultation message
-        order = await db.orders.find_one({"id": data.order_id}, {"_id": 0, "user_id": 1})
+        order = await db.orders.find_one({"id": data.order_id}, {"_id": 0, "user_id": 1, "advertiser_id": 1})
         if order:
             if current_user.role == "admin":
-                # Admin sent to user
-                recipient_id = order.get("user_id")
+                # Admin sent to user - use advertiser_id if user_id not present
+                recipient_id = order.get("user_id") or order.get("advertiser_id")
             else:
                 # User sent to admin - notify admins
                 admins = await db.users.find({"role": "admin"}, {"_id": 0, "id": 1}).to_list(10)
@@ -3399,7 +3399,8 @@ async def admin_update_order_status(
     await db.orders.update_one({"id": order_id}, {"$set": update_data})
     
     # Send push notification if status changed
-    if old_status != order_status and order.get("user_id"):
+    if old_status != order_status and (order.get("user_id") or order.get("advertiser_id")):
+        recipient_id = order.get("user_id") or order.get("advertiser_id")
         status_messages = {
             "pending": "Your order is pending review",
             "confirmed": "Your order has been confirmed!",
@@ -3411,7 +3412,7 @@ async def admin_update_order_status(
         notification_body = status_messages.get(order_status, f"Order status changed to {order_status}")
         
         await send_push_notification_background(
-            user_id=order["user_id"],
+            user_id=recipient_id,
             title="Order Update",
             body=notification_body,
             data={
@@ -4093,9 +4094,12 @@ async def admin_update_order_full(
     
     await db.orders.update_one({"id": order_id}, {"$set": update_data})
     
+    # Get recipient ID (orders use advertiser_id, not user_id)
+    recipient_id = existing.get("user_id") or existing.get("advertiser_id")
+    
     # Send push notification if order_status changed
     new_status = update_data.get("order_status")
-    if new_status and old_status != new_status and existing.get("user_id"):
+    if new_status and old_status != new_status and recipient_id:
         status_messages = {
             "pending": "Your order is pending review",
             "confirmed": "Your order has been confirmed!",
@@ -4107,7 +4111,7 @@ async def admin_update_order_full(
         notification_body = status_messages.get(new_status, f"Order status changed to {new_status}")
         
         await send_push_notification_background(
-            user_id=existing["user_id"],
+            user_id=recipient_id,
             title="Order Update",
             body=notification_body,
             data={
@@ -4119,7 +4123,7 @@ async def admin_update_order_full(
     
     # Send notification if payment_status changed
     new_payment_status = update_data.get("payment_status")
-    if new_payment_status and old_payment_status != new_payment_status and existing.get("user_id"):
+    if new_payment_status and old_payment_status != new_payment_status and recipient_id:
         payment_messages = {
             "pending": "Payment is pending",
             "paid": "Payment received! Thank you.",
@@ -4129,7 +4133,7 @@ async def admin_update_order_full(
         notification_body = payment_messages.get(new_payment_status, f"Payment status: {new_payment_status}")
         
         await send_push_notification_background(
-            user_id=existing["user_id"],
+            user_id=recipient_id,
             title="Payment Update",
             body=notification_body,
             data={
