@@ -33,7 +33,7 @@ class NotificationService {
 
     // Must be a physical device
     if (!Device.isDevice) {
-      console.log('Push notifications require a physical device');
+      // Silently skip - no need to log
       return null;
     }
 
@@ -47,49 +47,43 @@ class NotificationService {
     }
 
     if (finalStatus !== 'granted') {
-      console.log('Push notification permission not granted');
+      // Silently skip - user denied permission
       return null;
     }
 
     try {
-      // Try to get project ID from Constants, otherwise use a fallback approach
+      // Try to get project ID from Constants
       const projectId = Constants.expoConfig?.extra?.eas?.projectId;
       
       if (projectId) {
-        // If we have a valid project ID, use it
         const tokenData = await Notifications.getExpoPushTokenAsync({
           projectId: projectId,
         });
         token = tokenData.data;
+        this.pushToken = token;
       } else {
-        // Fallback: try without projectId (works for Expo Go in some cases)
-        try {
-          const tokenData = await Notifications.getExpoPushTokenAsync();
-          token = tokenData.data;
-        } catch (fallbackError) {
-          console.log('Push notifications not configured. To enable push notifications:');
-          console.log('1. Run "npx eas init" to create an EAS project');
-          console.log('2. Or run "npx expo install --fix" to update dependencies');
-          return null;
-        }
+        // No EAS project configured - silently skip push notifications
+        // Push notifications will work once EAS is configured
+        return null;
       }
-      
-      this.pushToken = token;
-      console.log('Push token obtained:', token);
-    } catch (error) {
-      console.log('Push notifications setup skipped:', error);
+    } catch {
+      // Silently fail - push notifications aren't critical
       return null;
     }
 
     // Configure Android channel
     if (Platform.OS === 'android') {
-      await Notifications.setNotificationChannelAsync('default', {
-        name: 'default',
-        importance: Notifications.AndroidImportance.MAX,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#1a365d',
-        sound: 'default',
-      });
+      try {
+        await Notifications.setNotificationChannelAsync('default', {
+          name: 'default',
+          importance: Notifications.AndroidImportance.MAX,
+          vibrationPattern: [0, 250, 250, 250],
+          lightColor: '#1a365d',
+          sound: 'default',
+        });
+      } catch {
+        // Silently ignore channel setup errors
+      }
     }
 
     return token;
