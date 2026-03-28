@@ -63,21 +63,34 @@ export const CartScreen: React.FC = () => {
     );
   };
 
-  const handlePaymentComplete = () => {
+  const handlePaymentComplete = async () => {
     setPaymentModalVisible(false);
     setPaymentUrl(null);
     
-    if (currentOrderId) {
-      navigation.navigate('OrdersTab', { 
-        screen: 'OrderDetail', 
-        params: { id: currentOrderId } 
-      });
-    }
+    // Navigate to Orders list (works for both single and multiple orders)
+    navigation.navigate('OrdersTab', { screen: 'Orders' });
+    
     setCurrentOrderId(null);
   };
 
-  const handleWebViewNavigationStateChange = (navState: any) => {
-    if (navState.url.includes('/payment/callback') || navState.url.includes('trxref=')) {
+  const handleWebViewNavigationStateChange = async (navState: any) => {
+    const url = navState.url;
+    
+    // Check if payment was successful (Paystack redirects with reference)
+    if (url.includes('/payment/callback') || url.includes('trxref=') || url.includes('reference=')) {
+      // Extract reference from URL
+      const urlParams = new URLSearchParams(url.split('?')[1] || '');
+      const reference = urlParams.get('trxref') || urlParams.get('reference');
+      
+      if (reference) {
+        try {
+          // Verify payment on backend - this updates payment status
+          await ordersApi.verifyPayment(reference);
+        } catch (error) {
+          console.log('Payment verification will be handled by webhook');
+        }
+      }
+      
       handlePaymentComplete();
     }
   };
