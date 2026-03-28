@@ -62,7 +62,10 @@ export default function App() {
   // Register push notifications when user is authenticated
   useEffect(() => {
     if (isAuthenticated && appIsReady) {
-      notificationService.registerTokenWithBackend();
+      // Register push notifications silently - don't block if it fails
+      notificationService.registerTokenWithBackend().catch((error) => {
+        console.log('Push notification setup skipped:', error);
+      });
     }
   }, [isAuthenticated, appIsReady]);
 

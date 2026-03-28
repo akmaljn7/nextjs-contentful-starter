@@ -52,16 +52,32 @@ class NotificationService {
     }
 
     try {
-      // Get Expo push token
+      // Try to get project ID from Constants, otherwise use a fallback approach
       const projectId = Constants.expoConfig?.extra?.eas?.projectId;
-      const tokenData = await Notifications.getExpoPushTokenAsync({
-        projectId: projectId,
-      });
-      token = tokenData.data;
+      
+      if (projectId) {
+        // If we have a valid project ID, use it
+        const tokenData = await Notifications.getExpoPushTokenAsync({
+          projectId: projectId,
+        });
+        token = tokenData.data;
+      } else {
+        // Fallback: try without projectId (works for Expo Go in some cases)
+        try {
+          const tokenData = await Notifications.getExpoPushTokenAsync();
+          token = tokenData.data;
+        } catch (fallbackError) {
+          console.log('Push notifications not configured. To enable push notifications:');
+          console.log('1. Run "npx eas init" to create an EAS project');
+          console.log('2. Or run "npx expo install --fix" to update dependencies');
+          return null;
+        }
+      }
+      
       this.pushToken = token;
       console.log('Push token obtained:', token);
     } catch (error) {
-      console.error('Error getting push token:', error);
+      console.log('Push notifications setup skipped:', error);
       return null;
     }
 
