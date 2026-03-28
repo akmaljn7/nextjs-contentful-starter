@@ -6,6 +6,9 @@ import {
   ScrollView,
   Image,
   RefreshControl,
+  TouchableOpacity,
+  Linking,
+  Alert,
 } from 'react-native';
 import { useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -107,10 +110,24 @@ export const InfluencerDetailScreen: React.FC = () => {
               <Ionicons name="checkmark-circle" size={24} color={Colors.info} style={styles.verifiedIcon} />
             )}
           </View>
-          <View style={[styles.platformBadge, { backgroundColor: Colors.accent }]}>
+          <TouchableOpacity
+            style={[styles.platformBadge, { backgroundColor: Colors.accent }]}
+            onPress={() => {
+              if (influencer.profile_link) {
+                Linking.openURL(influencer.profile_link).catch(() => {
+                  Alert.alert('Error', 'Could not open the profile link');
+                });
+              }
+            }}
+            disabled={!influencer.profile_link}
+            activeOpacity={influencer.profile_link ? 0.7 : 1}
+          >
             <Ionicons name={getPlatformIcon(influencer.platform) as any} size={16} color={Colors.white} />
             <Text style={styles.platformText}>{influencer.platform}</Text>
-          </View>
+            {influencer.profile_link && (
+              <Ionicons name="open-outline" size={12} color={Colors.white} style={{ marginLeft: 4 }} />
+            )}
+          </TouchableOpacity>
         </View>
 
         <Text style={styles.handle}>@{influencer.handle}</Text>

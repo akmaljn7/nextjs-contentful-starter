@@ -46,13 +46,30 @@ Northern Nigeria's trusted advertising marketplace connecting advertisers with v
 - Order tracking
 - Profile and Settings
 - Custom splash screen (navy blue #0d1b2a)
-- Dark mode support (basic implementation)
 
-### Bug Fixes (December 2024)
+### Feature: Influencer Profile Links (March 2024) ✅
+- Added `profile_link` field to backend models (InfluencerCreate, AdminInfluencerCreate/Update)
+- Added Profile Link input to Admin Panel influencer form with description
+- Made platform badges clickable in mobile app (InfluencerDetailScreen, InfluencerCard)
+- Uses React Native `Linking.openURL()` to open external social profile URLs
+- Updated 5 influencers in DB with profile links (Abis Fulani, Baddo, G_fresh, Meenal, Maryamaaah_)
+- Note: "Abdool gaya" influencer not found in DB - may need to be created
+
+### Feature: Dark Mode (March 2024) ✅
+- ThemeContext with `useTheme` hook created at `/app/mobile/src/contexts/ThemeContext.tsx`
+- DarkColors defined in `/app/mobile/src/constants/colors.ts`
+- Settings store persists theme preference
+- Updated screens to use theme colors:
+  - SettingsScreen (toggle works)
+  - HomeScreen
+  - ProfileScreen
+  - Card component (auto adapts)
+  - MainTabNavigator (tab bar colors)
+
+## Bug Fixes (December 2024)
 - ✅ Splash screen color matched to web (from #1a3a5c to #0d1b2a)
 - ✅ Login screen uses logo image instead of text
 - ✅ Billboard API error handling improved for iOS
-- ✅ Dark mode theme context properly implemented
 - ⚠️ Kannywood images - DATA ISSUE (null in database, needs admin upload)
 
 ## Bug Fixes (December 2024 - Session 3)
@@ -66,11 +83,12 @@ Northern Nigeria's trusted advertising marketplace connecting advertisers with v
 
 ### P1 (High Priority)
 - [ ] Termii SMS integration for notifications
-- [ ] Expand dark mode to all screens
+- [ ] Extend dark mode to remaining screens (Orders, Cart, Explore, etc.)
 
 ### P2 (Medium Priority)  
 - [ ] Hausa localization support
 - [ ] Kannywood image uploads (admin task)
+- [ ] Create "Abdool gaya" influencer in database
 
 ### Future/Backlog
 - [ ] Refactor `/app/backend/server.py` monolith into routers/services

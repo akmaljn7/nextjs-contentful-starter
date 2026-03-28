@@ -14,10 +14,12 @@ import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 import { Card, Avatar, Button } from '../../components/common';
 import { useAuthStore } from '../../store';
+import { useTheme } from '../../contexts/ThemeContext';
 
 export const ProfileScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const { user, logout } = useAuthStore();
+  const { isDark, colors } = useTheme();
 
   const handleLogout = () => {
     Alert.alert(
@@ -64,10 +66,10 @@ export const ProfileScreen: React.FC = () => {
   ];
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, { backgroundColor: isDark ? colors.surface : Colors.primary }]}>
           <Avatar source={user?.avatar_url} name={user?.name} size="xl" />
           <Text style={styles.name}>{user?.name}</Text>
           <Text style={styles.email}>{user?.email}</Text>
@@ -83,16 +85,16 @@ export const ProfileScreen: React.FC = () => {
           {menuItems.map((item) => (
             <TouchableOpacity
               key={item.id}
-              style={styles.menuItem}
+              style={[styles.menuItem, { backgroundColor: colors.surface }]}
               onPress={item.onPress}
             >
               <View style={styles.menuItemLeft}>
-                <View style={styles.menuIconContainer}>
-                  <Ionicons name={item.icon as any} size={22} color={Colors.textPrimary} />
+                <View style={[styles.menuIconContainer, { backgroundColor: colors.gray[100] }]}>
+                  <Ionicons name={item.icon as any} size={22} color={colors.textPrimary} />
                 </View>
-                <Text style={styles.menuLabel}>{item.label}</Text>
+                <Text style={[styles.menuLabel, { color: colors.textPrimary }]}>{item.label}</Text>
               </View>
-              <Ionicons name="chevron-forward" size={20} color={Colors.textMuted} />
+              <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
             </TouchableOpacity>
           ))}
         </View>
@@ -111,7 +113,7 @@ export const ProfileScreen: React.FC = () => {
         </View>
 
         {/* App Version */}
-        <Text style={styles.version}>Lightban v1.0.0</Text>
+        <Text style={[styles.version, { color: colors.textMuted }]}>Lightban v1.0.0</Text>
       </ScrollView>
     </SafeAreaView>
   );

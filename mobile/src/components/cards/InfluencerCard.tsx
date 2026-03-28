@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, Image, StyleSheet, TouchableOpacity, Linking, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
@@ -45,13 +45,28 @@ export const InfluencerCard: React.FC<InfluencerCardProps> = ({
               <Ionicons name="checkmark-circle" size={20} color={Colors.info} />
             </View>
           )}
-          <View style={styles.platformBadge}>
+          <TouchableOpacity 
+            style={styles.platformBadge}
+            onPress={(e) => {
+              e.stopPropagation();
+              if (influencer.profile_link) {
+                Linking.openURL(influencer.profile_link).catch(() => {
+                  Alert.alert('Error', 'Could not open the profile link');
+                });
+              }
+            }}
+            disabled={!influencer.profile_link}
+            activeOpacity={influencer.profile_link ? 0.7 : 1}
+          >
             <Ionicons
               name={getPlatformIcon(influencer.platform) as any}
               size={16}
               color={Colors.white}
             />
-          </View>
+            {influencer.profile_link && (
+              <Ionicons name="open-outline" size={10} color={Colors.white} style={{ marginLeft: 2 }} />
+            )}
+          </TouchableOpacity>
         </View>
 
         {/* Content */}

@@ -7,6 +7,7 @@ import {
   StyleProp,
 } from 'react-native';
 import { Colors } from '../../constants/colors';
+import { useTheme } from '../../contexts/ThemeContext';
 
 interface CardProps {
   children: React.ReactNode;
@@ -21,11 +22,13 @@ export const Card: React.FC<CardProps> = ({
   variant = 'default',
   padding = 'md',
 }) => {
+  const { colors } = useTheme();
+
   const getVariantStyle = (): ViewStyle => {
     switch (variant) {
       case 'elevated':
         return {
-          backgroundColor: Colors.white,
+          backgroundColor: colors.surface,
           ...Platform.select({
             ios: {
               shadowColor: '#000',
@@ -40,13 +43,13 @@ export const Card: React.FC<CardProps> = ({
         };
       case 'outlined':
         return {
-          backgroundColor: Colors.white,
+          backgroundColor: colors.surface,
           borderWidth: 1,
-          borderColor: Colors.border,
+          borderColor: colors.border,
         };
       default:
         return {
-          backgroundColor: Colors.white,
+          backgroundColor: colors.surface,
           ...Platform.select({
             ios: {
               shadowColor: '#000',

@@ -7,6 +7,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Colors } from '../constants/colors';
 import { Fonts } from '../constants/fonts';
 import { useCartStore } from '../store';
+import { useTheme } from '../contexts/ThemeContext';
 import {
   MainTabParamList,
   HomeStackParamList,
@@ -267,16 +268,17 @@ const ProfileStackNavigator = () => (
 export const MainTabNavigator: React.FC = () => {
   const cartItems = useCartStore((state) => state.items);
   const cartCount = cartItems.length;
+  const { isDark, colors } = useTheme();
 
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarActiveTintColor: Colors.accent,
-        tabBarInactiveTintColor: Colors.textMuted,
+        tabBarActiveTintColor: colors.accent,
+        tabBarInactiveTintColor: colors.textMuted,
         tabBarStyle: {
-          backgroundColor: Colors.white,
-          borderTopColor: Colors.border,
+          backgroundColor: colors.surface,
+          borderTopColor: colors.border,
           borderTopWidth: 1,
           paddingTop: 8,
           paddingBottom: Platform.OS === 'ios' ? 24 : 8,

@@ -18,6 +18,7 @@ import { useAuthStore, useCartStore } from '../../store';
 import { influencersApi, billboardsApi } from '../../api';
 import { Influencer, Billboard } from '../../types/api';
 import { formatNumber, formatPrice } from '../../utils/formatters';
+import { useTheme } from '../../contexts/ThemeContext';
 
 const SERVICES = [
   { id: 'influencers', name: 'Influencers', icon: 'people', color: '#8b5cf6', description: 'Social media marketing' },
@@ -31,6 +32,7 @@ export const HomeScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const { user } = useAuthStore();
   const cartItems = useCartStore((state) => state.items);
+  const { isDark, colors } = useTheme();
   
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -87,7 +89,7 @@ export const HomeScreen: React.FC = () => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -97,15 +99,15 @@ export const HomeScreen: React.FC = () => {
         {/* Header */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.greeting}>Hello, {user?.name?.split(' ')[0] || 'there'}!</Text>
-            <Text style={styles.subGreeting}>What would you like to promote today?</Text>
+            <Text style={[styles.greeting, { color: colors.textPrimary }]}>Hello, {user?.name?.split(' ')[0] || 'there'}!</Text>
+            <Text style={[styles.subGreeting, { color: colors.textSecondary }]}>What would you like to promote today?</Text>
           </View>
           <View style={styles.headerActions}>
             <TouchableOpacity
-              style={styles.iconButton}
+              style={[styles.iconButton, { backgroundColor: colors.surface }]}
               onPress={() => navigation.navigate('HomeTab', { screen: 'Search' })}
             >
-              <Ionicons name="search" size={24} color={Colors.textPrimary} />
+              <Ionicons name="search" size={24} color={colors.textPrimary} />
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.cartButton}
@@ -138,19 +140,19 @@ export const HomeScreen: React.FC = () => {
 
         {/* Our Services - Horizontal Scroll */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Our Services</Text>
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Our Services</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.servicesScroll}>
             {SERVICES.map((service) => (
               <TouchableOpacity
                 key={service.id}
-                style={styles.serviceCard}
+                style={[styles.serviceCard, { backgroundColor: colors.surface }]}
                 onPress={() => handleCategoryPress(service.id)}
               >
                 <View style={[styles.serviceIconBox, { backgroundColor: service.color + '15' }]}>
                   <Ionicons name={service.icon as any} size={32} color={service.color} />
                 </View>
-                <Text style={styles.serviceLabel}>{service.name}</Text>
-                <Text style={styles.serviceDesc}>{service.description}</Text>
+                <Text style={[styles.serviceLabel, { color: colors.textPrimary }]}>{service.name}</Text>
+                <Text style={[styles.serviceDesc, { color: colors.textSecondary }]}>{service.description}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -160,7 +162,7 @@ export const HomeScreen: React.FC = () => {
         {featuredInfluencers.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Top Influencers</Text>
+              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Top Influencers</Text>
               <TouchableOpacity onPress={() => navigation.navigate('ExploreTab', { screen: 'Influencers' })}>
                 <Text style={styles.seeAllText}>See All</Text>
               </TouchableOpacity>
@@ -169,9 +171,8 @@ export const HomeScreen: React.FC = () => {
               {featuredInfluencers.map((influencer) => (
                 <TouchableOpacity
                   key={influencer.id}
-                  style={styles.influencerCard}
+                  style={[styles.influencerCard, { backgroundColor: isDark ? colors.surface : Colors.primary }]}
                   onPress={() => {
-                    // Navigate to Influencers list first, then to detail
                     navigation.navigate('ExploreTab', { 
                       screen: 'InfluencerDetail', 
                       params: { id: influencer.id },
@@ -183,8 +184,8 @@ export const HomeScreen: React.FC = () => {
                     {(influencer.profile_image_url || influencer.image_url) ? (
                       <Image source={{ uri: influencer.profile_image_url || influencer.image_url }} style={styles.influencerImage} />
                     ) : (
-                      <View style={styles.influencerImagePlaceholder}>
-                        <Ionicons name="person" size={32} color={Colors.gray[400]} />
+                      <View style={[styles.influencerImagePlaceholder, { backgroundColor: colors.gray[200] }]}>
+                        <Ionicons name="person" size={32} color={colors.gray[400]} />
                       </View>
                     )}
                   </View>
@@ -201,7 +202,7 @@ export const HomeScreen: React.FC = () => {
         {featuredBillboards.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Billboard Categories</Text>
+              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Billboard Categories</Text>
               <TouchableOpacity onPress={() => navigation.navigate('ExploreTab', { screen: 'Billboards' })}>
                 <Text style={styles.seeAllText}>See All</Text>
               </TouchableOpacity>
@@ -209,7 +210,7 @@ export const HomeScreen: React.FC = () => {
             {featuredBillboards.map((billboard) => (
               <TouchableOpacity
                 key={billboard.id}
-                style={styles.billboardCard}
+                style={[styles.billboardCard, { backgroundColor: colors.surface }]}
                 onPress={() => navigation.navigate('ExploreTab', { 
                   screen: 'BillboardDetail', 
                   params: { id: billboard.id, type: billboard.billboard_type } 
@@ -220,12 +221,12 @@ export const HomeScreen: React.FC = () => {
                     <Ionicons name="tv-outline" size={24} color={Colors.accent} />
                   </View>
                   <View style={styles.billboardText}>
-                    <Text style={styles.billboardName}>{billboard.location_name}</Text>
-                    <Text style={styles.billboardType}>{billboard.billboard_type}</Text>
+                    <Text style={[styles.billboardName, { color: colors.textPrimary }]}>{billboard.location_name}</Text>
+                    <Text style={[styles.billboardType, { color: colors.textSecondary }]}>{billboard.billboard_type}</Text>
                   </View>
                 </View>
                 <View style={styles.billboardPrice}>
-                  <Text style={styles.priceLabel}>From</Text>
+                  <Text style={[styles.priceLabel, { color: colors.textSecondary }]}>From</Text>
                   <Text style={styles.priceValue}>{formatPrice(billboard.price_monthly)}</Text>
                 </View>
               </TouchableOpacity>

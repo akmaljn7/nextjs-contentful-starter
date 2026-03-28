@@ -2764,6 +2764,17 @@ export const AdminPanelPage = () => {
                   <Label>Bio</Label>
                   <Textarea value={formData.bio || ''} onChange={(e) => updateFormField('bio', e.target.value)} />
                 </div>
+                <div>
+                  <Label>Profile Link (Social Media URL)</Label>
+                  <Input 
+                    value={formData.profile_link || ''} 
+                    onChange={(e) => updateFormField('profile_link', e.target.value)} 
+                    placeholder="https://instagram.com/username or https://tiktok.com/@username"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    External link to the influencer's social media profile. This makes the platform badge clickable.
+                  </p>
+                </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label>Price per Post (₦)</Label>

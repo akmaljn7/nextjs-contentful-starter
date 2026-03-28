@@ -48,6 +48,7 @@ export interface Influencer {
   audience_demographics?: string;
   image_url?: string;
   profile_image_url?: string;
+  profile_link?: string;
   verified: boolean;
   rating: number;
   total_reviews: number;
