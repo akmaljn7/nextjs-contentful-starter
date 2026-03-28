@@ -17,6 +17,7 @@ interface ConsultationCreateData {
   contact_name: string;
   contact_email?: string;
   contact_phone: string;
+  payment_method?: 'online' | 'cash';
 }
 
 export const consultationsApi = {

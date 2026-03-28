@@ -121,6 +121,9 @@ export const ConsultationScreen: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
+  // Payment method modal
+  const [showPaymentMethodModal, setShowPaymentMethodModal] = useState(false);
+  
   // Payment states
   const [paymentModalVisible, setPaymentModalVisible] = useState(false);
   const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
@@ -128,6 +131,7 @@ export const ConsultationScreen: React.FC = () => {
   
   // Success modal
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<'online' | 'cash'>('online');
   
   const [formData, setFormData] = useState({
     businessName: '',
@@ -213,7 +217,8 @@ export const ConsultationScreen: React.FC = () => {
     }
   };
 
-  const handleSubmit = async () => {
+  // Validate form before showing payment method selection
+  const handleSubmitClick = () => {
     if (!selectedPackage || !user) return;
 
     // Validate required fields
@@ -232,10 +237,20 @@ export const ConsultationScreen: React.FC = () => {
       return;
     }
 
+    // Show payment method selection modal
+    setShowPaymentMethodModal(true);
+  };
+
+  // Process booking with selected payment method
+  const processBooking = async (method: 'online' | 'cash') => {
+    if (!selectedPackage || !user) return;
+    
+    setShowPaymentMethodModal(false);
+    setPaymentMethod(method);
     setIsSubmitting(true);
 
     try {
-      // Step 1: Create consultation booking
+      // Create consultation booking with payment method
       const consultationResponse = await consultationsApi.create({
         user_id: user.id,
         consultation_type: selectedPackage.id as 'online' | 'physical',
@@ -252,28 +267,35 @@ export const ConsultationScreen: React.FC = () => {
         contact_name: formData.contactName || user.name,
         contact_email: formData.contactEmail || user.email,
         contact_phone: formData.contactPhone,
+        payment_method: method,
       });
 
       setCurrentConsultationId(consultationResponse.consultation?.id || null);
 
-      // Step 2: Initialize Paystack payment for consultation
-      const paymentData = await ordersApi.initializePayment({
-        order_id: consultationResponse.consultation?.id || '',
-        email: user.email,
-        callback_url: 'https://www.lightban.com/payment/callback',
-        amount: selectedPackage.price,
-        metadata: {
-          type: 'consultation',
-          consultation_id: consultationResponse.consultation?.id || '',
-        },
-      });
+      if (method === 'online') {
+        // Initialize Paystack payment for online payment
+        const paymentData = await ordersApi.initializePayment({
+          order_id: consultationResponse.consultation?.id || '',
+          email: user.email,
+          callback_url: 'https://www.lightban.com/payment/callback',
+          amount: selectedPackage.price,
+          metadata: {
+            type: 'consultation',
+            consultation_id: consultationResponse.consultation?.id || '',
+          },
+        });
 
-      if (paymentData.authorization_url) {
-        setPaymentUrl(paymentData.authorization_url);
-        setIsSubmitting(false);
-        setPaymentModalVisible(true);
+        if (paymentData.authorization_url) {
+          setPaymentUrl(paymentData.authorization_url);
+          setIsSubmitting(false);
+          setPaymentModalVisible(true);
+        } else {
+          throw new Error('Payment initialization failed');
+        }
       } else {
-        throw new Error('Payment initialization failed');
+        // Cash at office - just show success
+        setIsSubmitting(false);
+        setShowSuccessModal(true);
       }
     } catch (error: any) {
       setIsSubmitting(false);
@@ -629,8 +651,8 @@ export const ConsultationScreen: React.FC = () => {
 
             {/* Submit Button */}
             <Button
-              title={`Pay ${formatPrice(selectedPackage.price)}`}
-              onPress={handleSubmit}
+              title="Book Consultation"
+              onPress={handleSubmitClick}
               loading={isSubmitting}
               fullWidth
               size="lg"
@@ -685,6 +707,63 @@ export const ConsultationScreen: React.FC = () => {
               <ActivityIndicator size="large" color={Colors.accent} />
             </View>
           )}
+        </View>
+      </Modal>
+
+      {/* Payment Method Selection Modal */}
+      <Modal
+        visible={showPaymentMethodModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowPaymentMethodModal(false)}
+      >
+        <View style={styles.paymentMethodOverlay}>
+          <View style={styles.paymentMethodContent}>
+            <Text style={styles.paymentMethodTitle}>Choose Payment Method</Text>
+            <Text style={styles.paymentMethodSubtitle}>
+              How would you like to pay for this consultation?
+            </Text>
+            
+            {/* Online Payment Option */}
+            <TouchableOpacity
+              style={styles.paymentMethodOption}
+              onPress={() => processBooking('online')}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.paymentMethodIcon, { backgroundColor: Colors.accent + '15' }]}>
+                <Ionicons name="card-outline" size={28} color={Colors.accent} />
+              </View>
+              <View style={styles.paymentMethodInfo}>
+                <Text style={styles.paymentMethodOptionTitle}>Pay Online</Text>
+                <Text style={styles.paymentMethodOptionDesc}>Pay now with card via Paystack</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={24} color={Colors.textMuted} />
+            </TouchableOpacity>
+            
+            {/* Cash at Office Option */}
+            <TouchableOpacity
+              style={styles.paymentMethodOption}
+              onPress={() => processBooking('cash')}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.paymentMethodIcon, { backgroundColor: Colors.success + '15' }]}>
+                <Ionicons name="cash-outline" size={28} color={Colors.success} />
+              </View>
+              <View style={styles.paymentMethodInfo}>
+                <Text style={styles.paymentMethodOptionTitle}>Pay at Office</Text>
+                <Text style={styles.paymentMethodOptionDesc}>Pay cash when you arrive</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={24} color={Colors.textMuted} />
+            </TouchableOpacity>
+            
+            {/* Cancel Button */}
+            <TouchableOpacity
+              style={styles.paymentMethodCancel}
+              onPress={() => setShowPaymentMethodModal(false)}
+            >
+              <Text style={styles.paymentMethodCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </Modal>
 
@@ -1025,5 +1104,72 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.accent,
     fontWeight: '600',
+  },
+  // Payment Method Modal
+  paymentMethodOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  paymentMethodContent: {
+    backgroundColor: Colors.white,
+    borderRadius: 24,
+    padding: 24,
+    width: '100%',
+    maxWidth: 360,
+  },
+  paymentMethodTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: Colors.textPrimary,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  paymentMethodSubtitle: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  paymentMethodOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.gray[50],
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+  },
+  paymentMethodIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
+  paymentMethodInfo: {
+    flex: 1,
+  },
+  paymentMethodOptionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+    marginBottom: 2,
+  },
+  paymentMethodOptionDesc: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+  },
+  paymentMethodCancel: {
+    alignItems: 'center',
+    paddingVertical: 14,
+    marginTop: 8,
+  },
+  paymentMethodCancelText: {
+    fontSize: 15,
+    color: Colors.textMuted,
+    fontWeight: '500',
   },
 });

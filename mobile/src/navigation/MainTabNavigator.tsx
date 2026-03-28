@@ -316,6 +316,14 @@ export const MainTabNavigator: React.FC = () => {
         name="ExploreTab" 
         component={ExploreStackNavigator}
         options={{ tabBarLabel: 'Explore' }}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            // Reset the Explore stack to the initial screen when tab is pressed
+            navigation.navigate('ExploreTab', {
+              screen: 'Explore',
+            });
+          },
+        })}
       />
       <Tab.Screen 
         name="CartTab" 
