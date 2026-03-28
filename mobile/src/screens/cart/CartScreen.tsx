@@ -98,35 +98,50 @@ export const CartScreen: React.FC = () => {
     setIsCheckingOut(true);
 
     try {
-      const firstItem = checkoutItems[0];
-      const platformFee = firstItem.price * (platformFeePercentage / 100);
-      const total = firstItem.price + platformFee;
+      // Calculate total for ALL items
+      let grandTotal = 0;
+      const createdOrders: string[] = [];
+      
+      // Create orders for all items
+      for (const item of checkoutItems) {
+        const platformFee = item.price * (platformFeePercentage / 100);
+        const itemTotal = item.price + platformFee;
+        grandTotal += itemTotal;
 
-      const order = await ordersApi.create({
-        listing_type: firstItem.listingType,
-        listing_id: firstItem.listingId,
-        package_details: {
-          packageId: firstItem.packageId,
-          packageTitle: firstItem.packageTitle,
-          deliverables: firstItem.deliverables || [],
-          turnaround: firstItem.duration,
-          price: firstItem.price,
-          location: firstItem.location,
-          state_name: firstItem.state_name,
-          road_name: firstItem.road_name,
-        },
-        total_amount: total,
-        package_price: firstItem.price,
-        payment_method: 'online',
-      });
+        const order = await ordersApi.create({
+          listing_type: item.listingType,
+          listing_id: item.listingId,
+          package_details: {
+            packageId: item.packageId,
+            packageTitle: item.packageTitle,
+            deliverables: item.deliverables || [],
+            turnaround: item.duration,
+            price: item.price,
+            location: item.location,
+            state_name: item.state_name,
+            road_name: item.road_name,
+          },
+          total_amount: itemTotal,
+          package_price: item.price,
+          payment_method: 'online',
+        });
+        
+        createdOrders.push(order.id);
+      }
 
-      setCurrentOrderId(order.id);
+      // Use the first order for payment (all orders created)
+      const firstOrderId = createdOrders[0];
+      setCurrentOrderId(firstOrderId);
 
       const paymentData = await ordersApi.initializePayment({
-        order_id: order.id,
+        order_id: firstOrderId,
         email: user.email,
         callback_url: 'https://www.lightban.com/payment/callback',
-        amount: total,
+        amount: grandTotal,
+        metadata: {
+          order_ids: createdOrders,
+          total_orders: createdOrders.length,
+        },
       });
 
       if (paymentData.authorization_url) {
@@ -159,35 +174,45 @@ export const CartScreen: React.FC = () => {
     setIsCheckingOut(true);
 
     try {
-      const firstItem = checkoutItems[0];
-      const platformFee = firstItem.price * (platformFeePercentage / 100);
-      const total = firstItem.price + platformFee;
+      const createdOrders: string[] = [];
+      
+      // Create orders for all items
+      for (const item of checkoutItems) {
+        const platformFee = item.price * (platformFeePercentage / 100);
+        const itemTotal = item.price + platformFee;
 
-      const order = await ordersApi.create({
-        listing_type: firstItem.listingType,
-        listing_id: firstItem.listingId,
-        package_details: {
-          packageId: firstItem.packageId,
-          packageTitle: firstItem.packageTitle,
-          deliverables: firstItem.deliverables || [],
-          turnaround: firstItem.duration,
-          price: firstItem.price,
-          location: firstItem.location,
-          state_name: firstItem.state_name,
-          road_name: firstItem.road_name,
-        },
-        total_amount: total,
-        package_price: firstItem.price,
-        payment_method: 'cash',
-      });
+        const order = await ordersApi.create({
+          listing_type: item.listingType,
+          listing_id: item.listingId,
+          package_details: {
+            packageId: item.packageId,
+            packageTitle: item.packageTitle,
+            deliverables: item.deliverables || [],
+            turnaround: item.duration,
+            price: item.price,
+            location: item.location,
+            state_name: item.state_name,
+            road_name: item.road_name,
+          },
+          total_amount: itemTotal,
+          package_price: item.price,
+          payment_method: 'cash',
+        });
+        
+        createdOrders.push(order.id);
+      }
 
       await clearCart();
       setIsCheckingOut(false);
       
+      const orderText = createdOrders.length > 1 
+        ? `${createdOrders.length} orders have been placed` 
+        : 'Your order has been placed';
+      
       Alert.alert(
         'Order Placed',
-        'Your order has been placed. Please visit our office to complete payment.',
-        [{ text: 'View Order', onPress: () => navigation.navigate('OrdersTab', { screen: 'OrderDetail', params: { id: order.id } }) }]
+        `${orderText}. Please visit our office to complete payment.`,
+        [{ text: 'View Orders', onPress: () => navigation.navigate('OrdersTab', { screen: 'Orders' }) }]
       );
     } catch (error: any) {
       setIsCheckingOut(false);

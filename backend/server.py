@@ -71,11 +71,15 @@ api_router = APIRouter(prefix="/api")
 async def send_push_notification(user_id: str, title: str, body: str, data: dict = None):
     """Send push notification to a user via Expo Push Service"""
     try:
+        logging.info(f"Attempting to send push notification to user_id: {user_id}, title: {title}")
+        
         # Get user's push tokens
         tokens = await db.push_tokens.find({"user_id": user_id}).to_list(100)
         if not tokens:
             logging.info(f"No push tokens found for user {user_id}")
             return
+        
+        logging.info(f"Found {len(tokens)} push tokens for user {user_id}")
         
         expo_push_url = "https://exp.host/--/api/v2/push/send"
         
@@ -94,6 +98,7 @@ async def send_push_notification(user_id: str, title: str, body: str, data: dict
                 messages.append(message)
         
         if not messages:
+            logging.info(f"No valid Expo push tokens for user {user_id}")
             return
         
         async with httpx.AsyncClient() as client:
@@ -106,7 +111,7 @@ async def send_push_notification(user_id: str, title: str, body: str, data: dict
                 }
             )
             if response.status_code == 200:
-                logging.info(f"Push notification sent to user {user_id}: {title}")
+                logging.info(f"Push notification sent successfully to user {user_id}: {title}")
             else:
                 logging.error(f"Failed to send push notification: {response.text}")
     except Exception as e:
@@ -2060,8 +2065,8 @@ async def create_order(data: OrderCreate, current_user: User = Depends(get_curre
     collection_map = {
         "influencer": "influencers",
         "billboard": "billboards",
-        "digital_ad": "digital_ad_services",
-        "digital-ad": "digital_ad_services",
+        "digital_ad": "digital_ads",  # Use digital_ads (admin-managed)
+        "digital-ad": "digital_ads",
         "kannywood": "kannywood_placements"
     }
     
@@ -2069,18 +2074,24 @@ async def create_order(data: OrderCreate, current_user: User = Depends(get_curre
     listing_type = data.listing_type
     
     # Handle platform-managed services (no listing lookup required)
-    if listing_type in ["digital-ad", "led_billboard", "static_banner", "lightbox"]:
+    if listing_type in ["led_billboard", "static_banner", "lightbox"]:
         # These are managed by Lightban platform, use a default supplier
         supplier_id = "lightban-platform"
     else:
         if listing_type not in collection_map:
             raise HTTPException(status_code=400, detail=f"Invalid listing type: {listing_type}")
         
-        collection = db[collection_map.get(listing_type)]
-        listing = await collection.find_one({"id": data.listing_id}, {"_id": 0})
+        collection_name = collection_map.get(listing_type)
+        listing = await db[collection_name].find_one({"id": data.listing_id}, {"_id": 0})
+        
+        # Fallback to digital_ad_services for backwards compatibility
+        if not listing and listing_type in ["digital_ad", "digital-ad"]:
+            listing = await db.digital_ad_services.find_one({"id": data.listing_id}, {"_id": 0})
+        
         if not listing:
             raise HTTPException(status_code=404, detail="Listing not found")
-        supplier_id = listing['supplier_id']
+        
+        supplier_id = listing.get('supplier_id', 'lightban-platform')
     
     # Get platform fee percentage from settings
     settings = await get_site_settings()
@@ -3399,8 +3410,10 @@ async def admin_update_order_status(
     await db.orders.update_one({"id": order_id}, {"$set": update_data})
     
     # Send push notification if status changed
-    if old_status != order_status and (order.get("user_id") or order.get("advertiser_id")):
-        recipient_id = order.get("user_id") or order.get("advertiser_id")
+    recipient_id = order.get("user_id") or order.get("advertiser_id")
+    logging.info(f"Order status update - order_id: {order_id}, old_status: {old_status}, new_status: {order_status}, recipient_id: {recipient_id}")
+    
+    if old_status != order_status and recipient_id:
         status_messages = {
             "pending": "Your order is pending review",
             "confirmed": "Your order has been confirmed!",
@@ -4096,9 +4109,12 @@ async def admin_update_order_full(
     
     # Get recipient ID (orders use advertiser_id, not user_id)
     recipient_id = existing.get("user_id") or existing.get("advertiser_id")
+    logging.info(f"Order update - order_id: {order_id}, old_status: {old_status}, recipient_id: {recipient_id}")
     
     # Send push notification if order_status changed
     new_status = update_data.get("order_status")
+    logging.info(f"Order update - new_status: {new_status}, will send notification: {new_status and old_status != new_status and recipient_id}")
+    
     if new_status and old_status != new_status and recipient_id:
         status_messages = {
             "pending": "Your order is pending review",
