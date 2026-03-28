@@ -80,6 +80,7 @@ export const Screens = {
   
   // Consultation
   Consultation: 'Consultation',
+  ConsultationDetail: 'ConsultationDetail',
   
   // Orders
   OrderDetail: 'OrderDetail',

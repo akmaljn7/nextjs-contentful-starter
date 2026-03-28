@@ -108,7 +108,7 @@ export const OrdersScreen: React.FC = () => {
   const renderConsultationCard = (consultation: Consultation) => (
     <TouchableOpacity
       style={styles.consultationCard}
-      onPress={() => {}}
+      onPress={() => navigation.navigate('ConsultationDetail', { id: consultation.id })}
       activeOpacity={0.7}
     >
       <View style={styles.consultationHeader}>
@@ -129,28 +129,57 @@ export const OrdersScreen: React.FC = () => {
         />
       </View>
 
-      <View style={styles.consultationDetails}>
-        <View style={styles.consultationDetailRow}>
-          <Ionicons name="calendar-outline" size={16} color={Colors.textSecondary} />
-          <Text style={styles.consultationDetailText}>
-            {consultation.preferred_date ? new Date(consultation.preferred_date).toLocaleDateString('en-US', {
-              weekday: 'short',
-              month: 'short',
-              day: 'numeric'
-            }) : 'Not scheduled'}
-          </Text>
+      {/* Confirmed Schedule - Show when admin has confirmed */}
+      {consultation.scheduled_date && consultation.scheduled_time ? (
+        <View style={styles.confirmedScheduleBox}>
+          <View style={styles.confirmedScheduleHeader}>
+            <Ionicons name="checkmark-circle" size={16} color={Colors.success} />
+            <Text style={styles.confirmedScheduleLabel}>Confirmed Schedule</Text>
+          </View>
+          <View style={styles.consultationDetails}>
+            <View style={styles.consultationDetailRow}>
+              <Ionicons name="calendar" size={16} color={Colors.accent} />
+              <Text style={styles.consultationDetailTextBold}>
+                {new Date(consultation.scheduled_date).toLocaleDateString('en-US', {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric'
+                })}
+              </Text>
+            </View>
+            <View style={styles.consultationDetailRow}>
+              <Ionicons name="time" size={16} color={Colors.accent} />
+              <Text style={styles.consultationDetailTextBold}>{consultation.scheduled_time}</Text>
+            </View>
+          </View>
         </View>
-        <View style={styles.consultationDetailRow}>
-          <Ionicons name="time-outline" size={16} color={Colors.textSecondary} />
-          <Text style={styles.consultationDetailText}>{consultation.preferred_time || 'TBD'}</Text>
+      ) : (
+        <View style={styles.consultationDetails}>
+          <View style={styles.consultationDetailRow}>
+            <Ionicons name="calendar-outline" size={16} color={Colors.textSecondary} />
+            <Text style={styles.consultationDetailText}>
+              {consultation.preferred_date ? new Date(consultation.preferred_date).toLocaleDateString('en-US', {
+                weekday: 'short',
+                month: 'short',
+                day: 'numeric'
+              }) : 'Not scheduled'}
+            </Text>
+          </View>
+          <View style={styles.consultationDetailRow}>
+            <Ionicons name="time-outline" size={16} color={Colors.textSecondary} />
+            <Text style={styles.consultationDetailText}>{consultation.preferred_time || 'TBD'}</Text>
+          </View>
         </View>
-      </View>
+      )}
 
       <View style={styles.consultationFooter}>
         <Text style={styles.consultationPrice}>{formatPrice(consultation.price)}</Text>
-        <Text style={styles.consultationType}>
-          {consultation.consultation_type === 'physical' ? 'In-Office' : 'Online'}
-        </Text>
+        <View style={styles.consultationFooterRight}>
+          <Text style={styles.consultationType}>
+            {consultation.consultation_type === 'physical' ? 'In-Office' : 'Online'}
+          </Text>
+          <Ionicons name="chevron-forward" size={20} color={Colors.textMuted} />
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -335,6 +364,25 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     gap: 24,
   },
+  confirmedScheduleBox: {
+    backgroundColor: Colors.success + '10',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.success,
+  },
+  confirmedScheduleHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
+  confirmedScheduleLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.success,
+  },
   consultationDetailRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -344,10 +392,20 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.textSecondary,
   },
+  consultationDetailTextBold: {
+    fontSize: 13,
+    color: Colors.textPrimary,
+    fontWeight: '600',
+  },
   consultationFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  consultationFooterRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   consultationPrice: {
     fontSize: 18,

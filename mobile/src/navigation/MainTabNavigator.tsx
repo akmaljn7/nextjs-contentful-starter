@@ -29,7 +29,7 @@ import { DigitalAdsScreen } from '../screens/digitalAds/DigitalAdsScreen';
 import { DigitalAdDetailScreen } from '../screens/digitalAds/DigitalAdDetailScreen';
 import { KannywoodScreen } from '../screens/kannywood/KannywoodScreen';
 import { KannywoodDetailScreen } from '../screens/kannywood/KannywoodDetailScreen';
-import { ConsultationScreen } from '../screens/consultation/ConsultationScreen';
+import { ConsultationScreen, ConsultationDetailScreen } from '../screens/consultation';
 
 // Cart Screen
 import { CartScreen } from '../screens/cart/CartScreen';
@@ -223,6 +223,11 @@ const OrdersStackNavigator = () => (
       name="Chat" 
       component={ChatScreen}
       options={{ title: 'Chat' }}
+    />
+    <OrdersStack.Screen 
+      name="ConsultationDetail" 
+      component={ConsultationDetailScreen}
+      options={{ title: 'Consultation Details' }}
     />
   </OrdersStack.Navigator>
 );

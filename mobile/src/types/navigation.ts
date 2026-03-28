@@ -54,6 +54,7 @@ export type OrdersStackParamList = {
   OrderTracking: { id: string };
   Messages: undefined;
   Chat: { conversationId: string; orderId?: string };
+  ConsultationDetail: { id: string };
 };
 
 // Profile Stack
