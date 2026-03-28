@@ -5,6 +5,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { AppNavigator } from './src/navigation';
 import { useCartStore, useSettingsStore } from './src/store';
 import { SplashScreenComponent } from './src/components/SplashScreen';
+import { ThemeProvider } from './src/contexts/ThemeContext';
 
 // Prevent native splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
@@ -46,9 +47,11 @@ export default function App() {
   }
 
   return (
-    <SafeAreaProvider>
-      <StatusBar style="light" />
-      <AppNavigator />
-    </SafeAreaProvider>
+    <ThemeProvider>
+      <SafeAreaProvider>
+        <StatusBar style="light" />
+        <AppNavigator />
+      </SafeAreaProvider>
+    </ThemeProvider>
   );
 }
