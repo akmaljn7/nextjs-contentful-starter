@@ -18,7 +18,7 @@ interface SettingsState {
 }
 
 const defaultSettings = {
-  theme: 'system' as ThemeMode,
+  theme: 'light' as ThemeMode,
   language: 'en' as Language,
   notificationsEnabled: true,
 };
