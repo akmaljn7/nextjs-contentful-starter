@@ -107,6 +107,7 @@ class InfluencerCreate(BaseModel):
     engagement_rate: Optional[float] = None
     audience_demographics: Optional[str] = None
     image_url: Optional[str] = None
+    profile_link: Optional[str] = None
 
 class Influencer(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -123,6 +124,7 @@ class Influencer(BaseModel):
     engagement_rate: Optional[float] = None
     audience_demographics: Optional[str] = None
     image_url: Optional[str] = None
+    profile_link: Optional[str] = None
     verified: bool = False
     rating: float = 0.0
     total_reviews: int = 0
@@ -3416,6 +3418,7 @@ class AdminInfluencerCreate(BaseModel):
     engagement_rate: Optional[float] = 0.0
     audience_demographics: Optional[str] = ""
     image_url: Optional[str] = ""
+    profile_link: Optional[str] = ""
     verified: bool = False
     rating: float = 0.0
     total_reviews: int = 0
@@ -3436,6 +3439,7 @@ class AdminInfluencerUpdate(BaseModel):
     engagement_rate: Optional[float] = None
     audience_demographics: Optional[str] = None
     image_url: Optional[str] = None
+    profile_link: Optional[str] = None
     verified: Optional[bool] = None
     rating: Optional[float] = None
     total_reviews: Optional[int] = None
