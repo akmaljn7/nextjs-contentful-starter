@@ -4085,10 +4085,59 @@ async def admin_update_order_full(
     if not existing:
         raise HTTPException(status_code=404, detail="Order not found")
     
+    old_status = existing.get("order_status")
+    old_payment_status = existing.get("payment_status")
+    
     update_data = {k: v for k, v in order_update.model_dump().items() if v is not None}
     update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
     
     await db.orders.update_one({"id": order_id}, {"$set": update_data})
+    
+    # Send push notification if order_status changed
+    new_status = update_data.get("order_status")
+    if new_status and old_status != new_status and existing.get("user_id"):
+        status_messages = {
+            "pending": "Your order is pending review",
+            "confirmed": "Your order has been confirmed!",
+            "in_progress": "Your order is now in progress",
+            "completed": "Your order has been completed!",
+            "cancelled": "Your order has been cancelled",
+            "rejected": "Your order was not approved"
+        }
+        notification_body = status_messages.get(new_status, f"Order status changed to {new_status}")
+        
+        await send_push_notification_background(
+            user_id=existing["user_id"],
+            title="Order Update",
+            body=notification_body,
+            data={
+                "type": "order_update",
+                "order_id": order_id,
+                "status": new_status
+            }
+        )
+    
+    # Send notification if payment_status changed
+    new_payment_status = update_data.get("payment_status")
+    if new_payment_status and old_payment_status != new_payment_status and existing.get("user_id"):
+        payment_messages = {
+            "pending": "Payment is pending",
+            "paid": "Payment received! Thank you.",
+            "failed": "Payment failed. Please try again.",
+            "refunded": "Your payment has been refunded."
+        }
+        notification_body = payment_messages.get(new_payment_status, f"Payment status: {new_payment_status}")
+        
+        await send_push_notification_background(
+            user_id=existing["user_id"],
+            title="Payment Update",
+            body=notification_body,
+            data={
+                "type": "payment_update",
+                "order_id": order_id,
+                "payment_status": new_payment_status
+            }
+        )
     
     updated = await db.orders.find_one({"id": order_id}, {"_id": 0})
     return {"status": "success", "message": "Order updated", "order": updated}
@@ -4178,6 +4227,30 @@ async def admin_update_consultation_full(
                 logger.info(f"Consultation scheduling email queued for {user['email']}")
         except Exception as e:
             logger.error(f"Failed to queue consultation email: {str(e)}")
+    
+    # Send notification if status changed (for non-schedule updates)
+    old_status = existing.get("status")
+    new_status = update_data.get("status")
+    if new_status and old_status != new_status and existing.get('user_id') and not should_send_notification:
+        status_messages = {
+            "pending": "Your consultation request is pending",
+            "confirmed": "Your consultation has been confirmed!",
+            "scheduled": "Your consultation has been scheduled!",
+            "completed": "Your consultation has been completed!",
+            "cancelled": "Your consultation has been cancelled"
+        }
+        notification_body = status_messages.get(new_status, f"Consultation status changed to {new_status}")
+        
+        await send_push_notification_background(
+            user_id=existing['user_id'],
+            title="Consultation Update",
+            body=notification_body,
+            data={
+                "type": "consultation_update",
+                "consultation_id": consultation_id,
+                "status": new_status
+            }
+        )
     
     return {"status": "success", "message": "Consultation updated", "consultation": updated}
 
