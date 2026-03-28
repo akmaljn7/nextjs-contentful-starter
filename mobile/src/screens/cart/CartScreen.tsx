@@ -129,12 +129,12 @@ export const CartScreen: React.FC = () => {
         createdOrders.push(order.id);
       }
 
-      // Use the first order for payment (all orders created)
-      const firstOrderId = createdOrders[0];
-      setCurrentOrderId(firstOrderId);
+      // Use all order IDs for payment (comma-separated)
+      const allOrderIds = createdOrders.join(',');
+      setCurrentOrderId(createdOrders[0]); // For navigation after payment
 
       const paymentData = await ordersApi.initializePayment({
-        order_id: firstOrderId,
+        order_id: allOrderIds,  // Pass ALL order IDs
         email: user.email,
         callback_url: 'https://www.lightban.com/payment/callback',
         amount: grandTotal,
