@@ -94,11 +94,10 @@ const DetailBackButton = ({ fallbackScreen }: { fallbackScreen: string }) => {
         if (navigation.canGoBack()) {
           navigation.goBack();
         } else {
-          // Navigate to the fallback screen if can't go back
           navigation.navigate(fallbackScreen);
         }
       }}
-      style={{ marginLeft: Platform.OS === 'ios' ? 0 : -8, padding: 8 }}
+      style={{ marginLeft: Platform.OS === 'ios' ? -8 : -8, padding: 8 }}
     >
       <Ionicons name="arrow-back" size={24} color={Colors.white} />
     </TouchableOpacity>
@@ -118,6 +117,7 @@ const ExploreStackNavigator = () => (
       component={InfluencersScreen}
       options={{ 
         title: 'Influencers',
+        headerBackVisible: false,
         headerLeft: () => <DetailBackButton fallbackScreen="Explore" />,
       }}
     />
@@ -126,6 +126,7 @@ const ExploreStackNavigator = () => (
       component={InfluencerDetailScreen}
       options={{ 
         title: 'Influencer',
+        headerBackVisible: false,
         headerLeft: () => <DetailBackButton fallbackScreen="Influencers" />,
       }}
     />
@@ -134,6 +135,7 @@ const ExploreStackNavigator = () => (
       component={BillboardsScreen}
       options={{ 
         title: 'Billboards',
+        headerBackVisible: false,
         headerLeft: () => <DetailBackButton fallbackScreen="Explore" />,
       }}
     />
@@ -142,6 +144,7 @@ const ExploreStackNavigator = () => (
       component={BillboardDetailScreen}
       options={{ 
         title: 'Billboard',
+        headerBackVisible: false,
         headerLeft: () => <DetailBackButton fallbackScreen="Billboards" />,
       }}
     />
@@ -150,6 +153,7 @@ const ExploreStackNavigator = () => (
       component={DigitalAdsScreen}
       options={{ 
         title: 'Digital Ads',
+        headerBackVisible: false,
         headerLeft: () => <DetailBackButton fallbackScreen="Explore" />,
       }}
     />
@@ -158,6 +162,7 @@ const ExploreStackNavigator = () => (
       component={DigitalAdDetailScreen}
       options={{ 
         title: 'Digital Ad',
+        headerBackVisible: false,
         headerLeft: () => <DetailBackButton fallbackScreen="DigitalAds" />,
       }}
     />
@@ -166,6 +171,7 @@ const ExploreStackNavigator = () => (
       component={KannywoodScreen}
       options={{ 
         title: 'Kannywood',
+        headerBackVisible: false,
         headerLeft: () => <DetailBackButton fallbackScreen="Explore" />,
       }}
     />
@@ -174,6 +180,7 @@ const ExploreStackNavigator = () => (
       component={KannywoodDetailScreen}
       options={{ 
         title: 'Production',
+        headerBackVisible: false,
         headerLeft: () => <DetailBackButton fallbackScreen="Kannywood" />,
       }}
     />
@@ -182,6 +189,7 @@ const ExploreStackNavigator = () => (
       component={ConsultationScreen}
       options={{ 
         title: 'Get a Consultation',
+        headerBackVisible: false,
         headerLeft: () => <DetailBackButton fallbackScreen="Explore" />,
       }}
     />

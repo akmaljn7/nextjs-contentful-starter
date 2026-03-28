@@ -256,12 +256,16 @@ export const ConsultationScreen: React.FC = () => {
 
       setCurrentConsultationId(consultationResponse.consultation?.id || null);
 
-      // Step 2: Initialize Paystack payment
+      // Step 2: Initialize Paystack payment for consultation
       const paymentData = await ordersApi.initializePayment({
         order_id: consultationResponse.consultation?.id || '',
         email: user.email,
         callback_url: 'https://www.lightban.com/payment/callback',
         amount: selectedPackage.price,
+        metadata: {
+          type: 'consultation',
+          consultation_id: consultationResponse.consultation?.id || '',
+        },
       });
 
       if (paymentData.authorization_url) {
