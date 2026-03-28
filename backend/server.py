@@ -4425,7 +4425,7 @@ async def upload_chunk(
     data: UploadChunkRequest,
     current_user: User = Depends(get_current_user)
 ):
-    """Handle chunked file uploads to bypass proxy limits"""
+    """Handle chunked file uploads to bypass proxy limits - converts HEIC to JPEG"""
     await check_admin(current_user)
     
     # Validate file extension
@@ -4466,6 +4466,27 @@ async def upload_chunk(
             final_path.unlink()
             raise HTTPException(status_code=400, detail="File too large. Maximum size is 5MB")
         
+        # Convert HEIC/HEIF to JPEG for better compatibility
+        if ext in ['.heic', '.heif']:
+            try:
+                from PIL import Image
+                import pillow_heif
+                
+                pillow_heif.register_heif_opener()
+                
+                img = Image.open(final_path)
+                new_filename = f"{file_id}.jpg"
+                new_path = UPLOAD_DIR / new_filename
+                img.convert('RGB').save(new_path, format='JPEG', quality=90)
+                
+                # Remove original HEIC file
+                final_path.unlink()
+                final_filename = new_filename
+                final_path = new_path
+                logging.info(f"Converted HEIC to JPEG for file {file_id}")
+            except Exception as e:
+                logging.error(f"Failed to convert HEIC: {e}")
+        
         # Return the URL to the uploaded file
         return {
             "status": "complete",
@@ -4485,7 +4506,7 @@ async def simple_upload(
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user)
 ):
-    """Simple file upload for smaller files"""
+    """Simple file upload for smaller files - converts HEIC to JPEG"""
     await check_admin(current_user)
     
     # Validate file extension
@@ -4500,8 +4521,30 @@ async def simple_upload(
     if len(content) > MAX_FILE_SIZE:
         raise HTTPException(status_code=400, detail="File too large. Maximum size is 5MB")
     
-    # Generate filename and save
+    # Generate filename
     file_id = str(uuid.uuid4())
+    
+    # Convert HEIC/HEIF to JPEG for better compatibility
+    if ext in ['.heic', '.heif']:
+        try:
+            from PIL import Image
+            import pillow_heif
+            from io import BytesIO
+            
+            # Register HEIF opener
+            pillow_heif.register_heif_opener()
+            
+            # Open HEIC and convert to JPEG
+            img = Image.open(BytesIO(content))
+            output = BytesIO()
+            img.convert('RGB').save(output, format='JPEG', quality=90)
+            content = output.getvalue()
+            ext = '.jpg'
+            logging.info(f"Converted HEIC to JPEG for file {file_id}")
+        except Exception as e:
+            logging.error(f"Failed to convert HEIC: {e}")
+            # Save as-is if conversion fails
+    
     final_filename = f"{file_id}{ext}"
     final_path = UPLOAD_DIR / final_filename
     
@@ -4517,7 +4560,7 @@ async def simple_upload(
 
 @api_router.get("/uploads/{filename}")
 async def get_uploaded_file(filename: str):
-    """Serve uploaded files"""
+    """Serve uploaded files with proper content-type"""
     file_path = UPLOAD_DIR / filename
     
     if not file_path.exists():
@@ -4529,7 +4572,31 @@ async def get_uploaded_file(filename: str):
     except ValueError:
         raise HTTPException(status_code=403, detail="Access denied")
     
-    return FileResponse(file_path)
+    # Determine content type based on extension
+    ext = file_path.suffix.lower()
+    content_types = {
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.png': 'image/png',
+        '.gif': 'image/gif',
+        '.webp': 'image/webp',
+        '.heic': 'image/heic',
+        '.heif': 'image/heif',
+        '.svg': 'image/svg+xml',
+        '.mp4': 'video/mp4',
+        '.pdf': 'application/pdf',
+    }
+    
+    media_type = content_types.get(ext, 'application/octet-stream')
+    
+    return FileResponse(
+        file_path,
+        media_type=media_type,
+        headers={
+            "Cache-Control": "public, max-age=31536000",  # Cache for 1 year
+            "Access-Control-Allow-Origin": "*"
+        }
+    )
 
 # Health check
 @api_router.get("/")
