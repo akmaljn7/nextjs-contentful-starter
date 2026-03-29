@@ -196,6 +196,43 @@ export const OrderTrackingScreen: React.FC = () => {
                 <Text style={styles.listingValue}>{listing_info.platform}</Text>
               </View>
             )}
+            {listing_info.handle && (
+              <View style={styles.listingRow}>
+                <Text style={styles.listingLabel}>Handle</Text>
+                <Text style={styles.listingValue}>@{listing_info.handle}</Text>
+              </View>
+            )}
+            {listing_info.director && (
+              <View style={styles.listingRow}>
+                <Text style={styles.listingLabel}>Director</Text>
+                <Text style={styles.listingValue}>{listing_info.director}</Text>
+              </View>
+            )}
+            {listing_info.production && (
+              <View style={styles.listingRow}>
+                <Text style={styles.listingLabel}>Production</Text>
+                <Text style={styles.listingValue}>{listing_info.production}</Text>
+              </View>
+            )}
+            {listing_info.description && (
+              <View style={styles.listingRow}>
+                <Text style={styles.listingLabel}>Description</Text>
+                <Text style={styles.listingValue}>{listing_info.description}</Text>
+              </View>
+            )}
+            {/* Package Details Fallback */}
+            {order.package_details?.packageTitle && !listing_info.name && (
+              <View style={styles.listingRow}>
+                <Text style={styles.listingLabel}>Package</Text>
+                <Text style={styles.listingValue}>{order.package_details.packageTitle}</Text>
+              </View>
+            )}
+            {order.package_details?.turnaround && (
+              <View style={styles.listingRow}>
+                <Text style={styles.listingLabel}>Duration</Text>
+                <Text style={styles.listingValue}>{order.package_details.turnaround}</Text>
+              </View>
+            )}
           </Card>
         </View>
       )}

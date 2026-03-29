@@ -2898,20 +2898,44 @@ async def get_order_tracking(order_id: str, current_user: User = Depends(get_cur
                 "image_url": order.get("package_details", {}).get("image_url"),
                 "location": order.get("package_details", {}).get("location")
             }
-        elif listing_type == "digital_ad":
-            listing = await db.digital_ad_services.find_one({"id": listing_id}, {"_id": 0})
+        elif listing_type in ["digital_ad", "digital-ad"]:
+            # Try digital_ads first (admin-managed), then fallback to digital_ad_services
+            listing = await db.digital_ads.find_one({"id": listing_id}, {"_id": 0})
+            if not listing:
+                listing = await db.digital_ad_services.find_one({"id": listing_id}, {"_id": 0})
+            
             if listing:
                 listing_info = {
-                    "name": listing.get("platform") or listing.get("name"),
-                    "image_url": listing.get("image_url")
+                    "name": listing.get("name") or listing.get("platform") or "Digital Ad",
+                    "image_url": listing.get("image_url"),
+                    "platform": listing.get("platform"),
+                    "description": listing.get("description")
+                }
+            else:
+                # Fallback to package_details
+                listing_info = {
+                    "name": order.get("package_details", {}).get("packageTitle", "Digital Ad Service"),
+                    "platform": order.get("package_details", {}).get("platform"),
+                    "description": order.get("package_details", {}).get("description")
                 }
         elif listing_type == "kannywood":
+            # Try kannywood_placements first, then kannywood collection
             listing = await db.kannywood_placements.find_one({"id": listing_id}, {"_id": 0})
+            if not listing:
+                listing = await db.kannywood.find_one({"id": listing_id}, {"_id": 0})
+            
             if listing:
                 listing_info = {
-                    "name": listing.get("title"),
-                    "image_url": listing.get("image_url"),
-                    "director": listing.get("director")
+                    "name": listing.get("title") or listing.get("name"),
+                    "image_url": listing.get("image_url") or listing.get("poster_url"),
+                    "director": listing.get("director"),
+                    "production": listing.get("production_company") or listing.get("producer")
+                }
+            else:
+                # Fallback to package_details
+                listing_info = {
+                    "name": order.get("package_details", {}).get("packageTitle", "Kannywood Placement"),
+                    "production": order.get("package_details", {}).get("production")
                 }
         
         # Build timeline based on order status

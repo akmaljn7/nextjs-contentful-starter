@@ -33,10 +33,18 @@ export const ChatScreen: React.FC = () => {
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Auto-refresh interval (every 5 seconds)
   useEffect(() => {
     loadMessages();
     // Mark messages as read when entering
     messagesApi.markAsRead(orderId).catch(console.error);
+    
+    // Set up auto-refresh
+    const refreshInterval = setInterval(() => {
+      loadMessagesQuiet();
+    }, 5000);
+    
+    return () => clearInterval(refreshInterval);
   }, [orderId]);
 
   const loadMessages = async () => {
@@ -49,6 +57,27 @@ export const ChatScreen: React.FC = () => {
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
+    }
+  };
+
+  // Quiet refresh without loading state (for auto-refresh)
+  const loadMessagesQuiet = async () => {
+    try {
+      const data = await messagesApi.getMessages(orderId);
+      setMessages(prevMessages => {
+        // Only update if there are new messages
+        if (data.length !== prevMessages.length) {
+          // Scroll to bottom if new messages
+          setTimeout(() => {
+            flatListRef.current?.scrollToEnd({ animated: true });
+          }, 100);
+          return data;
+        }
+        return prevMessages;
+      });
+    } catch (err) {
+      // Silent fail for auto-refresh
+      console.log('Auto-refresh failed:', err);
     }
   };
 

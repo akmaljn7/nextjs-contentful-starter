@@ -130,16 +130,36 @@ export const MessagesScreen: React.FC = () => {
 
   if (conversations.length === 0) {
     return (
-      <EmptyState
-        icon="chatbubbles-outline"
-        title="No messages yet"
-        description="Your conversations will appear here when you start chatting about orders"
-      />
+      <View style={styles.container}>
+        <EmptyState
+          icon="chatbubbles-outline"
+          title="No messages yet"
+          description="Start a conversation with our support team"
+          actionLabel="Contact Support"
+          onAction={() => navigation.navigate('Chat', { 
+            orderId: 'support', 
+            title: 'Lightban Support',
+            type: 'support' 
+          })}
+        />
+      </View>
     );
   }
 
   return (
     <View style={styles.container}>
+      {/* Support Chat FAB */}
+      <TouchableOpacity
+        style={styles.supportFab}
+        onPress={() => navigation.navigate('Chat', { 
+          orderId: 'support', 
+          title: 'Lightban Support',
+          type: 'support' 
+        })}
+      >
+        <Ionicons name="headset" size={24} color={Colors.white} />
+      </TouchableOpacity>
+      
       <FlatList
         data={conversations}
         renderItem={renderConversation}
@@ -161,6 +181,23 @@ const styles = StyleSheet.create({
   },
   list: {
     padding: 16,
+  },
+  supportFab: {
+    position: 'absolute',
+    bottom: 24,
+    right: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 100,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
   },
   conversationCard: {
     marginBottom: 12,

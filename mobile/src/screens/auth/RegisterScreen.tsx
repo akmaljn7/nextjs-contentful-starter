@@ -8,6 +8,7 @@ import {
   Platform,
   ScrollView,
   TouchableOpacity,
+  Modal,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
@@ -21,6 +22,77 @@ import { AuthStackParamList } from '../../types/navigation';
 
 type RegisterScreenNavigationProp = NativeStackNavigationProp<AuthStackParamList, 'Register'>;
 
+const TERMS_AND_CONDITIONS = `LIGHTBAN ADS NETWORK - TERMS AND CONDITIONS
+
+Last Updated: March 2024
+
+1. INTRODUCTION
+Welcome to Lightban Ads Network ("Platform", "we", "us", or "our"). These Terms and Conditions ("Terms") govern your use of our advertising marketplace platform connecting advertisers with suppliers including influencers, billboard owners, digital ad platforms, and Kannywood production companies in Northern Nigeria.
+
+By accessing or using the Platform, you agree to be bound by these Terms. If you do not agree to these Terms, please do not use the Platform.
+
+2. DEFINITIONS
+- "Advertiser" refers to individuals or businesses seeking advertising services
+- "Supplier" refers to influencers, billboard owners, digital ad platforms, and other service providers
+- "Services" refers to advertising placement and related services offered through the Platform
+- "Content" refers to all materials, data, and information uploaded to the Platform
+
+3. ACCOUNT REGISTRATION
+3.1 You must provide accurate, current, and complete information during registration
+3.2 You are responsible for maintaining the confidentiality of your account credentials
+3.3 You must be at least 18 years old to create an account
+3.4 We reserve the right to suspend or terminate accounts that violate these Terms
+
+4. PLATFORM SERVICES
+4.1 Lightban Ads Network facilitates connections between Advertisers and Suppliers
+4.2 We do not guarantee the availability, quality, or performance of any advertising service
+4.3 All transactions are subject to our platform fee as displayed during checkout
+4.4 We reserve the right to modify services and pricing at any time
+
+5. PAYMENT TERMS
+5.1 All payments are processed securely through our payment partners (Paystack)
+5.2 Prices are displayed in Nigerian Naira (₦)
+5.3 Platform fees are non-refundable once a service has been initiated
+5.4 Refund requests are handled on a case-by-case basis
+
+6. USER RESPONSIBILITIES
+6.1 Advertisers must provide accurate campaign information and materials
+6.2 Suppliers must deliver services as described and agreed upon
+6.3 Users must not engage in fraudulent, misleading, or illegal activities
+6.4 Users must respect intellectual property rights
+
+7. CONTENT GUIDELINES
+7.1 All content must comply with Nigerian advertising standards and regulations
+7.2 Content promoting illegal products, hate speech, or adult material is prohibited
+7.3 We reserve the right to remove content that violates these guidelines
+
+8. DISPUTE RESOLUTION
+8.1 We encourage users to resolve disputes amicably
+8.2 We may mediate disputes but are not obligated to do so
+8.3 Our decision on platform-related disputes is final
+
+9. LIMITATION OF LIABILITY
+9.1 Lightban Ads Network is not liable for:
+   - Service quality delivered by Suppliers
+   - Losses resulting from user disputes
+   - Technical issues beyond our control
+   - Third-party actions or content
+
+10. PRIVACY
+Your use of the Platform is also governed by our Privacy Policy, which is incorporated into these Terms by reference.
+
+11. MODIFICATIONS
+We reserve the right to modify these Terms at any time. Continued use of the Platform after modifications constitutes acceptance of the updated Terms.
+
+12. CONTACT INFORMATION
+For questions about these Terms, please contact:
+Lightban Ads Network
+Email: support@lightban.com
+Phone: +234 XXX XXX XXXX
+Address: Kano, Nigeria
+
+By using Lightban Ads Network, you acknowledge that you have read, understood, and agree to be bound by these Terms and Conditions.`;
+
 export const RegisterScreen: React.FC = () => {
   const navigation = useNavigation<RegisterScreenNavigationProp>();
   const { register, isLoading, error, clearError } = useAuthStore();
@@ -31,6 +103,7 @@ export const RegisterScreen: React.FC = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [showTermsModal, setShowTermsModal] = useState(false);
 
   const handleRegister = async () => {
     clearError();
@@ -149,12 +222,46 @@ export const RegisterScreen: React.FC = () => {
 
             <Text style={styles.termsText}>
               By creating an account, you agree to our{' '}
-              <Text style={styles.termsLink}>Terms of Service</Text> and{' '}
-              <Text style={styles.termsLink}>Privacy Policy</Text>
+              <Text style={styles.termsLink} onPress={() => setShowTermsModal(true)}>Terms of Service</Text> and{' '}
+              <Text style={styles.termsLink} onPress={() => setShowTermsModal(true)}>Privacy Policy</Text>
             </Text>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Terms and Conditions Modal */}
+      <Modal
+        visible={showTermsModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowTermsModal(false)}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Terms & Conditions</Text>
+            <TouchableOpacity 
+              style={styles.modalCloseButton}
+              onPress={() => setShowTermsModal(false)}
+            >
+              <Ionicons name="close" size={24} color={Colors.textPrimary} />
+            </TouchableOpacity>
+          </View>
+          <ScrollView 
+            style={styles.modalContent}
+            showsVerticalScrollIndicator={false}
+          >
+            <Text style={styles.termsContent}>{TERMS_AND_CONDITIONS}</Text>
+            <View style={styles.modalBottomSpacing} />
+          </ScrollView>
+          <View style={styles.modalFooter}>
+            <Button
+              title="I Understand"
+              onPress={() => setShowTermsModal(false)}
+              fullWidth
+            />
+          </View>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -238,5 +345,48 @@ const styles = StyleSheet.create({
   },
   termsLink: {
     color: Colors.accent,
+    textDecorationLine: 'underline',
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+    backgroundColor: Colors.white,
+  },
+  modalTitle: {
+    fontSize: Fonts.size.xl,
+    fontWeight: Fonts.weight.bold,
+    color: Colors.textPrimary,
+  },
+  modalCloseButton: {
+    padding: 4,
+  },
+  modalContent: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+  },
+  termsContent: {
+    fontSize: Fonts.size.sm,
+    lineHeight: 22,
+    color: Colors.textSecondary,
+  },
+  modalBottomSpacing: {
+    height: 40,
+  },
+  modalFooter: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    backgroundColor: Colors.white,
   },
 });
