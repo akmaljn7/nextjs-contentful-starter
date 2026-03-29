@@ -19,20 +19,22 @@ import { influencersApi, billboardsApi } from '../../api';
 import { Influencer, Billboard } from '../../types/api';
 import { formatNumber, formatPrice } from '../../utils/formatters';
 import { useTheme } from '../../contexts/ThemeContext';
-
-const SERVICES = [
-  { id: 'influencers', name: 'Influencers', icon: 'people', color: '#8b5cf6', description: 'Social media marketing' },
-  { id: 'billboards', name: 'Billboards', icon: 'tv', color: '#f59e0b', description: 'Outdoor advertising' },
-  { id: 'digital', name: 'Digital Ads', icon: 'globe', color: '#3b82f6', description: 'Online campaigns' },
-  { id: 'kannywood', name: 'Kannywood', icon: 'film', color: '#ec4899', description: 'Movie placements' },
-  { id: 'consultation', name: 'Consultation', icon: 'calendar', color: '#10b981', description: 'Marketing strategy' },
-];
+import { useTranslation } from '../../i18n';
 
 export const HomeScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const { user } = useAuthStore();
   const cartItems = useCartStore((state) => state.items);
   const { isDark, colors } = useTheme();
+  const { t } = useTranslation();
+  
+  const SERVICES = [
+    { id: 'influencers', name: t.services.influencers, icon: 'people', color: '#8b5cf6', description: t.services.influencersDesc },
+    { id: 'billboards', name: t.services.billboards, icon: 'tv', color: '#f59e0b', description: t.services.billboardsDesc },
+    { id: 'digital', name: t.services.digitalAds, icon: 'globe', color: '#3b82f6', description: t.services.digitalAdsDesc },
+    { id: 'kannywood', name: t.services.kannywood, icon: 'film', color: '#ec4899', description: t.services.kannywoodDesc },
+    { id: 'consultation', name: t.services.consultation, icon: 'calendar', color: '#10b981', description: t.services.consultationDesc },
+  ];
   
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -99,8 +101,8 @@ export const HomeScreen: React.FC = () => {
         {/* Header */}
         <View style={styles.header}>
           <View>
-            <Text style={[styles.greeting, { color: colors.textPrimary }]}>Hello, {user?.name?.split(' ')[0] || 'there'}!</Text>
-            <Text style={[styles.subGreeting, { color: colors.textSecondary }]}>What would you like to promote today?</Text>
+            <Text style={[styles.greeting, { color: colors.textPrimary }]}>{t.home.greeting}, {user?.name?.split(' ')[0] || 'there'}!</Text>
+            <Text style={[styles.subGreeting, { color: colors.textSecondary }]}>{t.home.whatToPromote}</Text>
           </View>
           <View style={styles.headerActions}>
             <TouchableOpacity
@@ -125,22 +127,20 @@ export const HomeScreen: React.FC = () => {
 
         {/* Hero Banner */}
         <Card variant="elevated" padding="lg" style={styles.heroBanner}>
-          <Text style={styles.heroTitle}>Book trusted ads across Northern Nigeria</Text>
-          <Text style={styles.heroSubtitle}>
-            Connect with verified influencers, premium billboards, and Kannywood placements
-          </Text>
+          <Text style={styles.heroTitle}>{t.home.heroTitle}</Text>
+          <Text style={styles.heroSubtitle}>{t.home.heroSubtitle}</Text>
           <TouchableOpacity
             style={styles.consultationCTA}
             onPress={() => navigation.navigate('ExploreTab', { screen: 'Consultation' })}
           >
-            <Text style={styles.consultationCTAText}>Get a Consultation</Text>
+            <Text style={styles.consultationCTAText}>{t.home.getConsultation}</Text>
             <Ionicons name="arrow-forward" size={18} color={Colors.white} />
           </TouchableOpacity>
         </Card>
 
         {/* Our Services - Horizontal Scroll */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Our Services</Text>
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>{t.home.ourServices}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.servicesScroll}>
             {SERVICES.map((service) => (
               <TouchableOpacity
@@ -162,9 +162,9 @@ export const HomeScreen: React.FC = () => {
         {featuredInfluencers.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Top Influencers</Text>
+              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>{t.home.topInfluencers}</Text>
               <TouchableOpacity onPress={() => navigation.navigate('ExploreTab', { screen: 'Influencers' })}>
-                <Text style={styles.seeAllText}>See All</Text>
+                <Text style={styles.seeAllText}>{t.common.seeAll}</Text>
               </TouchableOpacity>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
@@ -191,7 +191,7 @@ export const HomeScreen: React.FC = () => {
                   </View>
                   <Text style={styles.influencerName} numberOfLines={1}>{influencer.name}</Text>
                   <Text style={styles.influencerPlatform}>{influencer.platform}</Text>
-                  <Text style={styles.influencerFollowers}>{formatNumber(influencer.followers)} followers</Text>
+                  <Text style={styles.influencerFollowers}>{formatNumber(influencer.followers)} {t.influencers.followers}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -202,9 +202,9 @@ export const HomeScreen: React.FC = () => {
         {featuredBillboards.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Billboard Categories</Text>
+              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>{t.home.billboardCategories}</Text>
               <TouchableOpacity onPress={() => navigation.navigate('ExploreTab', { screen: 'Billboards' })}>
-                <Text style={styles.seeAllText}>See All</Text>
+                <Text style={styles.seeAllText}>{t.common.seeAll}</Text>
               </TouchableOpacity>
             </View>
             {featuredBillboards.map((billboard) => (

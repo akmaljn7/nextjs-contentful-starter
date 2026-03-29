@@ -19,11 +19,15 @@ import { Card, Button, EmptyState } from '../../components/common';
 import { useCartStore, useAuthStore } from '../../store';
 import { formatPrice } from '../../utils/formatters';
 import { ordersApi, settingsApi, SiteSettings } from '../../api';
+import { useTheme } from '../../contexts/ThemeContext';
+import { useTranslation } from '../../i18n';
 
 export const CartScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const { user } = useAuthStore();
   const { items, removeItem, clearCart, totalAmount } = useCartStore();
+  const { colors } = useTheme();
+  const { t } = useTranslation();
   
   const [settings, setSettings] = useState<SiteSettings | null>(null);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
@@ -219,17 +223,17 @@ export const CartScreen: React.FC = () => {
       setIsCheckingOut(false);
       
       const orderText = createdOrders.length > 1 
-        ? `${createdOrders.length} orders have been placed` 
-        : 'Your order has been placed';
+        ? `${createdOrders.length} ${t.checkout.ordersPlacedMessage}` 
+        : t.checkout.orderPlacedMessage;
       
       Alert.alert(
-        'Order Placed',
-        `${orderText}. Please visit our office to complete payment.`,
-        [{ text: 'View Orders', onPress: () => navigation.navigate('OrdersTab', { screen: 'Orders' }) }]
+        t.checkout.orderPlaced,
+        `${orderText}. ${t.checkout.visitOffice}`,
+        [{ text: t.checkout.viewOrders, onPress: () => navigation.navigate('OrdersTab', { screen: 'Orders' }) }]
       );
     } catch (error: any) {
       setIsCheckingOut(false);
-      Alert.alert('Error', error.message || 'Failed to place order');
+      Alert.alert(t.common.error, error.message || t.errors.somethingWentWrong);
     }
   };
 
@@ -243,15 +247,15 @@ export const CartScreen: React.FC = () => {
   };
 
   const renderCartItem = ({ item }: { item: typeof items[0] }) => (
-    <Card variant="default" padding="md" style={styles.cartItem}>
+    <Card variant="default" padding="md" style={[styles.cartItem, { backgroundColor: colors.surface }]}>
       <View style={styles.itemRow}>
         <View style={styles.itemInfo}>
-          <Text style={styles.itemName} numberOfLines={2}>{item.listingName}</Text>
-          <Text style={styles.packageName}>{item.packageTitle}</Text>
-          {item.duration && <Text style={styles.duration}>{item.duration}</Text>}
+          <Text style={[styles.itemName, { color: colors.textPrimary }]} numberOfLines={2}>{item.listingName}</Text>
+          <Text style={[styles.packageName, { color: colors.textSecondary }]}>{item.packageTitle}</Text>
+          {item.duration && <Text style={[styles.duration, { color: colors.textMuted }]}>{item.duration}</Text>}
         </View>
         <View style={styles.itemRight}>
-          <Text style={styles.itemPrice}>{formatPrice(item.price)}</Text>
+          <Text style={[styles.itemPrice, { color: colors.textPrimary }]}>{formatPrice(item.price)}</Text>
           <Button
             title=""
             variant="ghost"
@@ -269,12 +273,12 @@ export const CartScreen: React.FC = () => {
 
   if (items.length === 0 && !isCheckingOut && !paymentModalVisible) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
         <EmptyState
           icon="cart-outline"
-          title="Your cart is empty"
-          description="Add items to your cart to proceed with checkout"
-          actionLabel="Explore Services"
+          title={t.cart.emptyCart}
+          description={t.cart.emptyCartMessage}
+          actionLabel={t.cart.exploreServices}
           onAction={() => navigation.navigate('ExploreTab', { screen: 'Explore' })}
         />
       </SafeAreaView>
@@ -282,12 +286,12 @@ export const CartScreen: React.FC = () => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       {isCheckingOut && (
         <View style={styles.loadingOverlay}>
-          <View style={styles.loadingContent}>
+          <View style={[styles.loadingContent, { backgroundColor: colors.surface }]}>
             <ActivityIndicator size="large" color={Colors.accent} />
-            <Text style={styles.loadingText}>Processing your order...</Text>
+            <Text style={[styles.loadingText, { color: colors.textPrimary }]}>{t.checkout.processing}</Text>
           </View>
         </View>
       )}
@@ -299,29 +303,29 @@ export const CartScreen: React.FC = () => {
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
-          <Text style={styles.headerTitle}>Shopping Cart ({items.length})</Text>
+          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>{t.cart.yourCart} ({items.length})</Text>
         }
       />
 
-      <View style={styles.summaryContainer}>
+      <View style={[styles.summaryContainer, { backgroundColor: colors.background }]}>
         <Card variant="elevated" padding="lg">
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Subtotal</Text>
-            <Text style={styles.summaryValue}>{formatPrice(subtotal)}</Text>
+            <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>{t.cart.subtotal}</Text>
+            <Text style={[styles.summaryValue, { color: colors.textPrimary }]}>{formatPrice(subtotal)}</Text>
           </View>
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Platform Fee ({platformFeePercentage}%)</Text>
-            <Text style={styles.summaryValue}>{formatPrice(platformFee)}</Text>
+            <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>{t.cart.platformFee} ({platformFeePercentage}%)</Text>
+            <Text style={[styles.summaryValue, { color: colors.textPrimary }]}>{formatPrice(platformFee)}</Text>
           </View>
-          <View style={styles.divider} />
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
           <View style={styles.summaryRow}>
-            <Text style={styles.totalLabel}>Total</Text>
+            <Text style={[styles.totalLabel, { color: colors.textPrimary }]}>{t.cart.total}</Text>
             <Text style={styles.totalValue}>{formatPrice(total)}</Text>
           </View>
         </Card>
 
         <Button
-          title="Proceed to Checkout"
+          title={t.cart.proceedToCheckout}
           onPress={showCheckoutOptions}
           loading={isCheckingOut}
           disabled={isCheckingOut}
@@ -343,34 +347,34 @@ export const CartScreen: React.FC = () => {
           activeOpacity={1}
           onPress={() => setShowPaymentOptions(false)}
         >
-          <View style={styles.paymentOptionsContainer}>
-            <Text style={styles.paymentOptionsTitle}>Choose Payment Method</Text>
-            <Text style={styles.paymentOptionsSubtitle}>How would you like to pay?</Text>
+          <View style={[styles.paymentOptionsContainer, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.paymentOptionsTitle, { color: colors.textPrimary }]}>{t.checkout.selectPayment}</Text>
+            <Text style={[styles.paymentOptionsSubtitle, { color: colors.textSecondary }]}>{t.checkout.paymentMethod}</Text>
             
-            <TouchableOpacity style={styles.paymentOption} onPress={processOnlinePayment}>
+            <TouchableOpacity style={[styles.paymentOption, { backgroundColor: colors.background }]} onPress={processOnlinePayment}>
               <View style={[styles.paymentOptionIcon, { backgroundColor: Colors.success + '20' }]}>
                 <Ionicons name="card-outline" size={24} color={Colors.success} />
               </View>
               <View style={styles.paymentOptionText}>
-                <Text style={styles.paymentOptionTitle}>Pay Online</Text>
-                <Text style={styles.paymentOptionDesc}>Pay securely with Paystack</Text>
+                <Text style={[styles.paymentOptionTitle, { color: colors.textPrimary }]}>{t.checkout.payOnline}</Text>
+                <Text style={[styles.paymentOptionDesc, { color: colors.textSecondary }]}>{t.checkout.payOnlineDesc}</Text>
               </View>
-              <Ionicons name="chevron-forward" size={20} color={Colors.textMuted} />
+              <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.paymentOption} onPress={processCashPayment}>
+            <TouchableOpacity style={[styles.paymentOption, { backgroundColor: colors.background }]} onPress={processCashPayment}>
               <View style={[styles.paymentOptionIcon, { backgroundColor: Colors.warning + '20' }]}>
                 <Ionicons name="cash-outline" size={24} color={Colors.warning} />
               </View>
               <View style={styles.paymentOptionText}>
-                <Text style={styles.paymentOptionTitle}>Pay at Office</Text>
-                <Text style={styles.paymentOptionDesc}>Visit our office to pay</Text>
+                <Text style={[styles.paymentOptionTitle, { color: colors.textPrimary }]}>{t.checkout.payAtOffice}</Text>
+                <Text style={[styles.paymentOptionDesc, { color: colors.textSecondary }]}>{t.checkout.payAtOfficeDesc}</Text>
               </View>
-              <Ionicons name="chevron-forward" size={20} color={Colors.textMuted} />
+              <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.cancelButton} onPress={() => setShowPaymentOptions(false)}>
-              <Text style={styles.cancelButtonText}>Cancel</Text>
+              <Text style={styles.cancelButtonText}>{t.common.cancel}</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>

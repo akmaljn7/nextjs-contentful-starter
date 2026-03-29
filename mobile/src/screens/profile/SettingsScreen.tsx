@@ -13,17 +13,19 @@ import { Fonts } from '../../constants/fonts';
 import { Card } from '../../components/common';
 import { useSettingsStore } from '../../store';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useTranslation } from '../../i18n';
 
 export const SettingsScreen: React.FC = () => {
   const { theme, language, notificationsEnabled, setTheme, setLanguage, toggleNotifications } = useSettingsStore();
   const { isDark, colors } = useTheme();
+  const { t } = useTranslation();
 
   const handleDarkModeToggle = async (value: boolean) => {
     await setTheme(value ? 'dark' : 'light');
     Alert.alert(
-      'Theme Changed',
-      `${value ? 'Dark' : 'Light'} mode has been enabled.`,
-      [{ text: 'OK' }]
+      t.settings.themeChanged,
+      value ? t.settings.darkModeEnabled : t.settings.lightModeEnabled,
+      [{ text: t.common.ok }]
     );
   };
 
@@ -31,7 +33,7 @@ export const SettingsScreen: React.FC = () => {
     <ScrollView style={[styles.container, { backgroundColor: colors.background }]} showsVerticalScrollIndicator={false}>
       {/* Appearance */}
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Appearance</Text>
+        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>{t.settings.appearance}</Text>
         <Card variant="default" padding="none" style={{ backgroundColor: colors.surface }}>
           <View style={styles.settingItem}>
             <View style={styles.settingLeft}>
@@ -39,9 +41,9 @@ export const SettingsScreen: React.FC = () => {
                 <Ionicons name={isDark ? "moon" : "moon-outline"} size={20} color={isDark ? Colors.white : colors.textPrimary} />
               </View>
               <View style={styles.settingTextContainer}>
-                <Text style={[styles.settingLabel, { color: colors.textPrimary }]}>Dark Mode</Text>
+                <Text style={[styles.settingLabel, { color: colors.textPrimary }]}>{t.settings.darkMode}</Text>
                 <Text style={[styles.settingDescription, { color: colors.textSecondary }]}>
-                  {isDark ? 'Dark theme enabled' : 'Light theme enabled'}
+                  {isDark ? t.settings.darkModeEnabled : t.settings.lightModeEnabled}
                 </Text>
               </View>
             </View>
@@ -57,7 +59,7 @@ export const SettingsScreen: React.FC = () => {
 
       {/* Language */}
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Language</Text>
+        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>{t.settings.language}</Text>
         <Card variant="default" padding="none" style={{ backgroundColor: colors.surface }}>
           <View style={styles.settingItem}>
             <View style={styles.settingLeft}>
@@ -65,7 +67,7 @@ export const SettingsScreen: React.FC = () => {
                 <Text style={[styles.langIcon, { color: language === 'en' ? Colors.white : colors.textPrimary }]}>EN</Text>
               </View>
               <View style={styles.settingTextContainer}>
-                <Text style={[styles.settingLabel, { color: colors.textPrimary }]}>English</Text>
+                <Text style={[styles.settingLabel, { color: colors.textPrimary }]}>{t.settings.english}</Text>
                 <Text style={[styles.settingDescription, { color: colors.textSecondary }]}>English language</Text>
               </View>
             </View>
@@ -82,7 +84,7 @@ export const SettingsScreen: React.FC = () => {
                 <Text style={[styles.langIcon, { color: language === 'ha' ? Colors.white : colors.textPrimary }]}>HA</Text>
               </View>
               <View style={styles.settingTextContainer}>
-                <Text style={[styles.settingLabel, { color: colors.textPrimary }]}>Hausa</Text>
+                <Text style={[styles.settingLabel, { color: colors.textPrimary }]}>{t.settings.hausa}</Text>
                 <Text style={[styles.settingDescription, { color: colors.textSecondary }]}>Yaren Hausa</Text>
               </View>
             </View>
@@ -98,7 +100,7 @@ export const SettingsScreen: React.FC = () => {
 
       {/* Notifications */}
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Notifications</Text>
+        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>{t.settings.notifications}</Text>
         <Card variant="default" padding="none" style={{ backgroundColor: colors.surface }}>
           <View style={styles.settingItem}>
             <View style={styles.settingLeft}>
@@ -110,9 +112,9 @@ export const SettingsScreen: React.FC = () => {
                 />
               </View>
               <View style={styles.settingTextContainer}>
-                <Text style={[styles.settingLabel, { color: colors.textPrimary }]}>Push Notifications</Text>
+                <Text style={[styles.settingLabel, { color: colors.textPrimary }]}>{t.settings.pushNotifications}</Text>
                 <Text style={[styles.settingDescription, { color: colors.textSecondary }]}>
-                  {notificationsEnabled ? 'Notifications enabled' : 'Notifications disabled'}
+                  {notificationsEnabled ? t.settings.notificationsEnabled : t.settings.notificationsDisabled}
                 </Text>
               </View>
             </View>

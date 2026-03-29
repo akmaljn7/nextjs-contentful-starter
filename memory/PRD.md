@@ -63,8 +63,31 @@ Northern Nigeria's trusted advertising marketplace connecting advertisers with v
   - SettingsScreen (toggle works)
   - HomeScreen
   - ProfileScreen
+  - CartScreen
   - Card component (auto adapts)
   - MainTabNavigator (tab bar colors)
+
+### Feature: Hausa Localization (March 2024) ✅
+- Complete i18n system at `/app/mobile/src/i18n/`
+- English translations: `/app/mobile/src/i18n/translations/en.ts`
+- Hausa translations: `/app/mobile/src/i18n/translations/ha.ts`
+- `useTranslation` hook for accessing translations
+- I18nProvider wraps the entire app
+- Language toggle in Settings screen
+- Translations cover:
+  - Common UI elements
+  - Navigation tabs
+  - Auth screens
+  - Home screen
+  - Services
+  - Influencers, Billboards, Digital Ads, Kannywood
+  - Cart & Checkout
+  - Orders
+  - Consultation
+  - Profile & Settings
+  - Messages
+  - Error messages
+  - Notifications
 
 ### Feature: Push Notifications (March 2024) ✅
 - Backend push notification system using Expo Push API
@@ -96,10 +119,10 @@ Northern Nigeria's trusted advertising marketplace connecting advertisers with v
 
 ### P1 (High Priority)
 - [ ] Termii SMS integration for notifications
-- [ ] Extend dark mode to remaining screens (Orders, Cart, Explore, etc.)
+- [ ] Extend dark mode to ALL remaining screens (Explore detail screens, Order screens, Auth screens, etc.)
+- [ ] Apply Hausa translations to ALL remaining screens
 
 ### P2 (Medium Priority)  
-- [ ] Hausa localization support
 - [ ] Kannywood image uploads (admin task)
 - [ ] Create "Abdool gaya" influencer in database
 - [ ] Add notification navigation (tap notification to go to relevant screen)
