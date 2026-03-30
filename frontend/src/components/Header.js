@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuthStore, useLanguageStore, useThemeStore, useCartStore } from '@/lib/store';
+import { useAuthStore, useLanguageStore, useCartStore } from '@/lib/store';
 import { t } from '@/lib/translations';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Globe, User, LogOut, Palette, ShoppingCart, Menu, X, Search } from 'lucide-react';
+import { Globe, User, LogOut, ShoppingCart, Menu, X, Search } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,7 +19,6 @@ const DEFAULT_LOGO = 'https://customer-assets.emergentagent.com/job_ads-kano/art
 export const Header = () => {
   const { user, logout } = useAuthStore();
   const { language, setLanguage } = useLanguageStore();
-  const { theme, toggleTheme } = useThemeStore();
   const { items } = useCartStore();
   const navigate = useNavigate();
   const cartItemCount = items.length;
@@ -135,18 +134,6 @@ export const Header = () => {
 
           {/* Right Actions */}
           <div className="flex items-center space-x-1 sm:space-x-2">
-            {/* Theme Toggle - Hidden on smallest screens */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={toggleTheme}
-              data-testid="theme-toggle-button"
-              className="hidden sm:flex text-white hover:bg-accent/20 h-8 w-8 sm:h-10 sm:w-10 p-0"
-              title={`Switch to ${theme === 'navy' ? 'Orange' : 'Navy'} theme`}
-            >
-              <Palette className="h-4 w-4" />
-            </Button>
-
             {/* Language Toggle */}
             <Button
               variant="ghost"
@@ -307,18 +294,6 @@ export const Header = () => {
             >
               Consultation
             </Link>
-
-            {/* Divider */}
-            <div className="border-t border-white/20 my-3"></div>
-
-            {/* Theme Toggle for Mobile */}
-            <button
-              onClick={() => { toggleTheme(); closeMobileMenu(); }}
-              className="flex items-center w-full px-4 py-3 text-white hover:bg-accent/20 rounded-lg font-medium"
-            >
-              <Palette className="h-5 w-5 mr-3" />
-              Switch to {theme === 'navy' ? 'Orange' : 'Navy'} Theme
-            </button>
 
             {/* Divider */}
             <div className="border-t border-white/20 my-3"></div>
