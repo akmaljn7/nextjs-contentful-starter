@@ -15,6 +15,15 @@ export interface SiteSettings {
   social_links: Record<string, string>;
   seo_title: string;
   seo_description: string;
+  // Branding assets
+  web_logo_url?: string;
+  favicon_url?: string;
+  app_icon_url?: string;
+  splash_logo_url?: string;
+  login_logo_url?: string;
+  notification_icon_url?: string;
+  primary_logo_url?: string;
+  logo_light_url?: string;
 }
 
 export const settingsApi = {

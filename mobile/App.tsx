@@ -7,6 +7,7 @@ import { AppNavigator } from './src/navigation';
 import { useCartStore, useSettingsStore, useAuthStore } from './src/store';
 import { SplashScreenComponent } from './src/components/SplashScreen';
 import { ThemeProvider } from './src/contexts/ThemeContext';
+import { SettingsProvider } from './src/contexts/SettingsContext';
 import { I18nProvider } from './src/i18n';
 import { InAppNotification } from './src/components/notifications/InAppNotification';
 import { notificationService, NotificationData } from './src/services/notificationService';
@@ -110,24 +111,26 @@ export default function App() {
   }
 
   return (
-    <ThemeProvider>
-      <I18nProvider>
-        <SafeAreaProvider>
-          <StatusBar style="light" />
-          <AppNavigator />
-          <InAppNotification
-            visible={notification.visible}
-            title={notification.title}
-            body={notification.body}
-            type={notification.type}
-            onDismiss={() => setNotification(prev => ({ ...prev, visible: false }))}
-            onPress={() => {
-              // Handle notification tap - could navigate based on type
-              console.log('In-app notification tapped:', notification.data);
-            }}
-          />
-        </SafeAreaProvider>
-      </I18nProvider>
-    </ThemeProvider>
+    <SettingsProvider>
+      <ThemeProvider>
+        <I18nProvider>
+          <SafeAreaProvider>
+            <StatusBar style="light" />
+            <AppNavigator />
+            <InAppNotification
+              visible={notification.visible}
+              title={notification.title}
+              body={notification.body}
+              type={notification.type}
+              onDismiss={() => setNotification(prev => ({ ...prev, visible: false }))}
+              onPress={() => {
+                // Handle notification tap - could navigate based on type
+                console.log('In-app notification tapped:', notification.data);
+              }}
+            />
+          </SafeAreaProvider>
+        </I18nProvider>
+      </ThemeProvider>
+    </SettingsProvider>
   );
 }

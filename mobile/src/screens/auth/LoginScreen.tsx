@@ -9,6 +9,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
+  ActivityIndicator,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
@@ -19,16 +20,21 @@ import { Button, Input } from '../../components/common';
 import { useAuthStore } from '../../store';
 import { validateLoginForm } from '../../utils/validators';
 import { AuthStackParamList } from '../../types/navigation';
+import { useSettings } from '../../contexts/SettingsContext';
 
 type LoginScreenNavigationProp = NativeStackNavigationProp<AuthStackParamList, 'Login'>;
 
 export const LoginScreen: React.FC = () => {
   const navigation = useNavigation<LoginScreenNavigationProp>();
   const { login, isLoading, error, clearError } = useAuthStore();
+  const { getLogoUrl, isLoading: settingsLoading } = useSettings();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [logoError, setLogoError] = useState(false);
+
+  const logoUrl = getLogoUrl('login');
 
   const handleLogin = async () => {
     clearError();
@@ -57,11 +63,18 @@ export const LoginScreen: React.FC = () => {
         >
           {/* Logo */}
           <View style={styles.logoContainer}>
-            <Image
-              source={require('../../assets/splash.png')}
-              style={styles.logoImage}
-              resizeMode="contain"
-            />
+            {settingsLoading ? (
+              <View style={styles.logoPlaceholder}>
+                <ActivityIndicator size="large" color={Colors.accent} />
+              </View>
+            ) : (
+              <Image
+                source={logoError ? require('../../assets/splash.png') : { uri: logoUrl }}
+                style={styles.logoImage}
+                resizeMode="contain"
+                onError={() => setLogoError(true)}
+              />
+            )}
             <Text style={styles.tagline}>Book trusted ads across Northern Nigeria</Text>
           </View>
 
@@ -150,6 +163,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 40,
     marginTop: 20,
+  },
+  logoPlaceholder: {
+    width: 220,
+    height: 130,
+    marginBottom: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   logoImage: {
     width: 220,
