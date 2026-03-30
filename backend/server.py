@@ -4314,9 +4314,9 @@ async def admin_delete_consultation(
 # ========== SITE SETTINGS MANAGEMENT ==========
 
 class SiteSettings(BaseModel):
-    site_name: Optional[str] = "Lightban Ads Network"
+    site_name: Optional[str] = "Adlinka Ads Network"
     tagline: Optional[str] = "Northern Nigeria's Premier Ad Marketplace"
-    contact_email: Optional[str] = "info@lightban.com"
+    contact_email: Optional[str] = "info@adlinka.com"
     contact_phone: Optional[str] = "+234 800 000 0001"
     office_address: Optional[str] = "No 671, Zoo Road, Inec Street, Kano"
     business_hours: Optional[str] = "Monday - Saturday: 9:00 AM - 5:00 PM"
@@ -4328,6 +4328,15 @@ class SiteSettings(BaseModel):
     social_links: Optional[dict] = {}
     seo_title: Optional[str] = ""
     seo_description: Optional[str] = ""
+    # Branding assets
+    web_logo_url: Optional[str] = None
+    favicon_url: Optional[str] = None
+    app_icon_url: Optional[str] = None
+    splash_logo_url: Optional[str] = None
+    login_logo_url: Optional[str] = None
+    notification_icon_url: Optional[str] = None
+    primary_logo_url: Optional[str] = None
+    logo_light_url: Optional[str] = None
 
 @api_router.get("/settings")
 async def get_public_settings():
