@@ -18,10 +18,14 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.lightban.ads",
-      "buildNumber": "1.0.0",
+      "buildNumber": "1",
       "infoPlist": {
-        "NSCameraUsageDescription": "This app uses the camera to upload images for your profile and listings.",
-        "NSPhotoLibraryUsageDescription": "This app accesses your photos to upload images for your profile and listings."
+        "NSCameraUsageDescription": "Lightban Ads uses your camera to upload images for your profile and advertising listings.",
+        "NSPhotoLibraryUsageDescription": "Lightban Ads accesses your photos to upload images for your profile and advertising listings.",
+        "CFBundleAllowMixedLocalizations": true
+      },
+      "config": {
+        "usesNonExemptEncryption": false
       }
     },
     "android": {
@@ -54,6 +58,7 @@
     ],
     "extra": {
       "eas": {}
-    }
+    },
+    "owner": "lightban"
   }
 }
