@@ -21,7 +21,7 @@ export const AboutPage = () => {
           <CardContent className="p-8 prose max-w-none">
             <h2 className="text-2xl font-bold text-foreground mb-4">Our Mission</h2>
             <p className="text-muted-foreground">
-              Lightban Ads Network was founded to solve a critical challenge in Northern Nigerian advertising: the
+              Adlinka Ads Network was founded to solve a critical challenge in Northern Nigerian advertising: the
               lack of a trusted, transparent platform connecting advertisers with verified suppliers. We bring
               together influencers, billboard owners, Kannywood producers, and digital advertising services under
               one roof.

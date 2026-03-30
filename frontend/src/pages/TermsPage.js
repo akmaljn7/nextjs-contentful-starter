@@ -19,7 +19,7 @@ export const TermsPage = () => {
           <CardContent className="p-8 prose max-w-none">
             <h2>1. Acceptance of Terms</h2>
             <p>
-              By accessing and using Lightban Ads Network ("the Platform"), you agree to be bound by these Terms of
+              By accessing and using Adlinka Ads Network ("the Platform"), you agree to be bound by these Terms of
               Service. If you do not agree, please do not use the Platform.
             </p>
 
@@ -33,7 +33,7 @@ export const TermsPage = () => {
 
             <h2>3. Platform Services</h2>
             <p>
-              Lightban Ads Network is a marketplace connecting Advertisers with Suppliers. We do not provide
+              Adlinka Ads Network is a marketplace connecting Advertisers with Suppliers. We do not provide
               advertising services directly. The Platform facilitates:
             </p>
             <ul>
@@ -86,7 +86,7 @@ export const TermsPage = () => {
 
             <h2>10. Limitation of Liability</h2>
             <p>
-              Lightban Ads Network is not liable for losses arising from Supplier non-performance, quality issues, or
+              Adlinka Ads Network is not liable for losses arising from Supplier non-performance, quality issues, or
               disputes. Our total liability is limited to the platform fee paid for the specific transaction.
             </p>
 
@@ -110,7 +110,7 @@ export const TermsPage = () => {
 
             <h2>14. Contact</h2>
             <p>
-              For questions about these Terms, contact us at legal@lightban.ng or via WhatsApp at +234 801 234 5678.
+              For questions about these Terms, contact us at legal@adlinka.ng or via WhatsApp at +234 801 234 5678.
             </p>
           </CardContent>
         </Card>

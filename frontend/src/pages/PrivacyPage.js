@@ -18,7 +18,7 @@ export const PrivacyPage = () => {
         <Card>
           <CardContent className="p-8 prose max-w-none">
             <p>
-              Lightban Ads Network ("we", "us", "our") is committed to protecting your privacy. This Privacy Policy
+              Adlinka Ads Network ("we", "us", "our") is committed to protecting your privacy. This Privacy Policy
               explains how we collect, use, disclose, and safeguard your information when you use our Platform,
               in compliance with the Nigeria Data Protection Act 2023.
             </p>
@@ -94,7 +94,7 @@ export const PrivacyPage = () => {
               <li><strong>Object:</strong> Opt out of marketing communications</li>
               <li><strong>Lodge complaints:</strong> Contact the Nigeria Data Protection Commission</li>
             </ul>
-            <p>To exercise these rights, contact us at privacy@lightban.ng.</p>
+            <p>To exercise these rights, contact us at privacy@adlinka.ng.</p>
 
             <h2>8. Cookies and Tracking</h2>
             <p>
@@ -129,7 +129,7 @@ export const PrivacyPage = () => {
             <h2>13. Contact Us</h2>
             <p>
               For privacy-related questions or to exercise your rights, contact our Data Protection Officer at
-              privacy@lightban.ng or via WhatsApp at +234 801 234 5678.
+              privacy@adlinka.ng or via WhatsApp at +234 801 234 5678.
             </p>
           </CardContent>
         </Card>

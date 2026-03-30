@@ -1,7 +1,7 @@
-# Lightban Ads Network - Product Requirements Document
+# Adlinka Ads Network - Product Requirements Document
 
 ## Original Problem Statement
-Create a polished, conversion-focused, responsive marketplace website for "Lightban Ads Network" (Northern Nigeria). The platform connects advertisers with suppliers (influencers, billboard owners, etc.). Additionally, build a cross-platform mobile application (React Native/Expo) that seamlessly connects to the existing backend and mirrors the web application's functionality.
+Create a polished, conversion-focused, responsive marketplace website for "Adlinka Ads Network" (Northern Nigeria). The platform connects advertisers with suppliers (influencers, billboard owners, etc.). Additionally, build a cross-platform mobile application (React Native/Expo) that seamlessly connects to the existing backend and mirrors the web application's functionality.
 
 ## Product Vision
 Northern Nigeria's trusted advertising marketplace connecting advertisers with verified suppliers across influencer marketing, billboards, digital ads, and Kannywood film placements.
@@ -102,6 +102,24 @@ Northern Nigeria's trusted advertising marketplace connecting advertisers with v
   - Auto-registers push token on login
 - In-app banners show for foreground notifications with type-specific icons
 
+### Feature: Rebranding Lightban → Adlinka (March 2024) ✅
+- Renamed entire application from "Lightban" to "Adlinka"
+- Updated mobile app configuration (`app.json`):
+  - App name: "Adlinka"
+  - App slug: "adlinka-mobile"
+  - Bundle ID: "com.adlinka.ads"
+- Generated new App Store assets:
+  - splash.png - New Adlinka branding (black background)
+  - icon.png - New Adlinka app icon
+  - adaptive-icon.png - Android adaptive icon
+- Updated all web frontend text references:
+  - Header/Footer logos
+  - Privacy Policy, Terms of Service, About page
+  - Testimonials, Contact page
+  - Translations (English and Hausa)
+- Mobile app storage keys renamed (e.g., `adlinka_auth_token`)
+- **Note:** Database settings (admin panel) still need updating for email/company name
+
 ## Bug Fixes (December 2024)
 - ✅ Splash screen color matched to web (from #1a3a5c to #0d1b2a)
 - ✅ Login screen uses logo image instead of text
@@ -119,8 +137,7 @@ Northern Nigeria's trusted advertising marketplace connecting advertisers with v
 
 ### P1 (High Priority)
 - [ ] Termii SMS integration for notifications
-- [ ] Extend dark mode to ALL remaining screens (Explore detail screens, Order screens, Auth screens, etc.)
-- [ ] Apply Hausa translations to ALL remaining screens
+- [ ] Update database settings in admin panel for Adlinka branding (email, company name)
 
 ### P2 (Medium Priority)  
 - [ ] Kannywood image uploads (admin task)
@@ -142,8 +159,8 @@ Northern Nigeria's trusted advertising marketplace connecting advertisers with v
 - `/app/backend/server.py` - Backend monolith (needs refactoring)
 
 ## API Configuration
-- Mobile app points to: `https://www.lightban.com/api` (LIVE)
+- Mobile app points to: `https://www.lightban.com/api` (LIVE - domain remains, app rebranded to Adlinka)
 - Web preview: Uses preview environment
 
 ## Credentials (Testing)
-- Admin: `admin@lightban.com` / `LightbanAdmin2024`
+- Admin: `admin@lightban.com` / `LightbanAdmin2024` (domain unchanged for now)

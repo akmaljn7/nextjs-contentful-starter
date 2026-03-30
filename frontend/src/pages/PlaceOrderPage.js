@@ -410,7 +410,7 @@ export const PlaceOrderPage = () => {
             <div className="bg-muted/30 rounded-lg p-3 sm:p-4 text-left space-y-2">
               <div>
                 <p className="text-xs text-muted-foreground">Office Address</p>
-                <p className="text-xs sm:text-sm font-medium text-foreground">{settings?.site_name || 'Lightban Ads Network'} Office</p>
+                <p className="text-xs sm:text-sm font-medium text-foreground">{settings?.site_name || 'Adlinka Ads Network'} Office</p>
                 <p className="text-xs sm:text-sm text-muted-foreground">{settings?.office_address || 'No 671, Zoo Road, Inec Street, Kano'}</p>
               </div>
               <div>

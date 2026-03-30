@@ -44,7 +44,7 @@ export const RegisterPage = () => {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold text-center">{t('auth.register', language)}</CardTitle>
-          <CardDescription className="text-center">Create your Lightban account</CardDescription>
+          <CardDescription className="text-center">Create your Adlinka account</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">

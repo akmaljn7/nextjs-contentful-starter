@@ -62,9 +62,9 @@ export const ContactPage = () => {
               </div>
               <h3 className="text-xl font-bold text-foreground">Email Us</h3>
               <p className="text-muted-foreground">Send us a detailed message</p>
-              <a href={`mailto:${settings?.contact_email || 'info@lightban.com'}`} data-testid="email-contact-button">
+              <a href={`mailto:${settings?.contact_email || 'info@adlinka.com'}`} data-testid="email-contact-button">
                 <Button variant="outline" className="border-primary text-primary">
-                  {settings?.contact_email || 'info@lightban.com'}
+                  {settings?.contact_email || 'info@adlinka.com'}
                 </Button>
               </a>
             </CardContent>

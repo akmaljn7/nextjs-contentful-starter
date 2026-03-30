@@ -871,7 +871,7 @@ export const ConsultationPage = () => {
               <div className="flex items-start space-x-3">
                 <MapPin className="h-5 w-5 text-accent mt-0.5 flex-shrink-0" />
                 <div>
-                  <p className="font-semibold text-foreground text-sm sm:text-base">{settings?.site_name || 'Lightban Technology'}</p>
+                  <p className="font-semibold text-foreground text-sm sm:text-base">{settings?.site_name || 'Adlinka'}</p>
                   <p className="text-xs sm:text-sm text-muted-foreground">{settings?.office_address || 'No 671, Zoo Road, Inec Street, Kano'}</p>
                   <p className="text-xs text-muted-foreground mt-1">{settings?.business_hours || 'Monday - Saturday: 9:00 AM - 5:00 PM'}</p>
                 </div>

@@ -63,7 +63,7 @@ export const HomePage = () => {
       name: 'Aisha Musa',
       role: 'SME Owner, Kano',
       rating: 5,
-      text: 'Lightban made it easy to find verified influencers. We booked 3 creators and saw instant results.',
+      text: 'Adlinka made it easy to find verified influencers. We booked 3 creators and saw instant results.',
       avatar: 'https://images.unsplash.com/photo-1757899525290-731fc4745499?w=100&h=100&fit=crop',
     },
     {

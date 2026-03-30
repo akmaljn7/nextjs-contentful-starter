@@ -30,7 +30,7 @@ export const translations = {
     'cat.kannywood.desc': 'Product placements in Northern Nigerian cinema.',
 
     // Trust
-    'trust.title': 'Why Lightban Ads Network?',
+    'trust.title': 'Why Adlinka Ads Network?',
     'trust.verified': 'Verified Suppliers',
     'trust.verified.desc': 'All suppliers undergo identity and business verification.',
     'trust.escrow': 'Secure Payments',
@@ -73,7 +73,7 @@ export const translations = {
     'footer.contact': 'Contact',
     'footer.terms': 'Terms of Service',
     'footer.privacy': 'Privacy Policy',
-    'footer.copyright': '© 2026 Lightban Ads Network. All rights reserved.',
+    'footer.copyright': '© 2026 Adlinka Ads Network. All rights reserved.',
   },
   ha: {
     // Header
@@ -106,7 +106,7 @@ export const translations = {
     'cat.kannywood.desc': 'Sanya samfura a cikin fina-finan Arewacin Najeriya.',
 
     // Trust
-    'trust.title': 'Me yasa Lightban Ads Network?',
+    'trust.title': 'Me yasa Adlinka Ads Network?',
     'trust.verified': 'Masu Bada Sabis Da Aka Tabbatar',
     'trust.verified.desc': 'Duk masu bada sabis suna ta samun tantancewa.',
     'trust.escrow': 'Biya Mai Tsaro',
@@ -149,7 +149,7 @@ export const translations = {
     'footer.contact': 'Tuntube Mu',
     'footer.terms': 'Sharuɗɗan Sabis',
     'footer.privacy': 'Manufar Sirri',
-    'footer.copyright': '© 2026 Lightban Ads Network. Dukkanin haƙƙoƙin sun keɓe.',
+    'footer.copyright': '© 2026 Adlinka Ads Network. Dukkanin haƙƙoƙin sun keɓe.',
   },
 };
 

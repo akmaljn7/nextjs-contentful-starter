@@ -49,8 +49,8 @@ export const Header = () => {
           {/* Logo - Shifted left with negative margin and increased size */}
           <Link to="/" className="flex items-center shrink-0 -ml-2 sm:-ml-4" data-testid="logo-link" onClick={closeMobileMenu}>
             <img 
-              src="https://customer-assets.emergentagent.com/job_ads-kano/artifacts/r3mtjzen_logo_no_background.png" 
-              alt="Lightban Technology" 
+              src="https://customer-assets.emergentagent.com/job_ads-kano/artifacts/xiehimyl_App_logo.PNG" 
+              alt="Adlinka" 
               className="h-14 sm:h-24 w-auto"
             />
           </Link>

@@ -38,8 +38,8 @@ export const Footer = () => {
           {/* Brand */}
           <div className="space-y-4">
             <img 
-              src="https://customer-assets.emergentagent.com/job_ads-kano/artifacts/r3mtjzen_logo_no_background.png" 
-              alt={settings?.site_name || 'Lightban Technology'} 
+              src="https://customer-assets.emergentagent.com/job_ads-kano/artifacts/xiehimyl_App_logo.PNG" 
+              alt={settings?.site_name || 'Adlinka'} 
               className="h-16 w-auto"
             />
             <p className="text-sm text-white/80">
@@ -54,7 +54,7 @@ export const Footer = () => {
               </div>
               <div className="flex items-center space-x-2">
                 <Mail className="h-4 w-4 text-accent" />
-                <span>{settings?.contact_email || 'info@lightban.com'}</span>
+                <span>{settings?.contact_email || 'info@adlinka.com'}</span>
               </div>
               <div className="flex items-center space-x-2">
                 <MapPin className="h-4 w-4 text-accent" />
@@ -195,7 +195,7 @@ export const Footer = () => {
         <div className="pt-8 border-t border-white/10">
           <div className="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
             <p className="text-sm text-white/70">
-              © {new Date().getFullYear()} {settings?.site_name || 'Lightban Ads Network'}. All rights reserved.
+              © {new Date().getFullYear()} {settings?.site_name || 'Adlinka Ads Network'}. All rights reserved.
             </p>
             <a
               href={whatsappLink}

@@ -58,7 +58,7 @@ export const FAQPage = () => {
       <div className="bg-card border-b">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 text-center">
           <h1 className="text-4xl font-bold text-foreground mb-4">{t('footer.faq', language)}</h1>
-          <p className="text-lg text-muted-foreground">Answers to common questions about Lightban</p>
+          <p className="text-lg text-muted-foreground">Answers to common questions about Adlinka</p>
         </div>
       </div>
 
