@@ -9,7 +9,7 @@ export const SplashScreenComponent: React.FC = () => {
       <Image
         source={require('../assets/splash.png')}
         style={styles.splashImage}
-        resizeMode="cover"
+        resizeMode="contain"
       />
     </View>
   );
@@ -18,10 +18,12 @@ export const SplashScreenComponent: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#161433',
+    backgroundColor: '#000000',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   splashImage: {
-    width: width,
-    height: height,
+    width: width * 0.6,
+    height: height * 0.4,
   },
 });
