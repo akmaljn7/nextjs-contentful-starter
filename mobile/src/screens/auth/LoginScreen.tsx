@@ -57,11 +57,13 @@ export const LoginScreen: React.FC = () => {
         >
           {/* Logo */}
           <View style={styles.logoContainer}>
-            <Image
-              source={require('../../assets/icon.png')}
-              style={styles.logoImage}
-              resizeMode="contain"
-            />
+            <View style={styles.logoBackground}>
+              <Image
+                source={require('../../assets/splash.png')}
+                style={styles.logoImage}
+                resizeMode="contain"
+              />
+            </View>
             <Text style={styles.tagline}>Book trusted ads across Northern Nigeria</Text>
           </View>
 
@@ -151,10 +153,15 @@ const styles = StyleSheet.create({
     marginBottom: 40,
     marginTop: 20,
   },
+  logoBackground: {
+    backgroundColor: '#000000',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+  },
   logoImage: {
-    width: 140,
-    height: 80,
-    marginBottom: 12,
+    width: 200,
+    height: 120,
   },
   tagline: {
     fontSize: Fonts.size.sm,

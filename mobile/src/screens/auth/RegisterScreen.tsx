@@ -22,12 +22,12 @@ import { AuthStackParamList } from '../../types/navigation';
 
 type RegisterScreenNavigationProp = NativeStackNavigationProp<AuthStackParamList, 'Register'>;
 
-const TERMS_AND_CONDITIONS = `LIGHTBAN ADS NETWORK - TERMS AND CONDITIONS
+const TERMS_AND_CONDITIONS = `ADLINKA - TERMS AND CONDITIONS
 
 Last Updated: March 2024
 
 1. INTRODUCTION
-Welcome to Lightban Ads Network ("Platform", "we", "us", or "our"). These Terms and Conditions ("Terms") govern your use of our advertising marketplace platform connecting advertisers with suppliers including influencers, billboard owners, digital ad platforms, and Kannywood production companies in Northern Nigeria.
+Welcome to Adlinka ("Platform", "we", "us", or "our"). These Terms and Conditions ("Terms") govern your use of our advertising marketplace platform connecting advertisers with suppliers including influencers, billboard owners, digital ad platforms, and Kannywood production companies in Northern Nigeria.
 
 By accessing or using the Platform, you agree to be bound by these Terms. If you do not agree to these Terms, please do not use the Platform.
 
@@ -44,7 +44,7 @@ By accessing or using the Platform, you agree to be bound by these Terms. If you
 3.4 We reserve the right to suspend or terminate accounts that violate these Terms
 
 4. PLATFORM SERVICES
-4.1 Lightban Ads Network facilitates connections between Advertisers and Suppliers
+4.1 Adlinka facilitates connections between Advertisers and Suppliers
 4.2 We do not guarantee the availability, quality, or performance of any advertising service
 4.3 All transactions are subject to our platform fee as displayed during checkout
 4.4 We reserve the right to modify services and pricing at any time
@@ -72,7 +72,7 @@ By accessing or using the Platform, you agree to be bound by these Terms. If you
 8.3 Our decision on platform-related disputes is final
 
 9. LIMITATION OF LIABILITY
-9.1 Lightban Ads Network is not liable for:
+9.1 Adlinka is not liable for:
    - Service quality delivered by Suppliers
    - Losses resulting from user disputes
    - Technical issues beyond our control
@@ -86,12 +86,12 @@ We reserve the right to modify these Terms at any time. Continued use of the Pla
 
 12. CONTACT INFORMATION
 For questions about these Terms, please contact:
-Lightban Ads Network
-Email: support@lightban.com
+Adlinka
+Email: support@adlinka.com
 Phone: +234 XXX XXX XXXX
 Address: Kano, Nigeria
 
-By using Lightban Ads Network, you acknowledge that you have read, understood, and agree to be bound by these Terms and Conditions.`;
+By using Adlinka, you acknowledge that you have read, understood, and agree to be bound by these Terms and Conditions.`;
 
 export const RegisterScreen: React.FC = () => {
   const navigation = useNavigation<RegisterScreenNavigationProp>();
@@ -141,7 +141,7 @@ export const RegisterScreen: React.FC = () => {
           {/* Header */}
           <View style={styles.header}>
             <Text style={styles.title}>Create Account</Text>
-            <Text style={styles.subtitle}>Sign up to get started with Lightban</Text>
+            <Text style={styles.subtitle}>Sign up to get started with Adlinka</Text>
           </View>
 
           {/* Form */}

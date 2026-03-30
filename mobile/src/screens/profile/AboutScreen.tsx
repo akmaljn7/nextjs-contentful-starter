@@ -69,7 +69,7 @@ export const AboutScreen: React.FC = () => {
             <Ionicons name="megaphone" size={48} color={Colors.accent} />
           </View>
         </View>
-        <Text style={styles.companyName}>{settings?.site_name || 'Lightban Ads Network'}</Text>
+        <Text style={styles.companyName}>{settings?.site_name || 'Adlinka'}</Text>
         <Text style={styles.tagline}>{settings?.tagline || 'Your trusted advertising partner in Northern Nigeria'}</Text>
       </Card>
 
@@ -78,7 +78,7 @@ export const AboutScreen: React.FC = () => {
         <Text style={styles.sectionTitle}>About Us</Text>
         <Text style={styles.description}>
           {settings?.seo_description || 
-            'Lightban Ads Network is the premier advertising marketplace in Northern Nigeria. We connect businesses with verified influencers, premium billboard locations, digital advertising platforms, and Kannywood movie placements.'}
+            'Adlinka is the premier advertising marketplace in Northern Nigeria. We connect businesses with verified influencers, premium billboard locations, digital advertising platforms, and Kannywood movie placements.'}
         </Text>
       </Card>
 

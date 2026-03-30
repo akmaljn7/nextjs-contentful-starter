@@ -138,7 +138,7 @@ export const MessagesScreen: React.FC = () => {
           actionLabel="Contact Support"
           onAction={() => navigation.navigate('Chat', { 
             orderId: 'support', 
-            title: 'Lightban Support',
+            title: 'Adlinka Support',
             type: 'support' 
           })}
         />
@@ -153,7 +153,7 @@ export const MessagesScreen: React.FC = () => {
         style={styles.supportFab}
         onPress={() => navigation.navigate('Chat', { 
           orderId: 'support', 
-          title: 'Lightban Support',
+          title: 'Adlinka Support',
           type: 'support' 
         })}
       >

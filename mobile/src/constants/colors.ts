@@ -1,4 +1,4 @@
-// Lightban Brand Colors
+// Adlinka Brand Colors
 export const Colors = {
   // Primary Colors
   primary: '#0d1b2a',

@@ -125,7 +125,7 @@ export const ChatScreen: React.FC = () => {
         )}
         <View style={[styles.messageBubble, isOwn ? styles.ownMessage : styles.otherMessage]}>
           {!isOwn && (
-            <Text style={styles.senderName}>{item.sender_role === 'admin' ? 'Lightban Support' : item.sender_role}</Text>
+            <Text style={styles.senderName}>{item.sender_role === 'admin' ? 'Adlinka Support' : item.sender_role}</Text>
           )}
           <Text style={[styles.messageText, isOwn ? styles.ownMessageText : styles.otherMessageText]}>
             {item.message}

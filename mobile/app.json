@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Lightban Ads",
-    "slug": "lightban-mobile",
+    "name": "Adlinka",
+    "slug": "adlinka-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./src/assets/icon.png",
@@ -17,11 +17,11 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.lightban.ads",
+      "bundleIdentifier": "com.adlinka.ads",
       "buildNumber": "1",
       "infoPlist": {
-        "NSCameraUsageDescription": "Lightban Ads uses your camera to upload images for your profile and advertising listings.",
-        "NSPhotoLibraryUsageDescription": "Lightban Ads accesses your photos to upload images for your profile and advertising listings.",
+        "NSCameraUsageDescription": "Adlinka uses your camera to upload images for your profile and advertising listings.",
+        "NSPhotoLibraryUsageDescription": "Adlinka accesses your photos to upload images for your profile and advertising listings.",
         "CFBundleAllowMixedLocalizations": true
       },
       "config": {
@@ -33,7 +33,7 @@
         "foregroundImage": "./src/assets/adaptive-icon.png",
         "backgroundColor": "#000000"
       },
-      "package": "com.lightban.ads",
+      "package": "com.adlinka.ads",
       "versionCode": 1,
       "permissions": [
         "CAMERA",
@@ -59,6 +59,6 @@
     "extra": {
       "eas": {}
     },
-    "owner": "lightban"
+    "owner": "adlinka"
   }
 }

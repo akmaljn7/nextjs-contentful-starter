@@ -15,11 +15,11 @@ export const Config = {
   
   // Storage Keys
   storage: {
-    authToken: 'lightban_auth_token',
-    user: 'lightban_user',
-    cart: 'lightban_cart',
-    settings: 'lightban_settings',
-    pushToken: 'lightban_push_token',
+    authToken: 'adlinka_auth_token',
+    user: 'adlinka_user',
+    cart: 'adlinka_cart',
+    settings: 'adlinka_settings',
+    pushToken: 'adlinka_push_token',
   },
   
   // Pagination
@@ -37,15 +37,15 @@ export const Config = {
   
   // Push Notifications
   notifications: {
-    channelId: 'lightban-notifications',
-    channelName: 'Lightban Notifications',
+    channelId: 'adlinka-notifications',
+    channelName: 'Adlinka Notifications',
   },
   
   // App Info
   app: {
-    name: 'Lightban Ads',
+    name: 'Adlinka',
     version: '1.0.0',
-    supportEmail: 'support@lightban.com',
+    supportEmail: 'support@adlinka.com',
     supportPhone: '+234 800 000 0000',
   },
 };

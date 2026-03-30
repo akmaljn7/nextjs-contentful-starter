@@ -113,7 +113,7 @@ export const ProfileScreen: React.FC = () => {
         </View>
 
         {/* App Version */}
-        <Text style={[styles.version, { color: colors.textMuted }]}>Lightban v1.0.0</Text>
+        <Text style={[styles.version, { color: colors.textMuted }]}>Adlinka v1.0.0</Text>
       </ScrollView>
     </SafeAreaView>
   );
