@@ -1566,6 +1566,11 @@ export const AdminPanelPage = () => {
   const [showOrderDetail, setShowOrderDetail] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
   
+  // Bulk selection states
+  const [selectedOrders, setSelectedOrders] = useState([]);
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  
   // Search states for each tab
   const [searchQueries, setSearchQueries] = useState({
     orders: '',
@@ -1898,6 +1903,66 @@ export const AdminPanelPage = () => {
       toast.error(`Failed to delete ${itemToDelete.type}`);
     } finally {
       setDeleting(false);
+    }
+  };
+
+  // Bulk delete orders
+  const handleBulkDeleteOrders = async () => {
+    if (selectedOrders.length === 0) return;
+    setBulkDeleting(true);
+    try {
+      let successCount = 0;
+      let failCount = 0;
+      
+      for (const orderId of selectedOrders) {
+        try {
+          const order = orders.find(o => o.id === orderId);
+          const endpoint = order?.order_type === 'consultation' 
+            ? `/admin/consultations/${orderId}` 
+            : `/admin/orders/${orderId}`;
+          await api.delete(endpoint);
+          successCount++;
+        } catch (err) {
+          failCount++;
+        }
+      }
+      
+      if (successCount > 0) {
+        toast.success(`Successfully deleted ${successCount} order(s)`);
+      }
+      if (failCount > 0) {
+        toast.error(`Failed to delete ${failCount} order(s)`);
+      }
+      
+      setSelectedOrders([]);
+      setShowBulkDeleteConfirm(false);
+      fetchAllData();
+    } catch (error) {
+      console.error('Bulk delete error:', error);
+      toast.error('Failed to delete orders');
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
+  // Toggle order selection
+  const toggleOrderSelection = (orderId) => {
+    setSelectedOrders(prev => 
+      prev.includes(orderId) 
+        ? prev.filter(id => id !== orderId)
+        : [...prev, orderId]
+    );
+  };
+
+  // Toggle all orders selection
+  const toggleAllOrdersSelection = () => {
+    const currentPageOrders = filteredOrders.slice(0, 100).map(o => o.id);
+    const allSelected = currentPageOrders.every(id => selectedOrders.includes(id));
+    
+    if (allSelected) {
+      setSelectedOrders(prev => prev.filter(id => !currentPageOrders.includes(id)));
+    } else {
+      setSelectedOrders(prev => [...new Set([...prev, ...currentPageOrders])]);
     }
   };
 
@@ -2448,7 +2513,20 @@ export const AdminPanelPage = () => {
               <TabsContent value="orders">
                 <Card className="border-2">
                   <CardHeader>
-                    <CardTitle>All Orders ({filteredOrders.length})</CardTitle>
+                    <div className="flex items-center justify-between">
+                      <CardTitle>All Orders ({filteredOrders.length})</CardTitle>
+                      {selectedOrders.length > 0 && (
+                        <Button 
+                          variant="destructive" 
+                          size="sm"
+                          onClick={() => setShowBulkDeleteConfirm(true)}
+                          data-testid="bulk-delete-orders-btn"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete Selected ({selectedOrders.length})
+                        </Button>
+                      )}
+                    </div>
                   </CardHeader>
                   <CardContent>
                     <AdminSearchBar
@@ -2462,6 +2540,15 @@ export const AdminPanelPage = () => {
                       <table className="w-full">
                         <thead>
                           <tr className="border-b bg-muted/30">
+                            <th className="text-left py-3 px-2">
+                              <input
+                                type="checkbox"
+                                checked={filteredOrders.slice(0, 100).length > 0 && filteredOrders.slice(0, 100).every(o => selectedOrders.includes(o.id))}
+                                onChange={toggleAllOrdersSelection}
+                                className="h-4 w-4 rounded border-gray-300"
+                                data-testid="select-all-orders"
+                              />
+                            </th>
                             <th className="text-left py-3 px-2 text-sm font-semibold">Type</th>
                             <th className="text-left py-3 px-2 text-sm font-semibold">Package</th>
                             <th className="text-left py-3 px-2 text-sm font-semibold">Customer</th>
@@ -2474,7 +2561,16 @@ export const AdminPanelPage = () => {
                         </thead>
                         <tbody>
                           {filteredOrders.slice(0, 100).map((item) => (
-                            <tr key={item.id} className="border-b hover:bg-muted/30">
+                            <tr key={item.id} className={`border-b hover:bg-muted/30 ${selectedOrders.includes(item.id) ? 'bg-blue-50' : ''}`}>
+                              <td className="py-3 px-2">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedOrders.includes(item.id)}
+                                  onChange={() => toggleOrderSelection(item.id)}
+                                  className="h-4 w-4 rounded border-gray-300"
+                                  data-testid={`select-order-${item.id}`}
+                                />
+                              </td>
                               <td className="py-3 px-2">
                                 <Badge 
                                   variant={item.order_type === 'consultation' ? 'secondary' : 'default'}
@@ -3819,6 +3915,30 @@ export const AdminPanelPage = () => {
             <Button onClick={handleDelete} disabled={deleting} className="bg-red-600 hover:bg-red-700">
               {deleting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <Dialog open={showBulkDeleteConfirm} onOpenChange={setShowBulkDeleteConfirm}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center text-red-600">
+              <AlertCircle className="h-5 w-5 mr-2" />
+              Confirm Bulk Delete
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-muted-foreground">
+              Are you sure you want to delete <span className="font-bold text-red-600">{selectedOrders.length} order(s)</span>? This action cannot be undone.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowBulkDeleteConfirm(false)}>Cancel</Button>
+            <Button onClick={handleBulkDeleteOrders} disabled={bulkDeleting} className="bg-red-600 hover:bg-red-700">
+              {bulkDeleting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Delete {selectedOrders.length} Orders
             </Button>
           </DialogFooter>
         </DialogContent>
