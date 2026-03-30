@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore, useLanguageStore, useThemeStore, useCartStore } from '@/lib/store';
 import { t } from '@/lib/translations';
@@ -11,6 +11,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import api from '@/lib/api';
+
+// Default logo URL
+const DEFAULT_LOGO = 'https://customer-assets.emergentagent.com/job_ads-kano/artifacts/xiehimyl_App_logo.PNG';
 
 export const Header = () => {
   const { user, logout } = useAuthStore();
@@ -21,6 +25,21 @@ export const Header = () => {
   const cartItemCount = items.length;
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [settings, setSettings] = useState(null);
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const response = await api.get('/settings');
+        setSettings(response.data);
+      } catch (error) {
+        console.log('Using default header settings');
+      }
+    };
+    fetchSettings();
+  }, []);
+
+  const logoUrl = settings?.web_logo_url || settings?.primary_logo_url || DEFAULT_LOGO;
 
   const toggleLanguage = () => {
     setLanguage(language === 'en' ? 'ha' : 'en');
@@ -49,8 +68,8 @@ export const Header = () => {
           {/* Logo - Shifted left with negative margin and increased size */}
           <Link to="/" className="flex items-center shrink-0 -ml-2 sm:-ml-4" data-testid="logo-link" onClick={closeMobileMenu}>
             <img 
-              src="https://customer-assets.emergentagent.com/job_ads-kano/artifacts/xiehimyl_App_logo.PNG" 
-              alt="Adlinka" 
+              src={logoUrl}
+              alt={settings?.site_name || 'Adlinka'} 
               className="h-14 sm:h-24 w-auto"
             />
           </Link>

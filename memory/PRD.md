@@ -102,6 +102,22 @@ Northern Nigeria's trusted advertising marketplace connecting advertisers with v
   - Auto-registers push token on login
 - In-app banners show for foreground notifications with type-specific icons
 
+### Feature: Admin Branding Tab (March 2024) ✅
+- Added new "Branding" tab in Admin Panel for logo management
+- **Web Application assets:**
+  - Website Logo (Header/Footer)
+  - Favicon
+- **Mobile Application assets:**
+  - App Icon (1024x1024px)
+  - Splash Screen Logo
+  - Login Screen Logo
+  - Notification Icon
+- **General Branding:**
+  - Primary Logo (Full Color)
+  - Logo (White/Light Version for dark backgrounds)
+- Web Header/Footer automatically use uploaded web_logo_url
+- All uploads use chunked upload system for reliability
+
 ### Feature: Rebranding Lightban → Adlinka (March 2024) ✅
 - Renamed entire application from "Lightban" to "Adlinka"
 - Updated mobile app configuration (`app.json`):

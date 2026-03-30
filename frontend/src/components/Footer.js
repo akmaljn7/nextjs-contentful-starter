@@ -25,6 +25,9 @@ export const Footer = () => {
   const phoneNumber = settings?.contact_phone?.replace(/[^0-9]/g, '') || '2348080000805';
   const whatsappLink = `https://wa.me/${phoneNumber.startsWith('234') ? phoneNumber : '234' + phoneNumber}`;
 
+  // Dynamic logo URL
+  const logoUrl = settings?.web_logo_url || settings?.primary_logo_url || 'https://customer-assets.emergentagent.com/job_ads-kano/artifacts/xiehimyl_App_logo.PNG';
+
   return (
     <footer className="bg-primary text-white mt-16 relative overflow-hidden">
       {/* Orange diagonal accent - inspired by letterhead */}
@@ -38,7 +41,7 @@ export const Footer = () => {
           {/* Brand */}
           <div className="space-y-4">
             <img 
-              src="https://customer-assets.emergentagent.com/job_ads-kano/artifacts/xiehimyl_App_logo.PNG" 
+              src={logoUrl}
               alt={settings?.site_name || 'Adlinka'} 
               className="h-16 w-auto"
             />

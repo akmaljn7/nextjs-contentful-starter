@@ -2022,6 +2022,7 @@ export const AdminPanelPage = () => {
                 <TabsTrigger value="orders" className="data-[state=active]:bg-white text-xs sm:text-sm">Orders</TabsTrigger>
                 <TabsTrigger value="users" className="data-[state=active]:bg-white text-xs sm:text-sm">Users</TabsTrigger>
                 <TabsTrigger value="settings" className="data-[state=active]:bg-white text-xs sm:text-sm">Settings</TabsTrigger>
+                <TabsTrigger value="branding" className="data-[state=active]:bg-white text-xs sm:text-sm">Branding</TabsTrigger>
               </TabsList>
 
               {/* Overview Tab */}
@@ -2704,6 +2705,143 @@ export const AdminPanelPage = () => {
                     >
                       Save Settings
                     </Button>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* Branding Tab */}
+              <TabsContent value="branding">
+                <Card className="border-2">
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <Image className="h-5 w-5 mr-2" />
+                      Branding & Logo Management
+                    </CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                      Upload and manage your brand assets. These will be used across the web and mobile applications.
+                    </p>
+                  </CardHeader>
+                  <CardContent className="space-y-8">
+                    {/* Web Branding */}
+                    <div>
+                      <h3 className="text-lg font-semibold mb-4 flex items-center">
+                        <Monitor className="h-4 w-4 mr-2" />
+                        Web Application
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div className="space-y-2">
+                          <ImageUpload
+                            label="Website Logo (Header/Footer)"
+                            value={settings?.web_logo_url || ''}
+                            onChange={(url) => setSettings(prev => ({ ...prev, web_logo_url: url }))}
+                            placeholder="Logo displayed in website header and footer"
+                          />
+                          <p className="text-xs text-muted-foreground">Recommended: 400x120px, PNG with transparent background</p>
+                        </div>
+                        <div className="space-y-2">
+                          <ImageUpload
+                            label="Favicon"
+                            value={settings?.favicon_url || ''}
+                            onChange={(url) => setSettings(prev => ({ ...prev, favicon_url: url }))}
+                            placeholder="Browser tab icon"
+                          />
+                          <p className="text-xs text-muted-foreground">Recommended: 32x32px or 64x64px, PNG/ICO</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Mobile App Branding */}
+                    <div className="border-t pt-6">
+                      <h3 className="text-lg font-semibold mb-4 flex items-center">
+                        <Package className="h-4 w-4 mr-2" />
+                        Mobile Application
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div className="space-y-2">
+                          <ImageUpload
+                            label="App Icon"
+                            value={settings?.app_icon_url || ''}
+                            onChange={(url) => setSettings(prev => ({ ...prev, app_icon_url: url }))}
+                            placeholder="Mobile app icon"
+                          />
+                          <p className="text-xs text-muted-foreground">Recommended: 1024x1024px, PNG (no transparency for iOS)</p>
+                        </div>
+                        <div className="space-y-2">
+                          <ImageUpload
+                            label="Splash Screen Logo"
+                            value={settings?.splash_logo_url || ''}
+                            onChange={(url) => setSettings(prev => ({ ...prev, splash_logo_url: url }))}
+                            placeholder="Logo shown on app launch"
+                          />
+                          <p className="text-xs text-muted-foreground">Recommended: 512x512px, PNG with transparent background</p>
+                        </div>
+                        <div className="space-y-2">
+                          <ImageUpload
+                            label="Login Screen Logo"
+                            value={settings?.login_logo_url || ''}
+                            onChange={(url) => setSettings(prev => ({ ...prev, login_logo_url: url }))}
+                            placeholder="Logo displayed on login page"
+                          />
+                          <p className="text-xs text-muted-foreground">Recommended: 400x200px, PNG with transparent background</p>
+                        </div>
+                        <div className="space-y-2">
+                          <ImageUpload
+                            label="Notification Icon"
+                            value={settings?.notification_icon_url || ''}
+                            onChange={(url) => setSettings(prev => ({ ...prev, notification_icon_url: url }))}
+                            placeholder="Push notification icon"
+                          />
+                          <p className="text-xs text-muted-foreground">Recommended: 96x96px, PNG (monochrome for Android)</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* General Logo */}
+                    <div className="border-t pt-6">
+                      <h3 className="text-lg font-semibold mb-4 flex items-center">
+                        <Lightbulb className="h-4 w-4 mr-2" />
+                        General Branding
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                          <ImageUpload
+                            label="Primary Logo (Full Color)"
+                            value={settings?.primary_logo_url || ''}
+                            onChange={(url) => setSettings(prev => ({ ...prev, primary_logo_url: url }))}
+                            placeholder="Main brand logo"
+                          />
+                          <p className="text-xs text-muted-foreground">Your main logo for general use</p>
+                        </div>
+                        <div className="space-y-2">
+                          <ImageUpload
+                            label="Logo (White/Light Version)"
+                            value={settings?.logo_light_url || ''}
+                            onChange={(url) => setSettings(prev => ({ ...prev, logo_light_url: url }))}
+                            placeholder="Logo for dark backgrounds"
+                          />
+                          <p className="text-xs text-muted-foreground">White or light-colored logo for dark backgrounds</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-4 pt-4 border-t">
+                      <Button 
+                        onClick={async () => {
+                          try {
+                            await api.put('/admin/settings', settings);
+                            toast.success('Branding assets saved successfully');
+                          } catch (error) {
+                            toast.error('Failed to save branding assets');
+                          }
+                        }}
+                        className="bg-accent hover:bg-accent/90"
+                      >
+                        Save Branding Assets
+                      </Button>
+                      <p className="text-sm text-muted-foreground self-center">
+                        Note: Mobile app assets require an app update to take effect.
+                      </p>
+                    </div>
                   </CardContent>
                 </Card>
               </TabsContent>
