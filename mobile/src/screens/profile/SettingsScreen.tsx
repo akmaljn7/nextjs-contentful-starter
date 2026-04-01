@@ -6,6 +6,8 @@ import {
   ScrollView,
   Switch,
   Alert,
+  TouchableOpacity,
+  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/colors';
@@ -14,6 +16,10 @@ import { Card } from '../../components/common';
 import { useSettingsStore } from '../../store';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useTranslation } from '../../i18n';
+
+// Website URLs for legal pages
+const PRIVACY_POLICY_URL = 'https://www.lightban.com/privacy';
+const TERMS_OF_SERVICE_URL = 'https://www.lightban.com/terms';
 
 export const SettingsScreen: React.FC = () => {
   const { theme, language, notificationsEnabled, setTheme, setLanguage, toggleNotifications } = useSettingsStore();
@@ -125,6 +131,47 @@ export const SettingsScreen: React.FC = () => {
               thumbColor={Colors.white}
             />
           </View>
+        </Card>
+      </View>
+
+      {/* Legal */}
+      <View style={styles.section}>
+        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Legal</Text>
+        <Card variant="default" padding="none" style={{ backgroundColor: colors.surface }}>
+          <TouchableOpacity 
+            style={styles.settingItem}
+            onPress={() => Linking.openURL(PRIVACY_POLICY_URL)}
+          >
+            <View style={styles.settingLeft}>
+              <View style={[styles.iconContainer, { backgroundColor: colors.gray[200] }]}>
+                <Ionicons name="shield-checkmark-outline" size={20} color={colors.textPrimary} />
+              </View>
+              <View style={styles.settingTextContainer}>
+                <Text style={[styles.settingLabel, { color: colors.textPrimary }]}>Privacy Policy</Text>
+                <Text style={[styles.settingDescription, { color: colors.textSecondary }]}>
+                  How we handle your data
+                </Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.settingItem, styles.borderTop, { borderTopColor: colors.border }]}
+            onPress={() => Linking.openURL(TERMS_OF_SERVICE_URL)}
+          >
+            <View style={styles.settingLeft}>
+              <View style={[styles.iconContainer, { backgroundColor: colors.gray[200] }]}>
+                <Ionicons name="document-text-outline" size={20} color={colors.textPrimary} />
+              </View>
+              <View style={styles.settingTextContainer}>
+                <Text style={[styles.settingLabel, { color: colors.textPrimary }]}>Terms of Service</Text>
+                <Text style={[styles.settingDescription, { color: colors.textSecondary }]}>
+                  Terms and conditions
+                </Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+          </TouchableOpacity>
         </Card>
       </View>
 
