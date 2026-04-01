@@ -10,6 +10,11 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -496,66 +501,85 @@ export const CartScreen: React.FC = () => {
         visible={showProfileModal}
         animationType="slide"
         transparent={true}
-        onRequestClose={() => setShowProfileModal(false)}
+        onRequestClose={() => {
+          Keyboard.dismiss();
+          setShowProfileModal(false);
+        }}
       >
-        <TouchableOpacity 
-          style={styles.modalOverlay} 
-          activeOpacity={1} 
-          onPress={() => setShowProfileModal(false)}
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.keyboardAvoidingView}
         >
-          <TouchableOpacity activeOpacity={1} style={[styles.profileModalContent, { backgroundColor: colors.surface }]}>
-            <View style={styles.modalHandle} />
-            <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Complete Your Profile</Text>
-            <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>
-              We need your contact information to process your order and keep you updated.
-            </Text>
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <View style={styles.modalOverlay}>
+              <View style={[styles.profileModalContent, { backgroundColor: colors.surface }]}>
+                <View style={styles.modalHandle} />
+                <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Complete Your Profile</Text>
+                <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>
+                  We need your contact information to process your order and keep you updated.
+                </Text>
 
-            <View style={styles.profileInputContainer}>
-              <Text style={[styles.inputLabel, { color: colors.textPrimary }]}>Phone Number *</Text>
-              <TextInput
-                style={[styles.profileInput, { backgroundColor: colors.background, color: colors.textPrimary, borderColor: colors.border }]}
-                placeholder="e.g., +234 801 234 5678"
-                placeholderTextColor={colors.textMuted}
-                value={profilePhone}
-                onChangeText={setProfilePhone}
-                keyboardType="phone-pad"
-                autoFocus
-              />
+                <ScrollView 
+                  showsVerticalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                >
+                  <View style={styles.profileInputContainer}>
+                    <Text style={[styles.inputLabel, { color: colors.textPrimary }]}>Phone Number *</Text>
+                    <TextInput
+                      style={[styles.profileInput, { backgroundColor: colors.background, color: colors.textPrimary, borderColor: colors.border }]}
+                      placeholder="e.g., +234 801 234 5678"
+                      placeholderTextColor={colors.textMuted}
+                      value={profilePhone}
+                      onChangeText={setProfilePhone}
+                      keyboardType="phone-pad"
+                      returnKeyType="next"
+                    />
+                  </View>
+
+                  <View style={styles.profileInputContainer}>
+                    <Text style={[styles.inputLabel, { color: colors.textPrimary }]}>Email (Optional)</Text>
+                    <TextInput
+                      style={[styles.profileInput, { backgroundColor: colors.background, color: colors.textPrimary, borderColor: colors.border }]}
+                      placeholder="your@email.com"
+                      placeholderTextColor={colors.textMuted}
+                      value={profileEmail}
+                      onChangeText={setProfileEmail}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      returnKeyType="done"
+                      onSubmitEditing={handleSaveProfile}
+                    />
+                    <Text style={[styles.inputHint, { color: colors.textMuted }]}>
+                      Optional: Add a real email to receive order updates
+                    </Text>
+                  </View>
+
+                  <TouchableOpacity 
+                    style={[styles.saveProfileButton, isSavingProfile && styles.saveProfileButtonDisabled]}
+                    onPress={handleSaveProfile}
+                    disabled={isSavingProfile}
+                  >
+                    {isSavingProfile ? (
+                      <ActivityIndicator size="small" color={Colors.white} />
+                    ) : (
+                      <Text style={styles.saveProfileButtonText}>Save & Continue</Text>
+                    )}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity 
+                    style={styles.cancelProfileButton} 
+                    onPress={() => {
+                      Keyboard.dismiss();
+                      setShowProfileModal(false);
+                    }}
+                  >
+                    <Text style={[styles.cancelProfileButtonText, { color: colors.textSecondary }]}>Cancel</Text>
+                  </TouchableOpacity>
+                </ScrollView>
+              </View>
             </View>
-
-            <View style={styles.profileInputContainer}>
-              <Text style={[styles.inputLabel, { color: colors.textPrimary }]}>Email (Optional)</Text>
-              <TextInput
-                style={[styles.profileInput, { backgroundColor: colors.background, color: colors.textPrimary, borderColor: colors.border }]}
-                placeholder="your@email.com"
-                placeholderTextColor={colors.textMuted}
-                value={profileEmail}
-                onChangeText={setProfileEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-              <Text style={[styles.inputHint, { color: colors.textMuted }]}>
-                Optional: Add a real email to receive order updates
-              </Text>
-            </View>
-
-            <TouchableOpacity 
-              style={[styles.saveProfileButton, isSavingProfile && styles.saveProfileButtonDisabled]}
-              onPress={handleSaveProfile}
-              disabled={isSavingProfile}
-            >
-              {isSavingProfile ? (
-                <ActivityIndicator size="small" color={Colors.white} />
-              ) : (
-                <Text style={styles.saveProfileButtonText}>Save & Continue</Text>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.cancelProfileButton} onPress={() => setShowProfileModal(false)}>
-              <Text style={[styles.cancelProfileButtonText, { color: colors.textSecondary }]}>Cancel</Text>
-            </TouchableOpacity>
-          </TouchableOpacity>
-        </TouchableOpacity>
+          </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
@@ -614,10 +638,14 @@ const styles = StyleSheet.create({
   webviewLoading: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.white },
   webviewLoadingText: { marginTop: 16, fontSize: Fonts.size.md, color: Colors.textSecondary },
   // Profile Modal Styles
+  keyboardAvoidingView: {
+    flex: 1,
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
   },
   modalHandle: {
     width: 40,
@@ -636,10 +664,10 @@ const styles = StyleSheet.create({
   },
   profileModalContent: {
     backgroundColor: Colors.white,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderRadius: 24,
     padding: 24,
-    paddingBottom: 40,
+    paddingBottom: 24,
+    maxHeight: '80%',
   },
   modalSubtitle: {
     fontSize: Fonts.size.sm,
