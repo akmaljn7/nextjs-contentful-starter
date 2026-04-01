@@ -20,8 +20,6 @@
       "bundleIdentifier": "com.adlinka.ads",
       "buildNumber": "1",
       "infoPlist": {
-        "NSCameraUsageDescription": "Adlinka uses your camera to upload images for your profile and advertising listings.",
-        "NSPhotoLibraryUsageDescription": "Adlinka accesses your photos to upload images for your profile and advertising listings.",
         "CFBundleAllowMixedLocalizations": true
       },
       "config": {
@@ -36,9 +34,6 @@
       "package": "com.adlinka.ads",
       "versionCode": 1,
       "permissions": [
-        "CAMERA",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE",
         "NOTIFICATIONS"
       ]
     },

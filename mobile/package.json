@@ -24,7 +24,6 @@
     "expo-apple-authentication": "^55.0.9",
     "expo-constants": "~17.1.0",
     "expo-device": "~7.1.0",
-    "expo-image-picker": "~16.1.0",
     "expo-notifications": "~0.31.0",
     "expo-secure-store": "~14.1.0",
     "expo-splash-screen": "^55.0.12",
