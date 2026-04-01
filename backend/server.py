@@ -946,6 +946,43 @@ async def delete_account(current_user: User = Depends(get_current_user)):
 async def get_me(current_user: User = Depends(get_current_user)):
     return current_user
 
+# Update user profile
+class ProfileUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[EmailStr] = None
+    profile_image: Optional[str] = None
+
+@api_router.put("/auth/profile", response_model=User)
+async def update_profile(data: ProfileUpdateRequest, current_user: User = Depends(get_current_user)):
+    """Update current user's profile"""
+    update_data = {}
+    
+    if data.name is not None:
+        update_data["name"] = data.name
+    if data.phone is not None:
+        update_data["phone"] = data.phone
+    if data.email is not None:
+        # Check if email is already taken by another user
+        existing = await db.users.find_one({"email": data.email, "id": {"$ne": current_user.id}})
+        if existing:
+            raise HTTPException(status_code=400, detail="Email already in use")
+        update_data["email"] = data.email
+    if data.profile_image is not None:
+        update_data["profile_image"] = data.profile_image
+    
+    if not update_data:
+        return current_user
+    
+    await db.users.update_one({"id": current_user.id}, {"$set": update_data})
+    
+    # Fetch and return updated user
+    updated_user = await db.users.find_one({"id": current_user.id}, {"_id": 0})
+    if isinstance(updated_user.get('created_at'), str):
+        updated_user['created_at'] = datetime.fromisoformat(updated_user['created_at'])
+    
+    return User(**updated_user)
+
 # Forgot Password - Request reset
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr
