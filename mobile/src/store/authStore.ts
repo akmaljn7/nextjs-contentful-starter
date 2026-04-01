@@ -3,6 +3,13 @@ import { authApi } from '../api/auth';
 import { authStorage, userStorage, clearAllStorage } from '../utils/storage';
 import { User, LoginCredentials, RegisterCredentials, AuthResponse } from '../types/api';
 
+interface AppleLoginCredentials {
+  identityToken: string;
+  email?: string;
+  name: string;
+  appleUserId: string;
+}
+
 interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
@@ -11,11 +18,13 @@ interface AuthState {
   
   // Actions
   login: (credentials: LoginCredentials) => Promise<boolean>;
+  appleLogin: (credentials: AppleLoginCredentials) => Promise<boolean>;
   register: (data: RegisterCredentials) => Promise<boolean>;
   logout: () => Promise<void>;
   loadUser: () => Promise<void>;
   clearError: () => void;
   updateUser: (data: Partial<User>) => void;
+  deleteAccount: () => Promise<boolean>;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -50,6 +59,32 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
+  appleLogin: async (credentials: AppleLoginCredentials) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response: AuthResponse = await authApi.appleLogin(credentials);
+      
+      // Store token and user
+      await authStorage.setToken(response.access_token);
+      await userStorage.setUser(response.user);
+      
+      set({
+        user: response.user,
+        isAuthenticated: true,
+        isLoading: false,
+        error: null,
+      });
+      
+      return true;
+    } catch (error: any) {
+      set({
+        isLoading: false,
+        error: error.message || 'Apple sign-in failed',
+      });
+      return false;
+    }
+  },
+
   register: async (data: RegisterCredentials) => {
     set({ isLoading: true, error: null });
     try {
@@ -71,6 +106,31 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({
         isLoading: false,
         error: error.message || 'Registration failed',
+      });
+      return false;
+    }
+  },
+
+  deleteAccount: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      await authApi.deleteAccount();
+      
+      // Clear all stored data
+      await clearAllStorage();
+      
+      set({
+        user: null,
+        isAuthenticated: false,
+        isLoading: false,
+        error: null,
+      });
+      
+      return true;
+    } catch (error: any) {
+      set({
+        isLoading: false,
+        error: error.message || 'Failed to delete account',
       });
       return false;
     }

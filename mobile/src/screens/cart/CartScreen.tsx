@@ -376,6 +376,12 @@ export const CartScreen: React.FC = () => {
             <TouchableOpacity style={styles.cancelButton} onPress={() => setShowPaymentOptions(false)}>
               <Text style={styles.cancelButtonText}>{t.common.cancel}</Text>
             </TouchableOpacity>
+
+            {/* Payment Disclosure for App Store Compliance */}
+            <Text style={[styles.paymentDisclosure, { color: colors.textMuted }]}>
+              Payments are processed securely by Paystack for advertising services. 
+              This is not an in-app purchase.
+            </Text>
           </View>
         </TouchableOpacity>
       </Modal>
@@ -458,6 +464,7 @@ const styles = StyleSheet.create({
   paymentOptionDesc: { fontSize: Fonts.size.sm, color: Colors.textSecondary, marginTop: 2 },
   cancelButton: { paddingVertical: 16, alignItems: 'center', marginTop: 8 },
   cancelButtonText: { fontSize: Fonts.size.md, color: Colors.textSecondary, fontWeight: Fonts.weight.medium },
+  paymentDisclosure: { fontSize: Fonts.size.xs, textAlign: 'center', marginTop: 12, paddingHorizontal: 16 },
   webviewContainer: { flex: 1, backgroundColor: Colors.white },
   webviewHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: Colors.border },
   webviewTitle: { fontSize: Fonts.size.lg, fontWeight: Fonts.weight.bold, color: Colors.textPrimary },

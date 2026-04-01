@@ -849,6 +849,99 @@ async def login(credentials: UserLogin):
     
     return Token(access_token=access_token, token_type="bearer", user=user)
 
+# Apple Sign-in
+class AppleLoginRequest(BaseModel):
+    identityToken: str
+    email: Optional[str] = None
+    name: str
+    appleUserId: str
+
+@api_router.post("/auth/apple", response_model=Token)
+async def apple_login(data: AppleLoginRequest):
+    """Authenticate with Apple Sign-in"""
+    # Check if user already exists with this Apple ID
+    existing_user = await db.users.find_one({"apple_user_id": data.appleUserId}, {"_id": 0})
+    
+    if existing_user:
+        # User exists, log them in
+        if isinstance(existing_user['created_at'], str):
+            existing_user['created_at'] = datetime.fromisoformat(existing_user['created_at'])
+        user = User(**existing_user)
+        access_token = create_access_token(data={"sub": user.id})
+        return Token(access_token=access_token, token_type="bearer", user=user)
+    
+    # Check if user exists with the same email (link accounts)
+    if data.email:
+        existing_email_user = await db.users.find_one({"email": data.email}, {"_id": 0})
+        if existing_email_user:
+            # Link Apple ID to existing account
+            await db.users.update_one(
+                {"email": data.email},
+                {"$set": {"apple_user_id": data.appleUserId}}
+            )
+            if isinstance(existing_email_user['created_at'], str):
+                existing_email_user['created_at'] = datetime.fromisoformat(existing_email_user['created_at'])
+            user = User(**existing_email_user)
+            access_token = create_access_token(data={"sub": user.id})
+            return Token(access_token=access_token, token_type="bearer", user=user)
+    
+    # Create new user
+    user_id = str(uuid.uuid4())
+    # Generate a placeholder email if Apple didn't provide one
+    email = data.email or f"apple_{data.appleUserId[:8]}@privaterelay.appleid.com"
+    
+    new_user = {
+        "id": user_id,
+        "name": data.name,
+        "email": email,
+        "phone": "",
+        "password": pwd_context.hash(str(uuid.uuid4())),  # Random password since using Apple
+        "role": "user",
+        "profile_image": "",
+        "verified": True,  # Apple users are verified
+        "apple_user_id": data.appleUserId,
+        "created_at": datetime.now(timezone.utc)
+    }
+    
+    await db.users.insert_one(new_user)
+    
+    # Remove _id from response
+    new_user.pop('_id', None)
+    user = User(**new_user)
+    access_token = create_access_token(data={"sub": user.id})
+    
+    return Token(access_token=access_token, token_type="bearer", user=user)
+
+# Delete Account
+@api_router.delete("/auth/account")
+async def delete_account(current_user: User = Depends(get_current_user)):
+    """Delete user account and all associated data"""
+    user_id = current_user.id
+    
+    # Delete user's orders
+    await db.orders.delete_many({"advertiser_id": user_id})
+    
+    # Delete user's consultations
+    await db.consultations.delete_many({"user_id": user_id})
+    
+    # Delete user's messages
+    await db.messages.delete_many({"sender_id": user_id})
+    await db.messages.delete_many({"user_id": user_id})
+    
+    # Delete user's chats
+    await db.chats.delete_many({"user_id": user_id})
+    
+    # Delete user's push tokens
+    await db.push_tokens.delete_many({"user_id": user_id})
+    
+    # Delete user's cart
+    await db.carts.delete_many({"user_id": user_id})
+    
+    # Finally, delete the user
+    await db.users.delete_one({"id": user_id})
+    
+    return {"message": "Account deleted successfully"}
+
 @api_router.get("/auth/me", response_model=User)
 async def get_me(current_user: User = Depends(get_current_user)):
     return current_user

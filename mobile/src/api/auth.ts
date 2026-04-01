@@ -1,10 +1,23 @@
 import apiClient from './client';
 import { AuthResponse, LoginCredentials, RegisterCredentials, User } from '../types/api';
 
+interface AppleLoginCredentials {
+  identityToken: string;
+  email?: string;
+  name: string;
+  appleUserId: string;
+}
+
 export const authApi = {
   // Login
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
     const response = await apiClient.post<AuthResponse>('/auth/login', credentials);
+    return response.data;
+  },
+
+  // Apple Sign-in
+  async appleLogin(credentials: AppleLoginCredentials): Promise<AuthResponse> {
+    const response = await apiClient.post<AuthResponse>('/auth/apple', credentials);
     return response.data;
   },
 
@@ -50,6 +63,12 @@ export const authApi = {
   // Register push token
   async registerPushToken(token: string): Promise<{ message: string }> {
     const response = await apiClient.post('/auth/push-token', { token });
+    return response.data;
+  },
+
+  // Delete account
+  async deleteAccount(): Promise<{ message: string }> {
+    const response = await apiClient.delete('/auth/account');
     return response.data;
   },
 };

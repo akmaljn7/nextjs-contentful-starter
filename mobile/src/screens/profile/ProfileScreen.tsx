@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,8 +19,9 @@ import { useTheme } from '../../contexts/ThemeContext';
 
 export const ProfileScreen: React.FC = () => {
   const navigation = useNavigation<any>();
-  const { user, logout } = useAuthStore();
+  const { user, logout, deleteAccount } = useAuthStore();
   const { isDark, colors } = useTheme();
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const handleLogout = () => {
     Alert.alert(
@@ -28,6 +30,45 @@ export const ProfileScreen: React.FC = () => {
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Logout', style: 'destructive', onPress: logout },
+      ]
+    );
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete Account',
+      'Are you sure you want to permanently delete your account? This action cannot be undone and all your data will be lost.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Delete', 
+          style: 'destructive', 
+          onPress: () => confirmDeleteAccount()
+        },
+      ]
+    );
+  };
+
+  const confirmDeleteAccount = () => {
+    Alert.alert(
+      'Final Confirmation',
+      'This is your last chance. Type DELETE in the next prompt to confirm account deletion.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Yes, Delete My Account', 
+          style: 'destructive', 
+          onPress: async () => {
+            setIsDeleting(true);
+            const success = await deleteAccount();
+            setIsDeleting(false);
+            if (success) {
+              Alert.alert('Account Deleted', 'Your account has been permanently deleted.');
+            } else {
+              Alert.alert('Error', 'Failed to delete account. Please try again.');
+            }
+          }
+        },
       ]
     );
   };
@@ -112,6 +153,27 @@ export const ProfileScreen: React.FC = () => {
           />
         </View>
 
+        {/* Delete Account */}
+        <View style={styles.deleteSection}>
+          <TouchableOpacity 
+            style={styles.deleteButton}
+            onPress={handleDeleteAccount}
+            disabled={isDeleting}
+          >
+            {isDeleting ? (
+              <ActivityIndicator size="small" color={Colors.error} />
+            ) : (
+              <>
+                <Ionicons name="trash-outline" size={18} color={Colors.error} />
+                <Text style={styles.deleteText}>Delete Account</Text>
+              </>
+            )}
+          </TouchableOpacity>
+          <Text style={[styles.deleteWarning, { color: colors.textMuted }]}>
+            This will permanently delete your account and all associated data.
+          </Text>
+        </View>
+
         {/* App Version */}
         <Text style={[styles.version, { color: colors.textMuted }]}>Adlinka v1.0.0</Text>
       </ScrollView>
@@ -191,6 +253,27 @@ const styles = StyleSheet.create({
   },
   logoutButton: {
     borderColor: Colors.error,
+  },
+  deleteSection: {
+    paddingHorizontal: 16,
+    marginTop: 24,
+    alignItems: 'center',
+  },
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  deleteText: {
+    color: Colors.error,
+    fontSize: Fonts.size.sm,
+    marginLeft: 8,
+    fontWeight: Fonts.weight.medium,
+  },
+  deleteWarning: {
+    fontSize: Fonts.size.xs,
+    textAlign: 'center',
+    marginTop: 4,
   },
   version: {
     textAlign: 'center',

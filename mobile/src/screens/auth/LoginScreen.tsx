@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,10 +10,12 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 import { Button, Input } from '../../components/common';
@@ -26,15 +28,67 @@ type LoginScreenNavigationProp = NativeStackNavigationProp<AuthStackParamList, '
 
 export const LoginScreen: React.FC = () => {
   const navigation = useNavigation<LoginScreenNavigationProp>();
-  const { login, isLoading, error, clearError } = useAuthStore();
+  const { login, appleLogin, isLoading, error, clearError } = useAuthStore();
   const { getLogoUrl, isLoading: settingsLoading } = useSettings();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [logoError, setLogoError] = useState(false);
+  const [appleAuthAvailable, setAppleAuthAvailable] = useState(false);
+  const [appleLoading, setAppleLoading] = useState(false);
 
   const logoUrl = getLogoUrl('login');
+
+  useEffect(() => {
+    // Check if Apple Authentication is available (iOS 13+)
+    const checkAppleAuth = async () => {
+      const isAvailable = await AppleAuthentication.isAvailableAsync();
+      setAppleAuthAvailable(isAvailable);
+    };
+    checkAppleAuth();
+  }, []);
+
+  const handleAppleSignIn = async () => {
+    try {
+      setAppleLoading(true);
+      clearError();
+      
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+
+      // Extract user info from credential
+      const { identityToken, email: appleEmail, fullName, user } = credential;
+      
+      if (identityToken) {
+        // Build name from Apple's fullName object
+        const name = fullName?.givenName && fullName?.familyName 
+          ? `${fullName.givenName} ${fullName.familyName}`
+          : fullName?.givenName || 'Apple User';
+        
+        await appleLogin({
+          identityToken,
+          email: appleEmail || undefined,
+          name,
+          appleUserId: user,
+        });
+      }
+    } catch (error: any) {
+      if (error.code === 'ERR_REQUEST_CANCELED') {
+        // User canceled the sign-in flow
+        console.log('Apple sign-in canceled');
+      } else {
+        Alert.alert('Sign in Failed', 'Unable to sign in with Apple. Please try again.');
+        console.error('Apple sign-in error:', error);
+      }
+    } finally {
+      setAppleLoading(false);
+    }
+  };
 
   const handleLogin = async () => {
     clearError();
@@ -132,6 +186,25 @@ export const LoginScreen: React.FC = () => {
               <Text style={styles.dividerText}>OR</Text>
               <View style={styles.dividerLine} />
             </View>
+
+            {/* Sign in with Apple - iOS only */}
+            {Platform.OS === 'ios' && appleAuthAvailable && (
+              <AppleAuthentication.AppleAuthenticationButton
+                buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+                buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+                cornerRadius={12}
+                style={styles.appleButton}
+                onPress={handleAppleSignIn}
+              />
+            )}
+
+            {/* Loading indicator for Apple Sign-in */}
+            {appleLoading && (
+              <View style={styles.appleLoadingContainer}>
+                <ActivityIndicator size="small" color={Colors.accent} />
+                <Text style={styles.appleLoadingText}>Signing in with Apple...</Text>
+              </View>
+            )}
 
             <View style={styles.registerContainer}>
               <Text style={styles.registerText}>Don't have an account? </Text>
@@ -250,5 +323,21 @@ const styles = StyleSheet.create({
     color: Colors.accent,
     fontSize: Fonts.size.md,
     fontWeight: Fonts.weight.semibold,
+  },
+  appleButton: {
+    width: '100%',
+    height: 50,
+    marginBottom: 16,
+  },
+  appleLoadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  appleLoadingText: {
+    marginLeft: 8,
+    color: Colors.textSecondary,
+    fontSize: Fonts.size.sm,
   },
 });

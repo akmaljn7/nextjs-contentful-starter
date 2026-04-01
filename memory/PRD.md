@@ -17,7 +17,7 @@ Northern Nigeria's trusted advertising marketplace connecting advertisers with v
 - Mobile App: Cross-platform Expo React Native app sharing the same backend
 - Integrations: Payments (Paystack), Messaging (Termii - pending), CRM (HubSpot - pending)
 - Visual Style: Modern, trustworthy, navy blue branding
-- Localization: Bilingual support (English and Hausa - pending)
+- Localization: Bilingual support (English and Hausa)
 
 ## Tech Stack
 - **Backend**: FastAPI, MongoDB (pymongo), Python
@@ -47,7 +47,19 @@ Northern Nigeria's trusted advertising marketplace connecting advertisers with v
 - Profile and Settings
 - Custom splash screen (navy blue #0d1b2a)
 
-### Feature: Influencer Profile Links (March 2024) ✅
+### Feature: Apple App Store Compliance (March 2024) ✅
+- **Sign in with Apple**: Added Apple authentication option on login screen (iOS only)
+- **Account Deletion**: Added "Delete Account" option in Profile screen with double confirmation
+- **Payment Disclosure**: Added text clarifying payments are for advertising services (not in-app purchases)
+- Backend endpoints: `/api/auth/apple` (Apple sign-in), `/api/auth/account` (DELETE - account deletion)
+
+### Feature: Bulk Order Delete (March 2024) ✅
+- Admin can select multiple orders and delete them at once
+- Added checkboxes to order list in admin panel
+- "Select All" functionality for current page
+- Confirmation dialog before bulk deletion
+
+### Feature: Admin Branding Tab (March 2024) ✅
 - Added `profile_link` field to backend models (InfluencerCreate, AdminInfluencerCreate/Update)
 - Added Profile Link input to Admin Panel influencer form with description
 - Made platform badges clickable in mobile app (InfluencerDetailScreen, InfluencerCard)
