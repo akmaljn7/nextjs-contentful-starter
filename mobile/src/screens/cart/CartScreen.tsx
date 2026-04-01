@@ -409,7 +409,7 @@ export const CartScreen: React.FC = () => {
           activeOpacity={1}
           onPress={() => setShowPaymentOptions(false)}
         >
-          <View style={[styles.paymentOptionsContainer, { backgroundColor: colors.surface }]}>
+          <TouchableOpacity activeOpacity={1} style={[styles.paymentOptionsContainer, { backgroundColor: colors.surface }]}>
             <Text style={[styles.paymentOptionsTitle, { color: colors.textPrimary }]}>{t.checkout.selectPayment}</Text>
             <Text style={[styles.paymentOptionsSubtitle, { color: colors.textSecondary }]}>{t.checkout.paymentMethod}</Text>
             
@@ -444,7 +444,7 @@ export const CartScreen: React.FC = () => {
               Payments are processed securely by Paystack for advertising services. 
               This is not an in-app purchase.
             </Text>
-          </View>
+          </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
 
@@ -491,7 +491,7 @@ export const CartScreen: React.FC = () => {
           activeOpacity={1} 
           onPress={() => setShowProfileModal(false)}
         >
-          <View style={[styles.profileModalContent, { backgroundColor: colors.surface }]}>
+          <TouchableOpacity activeOpacity={1} style={[styles.profileModalContent, { backgroundColor: colors.surface }]}>
             <View style={styles.modalHandle} />
             <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Complete Your Profile</Text>
             <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>
@@ -542,7 +542,7 @@ export const CartScreen: React.FC = () => {
             <TouchableOpacity style={styles.cancelProfileButton} onPress={() => setShowProfileModal(false)}>
               <Text style={[styles.cancelProfileButtonText, { color: colors.textSecondary }]}>Cancel</Text>
             </TouchableOpacity>
-          </View>
+          </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
     </SafeAreaView>
