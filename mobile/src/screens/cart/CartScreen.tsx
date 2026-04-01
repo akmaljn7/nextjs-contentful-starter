@@ -108,12 +108,15 @@ export const CartScreen: React.FC = () => {
 
   const processOnlinePayment = async () => {
     if (!user) {
+      setShowPaymentOptions(false);
       navigation.navigate('Auth', { screen: 'Login' });
       return;
     }
 
     // Check if user has phone number - required for order contact
     if (!user.phone || user.phone.trim() === '') {
+      // Close payment options first, then show profile modal
+      setShowPaymentOptions(false);
       setProfilePhone('');
       // Pre-fill email if it's an Apple relay email
       if (user.email?.includes('privaterelay.appleid.com')) {
@@ -121,7 +124,10 @@ export const CartScreen: React.FC = () => {
       } else {
         setProfileEmail(user.email || '');
       }
-      setShowProfileModal(true);
+      // Small delay to ensure payment modal closes before profile modal opens
+      setTimeout(() => {
+        setShowProfileModal(true);
+      }, 300);
       return;
     }
 
@@ -197,19 +203,25 @@ export const CartScreen: React.FC = () => {
 
   const processCashPayment = async () => {
     if (!user) {
+      setShowPaymentOptions(false);
       navigation.navigate('Auth', { screen: 'Login' });
       return;
     }
 
     // Check if user has phone number - required for order contact
     if (!user.phone || user.phone.trim() === '') {
+      // Close payment options first, then show profile modal
+      setShowPaymentOptions(false);
       setProfilePhone('');
       if (user.email?.includes('privaterelay.appleid.com')) {
         setProfileEmail('');
       } else {
         setProfileEmail(user.email || '');
       }
-      setShowProfileModal(true);
+      // Small delay to ensure payment modal closes before profile modal opens
+      setTimeout(() => {
+        setShowProfileModal(true);
+      }, 300);
       return;
     }
 
