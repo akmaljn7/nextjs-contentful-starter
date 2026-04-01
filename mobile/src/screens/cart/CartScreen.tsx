@@ -9,6 +9,7 @@ import {
   Modal,
   TouchableOpacity,
   ActivityIndicator,
+  TextInput,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,13 +19,13 @@ import { Fonts } from '../../constants/fonts';
 import { Card, Button, EmptyState } from '../../components/common';
 import { useCartStore, useAuthStore } from '../../store';
 import { formatPrice } from '../../utils/formatters';
-import { ordersApi, settingsApi, SiteSettings } from '../../api';
+import { ordersApi, settingsApi, SiteSettings, authApi } from '../../api';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useTranslation } from '../../i18n';
 
 export const CartScreen: React.FC = () => {
   const navigation = useNavigation<any>();
-  const { user } = useAuthStore();
+  const { user, updateUser } = useAuthStore();
   const { items, removeItem, clearCart, totalAmount } = useCartStore();
   const { colors } = useTheme();
   const { t } = useTranslation();
@@ -35,6 +36,12 @@ export const CartScreen: React.FC = () => {
   const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
   const [currentOrderId, setCurrentOrderId] = useState<string | null>(null);
   const [showPaymentOptions, setShowPaymentOptions] = useState(false);
+  
+  // Profile completion modal
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [profilePhone, setProfilePhone] = useState('');
+  const [profileEmail, setProfileEmail] = useState('');
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
   
   // Store cart items before checkout to prevent re-render issues
   const cartItemsRef = useRef(items);
@@ -102,6 +109,19 @@ export const CartScreen: React.FC = () => {
   const processOnlinePayment = async () => {
     if (!user) {
       navigation.navigate('Auth', { screen: 'Login' });
+      return;
+    }
+
+    // Check if user has phone number - required for order contact
+    if (!user.phone || user.phone.trim() === '') {
+      setProfilePhone('');
+      // Pre-fill email if it's an Apple relay email
+      if (user.email?.includes('privaterelay.appleid.com')) {
+        setProfileEmail('');
+      } else {
+        setProfileEmail(user.email || '');
+      }
+      setShowProfileModal(true);
       return;
     }
 
@@ -181,6 +201,18 @@ export const CartScreen: React.FC = () => {
       return;
     }
 
+    // Check if user has phone number - required for order contact
+    if (!user.phone || user.phone.trim() === '') {
+      setProfilePhone('');
+      if (user.email?.includes('privaterelay.appleid.com')) {
+        setProfileEmail('');
+      } else {
+        setProfileEmail(user.email || '');
+      }
+      setShowProfileModal(true);
+      return;
+    }
+
     const checkoutItems = cartItemsRef.current;
     if (checkoutItems.length === 0) {
       Alert.alert('Error', 'Your cart is empty');
@@ -244,6 +276,36 @@ export const CartScreen: React.FC = () => {
     }
     cartItemsRef.current = items;
     setShowPaymentOptions(true);
+  };
+
+  // Save profile with phone number
+  const handleSaveProfile = async () => {
+    if (!profilePhone || profilePhone.trim().length < 10) {
+      Alert.alert('Invalid Phone', 'Please enter a valid phone number (at least 10 digits)');
+      return;
+    }
+
+    setIsSavingProfile(true);
+    try {
+      const updateData: any = { phone: profilePhone.trim() };
+      
+      // Only update email if user provided a new one and current is Apple relay
+      if (profileEmail && profileEmail.trim() && !profileEmail.includes('privaterelay.appleid.com')) {
+        updateData.email = profileEmail.trim();
+      }
+
+      const updatedUser = await authApi.updateProfile(updateData);
+      updateUser(updatedUser);
+      
+      setShowProfileModal(false);
+      Alert.alert('Profile Updated', 'Your contact information has been saved. You can now proceed with checkout.', [
+        { text: 'Continue', onPress: () => setShowPaymentOptions(true) }
+      ]);
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to update profile');
+    } finally {
+      setIsSavingProfile(false);
+    }
   };
 
   const renderCartItem = ({ item }: { item: typeof items[0] }) => (
@@ -416,6 +478,73 @@ export const CartScreen: React.FC = () => {
           )}
         </SafeAreaView>
       </Modal>
+
+      {/* Complete Profile Modal - Required for Apple Sign-in users */}
+      <Modal
+        visible={showProfileModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowProfileModal(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay} 
+          activeOpacity={1} 
+          onPress={() => setShowProfileModal(false)}
+        >
+          <View style={[styles.profileModalContent, { backgroundColor: colors.surface }]}>
+            <View style={styles.modalHandle} />
+            <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Complete Your Profile</Text>
+            <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>
+              We need your contact information to process your order and keep you updated.
+            </Text>
+
+            <View style={styles.profileInputContainer}>
+              <Text style={[styles.inputLabel, { color: colors.textPrimary }]}>Phone Number *</Text>
+              <TextInput
+                style={[styles.profileInput, { backgroundColor: colors.background, color: colors.textPrimary, borderColor: colors.border }]}
+                placeholder="e.g., +234 801 234 5678"
+                placeholderTextColor={colors.textMuted}
+                value={profilePhone}
+                onChangeText={setProfilePhone}
+                keyboardType="phone-pad"
+                autoFocus
+              />
+            </View>
+
+            <View style={styles.profileInputContainer}>
+              <Text style={[styles.inputLabel, { color: colors.textPrimary }]}>Email (Optional)</Text>
+              <TextInput
+                style={[styles.profileInput, { backgroundColor: colors.background, color: colors.textPrimary, borderColor: colors.border }]}
+                placeholder="your@email.com"
+                placeholderTextColor={colors.textMuted}
+                value={profileEmail}
+                onChangeText={setProfileEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+              <Text style={[styles.inputHint, { color: colors.textMuted }]}>
+                Optional: Add a real email to receive order updates
+              </Text>
+            </View>
+
+            <TouchableOpacity 
+              style={[styles.saveProfileButton, isSavingProfile && styles.saveProfileButtonDisabled]}
+              onPress={handleSaveProfile}
+              disabled={isSavingProfile}
+            >
+              {isSavingProfile ? (
+                <ActivityIndicator size="small" color={Colors.white} />
+              ) : (
+                <Text style={styles.saveProfileButtonText}>Save & Continue</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.cancelProfileButton} onPress={() => setShowProfileModal(false)}>
+              <Text style={[styles.cancelProfileButtonText, { color: colors.textSecondary }]}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -472,4 +601,84 @@ const styles = StyleSheet.create({
   webview: { flex: 1 },
   webviewLoading: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.white },
   webviewLoadingText: { marginTop: 16, fontSize: Fonts.size.md, color: Colors.textSecondary },
+  // Profile Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: Colors.border,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: Fonts.size.xl,
+    fontWeight: Fonts.weight.bold,
+    color: Colors.textPrimary,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  profileModalContent: {
+    backgroundColor: Colors.white,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    paddingBottom: 40,
+  },
+  modalSubtitle: {
+    fontSize: Fonts.size.sm,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 24,
+    paddingHorizontal: 16,
+  },
+  profileInputContainer: {
+    marginBottom: 16,
+  },
+  inputLabel: {
+    fontSize: Fonts.size.sm,
+    fontWeight: Fonts.weight.medium,
+    color: Colors.textPrimary,
+    marginBottom: 8,
+  },
+  profileInput: {
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 12,
+    padding: 16,
+    fontSize: Fonts.size.md,
+    backgroundColor: Colors.background,
+  },
+  inputHint: {
+    fontSize: Fonts.size.xs,
+    color: Colors.textMuted,
+    marginTop: 4,
+  },
+  saveProfileButton: {
+    backgroundColor: Colors.accent,
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  saveProfileButtonDisabled: {
+    opacity: 0.7,
+  },
+  saveProfileButtonText: {
+    color: Colors.white,
+    fontSize: Fonts.size.md,
+    fontWeight: Fonts.weight.semibold,
+  },
+  cancelProfileButton: {
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  cancelProfileButtonText: {
+    fontSize: Fonts.size.md,
+    color: Colors.textSecondary,
+  },
 });
