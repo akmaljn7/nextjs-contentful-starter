@@ -23,7 +23,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   splashImage: {
-    width: width * 0.7,
-    height: height * 0.5,
+    width: width * 1.5,
+    height: height * 1.3,
   },
 });
