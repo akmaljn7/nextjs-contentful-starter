@@ -4,6 +4,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../constants/colors';
 import { Fonts } from '../constants/fonts';
 import { useCartStore } from '../store';
@@ -269,6 +270,11 @@ export const MainTabNavigator: React.FC = () => {
   const cartItems = useCartStore((state) => state.items);
   const cartCount = cartItems.length;
   const { isDark, colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  
+  // Calculate proper bottom padding for Android devices with software navigation
+  const bottomPadding = Platform.OS === 'ios' ? 24 : Math.max(insets.bottom, 12);
+  const tabBarHeight = Platform.OS === 'ios' ? 88 : 60 + bottomPadding;
 
   return (
     <Tab.Navigator
@@ -281,8 +287,8 @@ export const MainTabNavigator: React.FC = () => {
           borderTopColor: colors.border,
           borderTopWidth: 1,
           paddingTop: 8,
-          paddingBottom: Platform.OS === 'ios' ? 24 : 8,
-          height: Platform.OS === 'ios' ? 88 : 64,
+          paddingBottom: bottomPadding,
+          height: tabBarHeight,
         },
         tabBarLabelStyle: {
           fontSize: Fonts.size.xs,
