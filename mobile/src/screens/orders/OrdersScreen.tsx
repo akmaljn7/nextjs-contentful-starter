@@ -6,8 +6,11 @@ import {
   FlatList,
   RefreshControl,
   TouchableOpacity,
+  Platform,
+  StatusBar,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
@@ -16,6 +19,7 @@ import { OrderCard } from '../../components/cards';
 import { ordersApi, consultationsApi } from '../../api';
 import { Order, Consultation } from '../../types/api';
 import { formatPrice } from '../../utils/formatters';
+import { useTheme } from '../../contexts/ThemeContext';
 
 // Combined type for orders and consultations
 interface CombinedItem {
@@ -27,6 +31,11 @@ interface CombinedItem {
 
 export const OrdersScreen: React.FC = () => {
   const navigation = useNavigation<any>();
+  const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  
+  // Calculate top padding for status bar (especially important for Android)
+  const topPadding = Platform.OS === 'android' ? Math.max(insets.top, StatusBar.currentHeight || 24) : insets.top;
   
   const [items, setItems] = useState<CombinedItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -220,9 +229,14 @@ export const OrdersScreen: React.FC = () => {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: topPadding }]}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>My Orders</Text>
+      </View>
+      
       {/* Tab Switcher */}
-      <View style={styles.tabContainer}>
+      <View style={[styles.tabContainer, { backgroundColor: colors.surface }]}>
         <TouchableOpacity
           style={[styles.tab, activeTab === 'all' && styles.tabActive]}
           onPress={() => setActiveTab('all')}
@@ -276,6 +290,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  header: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: Colors.textPrimary,
   },
   tabContainer: {
     flexDirection: 'row',

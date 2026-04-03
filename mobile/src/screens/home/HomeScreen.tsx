@@ -3,13 +3,15 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   TouchableOpacity,
   RefreshControl,
   Image,
+  Platform,
+  StatusBar,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
@@ -27,6 +29,10 @@ export const HomeScreen: React.FC = () => {
   const cartItems = useCartStore((state) => state.items);
   const { isDark, colors } = useTheme();
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
+  
+  // Calculate top padding for status bar (especially important for Android)
+  const topPadding = Platform.OS === 'android' ? Math.max(insets.top, StatusBar.currentHeight || 24) : insets.top;
   
   const SERVICES = [
     { id: 'influencers', name: t.services.influencers, icon: 'people', color: '#8b5cf6', description: t.services.influencersDesc },
@@ -91,7 +97,7 @@ export const HomeScreen: React.FC = () => {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: topPadding }]}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -237,7 +243,7 @@ export const HomeScreen: React.FC = () => {
         {/* Bottom Spacing */}
         <View style={styles.bottomSpacing} />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 

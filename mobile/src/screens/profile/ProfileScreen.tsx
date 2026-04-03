@@ -3,13 +3,15 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  Platform,
+  StatusBar,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
@@ -22,6 +24,10 @@ export const ProfileScreen: React.FC = () => {
   const { user, logout, deleteAccount } = useAuthStore();
   const { isDark, colors } = useTheme();
   const [isDeleting, setIsDeleting] = useState(false);
+  const insets = useSafeAreaInsets();
+  
+  // Calculate top padding for status bar (especially important for Android)
+  const topPadding = Platform.OS === 'android' ? Math.max(insets.top, StatusBar.currentHeight || 24) : insets.top;
 
   const handleLogout = () => {
     Alert.alert(
@@ -107,7 +113,7 @@ export const ProfileScreen: React.FC = () => {
   ];
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: topPadding }]}>
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={[styles.header, { backgroundColor: isDark ? colors.surface : Colors.primary }]}>
@@ -177,7 +183,7 @@ export const ProfileScreen: React.FC = () => {
         {/* App Version */}
         <Text style={[styles.version, { color: colors.textMuted }]}>Adlinka v1.0.0</Text>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 

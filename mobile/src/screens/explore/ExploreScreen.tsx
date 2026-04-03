@@ -3,15 +3,18 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   TouchableOpacity,
+  Platform,
+  StatusBar,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 import { Card } from '../../components/common';
+import { useTheme } from '../../contexts/ThemeContext';
 
 const EXPLORE_ITEMS = [
   {
@@ -58,12 +61,17 @@ const EXPLORE_ITEMS = [
 
 export const ExploreScreen: React.FC = () => {
   const navigation = useNavigation<any>();
+  const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  
+  // Calculate top padding for status bar (especially important for Android)
+  const topPadding = Platform.OS === 'android' ? Math.max(insets.top, StatusBar.currentHeight || 24) : insets.top;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: topPadding }]}>
       <View style={styles.header}>
-        <Text style={styles.title}>Explore</Text>
-        <Text style={styles.subtitle}>Discover advertising opportunities</Text>
+        <Text style={[styles.title, { color: colors.textPrimary }]}>Explore</Text>
+        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Discover advertising opportunities</Text>
       </View>
 
       <ScrollView 
@@ -83,16 +91,16 @@ export const ExploreScreen: React.FC = () => {
                   <Ionicons name={item.icon as any} size={32} color={item.color} />
                 </View>
                 <View style={styles.textContainer}>
-                  <Text style={styles.cardTitle}>{item.title}</Text>
-                  <Text style={styles.cardDescription}>{item.description}</Text>
+                  <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>{item.title}</Text>
+                  <Text style={[styles.cardDescription, { color: colors.textSecondary }]}>{item.description}</Text>
                 </View>
-                <Ionicons name="chevron-forward" size={24} color={Colors.textMuted} />
+                <Ionicons name="chevron-forward" size={24} color={colors.textMuted} />
               </View>
             </Card>
           </TouchableOpacity>
         ))}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 

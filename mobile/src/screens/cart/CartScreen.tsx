@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  SafeAreaView,
   Alert,
   Modal,
   TouchableOpacity,
@@ -15,8 +14,10 @@ import {
   ScrollView,
   Keyboard,
   TouchableWithoutFeedback,
+  StatusBar,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
 import { Colors } from '../../constants/colors';
@@ -34,6 +35,10 @@ export const CartScreen: React.FC = () => {
   const { items, removeItem, clearCart, totalAmount } = useCartStore();
   const { colors } = useTheme();
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
+  
+  // Calculate top padding for status bar (especially important for Android)
+  const topPadding = Platform.OS === 'android' ? Math.max(insets.top, StatusBar.currentHeight || 24) : insets.top;
   
   const [settings, setSettings] = useState<SiteSettings | null>(null);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
@@ -352,7 +357,7 @@ export const CartScreen: React.FC = () => {
 
   if (items.length === 0 && !isCheckingOut && !paymentModalVisible) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.container, { backgroundColor: colors.background, paddingTop: topPadding }]}>
         <EmptyState
           icon="cart-outline"
           title={t.cart.emptyCart}
@@ -360,12 +365,12 @@ export const CartScreen: React.FC = () => {
           actionLabel={t.cart.exploreServices}
           onAction={() => navigation.navigate('ExploreTab', { screen: 'Explore' })}
         />
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: topPadding }]}>
       {isCheckingOut && (
         <View style={styles.loadingOverlay}>
           <View style={[styles.loadingContent, { backgroundColor: colors.surface }]}>
@@ -472,7 +477,7 @@ export const CartScreen: React.FC = () => {
         presentationStyle="pageSheet"
         onRequestClose={handlePaymentComplete}
       >
-        <SafeAreaView style={styles.webviewContainer}>
+        <View style={[styles.webviewContainer, { paddingTop: topPadding }]}>
           <View style={styles.webviewHeader}>
             <Text style={styles.webviewTitle}>Complete Payment</Text>
             <TouchableOpacity onPress={handlePaymentComplete} style={styles.closeButton}>
@@ -493,7 +498,7 @@ export const CartScreen: React.FC = () => {
               style={styles.webview}
             />
           )}
-        </SafeAreaView>
+        </View>
       </Modal>
 
       {/* Complete Profile Modal - Required for Apple Sign-in users */}
@@ -581,7 +586,7 @@ export const CartScreen: React.FC = () => {
           </TouchableWithoutFeedback>
         </KeyboardAvoidingView>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 };
 
