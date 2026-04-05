@@ -16,7 +16,6 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as AppleAuthentication from 'expo-apple-authentication';
-import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 import { Button, Input } from '../../components/common';
@@ -24,6 +23,18 @@ import { useAuthStore } from '../../store';
 import { validateLoginForm } from '../../utils/validators';
 import { AuthStackParamList } from '../../types/navigation';
 import { useSettings } from '../../contexts/SettingsContext';
+
+// Dynamically import Google Sign-In to prevent crashes in Expo Go
+let GoogleSignin: any = null;
+let statusCodes: any = {};
+try {
+  const googleSignIn = require('@react-native-google-signin/google-signin');
+  GoogleSignin = googleSignIn.GoogleSignin;
+  statusCodes = googleSignIn.statusCodes;
+} catch (e) {
+  // Google Sign-In not available (running in Expo Go)
+  console.log('Google Sign-In not available - requires development/production build');
+}
 
 type LoginScreenNavigationProp = NativeStackNavigationProp<AuthStackParamList, 'Login'>;
 
@@ -37,6 +48,7 @@ export const LoginScreen: React.FC = () => {
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [logoError, setLogoError] = useState(false);
   const [appleAuthAvailable, setAppleAuthAvailable] = useState(false);
+  const [googleAuthAvailable, setGoogleAuthAvailable] = useState(false);
   const [appleLoading, setAppleLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
@@ -50,12 +62,20 @@ export const LoginScreen: React.FC = () => {
     };
     checkAppleAuth();
 
-    // Configure Google Sign-In
-    GoogleSignin.configure({
-      webClientId: '79558932759-8hn7kfbob9bgv8glpuvieod6sibp3i7b.apps.googleusercontent.com',
-      iosClientId: '79558932759-025f0627p5qvq5oh6s5r9l29dgtavehm.apps.googleusercontent.com',
-      offlineAccess: true,
-    });
+    // Configure Google Sign-In (only if available - not in Expo Go)
+    if (GoogleSignin) {
+      try {
+        GoogleSignin.configure({
+          webClientId: '79558932759-8hn7kfbob9bgv8glpuvieod6sibp3i7b.apps.googleusercontent.com',
+          iosClientId: '79558932759-025f0627p5qvq5oh6s5r9l29dgtavehm.apps.googleusercontent.com',
+          offlineAccess: true,
+        });
+        setGoogleAuthAvailable(true);
+      } catch (e) {
+        console.log('Failed to configure Google Sign-In:', e);
+        setGoogleAuthAvailable(false);
+      }
+    }
   }, []);
 
   const handleAppleSignIn = async () => {
@@ -100,6 +120,14 @@ export const LoginScreen: React.FC = () => {
   };
 
   const handleGoogleSignIn = async () => {
+    if (!GoogleSignin) {
+      Alert.alert(
+        'Not Available',
+        'Google Sign-In is only available in production builds. Please use email/password to sign in while testing in Expo Go.'
+      );
+      return;
+    }
+
     try {
       setGoogleLoading(true);
       clearError();
