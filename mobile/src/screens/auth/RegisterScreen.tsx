@@ -101,15 +101,14 @@ export const RegisterScreen: React.FC = () => {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [showTermsModal, setShowTermsModal] = useState(false);
 
   const handleRegister = async () => {
     clearError();
     
-    // Validate form (now includes phone)
-    const errors = validateRegisterForm(name, email, password, confirmPassword, phone);
+    // Validate form (without confirm password)
+    const errors = validateRegisterForm(name, email, password, phone);
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
       return;
@@ -191,16 +190,6 @@ export const RegisterScreen: React.FC = () => {
               placeholder="Create a password"
               secureTextEntry
               error={formErrors.password}
-              leftIcon={<Ionicons name="lock-closed-outline" size={20} color={Colors.textMuted} />}
-            />
-
-            <Input
-              label="Confirm Password"
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              placeholder="Confirm your password"
-              secureTextEntry
-              error={formErrors.confirmPassword}
               leftIcon={<Ionicons name="lock-closed-outline" size={20} color={Colors.textMuted} />}
             />
 

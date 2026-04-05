@@ -10,6 +10,14 @@ interface AppleLoginCredentials {
   appleUserId: string;
 }
 
+interface GoogleLoginCredentials {
+  idToken: string;
+  email: string;
+  name: string;
+  googleUserId: string;
+  photo?: string;
+}
+
 interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
@@ -19,6 +27,7 @@ interface AuthState {
   // Actions
   login: (credentials: LoginCredentials) => Promise<boolean>;
   appleLogin: (credentials: AppleLoginCredentials) => Promise<boolean>;
+  googleLogin: (credentials: GoogleLoginCredentials) => Promise<boolean>;
   register: (data: RegisterCredentials) => Promise<boolean>;
   logout: () => Promise<void>;
   loadUser: () => Promise<void>;
@@ -80,6 +89,32 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({
         isLoading: false,
         error: error.message || 'Apple sign-in failed',
+      });
+      return false;
+    }
+  },
+
+  googleLogin: async (credentials: GoogleLoginCredentials) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response: AuthResponse = await authApi.googleLogin(credentials);
+      
+      // Store token and user
+      await authStorage.setToken(response.access_token);
+      await userStorage.setUser(response.user);
+      
+      set({
+        user: response.user,
+        isAuthenticated: true,
+        isLoading: false,
+        error: null,
+      });
+      
+      return true;
+    } catch (error: any) {
+      set({
+        isLoading: false,
+        error: error.message || 'Google sign-in failed',
       });
       return false;
     }

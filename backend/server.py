@@ -912,6 +912,74 @@ async def apple_login(data: AppleLoginRequest):
     
     return Token(access_token=access_token, token_type="bearer", user=user)
 
+# Google Sign-in Request Model
+class GoogleLoginRequest(BaseModel):
+    idToken: str
+    email: str
+    name: str
+    googleUserId: str
+    photo: Optional[str] = None
+
+@api_router.post("/auth/google", response_model=Token)
+async def google_login(data: GoogleLoginRequest):
+    """Authenticate with Google Sign-in"""
+    # Check if user already exists with this Google ID
+    existing_user = await db.users.find_one({"google_user_id": data.googleUserId}, {"_id": 0})
+    
+    if existing_user:
+        # User exists, log them in
+        if isinstance(existing_user['created_at'], str):
+            existing_user['created_at'] = datetime.fromisoformat(existing_user['created_at'])
+        user = User(**existing_user)
+        access_token = create_access_token(data={"sub": user.id})
+        return Token(access_token=access_token, token_type="bearer", user=user)
+    
+    # Check if user exists with the same email (link accounts)
+    existing_email_user = await db.users.find_one({"email": data.email}, {"_id": 0})
+    if existing_email_user:
+        # Link Google ID to existing account and update avatar if not set
+        update_data = {"google_user_id": data.googleUserId}
+        if data.photo and not existing_email_user.get("profile_image"):
+            update_data["profile_image"] = data.photo
+        
+        await db.users.update_one(
+            {"email": data.email},
+            {"$set": update_data}
+        )
+        if isinstance(existing_email_user['created_at'], str):
+            existing_email_user['created_at'] = datetime.fromisoformat(existing_email_user['created_at'])
+        # Update profile image in response if set
+        if data.photo and not existing_email_user.get("profile_image"):
+            existing_email_user["profile_image"] = data.photo
+        user = User(**existing_email_user)
+        access_token = create_access_token(data={"sub": user.id})
+        return Token(access_token=access_token, token_type="bearer", user=user)
+    
+    # Create new user
+    user_id = str(uuid.uuid4())
+    
+    new_user = {
+        "id": user_id,
+        "name": data.name,
+        "email": data.email,
+        "phone": "",  # Google doesn't provide phone, user will be prompted at checkout
+        "password": pwd_context.hash(str(uuid.uuid4())),  # Random password since using Google
+        "role": "user",
+        "profile_image": data.photo or "",
+        "verified": True,  # Google users are verified
+        "google_user_id": data.googleUserId,
+        "created_at": datetime.now(timezone.utc)
+    }
+    
+    await db.users.insert_one(new_user)
+    
+    # Remove _id from response
+    new_user.pop('_id', None)
+    user = User(**new_user)
+    access_token = create_access_token(data={"sub": user.id})
+    
+    return Token(access_token=access_token, token_type="bearer", user=user)
+
 # Delete Account
 @api_router.delete("/auth/account")
 async def delete_account(current_user: User = Depends(get_current_user)):

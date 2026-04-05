@@ -84,7 +84,6 @@ export const validateRegisterForm = (
   name: string,
   email: string,
   password: string,
-  confirmPassword: string,
   phone?: string
 ): Record<string, string> => {
   const errors: Record<string, string> = {};
@@ -115,10 +114,6 @@ export const validateRegisterForm = (
     if (!passwordValidation.valid) {
       errors.password = passwordValidation.message;
     }
-  }
-
-  if (password !== confirmPassword) {
-    errors.confirmPassword = 'Passwords do not match';
   }
 
   return errors;

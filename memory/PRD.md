@@ -53,6 +53,18 @@ Northern Nigeria's trusted advertising marketplace connecting advertisers with v
 - **Payment Disclosure**: Added text clarifying payments are for advertising services (not in-app purchases)
 - Backend endpoints: `/api/auth/apple` (Apple sign-in), `/api/auth/account` (DELETE - account deletion)
 
+### Feature: Google Sign-In (December 2024) ✅
+- **Sign in with Google**: Added Google authentication option on login screen (both iOS and Android)
+- Installed `@react-native-google-signin/google-signin` library
+- Works with native Google Sign-In picker
+- Backend endpoint: `/api/auth/google` (Google sign-in)
+- Same phone number check at checkout as Apple Sign-In (prompts user if missing phone)
+
+### Feature: Simplified Registration (December 2024) ✅
+- Removed "Confirm Password" field from registration screen
+- Simplified form validation (no longer requires password confirmation)
+- Cleaner user experience for faster sign-up
+
 ### Feature: Bulk Order Delete (March 2024) ✅
 - Admin can select multiple orders and delete them at once
 - Added checkboxes to order list in admin panel

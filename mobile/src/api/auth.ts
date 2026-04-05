@@ -8,6 +8,14 @@ interface AppleLoginCredentials {
   appleUserId: string;
 }
 
+interface GoogleLoginCredentials {
+  idToken: string;
+  email: string;
+  name: string;
+  googleUserId: string;
+  photo?: string;
+}
+
 export const authApi = {
   // Login
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
@@ -18,6 +26,12 @@ export const authApi = {
   // Apple Sign-in
   async appleLogin(credentials: AppleLoginCredentials): Promise<AuthResponse> {
     const response = await apiClient.post<AuthResponse>('/auth/apple', credentials);
+    return response.data;
+  },
+
+  // Google Sign-in
+  async googleLogin(credentials: GoogleLoginCredentials): Promise<AuthResponse> {
+    const response = await apiClient.post<AuthResponse>('/auth/google', credentials);
     return response.data;
   },
 

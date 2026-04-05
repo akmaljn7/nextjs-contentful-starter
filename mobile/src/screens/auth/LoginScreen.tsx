@@ -16,6 +16,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as AppleAuthentication from 'expo-apple-authentication';
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 import { Button, Input } from '../../components/common';
@@ -28,7 +29,7 @@ type LoginScreenNavigationProp = NativeStackNavigationProp<AuthStackParamList, '
 
 export const LoginScreen: React.FC = () => {
   const navigation = useNavigation<LoginScreenNavigationProp>();
-  const { login, appleLogin, isLoading, error, clearError } = useAuthStore();
+  const { login, appleLogin, googleLogin, isLoading, error, clearError } = useAuthStore();
   const { getLogoUrl, isLoading: settingsLoading } = useSettings();
 
   const [email, setEmail] = useState('');
@@ -37,6 +38,7 @@ export const LoginScreen: React.FC = () => {
   const [logoError, setLogoError] = useState(false);
   const [appleAuthAvailable, setAppleAuthAvailable] = useState(false);
   const [appleLoading, setAppleLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   const logoUrl = getLogoUrl('login');
 
@@ -47,6 +49,13 @@ export const LoginScreen: React.FC = () => {
       setAppleAuthAvailable(isAvailable);
     };
     checkAppleAuth();
+
+    // Configure Google Sign-In
+    GoogleSignin.configure({
+      // Web client ID is used for both Android and iOS
+      // This will be configured via environment or Google Cloud Console
+      scopes: ['profile', 'email'],
+    });
   }, []);
 
   const handleAppleSignIn = async () => {
@@ -87,6 +96,48 @@ export const LoginScreen: React.FC = () => {
       }
     } finally {
       setAppleLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    try {
+      setGoogleLoading(true);
+      clearError();
+      
+      // Check if Google Play Services are available
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+      
+      // Sign in
+      const response = await GoogleSignin.signIn();
+      
+      if (response.data) {
+        const { user, idToken } = response.data;
+        
+        if (idToken && user.email) {
+          await googleLogin({
+            idToken,
+            email: user.email,
+            name: user.name || 'Google User',
+            googleUserId: user.id,
+            photo: user.photo || undefined,
+          });
+        }
+      }
+    } catch (error: any) {
+      if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+        // User canceled the sign-in flow
+        console.log('Google sign-in canceled');
+      } else if (error.code === statusCodes.IN_PROGRESS) {
+        // Sign-in already in progress
+        console.log('Google sign-in already in progress');
+      } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+        Alert.alert('Error', 'Google Play Services not available. Please update or enable it.');
+      } else {
+        Alert.alert('Sign in Failed', 'Unable to sign in with Google. Please try again.');
+        console.error('Google sign-in error:', error);
+      }
+    } finally {
+      setGoogleLoading(false);
     }
   };
 
@@ -200,9 +251,30 @@ export const LoginScreen: React.FC = () => {
 
             {/* Loading indicator for Apple Sign-in */}
             {appleLoading && (
-              <View style={styles.appleLoadingContainer}>
+              <View style={styles.socialLoadingContainer}>
                 <ActivityIndicator size="small" color={Colors.accent} />
-                <Text style={styles.appleLoadingText}>Signing in with Apple...</Text>
+                <Text style={styles.socialLoadingText}>Signing in with Apple...</Text>
+              </View>
+            )}
+
+            {/* Sign in with Google - Both platforms */}
+            <TouchableOpacity
+              style={styles.googleButton}
+              onPress={handleGoogleSignIn}
+              disabled={googleLoading}
+            >
+              <Image
+                source={{ uri: 'https://developers.google.com/identity/images/g-logo.png' }}
+                style={styles.googleIcon}
+              />
+              <Text style={styles.googleButtonText}>Sign in with Google</Text>
+            </TouchableOpacity>
+
+            {/* Loading indicator for Google Sign-in */}
+            {googleLoading && (
+              <View style={styles.socialLoadingContainer}>
+                <ActivityIndicator size="small" color={Colors.accent} />
+                <Text style={styles.socialLoadingText}>Signing in with Google...</Text>
               </View>
             )}
 
@@ -329,13 +401,35 @@ const styles = StyleSheet.create({
     height: 50,
     marginBottom: 16,
   },
-  appleLoadingContainer: {
+  googleButton: {
+    width: '100%',
+    height: 50,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.white,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginBottom: 16,
+  },
+  googleIcon: {
+    width: 20,
+    height: 20,
+    marginRight: 12,
+  },
+  googleButtonText: {
+    color: Colors.textPrimary,
+    fontSize: Fonts.size.md,
+    fontWeight: Fonts.weight.medium,
+  },
+  socialLoadingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
   },
-  appleLoadingText: {
+  socialLoadingText: {
     marginLeft: 8,
     color: Colors.textSecondary,
     fontSize: Fonts.size.sm,
