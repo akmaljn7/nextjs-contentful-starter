@@ -52,9 +52,9 @@ export const LoginScreen: React.FC = () => {
 
     // Configure Google Sign-In
     GoogleSignin.configure({
-      // Web client ID is used for both Android and iOS
-      // This will be configured via environment or Google Cloud Console
-      scopes: ['profile', 'email'],
+      webClientId: '79558932759-8hn7kfbob9bgv8glpuvieod6sibp3i7b.apps.googleusercontent.com',
+      iosClientId: '79558932759-025f0627p5qvq5oh6s5r9l29dgtavehm.apps.googleusercontent.com',
+      offlineAccess: true,
     });
   }, []);
 

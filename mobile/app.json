@@ -52,7 +52,12 @@
       "expo-splash-screen",
       "expo-apple-authentication",
       "expo-web-browser",
-      "@react-native-google-signin/google-signin"
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.79558932759-025f0627p5qvq5oh6s5r9l29dgtavehm"
+        }
+      ]
     ],
     "extra": {
       "eas": {}
