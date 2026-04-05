@@ -50,7 +50,8 @@
       ],
       "expo-secure-store",
       "expo-splash-screen",
-      "expo-apple-authentication"
+      "expo-apple-authentication",
+      "expo-web-browser"
     ],
     "extra": {
       "eas": {}
