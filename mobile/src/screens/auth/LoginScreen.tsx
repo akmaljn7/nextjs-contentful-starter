@@ -137,19 +137,23 @@ export const LoginScreen: React.FC = () => {
       
       // Sign in
       const response = await GoogleSignin.signIn();
+      console.log('Google Sign-In Response:', JSON.stringify(response, null, 2));
       
-      if (response.data) {
-        const { user, idToken } = response.data;
-        
-        if (idToken && user.email) {
-          await googleLogin({
-            idToken,
-            email: user.email,
-            name: user.name || 'Google User',
-            googleUserId: user.id,
-            photo: user.photo || undefined,
-          });
-        }
+      // Handle both response structures (v16+ uses response.data, older uses response directly)
+      const userData = response.data?.user || response.user || response.data;
+      const idToken = response.data?.idToken || response.idToken;
+      
+      if (userData && userData.email) {
+        await googleLogin({
+          idToken: idToken || 'no-token',
+          email: userData.email,
+          name: userData.name || userData.givenName || 'Google User',
+          googleUserId: userData.id,
+          photo: userData.photo || undefined,
+        });
+      } else {
+        Alert.alert('Sign in Failed', 'Could not retrieve user information from Google.');
+        console.error('Google Sign-In: No user data in response', response);
       }
     } catch (error: any) {
       if (error.code === statusCodes.SIGN_IN_CANCELLED) {
@@ -200,14 +204,14 @@ export const LoginScreen: React.FC = () => {
               <View style={styles.logoPlaceholder}>
                 <ActivityIndicator size="large" color={Colors.accent} />
               </View>
-            ) : (
+            ) : !logoError ? (
               <Image
-                source={logoError ? require('../../assets/splash.png') : { uri: logoUrl }}
+                source={{ uri: logoUrl }}
                 style={styles.logoImage}
                 resizeMode="contain"
                 onError={() => setLogoError(true)}
               />
-            )}
+            ) : null}
             <Text style={styles.tagline}>Book trusted ads across Northern Nigeria</Text>
           </View>
 
@@ -330,24 +334,24 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: 24,
-    paddingVertical: 32,
+    paddingVertical: 16,
   },
   logoContainer: {
     alignItems: 'center',
-    marginBottom: 40,
-    marginTop: 20,
+    marginBottom: 16,
+    marginTop: 8,
   },
   logoPlaceholder: {
-    width: 220,
-    height: 130,
-    marginBottom: 16,
+    width: 180,
+    height: 80,
+    marginBottom: 4,
     justifyContent: 'center',
     alignItems: 'center',
   },
   logoImage: {
-    width: 220,
-    height: 130,
-    marginBottom: 16,
+    width: 180,
+    height: 80,
+    marginBottom: 4,
   },
   tagline: {
     fontSize: Fonts.size.sm,
@@ -358,15 +362,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    fontSize: Fonts.size['3xl'],
+    fontSize: Fonts.size['2xl'],
     fontWeight: Fonts.weight.bold,
     color: Colors.textPrimary,
-    marginBottom: 8,
+    marginBottom: 4,
   },
   subtitle: {
     fontSize: Fonts.size.md,
     color: Colors.textSecondary,
-    marginBottom: 32,
+    marginBottom: 16,
   },
   errorContainer: {
     flexDirection: 'row',
@@ -384,8 +388,8 @@ const styles = StyleSheet.create({
   },
   forgotPassword: {
     alignSelf: 'flex-end',
-    marginBottom: 24,
-    marginTop: -8,
+    marginBottom: 16,
+    marginTop: -4,
   },
   forgotPasswordText: {
     color: Colors.accent,
@@ -393,12 +397,12 @@ const styles = StyleSheet.create({
     fontWeight: Fonts.weight.medium,
   },
   loginButton: {
-    marginBottom: 24,
+    marginBottom: 16,
   },
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 16,
   },
   dividerLine: {
     flex: 1,

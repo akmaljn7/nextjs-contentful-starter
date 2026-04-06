@@ -275,19 +275,19 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
-  },
-  header: {
-    marginBottom: 32,
-  },
-  title: {
-    fontSize: Fonts.size['3xl'],
-    fontWeight: Fonts.weight.bold,
-    color: Colors.textPrimary,
     marginBottom: 8,
   },
+  header: {
+    marginBottom: 16,
+  },
+  title: {
+    fontSize: Fonts.size['2xl'],
+    fontWeight: Fonts.weight.bold,
+    color: Colors.textPrimary,
+    marginBottom: 4,
+  },
   subtitle: {
-    fontSize: Fonts.size.md,
+    fontSize: Fonts.size.sm,
     color: Colors.textSecondary,
   },
   form: {
@@ -308,14 +308,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   registerButton: {
-    marginTop: 8,
-    marginBottom: 24,
+    marginTop: 4,
+    marginBottom: 12,
   },
   loginContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 12,
   },
   loginText: {
     color: Colors.textSecondary,
