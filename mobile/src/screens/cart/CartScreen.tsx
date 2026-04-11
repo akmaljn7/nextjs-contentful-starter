@@ -189,7 +189,7 @@ export const CartScreen: React.FC = () => {
       const paymentData = await ordersApi.initializePayment({
         order_id: allOrderIds,  // Pass ALL order IDs
         email: user.email,
-        callback_url: 'https://www.lightban.com/payment/callback',
+        callback_url: 'https://www.adlinka.com/payment/callback',
         amount: grandTotal,
         metadata: {
           order_ids: createdOrders,

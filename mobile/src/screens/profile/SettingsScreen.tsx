@@ -18,8 +18,8 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useTranslation } from '../../i18n';
 
 // Website URLs for legal pages
-const PRIVACY_POLICY_URL = 'https://www.lightban.com/privacy';
-const TERMS_OF_SERVICE_URL = 'https://www.lightban.com/terms';
+const PRIVACY_POLICY_URL = 'https://www.adlinka.com/privacy';
+const TERMS_OF_SERVICE_URL = 'https://www.adlinka.com/terms';
 
 export const SettingsScreen: React.FC = () => {
   const { theme, language, notificationsEnabled, setTheme, setLanguage, toggleNotifications } = useSettingsStore();

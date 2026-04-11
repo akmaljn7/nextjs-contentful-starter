@@ -277,7 +277,7 @@ export const ConsultationScreen: React.FC = () => {
         const paymentData = await ordersApi.initializePayment({
           order_id: consultationResponse.consultation?.id || '',
           email: user.email,
-          callback_url: 'https://www.lightban.com/payment/callback',
+          callback_url: 'https://www.adlinka.com/payment/callback',
           amount: selectedPackage.price,
           metadata: {
             type: 'consultation',
