@@ -276,6 +276,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,
+    marginTop: 30,  // 👈 ADJUST THIS: Controls how far down the back button starts
   },
   header: {
     marginBottom: 16,

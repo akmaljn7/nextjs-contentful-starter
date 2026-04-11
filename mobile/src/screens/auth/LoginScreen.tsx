@@ -339,7 +339,7 @@ const styles = StyleSheet.create({
   logoContainer: {
     alignItems: 'center',
     marginBottom: 16,
-    marginTop: 8,
+    marginTop: 40,  // 👈 ADJUST THIS: Controls how far down the logo starts
   },
   logoPlaceholder: {
     width: 180,
