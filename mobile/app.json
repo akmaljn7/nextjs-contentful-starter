@@ -2,7 +2,7 @@
   "expo": {
     "name": "Adlinka",
     "slug": "adlinka-mobile",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./src/assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -18,7 +18,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.adlinka.ads",
-      "buildNumber": "1",
+      "buildNumber": "2",
       "infoPlist": {
         "CFBundleAllowMixedLocalizations": true
       },
@@ -32,7 +32,7 @@
         "backgroundColor": "#000000"
       },
       "package": "com.adlinka.ads",
-      "versionCode": 1,
+      "versionCode": 2,
       "permissions": [
         "NOTIFICATIONS"
       ]
