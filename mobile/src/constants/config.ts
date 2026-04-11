@@ -1,6 +1,6 @@
 // API Configuration
-// Use preview URL for testing, change to production for release
-export const API_URL = process.env.API_URL || 'https://www.lightban.com/api';
+// Production URL - Adlinka
+export const API_URL = process.env.API_URL || 'https://www.adlinka.com/api';
 
 // Uncomment below line to test with preview environment:
 // export const API_URL = 'https://ads-kano.preview.emergentagent.com/api';
