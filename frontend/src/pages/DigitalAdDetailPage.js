@@ -120,6 +120,7 @@ export const DigitalAdDetailPage = () => {
 
     addItem({
       influencerId: `digital-${platform.id}`,
+      listingId: platform.id,  // Required for backend - the digital ad platform ID
       influencerName: platform.name,
       influencerHandle: platform.platform,
       influencerImage: platform.image_url,
@@ -128,7 +129,7 @@ export const DigitalAdDetailPage = () => {
       price: pkg.price,
       deliverables: pkg.deliverables,
       turnaround: pkg.duration,
-      listingType: 'digital-ad',
+      listingType: 'digital_ad',  // Use underscore to match backend
     });
 
     // Mark package as added
