@@ -34,6 +34,7 @@ import {
   Trash2,
   Plus,
   Eye,
+  EyeOff,
   User,
   Monitor,
   Film,
@@ -1529,6 +1530,7 @@ export const AdminPanelPage = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [stats, setStats] = useState(null);
+  const [statsVisible, setStatsVisible] = useState(true); // Toggle visibility of stats
   
   // Data states
   const [orders, setOrders] = useState([]);
@@ -2018,14 +2020,21 @@ export const AdminPanelPage = () => {
           <>
             {/* Stats Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
-              <Card className="border-2">
+              <Card className="border-2 relative">
+                <button 
+                  onClick={() => setStatsVisible(!statsVisible)}
+                  className="absolute top-2 right-2 p-1 hover:bg-muted rounded-full transition-colors z-10"
+                  title={statsVisible ? "Hide stats" : "Show stats"}
+                >
+                  {statsVisible ? <Eye className="h-4 w-4 text-muted-foreground" /> : <EyeOff className="h-4 w-4 text-muted-foreground" />}
+                </button>
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 bg-primary/10 rounded-full flex items-center justify-center">
                       <Users className="h-5 w-5 text-primary" />
                     </div>
                     <div>
-                      <p className="text-2xl font-bold">{stats?.users?.total || 0}</p>
+                      <p className="text-2xl font-bold">{statsVisible ? (stats?.users?.total || 0) : '•••'}</p>
                       <p className="text-xs text-muted-foreground">Total Users</p>
                     </div>
                   </div>
@@ -2038,7 +2047,7 @@ export const AdminPanelPage = () => {
                       <Package className="h-5 w-5 text-accent" />
                     </div>
                     <div>
-                      <p className="text-2xl font-bold">{stats?.orders?.total || 0}</p>
+                      <p className="text-2xl font-bold">{statsVisible ? (stats?.orders?.total || 0) : '•••'}</p>
                       <p className="text-xs text-muted-foreground">Total Orders</p>
                     </div>
                   </div>
@@ -2051,7 +2060,7 @@ export const AdminPanelPage = () => {
                       <TrendingUp className="h-5 w-5 text-green-600" />
                     </div>
                     <div>
-                      <p className="text-2xl font-bold text-green-600">{formatPrice(stats?.orders?.revenue || 0)}</p>
+                      <p className="text-2xl font-bold text-green-600">{statsVisible ? formatPrice(stats?.orders?.revenue || 0) : '₦•••••'}</p>
                       <p className="text-xs text-muted-foreground">Revenue</p>
                     </div>
                   </div>
@@ -2064,7 +2073,7 @@ export const AdminPanelPage = () => {
                       <BarChart3 className="h-5 w-5 text-purple-600" />
                     </div>
                     <div>
-                      <p className="text-2xl font-bold">{(stats?.inventory?.influencers || 0) + (stats?.inventory?.billboards || 0) + (stats?.inventory?.kannywood || 0)}</p>
+                      <p className="text-2xl font-bold">{statsVisible ? ((stats?.inventory?.influencers || 0) + (stats?.inventory?.billboards || 0) + (stats?.inventory?.kannywood || 0)) : '•••'}</p>
                       <p className="text-xs text-muted-foreground">Inventory</p>
                     </div>
                   </div>
