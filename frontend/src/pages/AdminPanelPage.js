@@ -1530,7 +1530,12 @@ export const AdminPanelPage = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [stats, setStats] = useState(null);
-  const [statsVisible, setStatsVisible] = useState(true); // Toggle visibility of stats
+  const [statsVisibility, setStatsVisibility] = useState({
+    users: true,
+    orders: true,
+    revenue: true,
+    inventory: true
+  });
   
   // Data states
   const [orders, setOrders] = useState([]);
@@ -2022,11 +2027,11 @@ export const AdminPanelPage = () => {
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
               <Card className="border-2 relative">
                 <button 
-                  onClick={() => setStatsVisible(!statsVisible)}
+                  onClick={() => setStatsVisibility(prev => ({...prev, users: !prev.users}))}
                   className="absolute top-2 right-2 p-1 hover:bg-muted rounded-full transition-colors z-10"
-                  title={statsVisible ? "Hide stats" : "Show stats"}
+                  title={statsVisibility.users ? "Hide" : "Show"}
                 >
-                  {statsVisible ? <Eye className="h-4 w-4 text-muted-foreground" /> : <EyeOff className="h-4 w-4 text-muted-foreground" />}
+                  {statsVisibility.users ? <Eye className="h-4 w-4 text-muted-foreground" /> : <EyeOff className="h-4 w-4 text-muted-foreground" />}
                 </button>
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
@@ -2034,46 +2039,67 @@ export const AdminPanelPage = () => {
                       <Users className="h-5 w-5 text-primary" />
                     </div>
                     <div>
-                      <p className="text-2xl font-bold">{statsVisible ? (stats?.users?.total || 0) : '•••'}</p>
+                      <p className="text-2xl font-bold">{statsVisibility.users ? (stats?.users?.total || 0) : '•••'}</p>
                       <p className="text-xs text-muted-foreground">Total Users</p>
                     </div>
                   </div>
                 </CardContent>
               </Card>
-              <Card className="border-2">
+              <Card className="border-2 relative">
+                <button 
+                  onClick={() => setStatsVisibility(prev => ({...prev, orders: !prev.orders}))}
+                  className="absolute top-2 right-2 p-1 hover:bg-muted rounded-full transition-colors z-10"
+                  title={statsVisibility.orders ? "Hide" : "Show"}
+                >
+                  {statsVisibility.orders ? <Eye className="h-4 w-4 text-muted-foreground" /> : <EyeOff className="h-4 w-4 text-muted-foreground" />}
+                </button>
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 bg-accent/10 rounded-full flex items-center justify-center">
                       <Package className="h-5 w-5 text-accent" />
                     </div>
                     <div>
-                      <p className="text-2xl font-bold">{statsVisible ? (stats?.orders?.total || 0) : '•••'}</p>
+                      <p className="text-2xl font-bold">{statsVisibility.orders ? (stats?.orders?.total || 0) : '•••'}</p>
                       <p className="text-xs text-muted-foreground">Total Orders</p>
                     </div>
                   </div>
                 </CardContent>
               </Card>
-              <Card className="border-2">
+              <Card className="border-2 relative">
+                <button 
+                  onClick={() => setStatsVisibility(prev => ({...prev, revenue: !prev.revenue}))}
+                  className="absolute top-2 right-2 p-1 hover:bg-muted rounded-full transition-colors z-10"
+                  title={statsVisibility.revenue ? "Hide" : "Show"}
+                >
+                  {statsVisibility.revenue ? <Eye className="h-4 w-4 text-muted-foreground" /> : <EyeOff className="h-4 w-4 text-muted-foreground" />}
+                </button>
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 bg-green-100 rounded-full flex items-center justify-center">
                       <TrendingUp className="h-5 w-5 text-green-600" />
                     </div>
                     <div>
-                      <p className="text-2xl font-bold text-green-600">{statsVisible ? formatPrice(stats?.orders?.revenue || 0) : '₦•••••'}</p>
+                      <p className="text-2xl font-bold text-green-600">{statsVisibility.revenue ? formatPrice(stats?.orders?.revenue || 0) : '₦•••••'}</p>
                       <p className="text-xs text-muted-foreground">Revenue</p>
                     </div>
                   </div>
                 </CardContent>
               </Card>
-              <Card className="border-2">
+              <Card className="border-2 relative">
+                <button 
+                  onClick={() => setStatsVisibility(prev => ({...prev, inventory: !prev.inventory}))}
+                  className="absolute top-2 right-2 p-1 hover:bg-muted rounded-full transition-colors z-10"
+                  title={statsVisibility.inventory ? "Hide" : "Show"}
+                >
+                  {statsVisibility.inventory ? <Eye className="h-4 w-4 text-muted-foreground" /> : <EyeOff className="h-4 w-4 text-muted-foreground" />}
+                </button>
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 bg-purple-100 rounded-full flex items-center justify-center">
                       <BarChart3 className="h-5 w-5 text-purple-600" />
                     </div>
                     <div>
-                      <p className="text-2xl font-bold">{statsVisible ? ((stats?.inventory?.influencers || 0) + (stats?.inventory?.billboards || 0) + (stats?.inventory?.kannywood || 0)) : '•••'}</p>
+                      <p className="text-2xl font-bold">{statsVisibility.inventory ? ((stats?.inventory?.influencers || 0) + (stats?.inventory?.billboards || 0) + (stats?.inventory?.kannywood || 0)) : '•••'}</p>
                       <p className="text-xs text-muted-foreground">Inventory</p>
                     </div>
                   </div>
