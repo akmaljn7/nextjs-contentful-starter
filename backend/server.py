@@ -1603,7 +1603,7 @@ async def get_influencers(
     max_price: Optional[float] = None,
     status: str = "approved"
 ):
-    query = {"status": status}
+    query = {"status": status, "visible": {"$ne": False}}  # Only show visible influencers
     if city:
         query["location"] = {"$regex": city, "$options": "i"}
     if niche:
@@ -2185,9 +2185,9 @@ async def create_kannywood_placement(data: KannywoodPlacementCreate, current_use
 
 @api_router.get("/kannywood")
 async def get_kannywood_placements(status: str = "approved"):
-    # Get from both collections
-    placements = await db.kannywood_placements.find({"status": status}, {"_id": 0}).to_list(100)
-    admin_placements = await db.kannywood.find({"status": status}, {"_id": 0}).to_list(100)
+    # Get from both collections - only visible ones
+    placements = await db.kannywood_placements.find({"status": status, "visible": {"$ne": False}}, {"_id": 0}).to_list(100)
+    admin_placements = await db.kannywood.find({"status": status, "visible": {"$ne": False}}, {"_id": 0}).to_list(100)
     
     # Combine both
     all_placements = placements + admin_placements
@@ -3960,6 +3960,28 @@ async def admin_delete_influencer(
     
     return {"status": "success", "message": "Influencer deleted"}
 
+@api_router.patch("/admin/influencers/{influencer_id}/visibility")
+async def admin_toggle_influencer_visibility(
+    influencer_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    await check_admin(current_user)
+    
+    existing = await db.influencers.find_one({"id": influencer_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Influencer not found")
+    
+    # Toggle visibility (default is True/visible)
+    current_visibility = existing.get("visible", True)
+    new_visibility = not current_visibility
+    
+    await db.influencers.update_one(
+        {"id": influencer_id}, 
+        {"$set": {"visible": new_visibility, "updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    
+    return {"status": "success", "visible": new_visibility, "message": f"Influencer is now {'visible' if new_visibility else 'hidden'}"}
+
 # ========== BILLBOARD MANAGEMENT ==========
 
 class AdminBillboardCreate(BaseModel):
@@ -4238,6 +4260,36 @@ async def admin_delete_kannywood(
             raise HTTPException(status_code=404, detail="Kannywood production not found")
     
     return {"status": "success", "message": "Kannywood production deleted"}
+
+@api_router.patch("/admin/kannywood/{kannywood_id}/visibility")
+async def admin_toggle_kannywood_visibility(
+    kannywood_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    await check_admin(current_user)
+    
+    # Check both collections for the item
+    existing = await db.kannywood.find_one({"id": kannywood_id})
+    collection = db.kannywood
+    
+    if not existing:
+        # Check legacy collection
+        existing = await db.kannywood_placements.find_one({"id": kannywood_id})
+        collection = db.kannywood_placements
+    
+    if not existing:
+        raise HTTPException(status_code=404, detail="Kannywood production not found")
+    
+    # Toggle visibility (default is True/visible)
+    current_visibility = existing.get("visible", True)
+    new_visibility = not current_visibility
+    
+    await collection.update_one(
+        {"id": kannywood_id}, 
+        {"$set": {"visible": new_visibility, "updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    
+    return {"status": "success", "visible": new_visibility, "message": f"Kannywood production is now {'visible' if new_visibility else 'hidden'}"}
 
 # ========== USER MANAGEMENT ==========
 

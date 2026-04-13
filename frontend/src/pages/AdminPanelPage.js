@@ -1790,6 +1790,39 @@ export const AdminPanelPage = () => {
     }
   };
 
+  // Toggle visibility for influencers and kannywood
+  const toggleVisibility = async (type, item) => {
+    try {
+      let endpoint;
+      if (type === 'influencer') {
+        endpoint = `/admin/influencers/${item.id}/visibility`;
+      } else if (type === 'kannywood') {
+        endpoint = `/admin/kannywood/${item.id}/visibility`;
+      } else {
+        return;
+      }
+      
+      const response = await api.patch(endpoint);
+      
+      if (response.data.status === 'success') {
+        // Update local state
+        if (type === 'influencer') {
+          setInfluencers(prev => prev.map(inf => 
+            inf.id === item.id ? { ...inf, visible: response.data.visible } : inf
+          ));
+        } else if (type === 'kannywood') {
+          setKannywood(prev => prev.map(kw => 
+            kw.id === item.id ? { ...kw, visible: response.data.visible } : kw
+          ));
+        }
+        toast.success(response.data.message);
+      }
+    } catch (error) {
+      toast.error('Failed to toggle visibility');
+      console.error('Toggle visibility error:', error);
+    }
+  };
+
   // View order details
   const viewOrderDetails = (order) => {
     setSelectedOrder(order);
@@ -2229,12 +2262,13 @@ export const AdminPanelPage = () => {
                             <th className="text-left py-3 px-2 text-sm font-semibold">Followers</th>
                             <th className="text-left py-3 px-2 text-sm font-semibold">Price</th>
                             <th className="text-left py-3 px-2 text-sm font-semibold">Status</th>
+                            <th className="text-center py-3 px-2 text-sm font-semibold">Visible</th>
                             <th className="text-center py-3 px-2 text-sm font-semibold">Actions</th>
                           </tr>
                         </thead>
                         <tbody>
                           {filteredInfluencers.map((item) => (
-                            <tr key={item.id} className="border-b hover:bg-muted/30">
+                            <tr key={item.id} className={`border-b hover:bg-muted/30 ${item.visible === false ? 'opacity-50 bg-muted/20' : ''}`}>
                               <td className="py-3 px-2">
                                 <div className="flex items-center gap-2">
                                   {item.image_url && (
@@ -2250,6 +2284,22 @@ export const AdminPanelPage = () => {
                               <td className="py-3 px-2 text-sm">{item.followers?.toLocaleString()}</td>
                               <td className="py-3 px-2 text-sm font-semibold">{formatPrice(item.price_per_post)}</td>
                               <td className="py-3 px-2">{getStatusBadge(item.status)}</td>
+                              <td className="py-3 px-2">
+                                <div className="flex items-center justify-center">
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    onClick={() => toggleVisibility('influencer', item)}
+                                    title={item.visible === false ? "Show to users" : "Hide from users"}
+                                  >
+                                    {item.visible === false ? (
+                                      <EyeOff className="h-4 w-4 text-muted-foreground" />
+                                    ) : (
+                                      <Eye className="h-4 w-4 text-green-600" />
+                                    )}
+                                  </Button>
+                                </div>
+                              </td>
                               <td className="py-3 px-2">
                                 <div className="flex items-center justify-center gap-1">
                                   <Button variant="ghost" size="sm" onClick={() => openEditModal('influencer', item)}>
@@ -2383,17 +2433,34 @@ export const AdminPanelPage = () => {
                             <th className="text-left py-3 px-2 text-sm font-semibold">Genre</th>
                             <th className="text-left py-3 px-2 text-sm font-semibold">Price</th>
                             <th className="text-left py-3 px-2 text-sm font-semibold">Status</th>
+                            <th className="text-center py-3 px-2 text-sm font-semibold">Visible</th>
                             <th className="text-center py-3 px-2 text-sm font-semibold">Actions</th>
                           </tr>
                         </thead>
                         <tbody>
                           {filteredKannywood.map((item) => (
-                            <tr key={item.id} className="border-b hover:bg-muted/30">
+                            <tr key={item.id} className={`border-b hover:bg-muted/30 ${item.visible === false ? 'opacity-50 bg-muted/20' : ''}`}>
                               <td className="py-3 px-2 font-medium text-sm">{item.title}</td>
                               <td className="py-3 px-2 text-sm">{item.director}</td>
                               <td className="py-3 px-2 text-sm">{item.genre}</td>
                               <td className="py-3 px-2 text-sm font-semibold">{formatPrice(item.price)}</td>
                               <td className="py-3 px-2">{getStatusBadge(item.status)}</td>
+                              <td className="py-3 px-2">
+                                <div className="flex items-center justify-center">
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    onClick={() => toggleVisibility('kannywood', item)}
+                                    title={item.visible === false ? "Show to users" : "Hide from users"}
+                                  >
+                                    {item.visible === false ? (
+                                      <EyeOff className="h-4 w-4 text-muted-foreground" />
+                                    ) : (
+                                      <Eye className="h-4 w-4 text-green-600" />
+                                    )}
+                                  </Button>
+                                </div>
+                              </td>
                               <td className="py-3 px-2">
                                 <div className="flex items-center justify-center gap-1">
                                   <Button variant="ghost" size="sm" onClick={() => openEditModal('kannywood', item)}>
