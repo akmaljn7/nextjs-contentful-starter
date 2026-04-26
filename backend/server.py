@@ -1613,7 +1613,8 @@ async def get_influencers(
     if max_price:
         query["price_per_post"] = {"$lte": max_price}
     
-    influencers = await db.influencers.find(query, {"_id": 0}).to_list(100)
+    # Sort by position first (lower is higher), then by created_at
+    influencers = await db.influencers.find(query, {"_id": 0}).sort([("position", 1), ("created_at", -1)]).to_list(100)
     for inf in influencers:
         if isinstance(inf['created_at'], str):
             inf['created_at'] = datetime.fromisoformat(inf['created_at'])
@@ -3900,7 +3901,8 @@ class AdminInfluencerUpdate(BaseModel):
 @api_router.get("/admin/influencers")
 async def admin_get_all_influencers(current_user: User = Depends(get_current_user)):
     await check_admin(current_user)
-    influencers = await db.influencers.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
+    # Sort by position first (for drag-and-drop order), then by created_at
+    influencers = await db.influencers.find({}, {"_id": 0}).sort([("position", 1), ("created_at", -1)]).to_list(500)
     return influencers
 
 @api_router.post("/admin/influencers")
@@ -3981,6 +3983,25 @@ async def admin_toggle_influencer_visibility(
     )
     
     return {"status": "success", "visible": new_visibility, "message": f"Influencer is now {'visible' if new_visibility else 'hidden'}"}
+
+class ReorderRequest(BaseModel):
+    ordered_ids: List[str]
+
+@api_router.post("/admin/influencers/reorder")
+async def admin_reorder_influencers(
+    data: ReorderRequest,
+    current_user: User = Depends(get_current_user)
+):
+    await check_admin(current_user)
+    
+    # Update position for each influencer
+    for index, influencer_id in enumerate(data.ordered_ids):
+        await db.influencers.update_one(
+            {"id": influencer_id},
+            {"$set": {"position": index, "updated_at": datetime.now(timezone.utc).isoformat()}}
+        )
+    
+    return {"status": "success", "message": "Influencers reordered successfully"}
 
 # ========== BILLBOARD MANAGEMENT ==========
 

@@ -19,6 +19,22 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { ImageUpload } from '@/components/ImageUpload';
 import { formatPrice, formatDate, formatNumber } from '@/lib/utils';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { 
   Users, 
   ShoppingBag,
@@ -33,6 +49,7 @@ import {
   Edit,
   Trash2,
   Plus,
+  GripVertical,
   Eye,
   EyeOff,
   User,
@@ -80,6 +97,80 @@ const AdminSearchBar = ({ value, onChange, placeholder, resultCount, totalCount 
     )}
   </div>
 );
+
+// Sortable Row Component for Influencers
+const SortableInfluencerRow = ({ item, formatPrice, getStatusBadge, toggleVisibility, openEditModal, confirmDelete }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: item.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    backgroundColor: isDragging ? 'rgba(196, 163, 90, 0.1)' : undefined,
+  };
+
+  return (
+    <tr
+      ref={setNodeRef}
+      style={style}
+      className={`border-b hover:bg-muted/30 ${item.visible === false ? 'opacity-50 bg-muted/20' : ''}`}
+    >
+      <td className="py-3 px-2">
+        <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded">
+          <GripVertical className="h-4 w-4 text-muted-foreground" />
+        </div>
+      </td>
+      <td className="py-3 px-2">
+        <div className="flex items-center gap-2">
+          {item.image_url && (
+            <img src={item.image_url} alt="" className="w-8 h-8 rounded-full object-cover" />
+          )}
+          <div>
+            <p className="font-medium text-sm">{item.name}</p>
+            <p className="text-xs text-muted-foreground">@{item.handle}</p>
+          </div>
+        </div>
+      </td>
+      <td className="py-3 px-2 text-sm">{item.platform}</td>
+      <td className="py-3 px-2 text-sm">{item.followers?.toLocaleString()}</td>
+      <td className="py-3 px-2 text-sm font-semibold">{formatPrice(item.price_per_post)}</td>
+      <td className="py-3 px-2">{getStatusBadge(item.status)}</td>
+      <td className="py-3 px-2">
+        <div className="flex items-center justify-center">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => toggleVisibility('influencer', item)}
+            title={item.visible === false ? "Show to users" : "Hide from users"}
+          >
+            {item.visible === false ? (
+              <EyeOff className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <Eye className="h-4 w-4 text-green-600" />
+            )}
+          </Button>
+        </div>
+      </td>
+      <td className="py-3 px-2">
+        <div className="flex items-center justify-center gap-1">
+          <Button variant="ghost" size="sm" onClick={() => openEditModal('influencer', item)}>
+            <Edit className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="sm" className="text-red-500" onClick={() => confirmDelete('influencer', item)}>
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </td>
+    </tr>
+  );
+};
 
 const STATUS_OPTIONS = [
   { value: 'pending', label: 'Pending' },
@@ -1577,6 +1668,43 @@ export const AdminPanelPage = () => {
   const [selectedOrders, setSelectedOrders] = useState([]);
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
+
+  // Drag and drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // Handle drag end for influencers reordering
+  const handleDragEnd = async (event) => {
+    const { active, over } = event;
+    
+    if (active.id !== over?.id) {
+      const oldIndex = influencers.findIndex((item) => item.id === active.id);
+      const newIndex = influencers.findIndex((item) => item.id === over.id);
+      
+      const newOrder = arrayMove(influencers, oldIndex, newIndex);
+      setInfluencers(newOrder);
+      
+      // Save the new order to backend
+      try {
+        await api.post('/admin/influencers/reorder', {
+          ordered_ids: newOrder.map(item => item.id)
+        });
+        toast.success('Influencer order saved');
+      } catch (error) {
+        toast.error('Failed to save order');
+        // Revert on error
+        fetchData();
+      }
+    }
+  };
   
   // Search states for each tab
   const [searchQueries, setSearchQueries] = useState({
@@ -2254,66 +2382,47 @@ export const AdminPanelPage = () => {
                       totalCount={influencers.length}
                     />
                     <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead>
-                          <tr className="border-b">
-                            <th className="text-left py-3 px-2 text-sm font-semibold">Name</th>
-                            <th className="text-left py-3 px-2 text-sm font-semibold">Platform</th>
-                            <th className="text-left py-3 px-2 text-sm font-semibold">Followers</th>
-                            <th className="text-left py-3 px-2 text-sm font-semibold">Price</th>
-                            <th className="text-left py-3 px-2 text-sm font-semibold">Status</th>
-                            <th className="text-center py-3 px-2 text-sm font-semibold">Visible</th>
-                            <th className="text-center py-3 px-2 text-sm font-semibold">Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {filteredInfluencers.map((item) => (
-                            <tr key={item.id} className={`border-b hover:bg-muted/30 ${item.visible === false ? 'opacity-50 bg-muted/20' : ''}`}>
-                              <td className="py-3 px-2">
-                                <div className="flex items-center gap-2">
-                                  {item.image_url && (
-                                    <img src={item.image_url} alt="" className="w-8 h-8 rounded-full object-cover" />
-                                  )}
-                                  <div>
-                                    <p className="font-medium text-sm">{item.name}</p>
-                                    <p className="text-xs text-muted-foreground">@{item.handle}</p>
-                                  </div>
-                                </div>
-                              </td>
-                              <td className="py-3 px-2 text-sm">{item.platform}</td>
-                              <td className="py-3 px-2 text-sm">{item.followers?.toLocaleString()}</td>
-                              <td className="py-3 px-2 text-sm font-semibold">{formatPrice(item.price_per_post)}</td>
-                              <td className="py-3 px-2">{getStatusBadge(item.status)}</td>
-                              <td className="py-3 px-2">
-                                <div className="flex items-center justify-center">
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm" 
-                                    onClick={() => toggleVisibility('influencer', item)}
-                                    title={item.visible === false ? "Show to users" : "Hide from users"}
-                                  >
-                                    {item.visible === false ? (
-                                      <EyeOff className="h-4 w-4 text-muted-foreground" />
-                                    ) : (
-                                      <Eye className="h-4 w-4 text-green-600" />
-                                    )}
-                                  </Button>
-                                </div>
-                              </td>
-                              <td className="py-3 px-2">
-                                <div className="flex items-center justify-center gap-1">
-                                  <Button variant="ghost" size="sm" onClick={() => openEditModal('influencer', item)}>
-                                    <Edit className="h-4 w-4" />
-                                  </Button>
-                                  <Button variant="ghost" size="sm" className="text-red-500" onClick={() => confirmDelete('influencer', item)}>
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              </td>
+                      <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+                        <GripVertical className="h-3 w-3" /> Drag to reorder influencers
+                      </p>
+                      <DndContext
+                        sensors={sensors}
+                        collisionDetection={closestCenter}
+                        onDragEnd={handleDragEnd}
+                      >
+                        <table className="w-full">
+                          <thead>
+                            <tr className="border-b">
+                              <th className="w-10 py-3 px-2"></th>
+                              <th className="text-left py-3 px-2 text-sm font-semibold">Name</th>
+                              <th className="text-left py-3 px-2 text-sm font-semibold">Platform</th>
+                              <th className="text-left py-3 px-2 text-sm font-semibold">Followers</th>
+                              <th className="text-left py-3 px-2 text-sm font-semibold">Price</th>
+                              <th className="text-left py-3 px-2 text-sm font-semibold">Status</th>
+                              <th className="text-center py-3 px-2 text-sm font-semibold">Visible</th>
+                              <th className="text-center py-3 px-2 text-sm font-semibold">Actions</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody>
+                            <SortableContext
+                              items={filteredInfluencers.map(item => item.id)}
+                              strategy={verticalListSortingStrategy}
+                            >
+                              {filteredInfluencers.map((item) => (
+                                <SortableInfluencerRow
+                                  key={item.id}
+                                  item={item}
+                                  formatPrice={formatPrice}
+                                  getStatusBadge={getStatusBadge}
+                                  toggleVisibility={toggleVisibility}
+                                  openEditModal={openEditModal}
+                                  confirmDelete={confirmDelete}
+                                />
+                              ))}
+                            </SortableContext>
+                          </tbody>
+                        </table>
+                      </DndContext>
                     </div>
                   </CardContent>
                 </Card>
