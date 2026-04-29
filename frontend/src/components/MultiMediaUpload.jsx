@@ -68,7 +68,8 @@ export const MultiMediaUpload = ({
       });
 
       if (!response.ok) {
-        throw new Error('Upload failed');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || 'Upload failed');
       }
 
       const data = await response.json();
@@ -124,7 +125,7 @@ export const MultiMediaUpload = ({
         }
       } catch (error) {
         console.error('Upload error:', error);
-        toast.error(`Failed to upload ${file.name}`);
+        toast.error(`Failed to upload ${file.name}: ${error.message}`);
       }
     }
 

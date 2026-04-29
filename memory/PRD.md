@@ -173,6 +173,13 @@ Northern Nigeria's trusted advertising marketplace connecting advertisers with v
 - ✅ Splash screen color updated to `#161433`
 - ✅ Admin Kannywood shows all productions from both collections
 
+## Bug Fixes (April 2026 - Session)
+- ✅ Video upload in Admin "Proof of Completion" feature now works
+  - Added video extensions (.mp4, .mov, .webm, .avi, .mkv) to allowed uploads
+  - Increased max file size: 10MB for images, 50MB for videos
+  - Added proper video content-type mappings for file serving
+  - Improved error messages to show backend validation details
+
 ## Pending Tasks
 
 ### P1 (High Priority)

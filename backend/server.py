@@ -4757,8 +4757,11 @@ async def admin_get_stats_summary(current_user: User = Depends(get_current_user)
 
 # ========== FILE UPLOAD ENDPOINTS ==========
 
-ALLOWED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
-MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+ALLOWED_IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic', '.heif'}
+ALLOWED_VIDEO_EXTENSIONS = {'.mp4', '.mov', '.webm', '.avi', '.mkv'}
+ALLOWED_EXTENSIONS = ALLOWED_IMAGE_EXTENSIONS | ALLOWED_VIDEO_EXTENSIONS
+MAX_IMAGE_SIZE = 10 * 1024 * 1024  # 10MB for images
+MAX_VIDEO_SIZE = 50 * 1024 * 1024  # 50MB for videos
 
 class UploadChunkRequest(BaseModel):
     filename: str
@@ -4808,10 +4811,15 @@ async def upload_chunk(
         # Clean up temp directory
         shutil.rmtree(temp_dir)
         
-        # Check file size
-        if final_path.stat().st_size > MAX_FILE_SIZE:
+        # Check file size based on type
+        file_size = final_path.stat().st_size
+        is_video = ext in ALLOWED_VIDEO_EXTENSIONS
+        max_size = MAX_VIDEO_SIZE if is_video else MAX_IMAGE_SIZE
+        max_size_mb = max_size // (1024 * 1024)
+        
+        if file_size > max_size:
             final_path.unlink()
-            raise HTTPException(status_code=400, detail="File too large. Maximum size is 5MB")
+            raise HTTPException(status_code=400, detail=f"File too large. Maximum size is {max_size_mb}MB")
         
         # Convert HEIC/HEIF to JPEG for better compatibility
         if ext in ['.heic', '.heif']:
@@ -4864,9 +4872,13 @@ async def simple_upload(
     # Read file content
     content = await file.read()
     
-    # Check file size
-    if len(content) > MAX_FILE_SIZE:
-        raise HTTPException(status_code=400, detail="File too large. Maximum size is 5MB")
+    # Check file size based on type
+    is_video = ext in ALLOWED_VIDEO_EXTENSIONS
+    max_size = MAX_VIDEO_SIZE if is_video else MAX_IMAGE_SIZE
+    max_size_mb = max_size // (1024 * 1024)
+    
+    if len(content) > max_size:
+        raise HTTPException(status_code=400, detail=f"File too large. Maximum size is {max_size_mb}MB")
     
     # Generate filename
     file_id = str(uuid.uuid4())
@@ -4931,6 +4943,10 @@ async def get_uploaded_file(filename: str):
         '.heif': 'image/heif',
         '.svg': 'image/svg+xml',
         '.mp4': 'video/mp4',
+        '.mov': 'video/quicktime',
+        '.webm': 'video/webm',
+        '.avi': 'video/x-msvideo',
+        '.mkv': 'video/x-matroska',
         '.pdf': 'application/pdf',
     }
     
