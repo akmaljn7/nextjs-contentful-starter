@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { ImageUpload } from '@/components/ImageUpload';
+import { MultiMediaUpload } from '@/components/MultiMediaUpload';
 import { formatPrice, formatDate, formatNumber } from '@/lib/utils';
 import {
   DndContext,
@@ -4015,75 +4016,13 @@ export const AdminPanelPage = () => {
                 {/* Completion Proof Upload - Only show when status is completed */}
                 {(formData.order_status === 'completed' || selectedItem?.order_status === 'completed') && (
                   <div className="border-t pt-4 mt-4">
-                    <Label className="mb-2 block">Completion Proof (Photos/Videos)</Label>
-                    <p className="text-xs text-muted-foreground mb-3">Add image or video URLs as proof of completed work</p>
-                    
-                    {/* Existing proofs */}
-                    <div className="space-y-2 mb-3">
-                      {(formData.completion_proof || []).map((proof, index) => (
-                        <div key={index} className="flex items-center gap-2">
-                          <div className="flex-1 flex items-center gap-2 p-2 border rounded-lg bg-muted/30">
-                            {proof.url && (
-                              <img src={proof.url} alt="" className="w-10 h-10 object-cover rounded" onError={(e) => e.target.style.display='none'} />
-                            )}
-                            <span className="text-sm truncate flex-1">{proof.url}</span>
-                            <Badge variant="outline" className="text-xs">{proof.type}</Badge>
-                          </div>
-                          <Button 
-                            type="button" 
-                            variant="ghost" 
-                            size="sm"
-                            className="text-red-500"
-                            onClick={() => {
-                              const updated = [...(formData.completion_proof || [])];
-                              updated.splice(index, 1);
-                              updateFormField('completion_proof', updated);
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                    
-                    {/* Add new proof */}
-                    <div className="flex gap-2">
-                      <Input 
-                        id="new-proof-url"
-                        placeholder="Paste image or video URL..."
-                        className="flex-1"
-                      />
-                      <Select defaultValue="image">
-                        <SelectTrigger className="w-24" id="new-proof-type">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="image">Image</SelectItem>
-                          <SelectItem value="video">Video</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Button 
-                        type="button" 
-                        variant="outline"
-                        onClick={() => {
-                          const urlInput = document.getElementById('new-proof-url');
-                          const typeSelect = document.querySelector('#new-proof-type + [role="listbox"] [data-state="checked"]')?.textContent?.toLowerCase() || 'image';
-                          const url = urlInput?.value?.trim();
-                          if (url) {
-                            const isVideo = url.match(/\.(mp4|mov|avi|webm)$/i) || typeSelect === 'video';
-                            const updated = [...(formData.completion_proof || []), { 
-                              type: isVideo ? 'video' : 'image', 
-                              url 
-                            }];
-                            updateFormField('completion_proof', updated);
-                            urlInput.value = '';
-                          }
-                        }}
-                      >
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-2">Tip: Upload images to a service like Imgur or Google Drive and paste the direct URL here</p>
+                    <MultiMediaUpload
+                      value={formData.completion_proof || []}
+                      onChange={(files) => updateFormField('completion_proof', files)}
+                      label="Completion Proof (Photos/Videos)"
+                      maxFiles={10}
+                    />
+                    <p className="text-xs text-muted-foreground mt-2">Upload images or videos as proof of completed work for the customer to verify</p>
                   </div>
                 )}
               </>
