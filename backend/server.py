@@ -420,6 +420,7 @@ class Order(BaseModel):
     order_status: str = "pending"  # pending, accepted, in_progress, proof_submitted, completed, disputed, cancelled
     brief_url: Optional[str] = None
     proof_url: Optional[str] = None
+    completion_proof: Optional[List[dict]] = None  # List of {type: 'image'|'video', url: string}
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -428,6 +429,7 @@ class OrderUpdate(BaseModel):
     payment_status: Optional[str] = None
     brief_url: Optional[str] = None
     proof_url: Optional[str] = None
+    completion_proof: Optional[List[dict]] = None
 
 # Review Models
 class ReviewCreate(BaseModel):
@@ -3659,6 +3661,47 @@ async def admin_update_order_status(
         )
     
     return {"status": "success", "message": f"Order status updated to {order_status}"}
+
+# Admin Upload Completion Proof
+class CompletionProofUpload(BaseModel):
+    completion_proof: List[dict]  # List of {type: 'image'|'video', url: string}
+
+@api_router.post("/admin/orders/{order_id}/completion-proof")
+async def admin_upload_completion_proof(
+    order_id: str,
+    data: CompletionProofUpload,
+    current_user: User = Depends(get_current_user)
+):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    order = await db.orders.find_one({"id": order_id}, {"_id": 0})
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    
+    # Update order with completion proof
+    await db.orders.update_one(
+        {"id": order_id},
+        {"$set": {
+            "completion_proof": data.completion_proof,
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    # Send notification to advertiser
+    advertiser_id = order.get("advertiser_id")
+    if advertiser_id:
+        await send_push_notification_background(
+            user_id=advertiser_id,
+            title="Proof of Completion",
+            body="Admin has uploaded proof of completion for your order. View it in your order details.",
+            data={
+                "type": "completion_proof",
+                "order_id": order_id
+            }
+        )
+    
+    return {"status": "success", "message": "Completion proof uploaded successfully"}
 
 # Admin Consultation Management
 @api_router.get("/admin/consultations")

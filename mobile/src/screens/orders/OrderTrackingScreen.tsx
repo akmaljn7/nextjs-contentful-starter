@@ -5,14 +5,21 @@ import {
   StyleSheet,
   ScrollView,
   RefreshControl,
+  Image,
+  TouchableOpacity,
+  Modal,
+  Dimensions,
 } from 'react-native';
 import { useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { Video, ResizeMode } from 'expo-av';
 import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 import { Card, LoadingSpinner, ErrorMessage, Badge } from '../../components/common';
 import { ordersApi } from '../../api';
 import { formatPrice, formatDateTime } from '../../utils/formatters';
+
+const { width: screenWidth } = Dimensions.get('window');
 
 interface TimelineItem {
   status: string;
@@ -37,6 +44,7 @@ export const OrderTrackingScreen: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   useEffect(() => {
     loadTracking();
@@ -172,6 +180,72 @@ export const OrderTrackingScreen: React.FC = () => {
           })}
         </View>
       </View>
+
+      {/* Completion Proof Section */}
+      {order.order_status === 'completed' && order.completion_proof && order.completion_proof.length > 0 && (
+        <View style={styles.proofSection}>
+          <Text style={styles.sectionTitle}>Proof of Completion</Text>
+          <Card variant="outlined" padding="md">
+            <Text style={styles.proofDescription}>
+              The following images/videos confirm that your order has been completed successfully.
+            </Text>
+            <View style={styles.proofGrid}>
+              {order.completion_proof.map((proof: any, index: number) => (
+                <TouchableOpacity 
+                  key={index} 
+                  style={styles.proofItem}
+                  onPress={() => proof.type !== 'video' && setSelectedImage(proof.url)}
+                >
+                  {proof.type === 'video' ? (
+                    <Video
+                      source={{ uri: proof.url }}
+                      style={styles.proofMedia}
+                      useNativeControls
+                      resizeMode={ResizeMode.COVER}
+                    />
+                  ) : (
+                    <Image
+                      source={{ uri: proof.url }}
+                      style={styles.proofMedia}
+                      resizeMode="cover"
+                    />
+                  )}
+                  {proof.type !== 'video' && (
+                    <View style={styles.proofOverlay}>
+                      <Ionicons name="expand-outline" size={20} color={Colors.white} />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+          </Card>
+        </View>
+      )}
+
+      {/* Image Viewer Modal */}
+      <Modal visible={!!selectedImage} transparent animationType="fade">
+        <TouchableOpacity 
+          style={styles.modalBackdrop} 
+          activeOpacity={1}
+          onPress={() => setSelectedImage(null)}
+        >
+          <View style={styles.modalContent}>
+            {selectedImage && (
+              <Image
+                source={{ uri: selectedImage }}
+                style={styles.fullImage}
+                resizeMode="contain"
+              />
+            )}
+            <TouchableOpacity 
+              style={styles.closeButton}
+              onPress={() => setSelectedImage(null)}
+            >
+              <Ionicons name="close-circle" size={36} color={Colors.white} />
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       {/* Listing Info */}
       {listing_info && (
@@ -420,5 +494,59 @@ const styles = StyleSheet.create({
   },
   bottomSpacing: {
     height: 40,
+  },
+  proofSection: {
+    paddingHorizontal: 16,
+    marginBottom: 24,
+  },
+  proofDescription: {
+    fontSize: Fonts.size.sm,
+    color: Colors.textSecondary,
+    marginBottom: 12,
+  },
+  proofGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  proofItem: {
+    width: (screenWidth - 64) / 2,
+    aspectRatio: 16 / 9,
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: Colors.background,
+  },
+  proofMedia: {
+    width: '100%',
+    height: '100%',
+  },
+  proofOverlay: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 16,
+    padding: 4,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullImage: {
+    width: screenWidth,
+    height: screenWidth,
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
   },
 });

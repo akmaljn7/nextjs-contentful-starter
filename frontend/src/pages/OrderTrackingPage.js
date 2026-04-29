@@ -465,6 +465,45 @@ export const OrderTrackingPage = () => {
           </CardContent>
         </Card>
 
+        {/* Completion Proof - Show after completed */}
+        {order?.completion_proof && order.completion_proof.length > 0 && order?.order_status === 'completed' && (
+          <Card className="mb-6 border-green-200 bg-green-50/50">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <CheckCircle className="h-5 w-5 text-green-600" />
+                Proof of Completion
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground mb-4">
+                The following images/videos confirm that your order has been completed successfully.
+              </p>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {order.completion_proof.map((proof, index) => (
+                  <div key={index} className="relative aspect-video rounded-lg overflow-hidden bg-muted shadow-sm border">
+                    {proof.type === 'video' ? (
+                      <video 
+                        src={proof.url} 
+                        controls 
+                        className="w-full h-full object-cover"
+                        poster={proof.thumbnail}
+                      />
+                    ) : (
+                      <a href={proof.url} target="_blank" rel="noopener noreferrer">
+                        <img 
+                          src={proof.url} 
+                          alt={`Completion proof ${index + 1}`} 
+                          className="w-full h-full object-cover hover:opacity-90 transition-opacity cursor-pointer"
+                        />
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Package Details */}
         {!isConsultation && order?.package_details?.deliverables && (
           <Card className="mb-6">

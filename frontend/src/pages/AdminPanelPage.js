@@ -2020,6 +2020,19 @@ export const AdminPanelPage = () => {
         case 'order':
           endpoint = `/admin/orders/${selectedItem.id}`;
           method = 'put';
+          // If completion proof is provided, upload it separately
+          if (formData.completion_proof && formData.completion_proof.length > 0) {
+            try {
+              await api.post(`/admin/orders/${selectedItem.id}/completion-proof`, {
+                completion_proof: formData.completion_proof.map(f => ({
+                  type: f.type || (f.url?.includes('video') ? 'video' : 'image'),
+                  url: f.url || f
+                }))
+              });
+            } catch (proofError) {
+              console.error('Error uploading completion proof:', proofError);
+            }
+          }
           break;
         case 'consultation':
           endpoint = `/admin/consultations/${selectedItem.id}`;
@@ -3991,6 +4004,21 @@ export const AdminPanelPage = () => {
                   <Label>Notes</Label>
                   <Textarea value={formData.notes || ''} onChange={(e) => updateFormField('notes', e.target.value)} placeholder="Internal notes..." />
                 </div>
+                
+                {/* Completion Proof Upload - Only show when status is completed */}
+                {(formData.order_status === 'completed' || selectedItem?.order_status === 'completed') && (
+                  <div className="border-t pt-4 mt-4">
+                    <Label className="mb-2 block">Completion Proof (Photos/Videos)</Label>
+                    <p className="text-xs text-muted-foreground mb-3">Upload proof of completed work for the customer to verify</p>
+                    <ImageUpload
+                      value={formData.completion_proof || selectedItem?.completion_proof || []}
+                      onChange={(files) => updateFormField('completion_proof', files)}
+                      maxFiles={5}
+                      accept="image/*,video/*"
+                      label="Upload proof images or videos"
+                    />
+                  </div>
+                )}
               </>
             )}
 
@@ -4429,6 +4457,40 @@ export const AdminPanelPage = () => {
                   </div>
                 </div>
               </div>
+
+              {/* Completion Proof Section */}
+              {selectedOrder.order_status === 'completed' && (
+                <div className="border rounded-lg p-4 mt-4">
+                  <p className="text-sm font-semibold mb-3">Completion Proof</p>
+                  {selectedOrder.completion_proof && selectedOrder.completion_proof.length > 0 ? (
+                    <div className="grid grid-cols-3 gap-2">
+                      {selectedOrder.completion_proof.map((proof, idx) => (
+                        <div key={idx} className="relative aspect-video rounded overflow-hidden bg-muted">
+                          {proof.type === 'video' ? (
+                            <video src={proof.url} controls className="w-full h-full object-cover" />
+                          ) : (
+                            <img src={proof.url} alt={`Proof ${idx + 1}`} className="w-full h-full object-cover" />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground mb-3">No proof uploaded yet</p>
+                  )}
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="mt-3"
+                    onClick={() => {
+                      setShowOrderDetail(false);
+                      openEditModal(selectedOrder?.order_type === 'consultation' ? 'consultation' : 'order', selectedOrder);
+                    }}
+                  >
+                    <Image className="h-4 w-4 mr-2" />
+                    {selectedOrder.completion_proof?.length > 0 ? 'Update Proof' : 'Upload Proof'}
+                  </Button>
+                </div>
+              )}
             </div>
           )}
 
