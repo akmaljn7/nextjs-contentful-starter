@@ -403,3 +403,4 @@ credentials.json
 *.key
 .credentials
 frontend/node_modules/.cache/default-development/3.pack
+frontend/node_modules/.cache/default-development/11.pack

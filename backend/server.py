@@ -1,6 +1,6 @@
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, Request, UploadFile, File, Form
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -4918,8 +4918,8 @@ async def simple_upload(
     }
 
 @api_router.get("/uploads/{filename}")
-async def get_uploaded_file(filename: str):
-    """Serve uploaded files with proper content-type"""
+async def get_uploaded_file(filename: str, request: Request):
+    """Serve uploaded files with proper content-type and range support for video streaming"""
     file_path = UPLOAD_DIR / filename
     
     if not file_path.exists():
@@ -4951,12 +4951,51 @@ async def get_uploaded_file(filename: str):
     }
     
     media_type = content_types.get(ext, 'application/octet-stream')
+    file_size = file_path.stat().st_size
     
+    # Check for Range header (required for video streaming)
+    range_header = request.headers.get('range')
+    
+    if range_header and ext in ALLOWED_VIDEO_EXTENSIONS:
+        # Parse range header
+        range_match = range_header.replace('bytes=', '').split('-')
+        start = int(range_match[0]) if range_match[0] else 0
+        end = int(range_match[1]) if range_match[1] else file_size - 1
+        
+        # Ensure valid range
+        if start >= file_size:
+            raise HTTPException(status_code=416, detail="Range not satisfiable")
+        
+        end = min(end, file_size - 1)
+        content_length = end - start + 1
+        
+        # Read the requested range
+        with open(file_path, 'rb') as f:
+            f.seek(start)
+            data = f.read(content_length)
+        
+        headers = {
+            "Content-Range": f"bytes {start}-{end}/{file_size}",
+            "Accept-Ranges": "bytes",
+            "Content-Length": str(content_length),
+            "Cache-Control": "public, max-age=31536000",
+            "Access-Control-Allow-Origin": "*",
+        }
+        
+        return Response(
+            content=data,
+            status_code=206,
+            media_type=media_type,
+            headers=headers
+        )
+    
+    # Regular file response for non-range requests
     return FileResponse(
         file_path,
         media_type=media_type,
         headers={
-            "Cache-Control": "public, max-age=31536000",  # Cache for 1 year
+            "Accept-Ranges": "bytes",
+            "Cache-Control": "public, max-age=31536000",
             "Access-Control-Allow-Origin": "*"
         }
     )

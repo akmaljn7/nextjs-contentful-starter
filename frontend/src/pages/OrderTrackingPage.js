@@ -29,6 +29,19 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
+const API_URL = process.env.REACT_APP_BACKEND_URL || '';
+
+// Helper to ensure media URLs are absolute
+const getAbsoluteMediaUrl = (url) => {
+  if (!url) return '';
+  // If already absolute URL, return as is
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
+  }
+  // Convert relative URL to absolute
+  return `${API_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+};
+
 export const OrderTrackingPage = () => {
   const { orderId } = useParams();
   const { user } = useAuthStore();
@@ -479,26 +492,57 @@ export const OrderTrackingPage = () => {
                 The following images/videos confirm that your order has been completed successfully.
               </p>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {order.completion_proof.map((proof, index) => (
-                  <div key={index} className="relative aspect-video rounded-lg overflow-hidden bg-muted shadow-sm border">
-                    {proof.type === 'video' ? (
-                      <video 
-                        src={proof.url} 
-                        controls 
-                        className="w-full h-full object-cover"
-                        poster={proof.thumbnail}
-                      />
-                    ) : (
-                      <a href={proof.url} target="_blank" rel="noopener noreferrer">
-                        <img 
-                          src={proof.url} 
-                          alt={`Completion proof ${index + 1}`} 
-                          className="w-full h-full object-cover hover:opacity-90 transition-opacity cursor-pointer"
-                        />
-                      </a>
-                    )}
-                  </div>
-                ))}
+                {order.completion_proof.map((proof, index) => {
+                  const mediaUrl = getAbsoluteMediaUrl(proof.url);
+                  return (
+                    <div key={index} className="relative aspect-video rounded-lg overflow-hidden bg-muted shadow-sm border group">
+                      {proof.type === 'video' ? (
+                        <>
+                          <video 
+                            src={mediaUrl} 
+                            controls 
+                            playsInline
+                            preload="metadata"
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              console.error('Video load error:', mediaUrl);
+                              e.target.style.display = 'none';
+                              const fallback = e.target.nextElementSibling;
+                              if (fallback) fallback.style.display = 'flex';
+                            }}
+                          />
+                          <a 
+                            href={mediaUrl} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="hidden absolute inset-0 flex-col items-center justify-center bg-muted text-muted-foreground hover:bg-muted/80"
+                            style={{ display: 'none' }}
+                          >
+                            <ExternalLink className="h-8 w-8 mb-2" />
+                            <span className="text-sm">Open Video</span>
+                          </a>
+                          <a 
+                            href={mediaUrl} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="absolute top-2 right-2 bg-black/60 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                            title="Open in new tab"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </a>
+                        </>
+                      ) : (
+                        <a href={mediaUrl} target="_blank" rel="noopener noreferrer">
+                          <img 
+                            src={mediaUrl} 
+                            alt={`Completion proof ${index + 1}`} 
+                            className="w-full h-full object-cover hover:opacity-90 transition-opacity cursor-pointer"
+                          />
+                        </a>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </CardContent>
           </Card>

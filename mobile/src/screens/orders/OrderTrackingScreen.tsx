@@ -18,8 +18,22 @@ import { Fonts } from '../../constants/fonts';
 import { Card, LoadingSpinner, ErrorMessage, Badge } from '../../components/common';
 import { ordersApi } from '../../api';
 import { formatPrice, formatDateTime } from '../../utils/formatters';
+import { API_URL } from '../../constants/config';
 
 const { width: screenWidth } = Dimensions.get('window');
+
+// Helper to ensure media URLs are absolute
+const getAbsoluteMediaUrl = (url: string): string => {
+  if (!url) return '';
+  // If already absolute URL, return as is
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
+  }
+  // Get base URL (remove /api suffix if present)
+  const baseUrl = API_URL.replace(/\/api$/, '');
+  // Convert relative URL to absolute
+  return `${baseUrl}${url.startsWith('/') ? '' : '/'}${url}`;
+};
 
 interface TimelineItem {
   status: string;
@@ -190,33 +204,36 @@ export const OrderTrackingScreen: React.FC = () => {
               The following images/videos confirm that your order has been completed successfully.
             </Text>
             <View style={styles.proofGrid}>
-              {order.completion_proof.map((proof: any, index: number) => (
-                <TouchableOpacity 
-                  key={index} 
-                  style={styles.proofItem}
-                  onPress={() => proof.type !== 'video' && setSelectedImage(proof.url)}
-                >
-                  {proof.type === 'video' ? (
-                    <Video
-                      source={{ uri: proof.url }}
-                      style={styles.proofMedia}
-                      useNativeControls
-                      resizeMode={ResizeMode.COVER}
-                    />
-                  ) : (
-                    <Image
-                      source={{ uri: proof.url }}
-                      style={styles.proofMedia}
-                      resizeMode="cover"
-                    />
-                  )}
-                  {proof.type !== 'video' && (
-                    <View style={styles.proofOverlay}>
-                      <Ionicons name="expand-outline" size={20} color={Colors.white} />
-                    </View>
-                  )}
-                </TouchableOpacity>
-              ))}
+              {order.completion_proof.map((proof: any, index: number) => {
+                const mediaUrl = getAbsoluteMediaUrl(proof.url);
+                return (
+                  <TouchableOpacity 
+                    key={index} 
+                    style={styles.proofItem}
+                    onPress={() => proof.type !== 'video' && setSelectedImage(mediaUrl)}
+                  >
+                    {proof.type === 'video' ? (
+                      <Video
+                        source={{ uri: mediaUrl }}
+                        style={styles.proofMedia}
+                        useNativeControls
+                        resizeMode={ResizeMode.COVER}
+                      />
+                    ) : (
+                      <Image
+                        source={{ uri: mediaUrl }}
+                        style={styles.proofMedia}
+                        resizeMode="cover"
+                      />
+                    )}
+                    {proof.type !== 'video' && (
+                      <View style={styles.proofOverlay}>
+                        <Ionicons name="expand-outline" size={20} color={Colors.white} />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </Card>
         </View>

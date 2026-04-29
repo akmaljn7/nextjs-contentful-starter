@@ -179,6 +179,11 @@ Northern Nigeria's trusted advertising marketplace connecting advertisers with v
   - Increased max file size: 10MB for images, 50MB for videos
   - Added proper video content-type mappings for file serving
   - Improved error messages to show backend validation details
+- ✅ Video playback in user's Order Tracking page now works
+  - Added HTTP Range request support for video streaming (206 Partial Content)
+  - Fixed relative URLs to absolute URLs for media files in both web and mobile
+  - Added "Open Video" fallback link if inline playback fails
+  - Mobile app (React Native) also uses absolute URLs for video/image proofs
 
 ## Pending Tasks
 
