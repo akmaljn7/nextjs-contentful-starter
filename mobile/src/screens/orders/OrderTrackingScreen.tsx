@@ -9,10 +9,10 @@ import {
   TouchableOpacity,
   Modal,
   Dimensions,
+  Linking,
 } from 'react-native';
 import { useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { Video, ResizeMode } from 'expo-av';
 import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 import { Card, LoadingSpinner, ErrorMessage, Badge } from '../../components/common';
@@ -203,34 +203,31 @@ export const OrderTrackingScreen: React.FC = () => {
             <Text style={styles.proofDescription}>
               The following images/videos confirm that your order has been completed successfully.
             </Text>
-            <View style={styles.proofGrid}>
+            <View style={styles.proofList}>
               {order.completion_proof.map((proof: any, index: number) => {
                 const mediaUrl = getAbsoluteMediaUrl(proof.url);
+                const isVideo = proof.type === 'video';
+                
                 return (
                   <TouchableOpacity 
                     key={index} 
-                    style={styles.proofItem}
-                    onPress={() => proof.type !== 'video' && setSelectedImage(mediaUrl)}
+                    style={styles.proofLinkItem}
+                    onPress={() => Linking.openURL(mediaUrl)}
                   >
-                    {proof.type === 'video' ? (
-                      <Video
-                        source={{ uri: mediaUrl }}
-                        style={styles.proofMedia}
-                        useNativeControls
-                        resizeMode={ResizeMode.COVER}
+                    <View style={[styles.proofIconContainer, isVideo ? styles.videoIcon : styles.imageIcon]}>
+                      <Ionicons 
+                        name={isVideo ? "play-circle-outline" : "image-outline"} 
+                        size={24} 
+                        color={isVideo ? "#3B82F6" : "#22C55E"} 
                       />
-                    ) : (
-                      <Image
-                        source={{ uri: mediaUrl }}
-                        style={styles.proofMedia}
-                        resizeMode="cover"
-                      />
-                    )}
-                    {proof.type !== 'video' && (
-                      <View style={styles.proofOverlay}>
-                        <Ionicons name="expand-outline" size={20} color={Colors.white} />
-                      </View>
-                    )}
+                    </View>
+                    <View style={styles.proofLinkText}>
+                      <Text style={styles.proofLinkTitle}>
+                        {isVideo ? 'View Video' : 'View Image'} #{index + 1}
+                      </Text>
+                      <Text style={styles.proofLinkSubtitle}>Tap to open</Text>
+                    </View>
+                    <Ionicons name="open-outline" size={20} color={Colors.textSecondary} />
                   </TouchableOpacity>
                 );
               })}
@@ -520,6 +517,45 @@ const styles = StyleSheet.create({
     fontSize: Fonts.size.sm,
     color: Colors.textSecondary,
     marginBottom: 12,
+  },
+  proofList: {
+    gap: 8,
+  },
+  proofLinkItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: Colors.background,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  proofIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  videoIcon: {
+    backgroundColor: '#EFF6FF',
+  },
+  imageIcon: {
+    backgroundColor: '#F0FDF4',
+  },
+  proofLinkText: {
+    flex: 1,
+  },
+  proofLinkTitle: {
+    fontSize: Fonts.size.sm,
+    fontWeight: Fonts.weight.medium,
+    color: Colors.textPrimary,
+  },
+  proofLinkSubtitle: {
+    fontSize: Fonts.size.xs,
+    color: Colors.textSecondary,
+    marginTop: 2,
   },
   proofGrid: {
     flexDirection: 'row',

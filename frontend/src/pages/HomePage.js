@@ -60,18 +60,25 @@ export const HomePage = () => {
 
   const testimonials = [
     {
-      name: 'Aisha Musa',
-      role: 'SME Owner, Kano',
+      name: 'NaijaComply',
+      role: 'Licensing & Compliance Services',
       rating: 5,
-      text: 'Adlinka made it easy to find verified influencers. We booked 3 creators and saw instant results.',
-      avatar: 'https://images.unsplash.com/photo-1757899525290-731fc4745499?w=100&h=100&fit=crop',
+      text: 'Adlinka helped us reach more businesses needing licensing support. The influencer network is impressive and professional.',
+      avatar: 'https://images.unsplash.com/photo-1560179707-f14e90ef3623?w=100&h=100&fit=crop',
     },
     {
-      name: 'Ibrahim Suleiman',
-      role: 'Political Campaign',
+      name: 'Pejull Digital',
+      role: 'Web Development Company',
       rating: 5,
-      text: 'The billboard map helped us target the right locations. Transparent pricing and fast approvals.',
-      avatar: 'https://images.unsplash.com/photo-1645736594009-7b16ba35f0bf?w=100&h=100&fit=crop',
+      text: 'We used Adlinka billboards to promote our services across Kano. The results exceeded our expectations - great ROI!',
+      avatar: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=100&h=100&fit=crop',
+    },
+    {
+      name: 'Relo',
+      role: 'Digital Payment Solutions',
+      rating: 5,
+      text: 'The digital ads placement through Adlinka gave us massive visibility. Transparent pricing and excellent support team.',
+      avatar: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=100&h=100&fit=crop',
     },
   ];
 
@@ -125,6 +132,39 @@ export const HomePage = () => {
                   {t('hero.cta3', language)}
                 </Button>
               </Link>
+            </div>
+            
+            {/* App Store Download Buttons */}
+            <div className="flex flex-col items-center gap-3 pt-6">
+              <p className="text-sm text-muted-foreground">Download our mobile app</p>
+              <div className="flex flex-row items-center justify-center gap-4">
+                <a 
+                  href="https://apps.apple.com/app/adlinka" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  data-testid="app-store-link"
+                  className="transition-transform hover:scale-105"
+                >
+                  <img 
+                    src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg" 
+                    alt="Download on the App Store" 
+                    className="h-10"
+                  />
+                </a>
+                <a 
+                  href="https://play.google.com/store/apps/details?id=com.adlinka.ads" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  data-testid="play-store-link"
+                  className="transition-transform hover:scale-105"
+                >
+                  <img 
+                    src="https://upload.wikimedia.org/wikipedia/commons/7/78/Google_Play_Store_badge_EN.svg" 
+                    alt="Get it on Google Play" 
+                    className="h-10"
+                  />
+                </a>
+              </div>
             </div>
           </div>
         </div>

@@ -491,56 +491,43 @@ export const OrderTrackingPage = () => {
               <p className="text-sm text-muted-foreground mb-4">
                 The following images/videos confirm that your order has been completed successfully.
               </p>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                 {order.completion_proof.map((proof, index) => {
-                  const mediaUrl = getAbsoluteMediaUrl(proof.url);
+                  const isExternalUrl = proof.url.startsWith('http://') || proof.url.startsWith('https://');
+                  const mediaUrl = isExternalUrl ? proof.url : getAbsoluteMediaUrl(proof.url);
+                  const isVideo = proof.type === 'video';
+                  
                   return (
-                    <div key={index} className="relative aspect-video rounded-lg overflow-hidden bg-muted shadow-sm border group">
-                      {proof.type === 'video' ? (
-                        <>
-                          <video 
-                            src={mediaUrl} 
-                            controls 
-                            playsInline
-                            preload="metadata"
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              console.error('Video load error:', mediaUrl);
-                              e.target.style.display = 'none';
-                              const fallback = e.target.nextElementSibling;
-                              if (fallback) fallback.style.display = 'flex';
-                            }}
-                          />
-                          <a 
-                            href={mediaUrl} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="hidden absolute inset-0 flex-col items-center justify-center bg-muted text-muted-foreground hover:bg-muted/80"
-                            style={{ display: 'none' }}
-                          >
-                            <ExternalLink className="h-8 w-8 mb-2" />
-                            <span className="text-sm">Open Video</span>
-                          </a>
-                          <a 
-                            href={mediaUrl} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="absolute top-2 right-2 bg-black/60 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                            title="Open in new tab"
-                          >
-                            <ExternalLink className="h-4 w-4" />
-                          </a>
-                        </>
-                      ) : (
-                        <a href={mediaUrl} target="_blank" rel="noopener noreferrer">
-                          <img 
-                            src={mediaUrl} 
-                            alt={`Completion proof ${index + 1}`} 
-                            className="w-full h-full object-cover hover:opacity-90 transition-opacity cursor-pointer"
-                          />
-                        </a>
-                      )}
-                    </div>
+                    <a
+                      key={index}
+                      href={mediaUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-3 p-4 rounded-lg border bg-card hover:bg-muted/50 transition-colors group"
+                      data-testid={`proof-item-${index}`}
+                    >
+                      <div className={`p-3 rounded-full ${isVideo ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'}`}>
+                        {isVideo ? (
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        ) : (
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm">
+                          {isVideo ? 'View Video' : 'View Image'} #{index + 1}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          Click to open in new tab
+                        </p>
+                      </div>
+                      <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                    </a>
                   );
                 })}
               </div>

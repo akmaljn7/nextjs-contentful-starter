@@ -19,6 +19,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { ImageUpload } from '@/components/ImageUpload';
 import { MultiMediaUpload } from '@/components/MultiMediaUpload';
+import { ProofUrlInput } from '@/components/ProofUrlInput';
 import { formatPrice, formatDate, formatNumber } from '@/lib/utils';
 import {
   DndContext,
@@ -4016,13 +4017,13 @@ export const AdminPanelPage = () => {
                 {/* Completion Proof Upload - Only show when status is completed */}
                 {(formData.order_status === 'completed' || selectedItem?.order_status === 'completed') && (
                   <div className="border-t pt-4 mt-4">
-                    <MultiMediaUpload
+                    <ProofUrlInput
                       value={formData.completion_proof || []}
-                      onChange={(files) => updateFormField('completion_proof', files)}
+                      onChange={(proofs) => updateFormField('completion_proof', proofs)}
                       label="Completion Proof (Photos/Videos)"
-                      maxFiles={10}
+                      maxItems={10}
                     />
-                    <p className="text-xs text-muted-foreground mt-2">Upload images or videos as proof of completed work for the customer to verify</p>
+                    <p className="text-xs text-muted-foreground mt-2">Add URLs to images or videos (e.g., Google Drive, YouTube) as proof of completed work</p>
                   </div>
                 )}
               </>
