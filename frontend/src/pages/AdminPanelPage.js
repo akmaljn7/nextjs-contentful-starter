@@ -64,7 +64,8 @@ import {
   Search,
   X,
   Image,
-  Lightbulb
+  Lightbulb,
+  Globe
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -2616,9 +2617,17 @@ export const AdminPanelPage = () => {
                 <Card className="border-2">
                   <CardHeader className="flex flex-row items-center justify-between">
                     <CardTitle>Manage Digital Ad Platforms ({filteredDigitalAds.length})</CardTitle>
-                    <Button onClick={() => openCreateModal('digitalad')} className="bg-accent hover:bg-accent/90">
-                      <Plus className="h-4 w-4 mr-2" /> Add Platform
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button 
+                        onClick={() => window.location.href = '/admin/meta-ads-globe'} 
+                        className="bg-blue-600 hover:bg-blue-700"
+                      >
+                        <Globe className="h-4 w-4 mr-2" /> Meta Ads Globe
+                      </Button>
+                      <Button onClick={() => openCreateModal('digitalad')} className="bg-accent hover:bg-accent/90">
+                        <Plus className="h-4 w-4 mr-2" /> Add Platform
+                      </Button>
+                    </div>
                   </CardHeader>
                   <CardContent>
                     <AdminSearchBar

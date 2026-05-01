@@ -35,6 +35,7 @@ import { MessagingCenterPage } from '@/pages/MessagingCenterPage';
 import { OrderTrackingPage } from '@/pages/OrderTrackingPage';
 import { ForgotPasswordPage } from '@/pages/ForgotPasswordPage';
 import { ResetPasswordPage } from '@/pages/ResetPasswordPage';
+import MetaAdsGlobePage from '@/pages/MetaAdsGlobePage';
 
 function App() {
   return (
@@ -69,6 +70,7 @@ function App() {
               <Route path="/payment/callback" element={<PaymentCallbackPage />} />
               <Route path="/consultation" element={<ConsultationPage />} />
               <Route path="/admin" element={<AdminPanelPage />} />
+              <Route path="/admin/meta-ads-globe" element={<MetaAdsGlobePage />} />
               <Route path="/search" element={<SearchResultsPage />} />
               <Route path="/messages" element={<MessagingCenterPage />} />
               <Route path="/orders/:orderId/tracking" element={<OrderTrackingPage />} />
