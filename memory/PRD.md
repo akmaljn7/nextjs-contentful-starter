@@ -189,9 +189,11 @@ Northern Nigeria's trusted advertising marketplace connecting advertisers with v
 - **AdGlobe Button**: Renamed from "Meta Ads Globe" to "AdGlobe" in Admin Panel Digital Ads tab
 - **3D CesiumJS Globe**: Interactive 3D map for Meta Ads location targeting simulation
 - **Campaign Form**: Right-side draggable form for campaign creation
-- **Pulsing Marker Animation**: Implemented using `Cesium.CallbackProperty` for animated glow effect
+- **Pulsing Marker Animation**: Fixed - using `CallbackProperty` for polygon hierarchy (size pulse) with static materials
+- **Backend Geocoding Proxy**: Added `/api/geocode` endpoint to bypass CORS restrictions for location search
 - **Location Data**: Sends lat/lon/radius to parent React component via postMessage
 - **OSM Buildings**: Fixed API call from deprecated `createOsmBuildings()` to `createOsmBuildingsAsync()`
+- **Bug Fixed**: "TypeError: t.getType is not a function" - caused by incorrect `CallbackProperty` usage on polygon materials
 - **Note**: Meta Ads submission is SIMULATION ONLY (no actual API connection)
 - Files: `/app/frontend/public/meta-ads-globe.html`, `/app/frontend/src/pages/MetaAdsGlobePage.js`
 

@@ -1597,6 +1597,38 @@ async def get_search_suggestions(q: str, limit: int = 5):
     
     return {"suggestions": list(suggestions)[:limit]}
 
+# Geocoding proxy for AdGlobe (bypasses CORS restrictions)
+@api_router.get("/geocode")
+async def geocode_location(q: str, countrycodes: Optional[str] = None):
+    """Proxy geocoding requests to OpenStreetMap Nominatim to avoid CORS issues."""
+    try:
+        params = {
+            "format": "jsonv2",
+            "limit": 1,
+            "q": q
+        }
+        if countrycodes:
+            params["countrycodes"] = countrycodes
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                "https://nominatim.openstreetmap.org/search",
+                params=params,
+                headers={
+                    "User-Agent": "Adlinka-AdGlobe/1.0 (ads-network)",
+                    "Accept": "application/json"
+                },
+                timeout=10.0
+            )
+            response.raise_for_status()
+            return response.json()
+    except httpx.HTTPError as e:
+        logging.error(f"Geocoding error: {e}")
+        raise HTTPException(status_code=502, detail="Geocoding service unavailable")
+    except Exception as e:
+        logging.error(f"Geocoding error: {e}")
+        raise HTTPException(status_code=500, detail="Internal geocoding error")
+
 @api_router.get("/influencers", response_model=List[Influencer])
 async def get_influencers(
     city: Optional[str] = None,
