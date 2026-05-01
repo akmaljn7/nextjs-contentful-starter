@@ -584,8 +584,12 @@ async function bootstrap(){
   viewer.scene.postProcessStages.fxaa.enabled = true;
   viewer.scene.globe.depthTestAgainstTerrain = true;
 
-  try{ state.osmBuildings=viewer.scene.primitives.add(Cesium.createOsmBuildings()); }
-  catch(e){ console.warn('OSM buildings unavailable',e); }
+  // Load OSM buildings asynchronously (optional feature)
+  try {
+    Cesium.createOsmBuildingsAsync().then(osmBuildings => {
+      state.osmBuildings = viewer.scene.primitives.add(osmBuildings);
+    }).catch(e => console.log('OSM buildings skipped'));
+  } catch(e) { console.log('OSM buildings unavailable'); }
 
   /* Initial view - Nigeria */
   viewer.camera.setView({

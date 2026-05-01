@@ -185,9 +185,26 @@ Northern Nigeria's trusted advertising marketplace connecting advertisers with v
   - Added "Open Video" fallback link if inline playback fails
   - Mobile app (React Native) also uses absolute URLs for video/image proofs
 
+### Feature: AdGlobe 3D Map (May 2025) ✅
+- **AdGlobe Button**: Renamed from "Meta Ads Globe" to "AdGlobe" in Admin Panel Digital Ads tab
+- **3D CesiumJS Globe**: Interactive 3D map for Meta Ads location targeting simulation
+- **Campaign Form**: Right-side draggable form for campaign creation
+- **Pulsing Marker Animation**: Implemented using `Cesium.CallbackProperty` for animated glow effect
+- **Location Data**: Sends lat/lon/radius to parent React component via postMessage
+- **OSM Buildings**: Fixed API call from deprecated `createOsmBuildings()` to `createOsmBuildingsAsync()`
+- **Note**: Meta Ads submission is SIMULATION ONLY (no actual API connection)
+- Files: `/app/frontend/public/meta-ads-globe.html`, `/app/frontend/src/pages/MetaAdsGlobePage.js`
+
+### Feature: Proof URL Input (May 2025) ✅
+- Replaced video file upload with URL-based proof submission
+- Admins can submit external URLs (e.g., Google Drive) instead of uploading heavy files
+- File: `/app/frontend/src/components/ProofUrlInput.jsx`
+
 ## Pending Tasks
 
 ### P1 (High Priority)
+- [ ] Connect real Meta Ads API for AdGlobe (currently SIMULATION mode)
+- [ ] Add Meta App credentials settings in Admin panel
 - [ ] Termii SMS integration for notifications
 - [ ] Update database settings in admin panel for Adlinka branding (email, company name)
 
@@ -197,8 +214,8 @@ Northern Nigeria's trusted advertising marketplace connecting advertisers with v
 - [ ] Add notification navigation (tap notification to go to relevant screen)
 
 ### Future/Backlog
-- [ ] Refactor `/app/backend/server.py` monolith into routers/services
-- [ ] Refactor `/app/frontend/src/pages/AdminPanelPage.js` into components
+- [ ] Refactor `/app/backend/server.py` monolith into routers/services (>4900 lines)
+- [ ] Refactor `/app/frontend/src/pages/AdminPanelPage.js` into components (>4500 lines)
 - [ ] Real-time notifications (WebSocket/email)
 - [ ] HubSpot CRM integration
 
