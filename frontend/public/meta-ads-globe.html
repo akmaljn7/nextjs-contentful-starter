@@ -641,48 +641,62 @@ async function bootstrap(){
     const r = state.markRadius;
     const r2 = r * 2;
 
+    /* Inner fill polygon with pulsing glow */
     const fill=viewer.entities.add({
       polygon:{
         hierarchy:new Cesium.CallbackProperty(()=>{
-          const pulse=r+r*0.06*Math.sin(Date.now()/200);
+          const pulse=r+r*0.08*Math.sin(Date.now()/180);
           return new Cesium.PolygonHierarchy(buildCirclePositions(lon,lat,pulse,64));
         },false),
-        material:hexToCs(BLUE,0.18),
+        material:new Cesium.CallbackProperty(()=>hexToCs(BLUE,0.12+0.08*Math.sin(Date.now()/250)),false),
         classificationType:Cesium.ClassificationType.BOTH
       }
     });
 
+    /* Outer glow donut ring */
     const glow=viewer.entities.add({
       polygon:{
         hierarchy:new Cesium.CallbackProperty(()=>{
-          const ro=r2+r2*0.04*Math.sin(Date.now()/260);
-          const ri=r*0.92;
+          const ro=r2+r2*0.05*Math.sin(Date.now()/220);
+          const ri=r*0.88;
           return new Cesium.PolygonHierarchy(
             buildCirclePositions(lon,lat,ro,64),
             [new Cesium.PolygonHierarchy(buildCirclePositions(lon,lat,ri,64))]
           );
         },false),
-        material:hexToCs(BLUE,0.07),
+        material:new Cesium.CallbackProperty(()=>hexToCs(BLUE,0.04+0.04*Math.sin(Date.now()/300)),false),
         classificationType:Cesium.ClassificationType.BOTH
       }
     });
 
+    /* Inner ring with strong glow */
     const ring=viewer.entities.add({
       polyline:{
         positions:new Cesium.CallbackProperty(()=>buildCirclePositions(lon,lat,r,96),false),
-        width:3.5, clampToGround:true,
-        material:new Cesium.PolylineGlowMaterialProperty({glowPower:0.3,color:hexToCs(BLUE,0.98)})
+        width:4, clampToGround:true,
+        material:new Cesium.PolylineGlowMaterialProperty({glowPower:0.35,color:hexToCs(BLUE,1.0)})
       }
     });
 
+    /* Outer ring with softer glow */
     const ring2=viewer.entities.add({
       polyline:{
         positions:new Cesium.CallbackProperty(()=>buildCirclePositions(lon,lat,r2,96),false),
-        width:1.5, clampToGround:true,
-        material:new Cesium.PolylineGlowMaterialProperty({glowPower:0.2,color:hexToCs(BLUE,0.4)})
+        width:2, clampToGround:true,
+        material:new Cesium.PolylineGlowMaterialProperty({glowPower:0.25,color:hexToCs(BLUE,0.5)})
       }
     });
 
+    /* Vertical beam effect (visible in 3D mode) */
+    const beam=viewer.entities.add({
+      polyline:{
+        positions:[Cesium.Cartesian3.fromDegrees(lon,lat,0),Cesium.Cartesian3.fromDegrees(lon,lat,5000)],
+        width:6, clampToGround:false,
+        material:new Cesium.PolylineGlowMaterialProperty({glowPower:0.4,color:hexToCs(BLUE,0.75)})
+      }
+    });
+
+    /* Google-style pin */
     const pinEnt=viewer.entities.add({
       position:Cesium.Cartesian3.fromDegrees(lon,lat,0),
       billboard:{
@@ -693,6 +707,7 @@ async function bootstrap(){
       }
     });
 
+    /* Location label */
     const label=viewer.entities.add({
       position:Cesium.Cartesian3.fromDegrees(lon,lat,0),
       label:{
@@ -709,17 +724,18 @@ async function bootstrap(){
       }
     });
 
+    /* Center dot */
     const dot=viewer.entities.add({
       position:Cesium.Cartesian3.fromDegrees(lon,lat,0),
       point:{
-        pixelSize:12, color:hexToCs(BLUE),
-        outlineColor:Cesium.Color.WHITE, outlineWidth:2,
+        pixelSize:14, color:hexToCs(BLUE),
+        outlineColor:Cesium.Color.WHITE, outlineWidth:3,
         heightReference:Cesium.HeightReference.CLAMP_TO_GROUND,
         disableDepthTestDistance:Number.POSITIVE_INFINITY
       }
     });
 
-    state.searchEntities=[fill,glow,ring,ring2,pinEnt,label,dot];
+    state.searchEntities=[fill,glow,ring,ring2,beam,pinEnt,label,dot];
     updateRadiusUI();
     updateTargetCard();
   }

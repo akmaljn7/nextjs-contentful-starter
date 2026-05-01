@@ -2622,7 +2622,7 @@ export const AdminPanelPage = () => {
                         onClick={() => window.location.href = '/admin/meta-ads-globe'} 
                         className="bg-blue-600 hover:bg-blue-700"
                       >
-                        <Globe className="h-4 w-4 mr-2" /> Meta Ads Globe
+                        <Globe className="h-4 w-4 mr-2" /> AdGlobe
                       </Button>
                       <Button onClick={() => openCreateModal('digitalad')} className="bg-accent hover:bg-accent/90">
                         <Plus className="h-4 w-4 mr-2" /> Add Platform
