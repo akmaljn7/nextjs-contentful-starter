@@ -1,14 +1,11 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { Switch } from '@/components/ui/switch';
+import { Card, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { 
   ArrowLeft, 
@@ -16,22 +13,18 @@ import {
   Target, 
   DollarSign, 
   Image as ImageIcon, 
-  Type, 
   Link as LinkIcon,
-  Calendar,
   MapPin,
-  Radius,
   Upload,
   CheckCircle,
   Loader2,
   X,
-  Sparkles,
   Send,
-  Eye,
-  Info
+  Info,
+  PanelLeftClose,
+  PanelLeft,
+  GripVertical
 } from 'lucide-react';
-
-const API_URL = process.env.REACT_APP_BACKEND_URL || '';
 
 // Meta Campaign Objectives
 const CAMPAIGN_OBJECTIVES = [
@@ -100,17 +93,19 @@ const OPTIMIZATION_GOALS = {
 
 export default function MetaAdsGlobePage() {
   const navigate = useNavigate();
-  const globeRef = useRef(null);
   const iframeRef = useRef(null);
+  const sidebarRef = useRef(null);
+  
+  // Sidebar state
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarWidth, setSidebarWidth] = useState(480);
+  const [isDragging, setIsDragging] = useState(false);
   
   // Form State
   const [formData, setFormData] = useState({
-    // Campaign
     campaignName: '',
     objective: '',
     specialAdCategory: 'NONE',
-    
-    // Ad Set
     adSetName: '',
     budgetType: 'daily',
     budgetAmount: '',
@@ -118,14 +113,10 @@ export default function MetaAdsGlobePage() {
     endDate: '',
     optimizationGoal: '',
     bidStrategy: 'LOWEST_COST_WITHOUT_CAP',
-    
-    // Targeting (from Globe)
     latitude: null,
     longitude: null,
-    radius: 1, // km
+    radius: 1,
     locationName: '',
-    
-    // Creative
     primaryText: '',
     headline: '',
     description: '',
@@ -139,7 +130,34 @@ export default function MetaAdsGlobePage() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [submittedData, setSubmittedData] = useState(null);
   const [activeSection, setActiveSection] = useState('campaign');
-  const [globeReady, setGlobeReady] = useState(false);
+
+  // Handle sidebar dragging
+  const handleMouseDown = (e) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!isDragging) return;
+      const newWidth = Math.min(Math.max(380, e.clientX), 700);
+      setSidebarWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging]);
 
   // Listen for messages from the globe iframe
   useEffect(() => {
@@ -150,12 +168,9 @@ export default function MetaAdsGlobePage() {
           ...prev,
           latitude,
           longitude,
-          radius: radius / 1000, // Convert metres to km
+          radius: radius / 1000,
           locationName: locationName || prev.locationName,
         }));
-      }
-      if (event.data && event.data.type === 'GLOBE_READY') {
-        setGlobeReady(true);
       }
     };
     
@@ -196,7 +211,6 @@ export default function MetaAdsGlobePage() {
 
   const validateForm = () => {
     const errors = [];
-    
     if (!formData.campaignName) errors.push('Campaign name is required');
     if (!formData.objective) errors.push('Campaign objective is required');
     if (!formData.budgetAmount || parseFloat(formData.budgetAmount) <= 0) errors.push('Valid budget amount is required');
@@ -207,7 +221,6 @@ export default function MetaAdsGlobePage() {
     if (!formData.headline) errors.push('Headline is required');
     if (!formData.destinationUrl) errors.push('Destination URL is required');
     if (!formData.imageFile) errors.push('Ad image is required');
-    
     return errors;
   };
 
@@ -219,11 +232,8 @@ export default function MetaAdsGlobePage() {
     }
     
     setIsSubmitting(true);
-    
-    // Simulate API call delay
     await new Promise(resolve => setTimeout(resolve, 2000));
     
-    // Build the simulated payload
     const payload = {
       campaign: {
         name: formData.campaignName,
@@ -233,7 +243,7 @@ export default function MetaAdsGlobePage() {
       },
       adSet: {
         name: formData.adSetName || `${formData.campaignName} - Ad Set`,
-        [`${formData.budgetType}_budget`]: Math.round(parseFloat(formData.budgetAmount) * 100), // Convert to cents
+        [`${formData.budgetType}_budget`]: Math.round(parseFloat(formData.budgetAmount) * 100),
         optimization_goal: formData.optimizationGoal || OPTIMIZATION_GOALS[formData.objective]?.[0]?.value,
         billing_event: 'IMPRESSIONS',
         bid_strategy: formData.bidStrategy,
@@ -307,462 +317,16 @@ export default function MetaAdsGlobePage() {
   };
 
   const sections = [
-    { id: 'campaign', label: 'Campaign', icon: Target },
-    { id: 'targeting', label: 'Targeting', icon: MapPin },
-    { id: 'budget', label: 'Budget', icon: DollarSign },
-    { id: 'creative', label: 'Creative', icon: ImageIcon },
+    { id: 'campaign', label: 'Campaign', icon: Target, color: 'from-blue-500 to-blue-600' },
+    { id: 'targeting', label: 'Targeting', icon: MapPin, color: 'from-green-500 to-green-600' },
+    { id: 'budget', label: 'Budget', icon: DollarSign, color: 'from-amber-500 to-amber-600' },
+    { id: 'creative', label: 'Creative', icon: ImageIcon, color: 'from-purple-500 to-purple-600' },
   ];
 
   return (
-    <div className="h-screen w-full flex bg-background overflow-hidden">
-      {/* Left Sidebar - Form */}
-      <div className="w-1/2 h-full flex flex-col border-r border-border bg-card">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-card/50 backdrop-blur">
-          <div className="flex items-center gap-3">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={() => navigate('/admin')}
-              className="h-9 w-9"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div>
-              <h1 className="text-lg font-bold flex items-center gap-2">
-                <Globe className="h-5 w-5 text-primary" />
-                Meta Ads Campaign
-              </h1>
-              <p className="text-xs text-muted-foreground">Create targeted digital advertising campaigns</p>
-            </div>
-          </div>
-          <Badge variant="outline" className="text-xs">
-            <Sparkles className="h-3 w-3 mr-1" />
-            Simulation Mode
-          </Badge>
-        </div>
-
-        {/* Section Navigation */}
-        <div className="flex border-b border-border px-4 py-2 gap-1 bg-muted/30">
-          {sections.map((section) => (
-            <button
-              key={section.id}
-              onClick={() => setActiveSection(section.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                activeSection === section.id 
-                  ? 'bg-primary text-primary-foreground' 
-                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-              }`}
-            >
-              <section.icon className="h-4 w-4" />
-              {section.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Form Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          
-          {/* Campaign Section */}
-          {activeSection === 'campaign' && (
-            <div className="space-y-5">
-              <div className="flex items-center gap-2 mb-4">
-                <Target className="h-5 w-5 text-primary" />
-                <h2 className="font-semibold text-lg">Campaign Settings</h2>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="campaignName">Campaign Name *</Label>
-                <Input
-                  id="campaignName"
-                  placeholder="Enter campaign name"
-                  value={formData.campaignName}
-                  onChange={(e) => updateField('campaignName', e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Campaign Objective *</Label>
-                <Select value={formData.objective} onValueChange={(v) => updateField('objective', v)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select objective" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CAMPAIGN_OBJECTIVES.map((obj) => (
-                      <SelectItem key={obj.value} value={obj.value}>
-                        <div>
-                          <div className="font-medium">{obj.label}</div>
-                          <div className="text-xs text-muted-foreground">{obj.description}</div>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Special Ad Category</Label>
-                <Select value={formData.specialAdCategory} onValueChange={(v) => updateField('specialAdCategory', v)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SPECIAL_AD_CATEGORIES.map((cat) => (
-                      <SelectItem key={cat.value} value={cat.value}>
-                        <div>
-                          <div className="font-medium">{cat.label}</div>
-                          {cat.description && <div className="text-xs text-muted-foreground">{cat.description}</div>}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">
-                  Required if your ad is about housing, employment, credit, or politics
-                </p>
-              </div>
-
-              {formData.objective && (
-                <div className="space-y-2">
-                  <Label>Optimization Goal</Label>
-                  <Select 
-                    value={formData.optimizationGoal} 
-                    onValueChange={(v) => updateField('optimizationGoal', v)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select optimization goal" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {OPTIMIZATION_GOALS[formData.objective]?.map((goal) => (
-                        <SelectItem key={goal.value} value={goal.value}>
-                          {goal.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Targeting Section */}
-          {activeSection === 'targeting' && (
-            <div className="space-y-5">
-              <div className="flex items-center gap-2 mb-4">
-                <MapPin className="h-5 w-5 text-primary" />
-                <h2 className="font-semibold text-lg">Location Targeting</h2>
-              </div>
-
-              <Card className="border-primary/20 bg-primary/5">
-                <CardContent className="pt-4">
-                  <div className="flex items-start gap-3">
-                    <Info className="h-5 w-5 text-primary mt-0.5" />
-                    <div>
-                      <p className="text-sm font-medium">Use the Globe</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Search for a location on the globe (right side), then use the +/- buttons to adjust the targeting radius. The coordinates will be automatically captured here.
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Latitude</Label>
-                  <Input
-                    value={formData.latitude ? formData.latitude.toFixed(6) : ''}
-                    readOnly
-                    placeholder="Select on globe"
-                    className="bg-muted/50"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Longitude</Label>
-                  <Input
-                    value={formData.longitude ? formData.longitude.toFixed(6) : ''}
-                    readOnly
-                    placeholder="Select on globe"
-                    className="bg-muted/50"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Radius (km)</Label>
-                  <Input
-                    value={formData.radius ? formData.radius.toFixed(1) : ''}
-                    readOnly
-                    placeholder="Adjust on globe"
-                    className="bg-muted/50"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Location Name</Label>
-                  <Input
-                    value={formData.locationName}
-                    onChange={(e) => updateField('locationName', e.target.value)}
-                    placeholder="e.g., Lagos Central"
-                  />
-                </div>
-              </div>
-
-              {formData.latitude && formData.longitude && (
-                <Card className="border-green-500/20 bg-green-500/5">
-                  <CardContent className="pt-4">
-                    <div className="flex items-center gap-2 text-green-600">
-                      <CheckCircle className="h-5 w-5" />
-                      <span className="font-medium">Location captured!</span>
-                    </div>
-                    <p className="text-sm text-muted-foreground mt-2">
-                      Targeting: {formData.radius.toFixed(1)} km radius around {formData.locationName || `${formData.latitude.toFixed(4)}, ${formData.longitude.toFixed(4)}`}
-                    </p>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          )}
-
-          {/* Budget Section */}
-          {activeSection === 'budget' && (
-            <div className="space-y-5">
-              <div className="flex items-center gap-2 mb-4">
-                <DollarSign className="h-5 w-5 text-primary" />
-                <h2 className="font-semibold text-lg">Budget & Schedule</h2>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Ad Set Name</Label>
-                <Input
-                  placeholder="Leave empty to auto-generate"
-                  value={formData.adSetName}
-                  onChange={(e) => updateField('adSetName', e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-3">
-                <Label>Budget Type</Label>
-                <div className="flex gap-4">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="budgetType"
-                      value="daily"
-                      checked={formData.budgetType === 'daily'}
-                      onChange={(e) => updateField('budgetType', e.target.value)}
-                      className="text-primary"
-                    />
-                    <span className="text-sm">Daily Budget</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="budgetType"
-                      value="lifetime"
-                      checked={formData.budgetType === 'lifetime'}
-                      onChange={(e) => updateField('budgetType', e.target.value)}
-                      className="text-primary"
-                    />
-                    <span className="text-sm">Lifetime Budget</span>
-                  </label>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Budget Amount (USD) *</Label>
-                <div className="relative">
-                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    type="number"
-                    min="1"
-                    step="0.01"
-                    placeholder="50.00"
-                    value={formData.budgetAmount}
-                    onChange={(e) => updateField('budgetAmount', e.target.value)}
-                    className="pl-9"
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {formData.budgetType === 'daily' ? 'Amount to spend per day' : 'Total amount to spend over campaign lifetime'}
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Start Date *</Label>
-                  <Input
-                    type="datetime-local"
-                    value={formData.startDate}
-                    onChange={(e) => updateField('startDate', e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>End Date {formData.budgetType === 'lifetime' ? '*' : '(Optional)'}</Label>
-                  <Input
-                    type="datetime-local"
-                    value={formData.endDate}
-                    onChange={(e) => updateField('endDate', e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Bid Strategy</Label>
-                <Select value={formData.bidStrategy} onValueChange={(v) => updateField('bidStrategy', v)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="LOWEST_COST_WITHOUT_CAP">Lowest Cost (Recommended)</SelectItem>
-                    <SelectItem value="LOWEST_COST_WITH_BID_CAP">Lowest Cost with Bid Cap</SelectItem>
-                    <SelectItem value="COST_CAP">Cost Cap</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          )}
-
-          {/* Creative Section */}
-          {activeSection === 'creative' && (
-            <div className="space-y-5">
-              <div className="flex items-center gap-2 mb-4">
-                <ImageIcon className="h-5 w-5 text-primary" />
-                <h2 className="font-semibold text-lg">Ad Creative</h2>
-              </div>
-
-              {/* Image Upload */}
-              <div className="space-y-2">
-                <Label>Ad Image *</Label>
-                {!formData.imagePreview ? (
-                  <label className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary/50 hover:bg-muted/50 transition-colors">
-                    <Upload className="h-10 w-10 text-muted-foreground mb-2" />
-                    <span className="text-sm font-medium">Click to upload image</span>
-                    <span className="text-xs text-muted-foreground mt-1">PNG, JPG up to 30MB</span>
-                    <span className="text-xs text-muted-foreground">Recommended: 1080×1080 or 1080×1350</span>
-                    <input
-                      type="file"
-                      className="hidden"
-                      accept="image/png,image/jpeg,image/jpg"
-                      onChange={handleImageUpload}
-                    />
-                  </label>
-                ) : (
-                  <div className="relative">
-                    <img 
-                      src={formData.imagePreview} 
-                      alt="Ad preview" 
-                      className="w-full h-48 object-cover rounded-lg border"
-                    />
-                    <Button
-                      variant="destructive"
-                      size="icon"
-                      className="absolute top-2 right-2 h-8 w-8"
-                      onClick={removeImage}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label>Primary Text *</Label>
-                <Textarea
-                  placeholder="The main message of your ad..."
-                  value={formData.primaryText}
-                  onChange={(e) => updateField('primaryText', e.target.value)}
-                  rows={3}
-                />
-                <p className="text-xs text-muted-foreground">{formData.primaryText.length}/125 characters recommended</p>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Headline *</Label>
-                <Input
-                  placeholder="Attention-grabbing headline"
-                  value={formData.headline}
-                  onChange={(e) => updateField('headline', e.target.value)}
-                />
-                <p className="text-xs text-muted-foreground">{formData.headline.length}/40 characters recommended</p>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Description</Label>
-                <Input
-                  placeholder="Additional details about your ad"
-                  value={formData.description}
-                  onChange={(e) => updateField('description', e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Destination URL *</Label>
-                <div className="relative">
-                  <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    type="url"
-                    placeholder="https://yourwebsite.com"
-                    value={formData.destinationUrl}
-                    onChange={(e) => updateField('destinationUrl', e.target.value)}
-                    className="pl-9"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Call to Action</Label>
-                <Select value={formData.ctaType} onValueChange={(v) => updateField('ctaType', v)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CTA_TYPES.map((cta) => (
-                      <SelectItem key={cta.value} value={cta.value}>
-                        {cta.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Footer Actions */}
-        <div className="border-t border-border p-4 bg-card/50 backdrop-blur">
-          <div className="flex items-center justify-between">
-            <Button variant="outline" onClick={() => navigate('/admin')}>
-              Cancel
-            </Button>
-            <div className="flex gap-3">
-              <Button variant="outline" onClick={resetForm}>
-                Reset Form
-              </Button>
-              <Button 
-                onClick={handleSubmit} 
-                disabled={isSubmitting}
-                className="min-w-[140px]"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    <Send className="h-4 w-4 mr-2" />
-                    Submit Campaign
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Right Side - Globe */}
-      <div className="w-1/2 h-full relative bg-slate-900">
+    <div className="h-screen w-full flex bg-slate-900 overflow-hidden relative">
+      {/* Globe - Full Screen Background */}
+      <div className="absolute inset-0">
         <iframe
           ref={iframeRef}
           src="/meta-ads-globe.html"
@@ -771,10 +335,482 @@ export default function MetaAdsGlobePage() {
         />
       </div>
 
+      {/* Toggle Button when sidebar is closed */}
+      {!sidebarOpen && (
+        <button
+          onClick={() => setSidebarOpen(true)}
+          className="absolute top-4 left-4 z-30 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white p-3 rounded-xl shadow-lg shadow-blue-500/30 transition-all duration-300 flex items-center gap-2 group"
+        >
+          <PanelLeft className="h-5 w-5" />
+          <span className="text-sm font-medium">Open Panel</span>
+        </button>
+      )}
+
+      {/* Sidebar */}
+      {sidebarOpen && (
+        <div 
+          ref={sidebarRef}
+          className="relative h-full flex flex-col z-20 shadow-2xl shadow-black/50"
+          style={{ width: sidebarWidth }}
+        >
+          {/* Gradient Background */}
+          <div className="absolute inset-0 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 opacity-98" />
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 via-transparent to-purple-600/10" />
+          
+          {/* Content */}
+          <div className="relative flex flex-col h-full">
+            {/* Header */}
+            <div className="px-5 py-4 border-b border-white/10 bg-gradient-to-r from-blue-600/20 to-purple-600/20">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    onClick={() => navigate('/admin')}
+                    className="h-9 w-9 text-white/70 hover:text-white hover:bg-white/10"
+                  >
+                    <ArrowLeft className="h-5 w-5" />
+                  </Button>
+                  <div>
+                    <h1 className="text-lg font-bold text-white flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
+                        <Globe className="h-4 w-4 text-white" />
+                      </div>
+                      Meta Ads Campaign
+                    </h1>
+                    <p className="text-xs text-blue-200/60">Create targeted digital advertising</p>
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setSidebarOpen(false)}
+                  className="h-8 w-8 text-white/50 hover:text-white hover:bg-white/10"
+                >
+                  <PanelLeftClose className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Section Navigation */}
+            <div className="flex gap-1 p-3 border-b border-white/10 bg-black/20">
+              {sections.map((section) => (
+                <button
+                  key={section.id}
+                  onClick={() => setActiveSection(section.id)}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
+                    activeSection === section.id 
+                      ? `bg-gradient-to-r ${section.color} text-white shadow-lg` 
+                      : 'text-white/50 hover:bg-white/10 hover:text-white/80'
+                  }`}
+                >
+                  <section.icon className="h-3.5 w-3.5" />
+                  {section.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Form Content */}
+            <div className="flex-1 overflow-y-auto p-5 space-y-5 custom-scrollbar">
+              
+              {/* Campaign Section */}
+              {activeSection === 'campaign' && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
+                      <Target className="h-4 w-4 text-white" />
+                    </div>
+                    <h2 className="font-semibold text-white">Campaign Settings</h2>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label className="text-white/80 text-sm">Campaign Name *</Label>
+                    <Input
+                      placeholder="Enter campaign name"
+                      value={formData.campaignName}
+                      onChange={(e) => updateField('campaignName', e.target.value)}
+                      className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-blue-500 focus:ring-blue-500/20"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-white/80 text-sm">Campaign Objective *</Label>
+                    <Select value={formData.objective} onValueChange={(v) => updateField('objective', v)}>
+                      <SelectTrigger className="bg-white/5 border-white/10 text-white">
+                        <SelectValue placeholder="Select objective" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-slate-800 border-white/10">
+                        {CAMPAIGN_OBJECTIVES.map((obj) => (
+                          <SelectItem key={obj.value} value={obj.value} className="text-white hover:bg-white/10">
+                            <div>
+                              <div className="font-medium">{obj.label}</div>
+                              <div className="text-xs text-white/50">{obj.description}</div>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-white/80 text-sm">Special Ad Category</Label>
+                    <Select value={formData.specialAdCategory} onValueChange={(v) => updateField('specialAdCategory', v)}>
+                      <SelectTrigger className="bg-white/5 border-white/10 text-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-slate-800 border-white/10">
+                        {SPECIAL_AD_CATEGORIES.map((cat) => (
+                          <SelectItem key={cat.value} value={cat.value} className="text-white hover:bg-white/10">
+                            {cat.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-white/40">Required for housing, employment, credit, or politics</p>
+                  </div>
+
+                  {formData.objective && (
+                    <div className="space-y-2">
+                      <Label className="text-white/80 text-sm">Optimization Goal</Label>
+                      <Select value={formData.optimizationGoal} onValueChange={(v) => updateField('optimizationGoal', v)}>
+                        <SelectTrigger className="bg-white/5 border-white/10 text-white">
+                          <SelectValue placeholder="Select goal" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-slate-800 border-white/10">
+                          {OPTIMIZATION_GOALS[formData.objective]?.map((goal) => (
+                            <SelectItem key={goal.value} value={goal.value} className="text-white hover:bg-white/10">
+                              {goal.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Targeting Section */}
+              {activeSection === 'targeting' && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center">
+                      <MapPin className="h-4 w-4 text-white" />
+                    </div>
+                    <h2 className="font-semibold text-white">Location Targeting</h2>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-gradient-to-r from-blue-500/20 to-indigo-500/20 border border-blue-500/30">
+                    <div className="flex items-start gap-2">
+                      <Info className="h-4 w-4 text-blue-400 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium text-blue-300">Use the Globe</p>
+                        <p className="text-xs text-blue-200/60 mt-1">
+                          Search locations on the globe, then use +/- to adjust targeting radius.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-white/60 text-xs">Latitude</Label>
+                      <Input
+                        value={formData.latitude ? formData.latitude.toFixed(6) : ''}
+                        readOnly
+                        placeholder="From globe"
+                        className="bg-white/5 border-white/10 text-white/80 text-sm"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-white/60 text-xs">Longitude</Label>
+                      <Input
+                        value={formData.longitude ? formData.longitude.toFixed(6) : ''}
+                        readOnly
+                        placeholder="From globe"
+                        className="bg-white/5 border-white/10 text-white/80 text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-white/60 text-xs">Radius (km)</Label>
+                      <Input
+                        value={formData.radius ? formData.radius.toFixed(1) : ''}
+                        readOnly
+                        placeholder="Adjust on globe"
+                        className="bg-white/5 border-white/10 text-white/80 text-sm"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-white/60 text-xs">Location Name</Label>
+                      <Input
+                        value={formData.locationName}
+                        onChange={(e) => updateField('locationName', e.target.value)}
+                        placeholder="e.g., Lagos Central"
+                        className="bg-white/5 border-white/10 text-white text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  {formData.latitude && formData.longitude && (
+                    <div className="p-3 rounded-xl bg-gradient-to-r from-green-500/20 to-emerald-500/20 border border-green-500/30">
+                      <div className="flex items-center gap-2 text-green-400">
+                        <CheckCircle className="h-4 w-4" />
+                        <span className="font-medium text-sm">Location captured!</span>
+                      </div>
+                      <p className="text-xs text-green-200/60 mt-1">
+                        {formData.radius.toFixed(1)} km radius around {formData.locationName || 'selected point'}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Budget Section */}
+              {activeSection === 'budget' && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center">
+                      <DollarSign className="h-4 w-4 text-white" />
+                    </div>
+                    <h2 className="font-semibold text-white">Budget & Schedule</h2>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-white/80 text-sm">Ad Set Name</Label>
+                    <Input
+                      placeholder="Auto-generated if empty"
+                      value={formData.adSetName}
+                      onChange={(e) => updateField('adSetName', e.target.value)}
+                      className="bg-white/5 border-white/10 text-white placeholder:text-white/30"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-white/80 text-sm">Budget Type</Label>
+                    <div className="flex gap-3">
+                      {['daily', 'lifetime'].map((type) => (
+                        <label key={type} className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="budgetType"
+                            value={type}
+                            checked={formData.budgetType === type}
+                            onChange={(e) => updateField('budgetType', e.target.value)}
+                            className="text-blue-500 focus:ring-blue-500"
+                          />
+                          <span className="text-sm text-white/70 capitalize">{type} Budget</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-white/80 text-sm">Budget Amount (USD) *</Label>
+                    <div className="relative">
+                      <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
+                      <Input
+                        type="number"
+                        min="1"
+                        step="0.01"
+                        placeholder="50.00"
+                        value={formData.budgetAmount}
+                        onChange={(e) => updateField('budgetAmount', e.target.value)}
+                        className="pl-9 bg-white/5 border-white/10 text-white placeholder:text-white/30"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-white/60 text-xs">Start Date *</Label>
+                      <Input
+                        type="datetime-local"
+                        value={formData.startDate}
+                        onChange={(e) => updateField('startDate', e.target.value)}
+                        className="bg-white/5 border-white/10 text-white text-sm"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-white/60 text-xs">End Date</Label>
+                      <Input
+                        type="datetime-local"
+                        value={formData.endDate}
+                        onChange={(e) => updateField('endDate', e.target.value)}
+                        className="bg-white/5 border-white/10 text-white text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-white/80 text-sm">Bid Strategy</Label>
+                    <Select value={formData.bidStrategy} onValueChange={(v) => updateField('bidStrategy', v)}>
+                      <SelectTrigger className="bg-white/5 border-white/10 text-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-slate-800 border-white/10">
+                        <SelectItem value="LOWEST_COST_WITHOUT_CAP" className="text-white hover:bg-white/10">Lowest Cost</SelectItem>
+                        <SelectItem value="LOWEST_COST_WITH_BID_CAP" className="text-white hover:bg-white/10">Lowest Cost with Cap</SelectItem>
+                        <SelectItem value="COST_CAP" className="text-white hover:bg-white/10">Cost Cap</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
+
+              {/* Creative Section */}
+              {activeSection === 'creative' && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center">
+                      <ImageIcon className="h-4 w-4 text-white" />
+                    </div>
+                    <h2 className="font-semibold text-white">Ad Creative</h2>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-white/80 text-sm">Ad Image *</Label>
+                    {!formData.imagePreview ? (
+                      <label className="flex flex-col items-center justify-center w-full h-36 border-2 border-dashed border-white/20 rounded-xl cursor-pointer hover:border-purple-500/50 hover:bg-purple-500/5 transition-all">
+                        <Upload className="h-8 w-8 text-white/40 mb-2" />
+                        <span className="text-sm font-medium text-white/60">Click to upload</span>
+                        <span className="text-xs text-white/40 mt-1">PNG, JPG up to 30MB</span>
+                        <input
+                          type="file"
+                          className="hidden"
+                          accept="image/png,image/jpeg,image/jpg"
+                          onChange={handleImageUpload}
+                        />
+                      </label>
+                    ) : (
+                      <div className="relative">
+                        <img src={formData.imagePreview} alt="Ad preview" className="w-full h-36 object-cover rounded-xl border border-white/10" />
+                        <Button
+                          variant="destructive"
+                          size="icon"
+                          className="absolute top-2 right-2 h-7 w-7"
+                          onClick={removeImage}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-white/80 text-sm">Primary Text *</Label>
+                    <Textarea
+                      placeholder="Main message of your ad..."
+                      value={formData.primaryText}
+                      onChange={(e) => updateField('primaryText', e.target.value)}
+                      rows={2}
+                      className="bg-white/5 border-white/10 text-white placeholder:text-white/30 resize-none"
+                    />
+                    <p className="text-xs text-white/40">{formData.primaryText.length}/125 recommended</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-white/80 text-sm">Headline *</Label>
+                    <Input
+                      placeholder="Attention-grabbing headline"
+                      value={formData.headline}
+                      onChange={(e) => updateField('headline', e.target.value)}
+                      className="bg-white/5 border-white/10 text-white placeholder:text-white/30"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-white/80 text-sm">Description</Label>
+                    <Input
+                      placeholder="Additional details"
+                      value={formData.description}
+                      onChange={(e) => updateField('description', e.target.value)}
+                      className="bg-white/5 border-white/10 text-white placeholder:text-white/30"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-white/80 text-sm">Destination URL *</Label>
+                    <div className="relative">
+                      <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
+                      <Input
+                        type="url"
+                        placeholder="https://yourwebsite.com"
+                        value={formData.destinationUrl}
+                        onChange={(e) => updateField('destinationUrl', e.target.value)}
+                        className="pl-9 bg-white/5 border-white/10 text-white placeholder:text-white/30"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-white/80 text-sm">Call to Action</Label>
+                    <Select value={formData.ctaType} onValueChange={(v) => updateField('ctaType', v)}>
+                      <SelectTrigger className="bg-white/5 border-white/10 text-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-slate-800 border-white/10">
+                        {CTA_TYPES.map((cta) => (
+                          <SelectItem key={cta.value} value={cta.value} className="text-white hover:bg-white/10">
+                            {cta.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer Actions */}
+            <div className="border-t border-white/10 p-4 bg-black/30">
+              <div className="flex items-center justify-between gap-3">
+                <Button variant="outline" onClick={() => navigate('/admin')} className="border-white/20 text-white/70 hover:bg-white/10 hover:text-white">
+                  Cancel
+                </Button>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={resetForm} className="border-white/20 text-white/70 hover:bg-white/10 hover:text-white">
+                    Reset
+                  </Button>
+                  <Button 
+                    onClick={handleSubmit} 
+                    disabled={isSubmitting}
+                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg shadow-blue-500/30 min-w-[120px]"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="h-4 w-4 mr-2" />
+                        Submit
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Resize Handle */}
+          <div
+            className="absolute top-0 right-0 w-1 h-full cursor-ew-resize group"
+            onMouseDown={handleMouseDown}
+          >
+            <div className="absolute top-1/2 -translate-y-1/2 right-0 w-4 h-12 bg-white/10 rounded-l-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              <GripVertical className="h-4 w-4 text-white/50" />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Success Modal */}
       {showSuccessModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-card rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden shadow-2xl">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-800 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden shadow-2xl border border-white/10">
             <div className="bg-gradient-to-r from-green-500 to-emerald-600 p-6 text-white">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
@@ -782,7 +818,7 @@ export default function MetaAdsGlobePage() {
                 </div>
                 <div>
                   <h2 className="text-xl font-bold">Campaign Created Successfully!</h2>
-                  <p className="text-green-100 text-sm">(Simulation Mode - No actual submission to Meta)</p>
+                  <p className="text-green-100 text-sm">Ready for Meta Ads submission</p>
                 </div>
               </div>
             </div>
@@ -790,44 +826,30 @@ export default function MetaAdsGlobePage() {
             <div className="p-6 max-h-[60vh] overflow-y-auto">
               <div className="space-y-4">
                 <div>
-                  <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide mb-2">Campaign Summary</h3>
-                  <Card>
-                    <CardContent className="pt-4 space-y-2">
+                  <h3 className="font-semibold text-sm text-white/60 uppercase tracking-wide mb-2">Campaign Summary</h3>
+                  <Card className="bg-white/5 border-white/10">
+                    <CardContent className="pt-4 space-y-2 text-white">
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Campaign Name:</span>
+                        <span className="text-white/60">Campaign Name:</span>
                         <span className="font-medium">{submittedData?.campaign?.name}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Objective:</span>
+                        <span className="text-white/60">Objective:</span>
                         <span className="font-medium">{submittedData?.campaign?.objective?.replace('OUTCOME_', '')}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Budget:</span>
+                        <span className="text-white/60">Budget:</span>
                         <span className="font-medium">
-                          ${(formData.budgetType === 'daily' ? submittedData?.adSet?.daily_budget : submittedData?.adSet?.lifetime_budget) / 100} 
+                          ${(formData.budgetType === 'daily' ? submittedData?.adSet?.daily_budget : submittedData?.adSet?.lifetime_budget) / 100}
                           {formData.budgetType === 'daily' ? '/day' : ' total'}
                         </span>
                       </div>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                <div>
-                  <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide mb-2">Targeting</h3>
-                  <Card>
-                    <CardContent className="pt-4 space-y-2">
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Location:</span>
+                        <span className="text-white/60">Location:</span>
                         <span className="font-medium">{formData.locationName || 'Custom Location'}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Coordinates:</span>
-                        <span className="font-medium font-mono text-sm">
-                          {formData.latitude?.toFixed(4)}, {formData.longitude?.toFixed(4)}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Radius:</span>
+                        <span className="text-white/60">Radius:</span>
                         <span className="font-medium">{formData.radius?.toFixed(1)} km</span>
                       </div>
                     </CardContent>
@@ -835,25 +857,41 @@ export default function MetaAdsGlobePage() {
                 </div>
 
                 <div>
-                  <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide mb-2">API Payload Preview</h3>
-                  <pre className="bg-muted rounded-lg p-4 text-xs overflow-x-auto font-mono">
+                  <h3 className="font-semibold text-sm text-white/60 uppercase tracking-wide mb-2">API Payload</h3>
+                  <pre className="bg-black/30 rounded-lg p-4 text-xs overflow-x-auto font-mono text-green-400 border border-white/10">
                     {JSON.stringify(submittedData, null, 2)}
                   </pre>
                 </div>
               </div>
             </div>
 
-            <div className="border-t p-4 flex justify-end gap-3">
-              <Button variant="outline" onClick={resetForm}>
+            <div className="border-t border-white/10 p-4 flex justify-end gap-3 bg-black/20">
+              <Button variant="outline" onClick={resetForm} className="border-white/20 text-white hover:bg-white/10">
                 Create Another
               </Button>
-              <Button onClick={() => { setShowSuccessModal(false); navigate('/admin'); }}>
+              <Button onClick={() => { setShowSuccessModal(false); navigate('/admin'); }} className="bg-gradient-to-r from-blue-600 to-indigo-600">
                 Back to Admin
               </Button>
             </div>
           </div>
         </div>
       )}
+
+      <style jsx>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.2);
+          border-radius: 2px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(255, 255, 255, 0.3);
+        }
+      `}</style>
     </div>
   );
 }
