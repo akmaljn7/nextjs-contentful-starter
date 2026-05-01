@@ -21,8 +21,8 @@ import {
   X,
   Send,
   Info,
-  PanelLeftClose,
-  PanelLeft,
+  PanelRightClose,
+  PanelRight,
   GripVertical
 } from 'lucide-react';
 
@@ -140,7 +140,8 @@ export default function MetaAdsGlobePage() {
   useEffect(() => {
     const handleMouseMove = (e) => {
       if (!isDragging) return;
-      const newWidth = Math.min(Math.max(380, e.clientX), 700);
+      // Calculate width from right edge of screen
+      const newWidth = Math.min(Math.max(380, window.innerWidth - e.clientX), 700);
       setSidebarWidth(newWidth);
     };
 
@@ -339,18 +340,18 @@ export default function MetaAdsGlobePage() {
       {!sidebarOpen && (
         <button
           onClick={() => setSidebarOpen(true)}
-          className="absolute top-4 left-4 z-30 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white p-3 rounded-xl shadow-lg shadow-blue-500/30 transition-all duration-300 flex items-center gap-2 group"
+          className="absolute top-4 right-4 z-30 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white p-3 rounded-xl shadow-lg shadow-blue-500/30 transition-all duration-300 flex items-center gap-2 group"
         >
-          <PanelLeft className="h-5 w-5" />
           <span className="text-sm font-medium">Open Panel</span>
+          <PanelRight className="h-5 w-5" />
         </button>
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar - Right Side */}
       {sidebarOpen && (
         <div 
           ref={sidebarRef}
-          className="relative h-full flex flex-col z-20 shadow-2xl shadow-black/50"
+          className="absolute right-0 top-0 h-full flex flex-col z-20 shadow-2xl shadow-black/50"
           style={{ width: sidebarWidth }}
         >
           {/* Gradient Background */}
@@ -387,7 +388,7 @@ export default function MetaAdsGlobePage() {
                   onClick={() => setSidebarOpen(false)}
                   className="h-8 w-8 text-white/50 hover:text-white hover:bg-white/10"
                 >
-                  <PanelLeftClose className="h-4 w-4" />
+                  <PanelRightClose className="h-4 w-4" />
                 </Button>
               </div>
             </div>
@@ -795,12 +796,12 @@ export default function MetaAdsGlobePage() {
             </div>
           </div>
 
-          {/* Resize Handle */}
+          {/* Resize Handle - Left side */}
           <div
-            className="absolute top-0 right-0 w-1 h-full cursor-ew-resize group"
+            className="absolute top-0 left-0 w-1 h-full cursor-ew-resize group"
             onMouseDown={handleMouseDown}
           >
-            <div className="absolute top-1/2 -translate-y-1/2 right-0 w-4 h-12 bg-white/10 rounded-l-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="absolute top-1/2 -translate-y-1/2 left-0 w-4 h-12 bg-white/10 rounded-r-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
               <GripVertical className="h-4 w-4 text-white/50" />
             </div>
           </div>
