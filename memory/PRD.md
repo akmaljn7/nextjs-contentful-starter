@@ -189,6 +189,10 @@ Northern Nigeria's trusted advertising marketplace connecting advertisers with v
 - **AdGlobe Button**: Renamed from "Meta Ads Globe" to "AdGlobe" in Admin Panel Digital Ads tab
 - **3D CesiumJS Globe**: Interactive 3D map for Meta Ads location targeting simulation
 - **Campaign Form**: Right-side draggable form for campaign creation
+- **Post Up By Feature**: Multi-select influencer list with content URL input for reposting campaigns
+  - Select multiple influencers from the database
+  - Paste Instagram/Facebook post URL for influencers to share
+  - Shows selected influencers with follower counts
 - **Pulsing Marker Animation**: Fixed - using `CallbackProperty` for polygon hierarchy (size pulse) with static materials
 - **Backend Geocoding Proxy**: Added `/api/geocode` endpoint to bypass CORS restrictions for location search
 - **Location Data**: Sends lat/lon/radius to parent React component via postMessage

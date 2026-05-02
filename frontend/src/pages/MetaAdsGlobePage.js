@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
+import axios from 'axios';
 import { 
   ArrowLeft, 
   Globe, 
@@ -23,8 +24,12 @@ import {
   Info,
   PanelRightClose,
   PanelRight,
-  GripVertical
+  GripVertical,
+  Users,
+  Share2
 } from 'lucide-react';
+
+const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 // Meta Campaign Objectives
 const CAMPAIGN_OBJECTIVES = [
@@ -101,10 +106,17 @@ export default function MetaAdsGlobePage() {
   const [sidebarWidth, setSidebarWidth] = useState(480);
   const [isDragging, setIsDragging] = useState(false);
   
+  // Influencers for Post Up feature
+  const [influencers, setInfluencers] = useState([]);
+  const [loadingInfluencers, setLoadingInfluencers] = useState(true);
+  
   // Form State
   const [formData, setFormData] = useState({
     campaignName: '',
     objective: '',
+    // Post Up feature
+    postUpInfluencers: [],
+    postUpContentUrl: '',
     specialAdCategory: 'NONE',
     adSetName: '',
     budgetType: 'daily',
@@ -130,6 +142,22 @@ export default function MetaAdsGlobePage() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [submittedData, setSubmittedData] = useState(null);
   const [activeSection, setActiveSection] = useState('campaign');
+
+  // Fetch influencers on mount
+  useEffect(() => {
+    const fetchInfluencers = async () => {
+      try {
+        const response = await axios.get(`${API_URL}/api/influencers`);
+        setInfluencers(response.data);
+      } catch (error) {
+        console.error('Failed to fetch influencers:', error);
+        toast.error('Failed to load influencers');
+      } finally {
+        setLoadingInfluencers(false);
+      }
+    };
+    fetchInfluencers();
+  }, []);
 
   // Handle sidebar dragging
   const handleMouseDown = (e) => {
@@ -181,6 +209,25 @@ export default function MetaAdsGlobePage() {
 
   const updateField = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  // Toggle influencer selection for Post Up
+  const toggleInfluencer = (influencerId) => {
+    setFormData(prev => {
+      const currentSelected = prev.postUpInfluencers;
+      if (currentSelected.includes(influencerId)) {
+        return { ...prev, postUpInfluencers: currentSelected.filter(id => id !== influencerId) };
+      } else {
+        return { ...prev, postUpInfluencers: [...currentSelected, influencerId] };
+      }
+    });
+  };
+
+  // Get selected influencer names for display
+  const getSelectedInfluencerNames = () => {
+    return formData.postUpInfluencers
+      .map(id => influencers.find(inf => inf._id === id || inf.id === id)?.name)
+      .filter(Boolean);
   };
 
   const handleImageUpload = (e) => {
@@ -235,12 +282,24 @@ export default function MetaAdsGlobePage() {
     setIsSubmitting(true);
     await new Promise(resolve => setTimeout(resolve, 2000));
     
+    // Get selected influencer details for Post Up
+    const selectedInfluencerDetails = formData.postUpInfluencers.map(id => {
+      const inf = influencers.find(i => i._id === id || i.id === id);
+      return inf ? { id: inf._id || inf.id, name: inf.name, platform: inf.platform, handle: inf.handle } : null;
+    }).filter(Boolean);
+    
     const payload = {
       campaign: {
         name: formData.campaignName,
         objective: formData.objective,
         special_ad_categories: formData.specialAdCategory === 'NONE' ? [] : [formData.specialAdCategory],
         status: 'PAUSED',
+      },
+      // Post Up feature - send content to influencers to repost
+      postUp: {
+        enabled: formData.postUpInfluencers.length > 0 && formData.postUpContentUrl,
+        influencers: selectedInfluencerDetails,
+        contentUrl: formData.postUpContentUrl,
       },
       adSet: {
         name: formData.adSetName || `${formData.campaignName} - Ad Set`,
@@ -293,6 +352,8 @@ export default function MetaAdsGlobePage() {
     setFormData({
       campaignName: '',
       objective: '',
+      postUpInfluencers: [],
+      postUpContentUrl: '',
       specialAdCategory: 'NONE',
       adSetName: '',
       budgetType: 'daily',
@@ -451,6 +512,113 @@ export default function MetaAdsGlobePage() {
                         ))}
                       </SelectContent>
                     </Select>
+                  </div>
+
+                  {/* Post Up Feature - Influencer Amplification */}
+                  <div className="space-y-3 p-4 rounded-xl bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                        <Share2 className="h-3.5 w-3.5 text-white" />
+                      </div>
+                      <div>
+                        <Label className="text-white/90 text-sm font-semibold">Post Up By</Label>
+                        <p className="text-xs text-purple-200/60">Send content to influencers to repost</p>
+                      </div>
+                    </div>
+                    
+                    {/* Influencer Multi-Select */}
+                    <div className="space-y-2">
+                      <Label className="text-white/70 text-xs">Select Influencers</Label>
+                      {loadingInfluencers ? (
+                        <div className="flex items-center gap-2 p-3 rounded-lg bg-white/5 text-white/50 text-sm">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Loading influencers...
+                        </div>
+                      ) : influencers.length === 0 ? (
+                        <div className="p-3 rounded-lg bg-white/5 text-white/50 text-sm">
+                          No influencers available
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <div className="max-h-40 overflow-y-auto rounded-lg bg-white/5 border border-white/10 p-2 space-y-1">
+                            {influencers.map((influencer) => {
+                              const id = influencer._id || influencer.id;
+                              const isSelected = formData.postUpInfluencers.includes(id);
+                              return (
+                                <div
+                                  key={id}
+                                  onClick={() => toggleInfluencer(id)}
+                                  className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-all ${
+                                    isSelected 
+                                      ? 'bg-purple-500/20 border border-purple-500/40' 
+                                      : 'hover:bg-white/5 border border-transparent'
+                                  }`}
+                                >
+                                  <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
+                                    isSelected 
+                                      ? 'bg-purple-500 border-purple-500' 
+                                      : 'border-white/30'
+                                  }`}>
+                                    {isSelected && <CheckCircle className="h-3 w-3 text-white" />}
+                                  </div>
+                                  <img 
+                                    src={influencer.profile_picture || influencer.profilePicture || `https://ui-avatars.com/api/?name=${encodeURIComponent(influencer.name)}&background=6366f1&color=fff`}
+                                    alt={influencer.name}
+                                    className="w-8 h-8 rounded-full object-cover border border-white/20"
+                                  />
+                                  <div className="flex-1 min-w-0">
+                                    <div className="text-sm text-white font-medium truncate">{influencer.name}</div>
+                                    <div className="text-xs text-white/50 truncate">
+                                      {influencer.platform} • @{influencer.handle || influencer.username}
+                                    </div>
+                                  </div>
+                                  <div className="text-xs text-purple-300 font-medium">
+                                    {influencer.followers ? `${(influencer.followers / 1000).toFixed(1)}K` : ''}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          
+                          {formData.postUpInfluencers.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5">
+                              {getSelectedInfluencerNames().map((name, idx) => (
+                                <span key={idx} className="px-2 py-1 rounded-full bg-purple-500/20 text-purple-200 text-xs font-medium">
+                                  {name}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Content URL Input */}
+                    <div className="space-y-2">
+                      <Label className="text-white/70 text-xs">Content URL to Repost</Label>
+                      <div className="relative">
+                        <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-purple-300/50" />
+                        <Input
+                          type="url"
+                          placeholder="https://instagram.com/p/..."
+                          value={formData.postUpContentUrl}
+                          onChange={(e) => updateField('postUpContentUrl', e.target.value)}
+                          className="pl-9 bg-white/5 border-purple-500/20 text-white placeholder:text-white/30 focus:border-purple-500 focus:ring-purple-500/20"
+                        />
+                      </div>
+                      <p className="text-xs text-purple-200/50">
+                        Paste the Instagram/Facebook post URL for influencers to share
+                      </p>
+                    </div>
+
+                    {formData.postUpInfluencers.length > 0 && formData.postUpContentUrl && (
+                      <div className="flex items-center gap-2 p-2 rounded-lg bg-green-500/10 border border-green-500/30">
+                        <CheckCircle className="h-4 w-4 text-green-400" />
+                        <span className="text-xs text-green-300">
+                          {formData.postUpInfluencers.length} influencer{formData.postUpInfluencers.length > 1 ? 's' : ''} will receive this content
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -856,6 +1024,42 @@ export default function MetaAdsGlobePage() {
                     </CardContent>
                   </Card>
                 </div>
+
+                {/* Post Up Summary */}
+                {submittedData?.postUp?.enabled && (
+                  <div>
+                    <h3 className="font-semibold text-sm text-purple-400 uppercase tracking-wide mb-2 flex items-center gap-2">
+                      <Share2 className="h-4 w-4" />
+                      Post Up - Influencer Amplification
+                    </h3>
+                    <Card className="bg-purple-500/10 border-purple-500/30">
+                      <CardContent className="pt-4 space-y-3 text-white">
+                        <div>
+                          <span className="text-white/60 text-sm">Selected Influencers:</span>
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {submittedData.postUp.influencers.map((inf, idx) => (
+                              <span key={idx} className="px-3 py-1.5 rounded-full bg-purple-500/20 text-purple-200 text-sm font-medium flex items-center gap-2">
+                                <Users className="h-3 w-3" />
+                                {inf.name}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="pt-2 border-t border-purple-500/20">
+                          <span className="text-white/60 text-sm">Content URL:</span>
+                          <a 
+                            href={submittedData.postUp.contentUrl} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="block mt-1 text-purple-300 hover:text-purple-200 text-sm truncate"
+                          >
+                            {submittedData.postUp.contentUrl}
+                          </a>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
 
                 <div>
                   <h3 className="font-semibold text-sm text-white/60 uppercase tracking-wide mb-2">API Payload</h3>
