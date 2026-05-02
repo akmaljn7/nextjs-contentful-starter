@@ -653,7 +653,7 @@ async function bootstrap(){
           const pulse=r+r*0.06*Math.sin(Date.now()/200);
           return new Cesium.PolygonHierarchy(buildCirclePositions(lon,lat,pulse,64));
         },false),
-        material:hexToCs(BLUE,0.18),
+        material:hexToCs(BLUE,0.35),
         classificationType:Cesium.ClassificationType.BOTH
       }
     });
@@ -669,7 +669,7 @@ async function bootstrap(){
             [new Cesium.PolygonHierarchy(buildCirclePositions(lon,lat,ri,64))]
           );
         },false),
-        material:hexToCs(BLUE,0.07),
+        material:hexToCs(BLUE,0.15),
         classificationType:Cesium.ClassificationType.BOTH
       }
     });
@@ -678,8 +678,8 @@ async function bootstrap(){
     const ring=viewer.entities.add({
       polyline:{
         positions:new Cesium.CallbackProperty(()=>buildCirclePositions(lon,lat,r,96),false),
-        width:3.5, clampToGround:true,
-        material:new Cesium.PolylineGlowMaterialProperty({glowPower:0.3,color:hexToCs(BLUE,0.98)})
+        width:4, clampToGround:true,
+        material:new Cesium.PolylineGlowMaterialProperty({glowPower:0.4,color:hexToCs(BLUE,1.0)})
       }
     });
 
@@ -687,8 +687,8 @@ async function bootstrap(){
     const ring2=viewer.entities.add({
       polyline:{
         positions:new Cesium.CallbackProperty(()=>buildCirclePositions(lon,lat,r2,96),false),
-        width:1.5, clampToGround:true,
-        material:new Cesium.PolylineGlowMaterialProperty({glowPower:0.2,color:hexToCs(BLUE,0.4)})
+        width:2, clampToGround:true,
+        material:new Cesium.PolylineGlowMaterialProperty({glowPower:0.3,color:hexToCs(BLUE,0.7)})
       }
     });
 
