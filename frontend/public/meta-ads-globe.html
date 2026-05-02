@@ -479,8 +479,10 @@ function animateNum(el, target, dur=700){
   })(start);
 }
 
-/* ════ Google Maps blue pin ════ */
+/* ════ Google Maps blue pin (pre-cached) ════ */
+let cachedPinCanvas = null;
 function createPinCanvas(){
+  if (cachedPinCanvas) return cachedPinCanvas;
   const c=document.createElement('canvas'); c.width=80; c.height=110;
   const ctx=c.getContext('2d');
   ctx.beginPath(); ctx.ellipse(40,102,12,5,0,0,Math.PI*2);
@@ -494,6 +496,7 @@ function createPinCanvas(){
   ctx.fillStyle=g; ctx.fill();
   ctx.beginPath(); ctx.arc(40,42,14,0,Math.PI*2); ctx.fillStyle='rgba(255,255,255,0.95)'; ctx.fill();
   ctx.beginPath(); ctx.arc(40,42,8,0,Math.PI*2); ctx.fillStyle='#1a73e8'; ctx.fill();
+  cachedPinCanvas = c;
   return c;
 }
 
@@ -646,12 +649,12 @@ async function bootstrap(){
     const r = state.markRadius;
     const r2 = r * 2;
 
-    /* Inner fill polygon — pulsing size animation */
+    /* Inner fill polygon — pulsing size animation (48 segments for faster render) */
     const fill=viewer.entities.add({
       polygon:{
         hierarchy:new Cesium.CallbackProperty(()=>{
           const pulse=r+r*0.06*Math.sin(Date.now()/200);
-          return new Cesium.PolygonHierarchy(buildCirclePositions(lon,lat,pulse,64));
+          return new Cesium.PolygonHierarchy(buildCirclePositions(lon,lat,pulse,48));
         },false),
         material:hexToCs(BLUE,0.35),
         classificationType:Cesium.ClassificationType.BOTH
@@ -665,8 +668,8 @@ async function bootstrap(){
           const ro=r2+r2*0.04*Math.sin(Date.now()/260);
           const ri=r*0.92;
           return new Cesium.PolygonHierarchy(
-            buildCirclePositions(lon,lat,ro,64),
-            [new Cesium.PolygonHierarchy(buildCirclePositions(lon,lat,ri,64))]
+            buildCirclePositions(lon,lat,ro,48),
+            [new Cesium.PolygonHierarchy(buildCirclePositions(lon,lat,ri,48))]
           );
         },false),
         material:hexToCs(BLUE,0.15),
@@ -677,7 +680,7 @@ async function bootstrap(){
     /* Inner ring with glow (clampToGround → terrain aware) */
     const ring=viewer.entities.add({
       polyline:{
-        positions:new Cesium.CallbackProperty(()=>buildCirclePositions(lon,lat,r,96),false),
+        positions:new Cesium.CallbackProperty(()=>buildCirclePositions(lon,lat,r,64),false),
         width:4, clampToGround:true,
         material:new Cesium.PolylineGlowMaterialProperty({glowPower:0.4,color:hexToCs(BLUE,1.0)})
       }
@@ -686,7 +689,7 @@ async function bootstrap(){
     /* Outer ring */
     const ring2=viewer.entities.add({
       polyline:{
-        positions:new Cesium.CallbackProperty(()=>buildCirclePositions(lon,lat,r2,96),false),
+        positions:new Cesium.CallbackProperty(()=>buildCirclePositions(lon,lat,r2,64),false),
         width:2, clampToGround:true,
         material:new Cesium.PolylineGlowMaterialProperty({glowPower:0.3,color:hexToCs(BLUE,0.7)})
       }
@@ -701,11 +704,12 @@ async function bootstrap(){
       }
     });
 
-    /* Pin billboard */
+    /* Pin billboard - Google Maps style blue pin */
     const pinEnt=viewer.entities.add({
       position:Cesium.Cartesian3.fromDegrees(lon,lat,0),
       billboard:{
-        image:createPinCanvas(), scale:0.78,
+        image:createPinCanvas(), 
+        scale:1.0,
         verticalOrigin:Cesium.VerticalOrigin.BOTTOM,
         heightReference:Cesium.HeightReference.CLAMP_TO_GROUND,
         disableDepthTestDistance:Number.POSITIVE_INFINITY
@@ -717,13 +721,13 @@ async function bootstrap(){
       position:Cesium.Cartesian3.fromDegrees(lon,lat,0),
       label:{
         text:state.markName||'Location',
-        font:'bold 13px sans-serif',
+        font:'bold 14px sans-serif',
         fillColor:Cesium.Color.WHITE,
         style:Cesium.LabelStyle.FILL_AND_OUTLINE,
         outlineColor:Cesium.Color.fromCssColorString('#0a2a5c'),
         outlineWidth:4, showBackground:true,
-        backgroundColor:Cesium.Color.fromCssColorString('#0d1f3c').withAlpha(0.85),
-        pixelOffset:new Cesium.Cartesian2(0,-88),
+        backgroundColor:Cesium.Color.fromCssColorString('#0d1f3c').withAlpha(0.9),
+        pixelOffset:new Cesium.Cartesian2(0,-95),
         heightReference:Cesium.HeightReference.CLAMP_TO_GROUND,
         disableDepthTestDistance:Number.POSITIVE_INFINITY
       }
@@ -733,8 +737,8 @@ async function bootstrap(){
     const dot=viewer.entities.add({
       position:Cesium.Cartesian3.fromDegrees(lon,lat,0),
       point:{
-        pixelSize:12, color:hexToCs(BLUE),
-        outlineColor:Cesium.Color.WHITE, outlineWidth:2,
+        pixelSize:14, color:hexToCs(BLUE),
+        outlineColor:Cesium.Color.WHITE, outlineWidth:3,
         heightReference:Cesium.HeightReference.CLAMP_TO_GROUND,
         disableDepthTestDistance:Number.POSITIVE_INFINITY
       }
@@ -854,12 +858,13 @@ async function bootstrap(){
       
       showFlyTrail();
       viewer.camera.flyTo({
-        destination:Cesium.Cartesian3.fromDegrees(lon,lat,15000),
+        destination:Cesium.Cartesian3.fromDegrees(lon,lat,12000),
         orientation:{pitch:Cesium.Math.toRadians(-90),heading:0,roll:0},
-        duration:2.0, easingFunction:Cesium.EasingFunction.CUBIC_IN_OUT
+        duration:1.2, easingFunction:Cesium.EasingFunction.QUADRATIC_IN_OUT
       });
       
-      setTimeout(()=>markAndShowStats(lat,lon,name),2200);
+      // Show marker faster - right after fly starts
+      setTimeout(()=>markAndShowStats(lat,lon,name),1300);
       $('search').value=query;
       setStatus(`Found "${name}" — adjust radius as needed.`);
       showToast('Flew to '+name);
