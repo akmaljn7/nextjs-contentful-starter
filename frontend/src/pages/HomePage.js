@@ -294,6 +294,67 @@ export const HomePage = () => {
           </div>
         </div>
       </section>
+
+      {/* Company Ownership & Legal Section */}
+      <section className="py-12 bg-slate-900 text-white" data-testid="company-section">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid md:grid-cols-2 gap-8 items-center">
+            {/* Company Info */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl flex items-center justify-center">
+                  <Shield className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white">Adlinka</h3>
+                  <p className="text-sm text-slate-400">Nigeria's Premier Advertising Marketplace</p>
+                </div>
+              </div>
+              <div className="p-4 bg-slate-800/50 rounded-xl border border-slate-700">
+                <p className="text-slate-300 leading-relaxed">
+                  <strong className="text-white">Adlinka</strong> is a product and registered trademark of{' '}
+                  <strong className="text-orange-400">Lightban Technology Ltd</strong>, a Nigerian technology company 
+                  specializing in digital advertising solutions and marketplace platforms. Lightban Technology Ltd 
+                  is the parent company and sole owner of the Adlinka brand, platform, and all associated services.
+                </p>
+              </div>
+            </div>
+
+            {/* Legal & Registration Info */}
+            <div className="space-y-4">
+              <h4 className="text-lg font-semibold text-white flex items-center gap-2">
+                <CheckCircle className="h-5 w-5 text-green-500" />
+                Company Registration
+              </h4>
+              <div className="grid gap-3">
+                <div className="p-3 bg-slate-800/50 rounded-lg border border-slate-700">
+                  <p className="text-xs text-slate-500 uppercase tracking-wide">Parent Company</p>
+                  <p className="text-white font-semibold">Lightban Technology Ltd</p>
+                </div>
+                <div className="p-3 bg-slate-800/50 rounded-lg border border-slate-700">
+                  <p className="text-xs text-slate-500 uppercase tracking-wide">Product / Brand</p>
+                  <p className="text-white font-semibold">Adlinka - Advertising Marketplace</p>
+                </div>
+                <div className="p-3 bg-slate-800/50 rounded-lg border border-slate-700">
+                  <p className="text-xs text-slate-500 uppercase tracking-wide">Headquarters</p>
+                  <p className="text-white font-semibold">Kano, Nigeria</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Footer copyright */}
+          <div className="mt-8 pt-6 border-t border-slate-700 text-center">
+            <p className="text-slate-400 text-sm">
+              © {new Date().getFullYear()} <strong className="text-white">Adlinka</strong> — 
+              A product of <strong className="text-orange-400">Lightban Technology Ltd</strong>. All rights reserved.
+            </p>
+            <p className="text-slate-500 text-xs mt-2">
+              Lightban Technology Ltd is the registered owner and operator of Adlinka (www.adlinka.com)
+            </p>
+          </div>
+        </div>
+      </section>
     </div>
   );
 };
