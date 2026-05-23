@@ -188,22 +188,29 @@ Northern Nigeria's trusted advertising marketplace connecting advertisers with v
 ### Feature: AdGlobe 3D Map (May 2025) ✅
 - **AdGlobe Button**: Renamed from "Meta Ads Globe" to "AdGlobe" in Admin Panel Digital Ads tab
 - **3D CesiumJS Globe**: Interactive 3D map for Meta Ads location targeting simulation
-- **State & Country Boundary Highlight Mode (NEW)**:
-  - Automatic detection of states, countries, LGAs, and cities
+- **State, LGA & Country Boundary Highlight Mode**:
+  - Automatic detection using OSM `addresstype` (county=LGA, state, country)
   - Fetches exact administrative boundary polygons from OpenStreetMap
-  - Glowing neon cyan/blue border traces exact geo-political boundaries
+  - **Color-coded boundaries**:
+    - Countries: Green glow
+    - States: Cyan/blue glow  
+    - LGAs: Orange glow
   - Semi-transparent fill inside boundaries
   - Auto-fits camera to boundary bounding box
   - Boundary caching for performance
-- **Predefined Daily Reach System (NEW)**:
-  - Exact values for Nigeria (2,327,899), Lagos (7,035,224), Kano (1,216,388), Abuja (1,951,070), etc.
+- **Predefined Daily Reach System**:
+  - Nigeria (2,327,899), Lagos (7,035,224), Kano (1,216,388), Abuja (1,951,070)
   - All 36 Nigerian states + FCT covered
+  - **100+ Kano State LGAs** with specific reach values (Tarauni: 68,000, Nassarawa: 72,000, Kano Municipal: 85,000, etc.)
+  - **Lagos State LGAs** (Ikeja: 520,000, Alimosho: 580,000, etc.)
+  - **Abuja Area Councils** (AMAC: 850,000, Bwari: 320,000, etc.)
   - Formula-based estimation for other locations
 - **Campaign Form**: Right-side draggable form for campaign creation
-- **Post Up By Feature**: Multi-select influencer list with content URL input for reposting campaigns
-- **Pulsing Marker Animation**: Using `CallbackProperty` for polygon hierarchy (size pulse) with static materials
-- **Backend Geocoding Proxy**: `/api/geocode` endpoint for location search, `/api/geocode/boundary` for polygon fetch
-- **Files**: `/app/frontend/public/meta-ads-globe.html`, `/app/frontend/src/pages/MetaAdsGlobePage.js`, `/app/backend/server.py`
+- **Post Up By Feature**: Multi-select influencer list with content URL input
+- **Backend API Endpoints**: 
+  - `/api/geocode` - Location search proxy
+  - `/api/geocode/boundary` - Boundary polygon fetch proxy
+- **Files**: `/app/frontend/public/meta-ads-globe.html`, `/app/frontend/src/pages/MetaAdsGlobePage.js`
 
 ### Feature: Proof URL Input (May 2025) ✅
 - Replaced video file upload with URL-based proof submission

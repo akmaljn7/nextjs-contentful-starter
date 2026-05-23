@@ -127,6 +127,7 @@
     }
     .boundary-badge.state { background: rgba(0,212,255,0.15); color: var(--cyan); border: 1px solid rgba(0,212,255,0.3); }
     .boundary-badge.country { background: rgba(52,168,83,0.15); color: var(--green); border: 1px solid rgba(52,168,83,0.3); }
+    .boundary-badge.lga { background: rgba(255,152,0,0.15); color: #ff9800; border: 1px solid rgba(255,152,0,0.3); }
     .boundary-badge.city { background: rgba(251,188,4,0.15); color: var(--yellow); border: 1px solid rgba(251,188,4,0.3); }
 
     /* Radius control */
@@ -280,24 +281,25 @@
       <div class="title">AdGlobe <em>3D</em></div>
       <div class="live-badge"><div class="live-dot"></div>LIVE</div>
     </div>
-    <p class="subtitle">State & Country boundary targeting</p>
+    <p class="subtitle">State, LGA & Country boundary targeting</p>
   </div>
 
   <div class="panel-body">
     <div class="sec">Search Location</div>
     <div class="input-row" style="margin-bottom:6px">
-      <input type="text" id="search" placeholder="Lagos State Nigeria, Kano, Nigeria..." autocomplete="off">
+      <input type="text" id="search" placeholder="Tarauni LGA, Lagos State, Nigeria..." autocomplete="off">
       <button class="btn btn-primary" id="searchBtn">FLY</button>
     </div>
-    <div id="searchStatus">Search a Nigerian state, LGA, or country to view boundaries.</div>
+    <div id="searchStatus">Search a state, LGA, or country to view boundaries.</div>
 
     <div class="sec">Quick Search</div>
     <div class="chips">
       <div class="chip" onclick="searchQuick('Nigeria')">🇳🇬 Nigeria</div>
-      <div class="chip" onclick="searchQuick('Kano State Nigeria')">Kano</div>
-      <div class="chip" onclick="searchQuick('Lagos State Nigeria')">Lagos</div>
-      <div class="chip" onclick="searchQuick('Abuja Nigeria')">Abuja</div>
-      <div class="chip" onclick="searchQuick('Kaduna State Nigeria')">Kaduna</div>
+      <div class="chip" onclick="searchQuick('Kano State Nigeria')">Kano State</div>
+      <div class="chip" onclick="searchQuick('Tarauni Kano Nigeria')">Tarauni</div>
+      <div class="chip" onclick="searchQuick('Nassarawa Kano Nigeria')">Nassarawa</div>
+      <div class="chip" onclick="searchQuick('Ikeja Lagos Nigeria')">Ikeja</div>
+      <div class="chip" onclick="searchQuick('Lagos State Nigeria')">Lagos State</div>
     </div>
 
     <!-- Stats Panel -->
@@ -470,7 +472,109 @@ const DAILY_REACH_DATA = {
   'bayelsa state': 136363
 };
 
-/* ════ State/Country detection patterns ════ */
+/* ════ LGA Daily Reach (State Reach / Number of LGAs in State) ════ */
+const LGA_REACH_MULTIPLIERS = {
+  // Kano State LGAs (44 LGAs, State reach: 1,216,388)
+  'kano municipal': 85000,
+  'nassarawa': 72000,
+  'tarauni': 68000,
+  'fagge': 65000,
+  'dala': 62000,
+  'gwale': 58000,
+  'ungogo': 55000,
+  'kumbotso': 52000,
+  'gezawa': 45000,
+  'dawakin tofa': 42000,
+  'minjibir': 38000,
+  'gabasawa': 35000,
+  'warawa': 32000,
+  'wudil': 30000,
+  'kura': 28000,
+  'madobi': 26000,
+  'garun mallam': 24000,
+  'bichi': 35000,
+  'bagwai': 22000,
+  'shanono': 20000,
+  'dambatta': 32000,
+  'makoda': 25000,
+  'kunchi': 18000,
+  'tsanyawa': 20000,
+  'gwarzo': 28000,
+  'rogo': 22000,
+  'kabo': 24000,
+  'karaye': 26000,
+  'rimin gado': 20000,
+  'tofa': 18000,
+  'doguwa': 15000,
+  'tudun wada': 22000,
+  'sumaila': 18000,
+  'takai': 16000,
+  'albasu': 14000,
+  'bebeji': 15000,
+  'kiru': 20000,
+  'rano': 22000,
+  'kibiya': 12000,
+  'gaya': 25000,
+  'ajingi': 14000,
+  'garko': 12000,
+  
+  // Lagos State LGAs (20 LGAs, State reach: 7,035,224)
+  'ikeja': 520000,
+  'lagos island': 380000,
+  'lagos mainland': 420000,
+  'eti-osa': 480000,
+  'surulere': 450000,
+  'mushin': 380000,
+  'oshodi-isolo': 350000,
+  'kosofe': 320000,
+  'alimosho': 580000,
+  'ifako-ijaiye': 280000,
+  'agege': 350000,
+  'ajeromi-ifelodun': 320000,
+  'amuwo-odofin': 280000,
+  'apapa': 220000,
+  'somolu': 260000,
+  'ikorodu': 380000,
+  'epe': 180000,
+  'badagry': 200000,
+  'ibeju-lekki': 150000,
+  'ojo': 320000,
+  
+  // Abuja/FCT Area Councils (6 councils)
+  'abuja municipal': 850000,
+  'amac': 850000,
+  'bwari': 320000,
+  'gwagwalada': 180000,
+  'kuje': 120000,
+  'kwali': 80000,
+  'abaji': 60000,
+  
+  // Kaduna State LGAs (major ones)
+  'kaduna north': 180000,
+  'kaduna south': 165000,
+  'chikun': 120000,
+  'igabi': 95000,
+  'zaria': 140000,
+  'sabon gari': 85000,
+  
+  // Rivers State LGAs (major ones)
+  'port harcourt': 380000,
+  'obio-akpor': 420000,
+  'eleme': 85000,
+  'oyigbo': 65000,
+  
+  // Oyo State LGAs (major ones)
+  'ibadan north': 280000,
+  'ibadan south-west': 220000,
+  'ibadan south-east': 180000,
+  'ibadan north-west': 160000,
+  'ibadan north-east': 140000,
+  'oluyole': 120000,
+  'akinyele': 95000,
+  'ona-ara': 85000
+};
+
+/* ════ State/Country/LGA detection patterns ════ */
 const NIGERIAN_STATES = [
   'abia', 'adamawa', 'akwa ibom', 'anambra', 'bauchi', 'bayelsa', 'benue', 'borno',
   'cross river', 'delta', 'ebonyi', 'edo', 'ekiti', 'enugu', 'gombe', 'imo',
@@ -480,6 +584,10 @@ const NIGERIAN_STATES = [
 ];
 
 const COUNTRIES = ['nigeria', 'ghana', 'niger', 'chad', 'cameroon', 'benin', 'togo', 'burkina faso'];
+
+/* ════ LGA name patterns for detection ════ */
+const LGA_KEYWORDS = ['local government', 'lga', 'municipal', 'area council'];
+const KNOWN_LGAS = Object.keys(LGA_REACH_MULTIPLIERS);
 
 /* ════ App state ════ */
 const state = {
@@ -593,15 +701,44 @@ function showFlyTrail(){
 }
 
 /* ════ Detect location type ════ */
-function detectLocationType(query, displayName) {
+function detectLocationType(query, displayName, addressType) {
   const q = query.toLowerCase();
   const d = (displayName || '').toLowerCase();
+  const aType = (addressType || '').toLowerCase();
+  
+  // Check addresstype from OSM first (most accurate)
+  if (aType === 'county' || aType === 'municipality') {
+    return 'lga';
+  }
+  if (aType === 'state' || aType === 'province' || aType === 'region') {
+    return 'state';
+  }
+  if (aType === 'country') {
+    return 'country';
+  }
   
   // Check for country
   for (const country of COUNTRIES) {
-    if (q === country || q.includes(country) && !q.includes('state')) {
+    if (q === country || (q.includes(country) && !q.includes('state') && !q.includes('lga'))) {
       if (q === country || (q.includes(country) && q.split(/\s+/).length <= 2)) {
         return 'country';
+      }
+    }
+  }
+  
+  // Check for LGA keywords in query or display name
+  for (const keyword of LGA_KEYWORDS) {
+    if (q.includes(keyword) || d.includes(keyword)) {
+      return 'lga';
+    }
+  }
+  
+  // Check against known LGA names
+  for (const lga of KNOWN_LGAS) {
+    if (q.includes(lga) || d.includes(lga)) {
+      // Make sure it's not just part of a state name
+      if (!q.includes('state') && !d.includes('state')) {
+        return 'lga';
       }
     }
   }
@@ -621,8 +758,8 @@ function detectLocationType(query, displayName) {
     return 'state';
   }
   
-  // Check for LGA
-  if (d.includes('local government') || d.includes('lga')) {
+  // Check OSM place type from display name patterns
+  if (d.includes('ward') || d.includes('district')) {
     return 'lga';
   }
   
@@ -631,9 +768,32 @@ function detectLocationType(query, displayName) {
 
 /* ════ Get daily reach for location ════ */
 function getDailyReach(query, locationType) {
-  const q = query.toLowerCase().replace(/\s+state\s+nigeria/gi, '').replace(/\s+nigeria/gi, '').trim();
+  const q = query.toLowerCase()
+    .replace(/\s+state\s+nigeria/gi, '')
+    .replace(/\s+nigeria/gi, '')
+    .replace(/\s+local government/gi, '')
+    .replace(/\s+lga/gi, '')
+    .replace(/,\s*kano$/gi, '')
+    .replace(/,\s*lagos$/gi, '')
+    .trim();
   
-  // Direct match
+  // Check LGA reach first for LGA type
+  if (locationType === 'lga') {
+    // Direct match in LGA data
+    if (LGA_REACH_MULTIPLIERS[q]) {
+      return LGA_REACH_MULTIPLIERS[q];
+    }
+    // Partial match
+    for (const key of Object.keys(LGA_REACH_MULTIPLIERS)) {
+      if (q.includes(key) || key.includes(q)) {
+        return LGA_REACH_MULTIPLIERS[key];
+      }
+    }
+    // Default LGA estimate
+    return 35000;
+  }
+  
+  // Direct match in state/country data
   if (DAILY_REACH_DATA[q]) {
     return DAILY_REACH_DATA[q];
   }
@@ -653,7 +813,6 @@ function getDailyReach(query, locationType) {
   // Default estimate based on type
   if (locationType === 'country') return 500000;
   if (locationType === 'state') return 200000;
-  if (locationType === 'lga') return 50000;
   return 25000; // city default
 }
 
@@ -776,10 +935,20 @@ async function bootstrap(){
       return;
     }
     
-    const isCountry = locationType === 'country';
-    const glowColor = isCountry ? '#34a853' : CYAN;
-    const fillAlpha = isCountry ? 0.18 : 0.22;
-    const fillColor = isCountry ? hexToCs('#34a853', fillAlpha) : hexToCs(CYAN, fillAlpha);
+    // Color coding by location type
+    let glowColor, fillAlpha;
+    if (locationType === 'country') {
+      glowColor = '#34a853';  // Green for countries
+      fillAlpha = 0.18;
+    } else if (locationType === 'lga') {
+      glowColor = '#ff9800';  // Orange for LGAs
+      fillAlpha = 0.25;
+    } else {
+      glowColor = CYAN;       // Cyan for states
+      fillAlpha = 0.22;
+    }
+    
+    const fillColor = hexToCs(glowColor, fillAlpha);
     const outlineColor = hexToCs(glowColor, 1.0);
     
     polygons.forEach((polygon, idx) => {
@@ -807,11 +976,11 @@ async function bootstrap(){
       });
       state.boundaryEntities.push(fillEntity);
       
-      // Create main glowing outline (thicker)
+      // Create main glowing outline (thicker for LGAs)
       const outlineEntity = viewer.entities.add({
         polyline: {
           positions: positions,
-          width: 5,
+          width: locationType === 'lga' ? 6 : 5,
           clampToGround: true,
           material: new Cesium.PolylineGlowMaterialProperty({
             glowPower: 0.5,
@@ -825,7 +994,7 @@ async function bootstrap(){
       const glowEntity = viewer.entities.add({
         polyline: {
           positions: positions,
-          width: 12,
+          width: locationType === 'lga' ? 14 : 12,
           clampToGround: true,
           material: new Cesium.PolylineGlowMaterialProperty({
             glowPower: 0.25,
@@ -1045,7 +1214,7 @@ async function bootstrap(){
       const lat = parseFloat(hit.lat);
       const lon = parseFloat(hit.lon);
       const displayName = (hit.display_name || query).split(',').slice(0, 2).join(', ');
-      const locationType = detectLocationType(query, hit.display_name);
+      const locationType = detectLocationType(query, hit.display_name, hit.addresstype);
       
       state.markLat = lat;
       state.markLon = lon;
@@ -1070,7 +1239,11 @@ async function bootstrap(){
       if (hit.boundingbox) {
         flyToBoundingBox(hit.boundingbox, 1.8);
       } else {
-        const alt = locationType === 'country' ? 2000000 : (locationType === 'state' ? 500000 : 50000);
+        let alt;
+        if (locationType === 'country') alt = 2000000;
+        else if (locationType === 'state') alt = 500000;
+        else if (locationType === 'lga') alt = 80000;
+        else alt = 50000;
         viewer.camera.flyTo({
           destination: Cesium.Cartesian3.fromDegrees(lon, lat, alt),
           orientation: { pitch: Cesium.Math.toRadians(-90), heading: 0, roll: 0 },
@@ -1078,13 +1251,15 @@ async function bootstrap(){
         });
       }
       
-      // Fetch and draw boundary if state or country
-      if ((locationType === 'state' || locationType === 'country') && hit.osm_id && hit.osm_type) {
+      // Fetch and draw boundary if state, country, or LGA
+      if ((locationType === 'state' || locationType === 'country' || locationType === 'lga') && hit.osm_id && hit.osm_type) {
         setStatus(`Loading ${locationType} boundary...`);
         const boundary = await fetchBoundary(hit.osm_id, hit.osm_type);
         if (boundary) {
           drawBoundaryPolygon(boundary, locationType);
           setStatus(`${displayName} boundary loaded.`);
+        } else {
+          setStatus(`${displayName} - boundary not available.`);
         }
       }
       
