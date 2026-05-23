@@ -201,7 +201,7 @@ Northern Nigeria's trusted advertising marketplace connecting advertisers with v
 - **Predefined Daily Reach System**:
   - Nigeria (2,327,899), Lagos (7,035,224), Kano (1,216,388), Abuja (1,951,070)
   - All 36 Nigerian states + FCT covered
-  - **100+ Kano State LGAs** with specific reach values (Tarauni: 68,000, Nassarawa: 72,000, Kano Municipal: 85,000, etc.)
+  - **44 Kano State LGAs** with exact 2022 population projections (Tarauni: 364,900, Nassarawa: 980,900, Kano Municipal: 610,600, etc.)
   - **Lagos State LGAs** (Ikeja: 520,000, Alimosho: 580,000, etc.)
   - **Abuja Area Councils** (AMAC: 850,000, Bwari: 320,000, etc.)
   - Formula-based estimation for other locations
@@ -211,6 +211,16 @@ Northern Nigeria's trusted advertising marketplace connecting advertisers with v
   - `/api/geocode` - Location search proxy
   - `/api/geocode/boundary` - Boundary polygon fetch proxy
 - **Files**: `/app/frontend/public/meta-ads-globe.html`, `/app/frontend/src/pages/MetaAdsGlobePage.js`
+
+### Feature: AdGlobe Dynamic Time-Based Stats (May 2025) ✅
+- **Local Time Display**: Shows real-time local time based on the searched location's longitude
+- **Time-Based "Est. Online Now"**: Calculates estimated online population using time-of-day percentages:
+  - 8AM-6PM (Peak Hours): Population × 5%
+  - 6PM-1AM (Evening): Population × 6%
+  - 2AM-8AM (Late Night): Population × 3%
+- **Live Updates**: Local time and online estimates update every minute automatically
+- **Time Period Indicator**: Shows current period (e.g., "Evening (6PM-1AM)") with percentage
+- **File**: `/app/frontend/public/meta-ads-globe.html`
 
 ### Feature: Proof URL Input (May 2025) ✅
 - Replaced video file upload with URL-based proof submission
