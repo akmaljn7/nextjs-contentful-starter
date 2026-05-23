@@ -196,7 +196,7 @@
 
     /* ════ ZOOM CONTROLS ════ */
     #zoom-controls {
-      position: absolute; right: 12px; bottom: 60px; z-index: 20;
+      position: absolute; right: 12px; top: 80px; z-index: 20;
       display: flex; flex-direction: column;
     }
     .zoom-btn {
@@ -1347,7 +1347,7 @@ async function bootstrap(){
       } else if (locationType === 'state') {
         state.markRadius = 25000;
       } else if (locationType === 'lga') {
-        state.markRadius = 10000;
+        state.markRadius = 6000;  // 6km default for LGA
       } else {
         state.markRadius = 5000;
       }
