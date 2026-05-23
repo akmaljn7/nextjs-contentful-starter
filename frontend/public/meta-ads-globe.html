@@ -476,8 +476,440 @@ const DAILY_REACH_DATA = {
 
 /* ════ LGA Population Data (2022 Projection) & Daily Reach ════ */
 // Daily Reach = Population × 0.08 (8% social media daily reach rate)
-const KANO_LGA_POPULATION = {
-  // Kano State LGAs - Population Projection 2022-03-21
+// Complete Nigerian LGA Population Database - All 36 States + FCT
+
+const NIGERIA_LGA_POPULATION = {
+  // ═══════════════════════════════════════════════════════════════
+  // ABIA STATE
+  // ═══════════════════════════════════════════════════════════════
+  'aba north': { population: 155600, reach: 12448 },
+  'aba south': { population: 622400, reach: 49792 },
+  'arochukwu': { population: 246600, reach: 19728 },
+  'bende': { population: 280500, reach: 22440 },
+  'ikwuano': { population: 200800, reach: 16064 },
+  'isiala-ngwa north': { population: 224400, reach: 17952 },
+  'isiala-ngwa south': { population: 199000, reach: 15920 },
+  'isuikwuato': { population: 168600, reach: 13488 },
+  'obi ngwa': { population: 264900, reach: 21192 },
+  'ohafia': { population: 358200, reach: 28656 },
+  'osisioma ngwa': { population: 321300, reach: 25704 },
+  'ugwunagbo': { population: 124300, reach: 9944 },
+  'ukwa east': { population: 84700, reach: 6776 },
+  'ukwa west': { population: 127200, reach: 10176 },
+  'umuahia north': { population: 324900, reach: 25992 },
+  'umuahia south': { population: 202500, reach: 16200 },
+  'umu-nneochi': { population: 237500, reach: 19000 },
+
+  // ═══════════════════════════════════════════════════════════════
+  // ADAMAWA STATE
+  // ═══════════════════════════════════════════════════════════════
+  'demsa': { population: 275100, reach: 22008 },
+  'fufore': { population: 323000, reach: 25840 },
+  'ganye': { population: 262100, reach: 20968 },
+  'girei': { population: 200200, reach: 16016 },
+  'gombi': { population: 227900, reach: 18232 },
+  'guyuk': { population: 272200, reach: 21776 },
+  'hong': { population: 260900, reach: 20872 },
+  'jada': { population: 259700, reach: 20776 },
+  'lamurde': { population: 171600, reach: 13728 },
+  'madagali': { population: 208400, reach: 16672 },
+  'maiha': { population: 169900, reach: 13592 },
+  'mayo-belwa': { population: 235600, reach: 18848 },
+  'michika': { population: 239400, reach: 19152 },
+  'mubi north': { population: 233600, reach: 18688 },
+  'mubi south': { population: 200400, reach: 16032 },
+  'numan': { population: 141200, reach: 11296 },
+  'shelleng': { population: 229000, reach: 18320 },
+  'song': { population: 301000, reach: 24080 },
+  'toungo': { population: 80500, reach: 6440 },
+  'yola north': { population: 307900, reach: 24632 },
+  'yola south': { population: 302500, reach: 24200 },
+
+  // ═══════════════════════════════════════════════════════════════
+  // AKWA IBOM STATE
+  // ═══════════════════════════════════════════════════════════════
+  'abak': { population: 177500, reach: 14200 },
+  'eastern obolo': { population: 76500, reach: 6120 },
+  'eket': { population: 220600, reach: 17648 },
+  'esit eket': { population: 80900, reach: 6472 },
+  'essien udim': { population: 246600, reach: 19728 },
+  'etim ekpo': { population: 135200, reach: 10816 },
+  'etinan': { population: 215600, reach: 17248 },
+  'ibeno': { population: 95500, reach: 7640 },
+  'ibesikpo asutan': { population: 175000, reach: 14000 },
+  'ibiono ibom': { population: 240700, reach: 19256 },
+  'ika': { population: 92900, reach: 7432 },
+  'ikono': { population: 168000, reach: 13440 },
+  'ikot abasi': { population: 169200, reach: 13536 },
+  'ikot ekpene': { population: 180500, reach: 14440 },
+  'ini': { population: 126400, reach: 10112 },
+  'itu': { population: 163200, reach: 13056 },
+  'mbo': { population: 130400, reach: 10432 },
+  'mkpat enin': { population: 226200, reach: 18096 },
+  'nsit atai': { population: 93700, reach: 7496 },
+  'nsit ibom': { population: 137900, reach: 11032 },
+  'nsit ubium': { population: 162200, reach: 12976 },
+  'obot akara': { population: 188000, reach: 15040 },
+  'okobo': { population: 131100, reach: 10488 },
+  'onna': { population: 157200, reach: 12576 },
+  'oron': { population: 111300, reach: 8904 },
+  'oruk anam': { population: 219300, reach: 17544 },
+  'udung uko': { population: 67700, reach: 5416 },
+  'ukanafun': { population: 160100, reach: 12808 },
+  'uruan': { population: 149500, reach: 11960 },
+  'urue-offong/oruko': { population: 90300, reach: 7224 },
+  'uyo': { population: 390400, reach: 31232 },
+
+  // ═══════════════════════════════════════════════════════════════
+  // ANAMBRA STATE
+  // ═══════════════════════════════════════════════════════════════
+  'aguata': { population: 527200, reach: 42176 },
+  'anambra east': { population: 216800, reach: 17344 },
+  'anambra west': { population: 238400, reach: 19072 },
+  'anaocha': { population: 405000, reach: 32400 },
+  'awka north': { population: 159900, reach: 12792 },
+  'awka south': { population: 270300, reach: 21624 },
+  'ayamelum': { population: 225400, reach: 18032 },
+  'dunukofia': { population: 137500, reach: 11000 },
+  'ekwusigo': { population: 225800, reach: 18064 },
+  'idemili north': { population: 614200, reach: 49136 },
+  'idemili south': { population: 294700, reach: 23576 },
+  'ihiala': { population: 430800, reach: 34464 },
+  'njikoka': { population: 211500, reach: 16920 },
+  'nnewi north': { population: 221500, reach: 17720 },
+  'nnewi south': { population: 332500, reach: 26600 },
+  'ogbaru': { population: 318200, reach: 25456 },
+  'onitsha north': { population: 179400, reach: 14352 },
+  'onitsha south': { population: 195500, reach: 15640 },
+  'orumba north': { population: 246200, reach: 19696 },
+  'orumba south': { population: 263000, reach: 21040 },
+  'oyi': { population: 239700, reach: 19176 },
+
+  // ═══════════════════════════════════════════════════════════════
+  // BAUCHI STATE
+  // ═══════════════════════════════════════════════════════════════
+  'alkaleri': { population: 586200, reach: 46896 },
+  'bauchi': { population: 881600, reach: 70528 },
+  'bogoro': { population: 149700, reach: 11976 },
+  'damban': { population: 268200, reach: 21456 },
+  'darazo': { population: 446300, reach: 35704 },
+  'dass': { population: 160900, reach: 12872 },
+  'gamawa': { population: 507900, reach: 40632 },
+  'ganjuwa': { population: 497300, reach: 39784 },
+  'giade': { population: 278600, reach: 22288 },
+  'itas/gadau': { population: 408100, reach: 32648 },
+  "jama'are": { population: 209800, reach: 16784 },
+  'katagum': { population: 523200, reach: 41856 },
+  'kirfi': { population: 260100, reach: 20808 },
+  'misau': { population: 466800, reach: 37344 },
+  'ningi': { population: 689300, reach: 55144 },
+  'shira': { population: 417800, reach: 33424 },
+  'tafawa-balewa': { population: 395200, reach: 31616 },
+  'toro': { population: 617800, reach: 49424 },
+  'warji': { population: 205300, reach: 16424 },
+  'zaki': { population: 338700, reach: 27096 },
+
+  // ═══════════════════════════════════════════════════════════════
+  // BAYELSA STATE
+  // ═══════════════════════════════════════════════════════════════
+  'brass': { population: 274100, reach: 21928 },
+  'ekeremor': { population: 401300, reach: 32104 },
+  'kolokuma/opokuma': { population: 118000, reach: 9440 },
+  'nembe': { population: 195000, reach: 15600 },
+  'ogbia': { population: 267400, reach: 21392 },
+  'sagbama': { population: 278200, reach: 22256 },
+  'southern ijaw': { population: 479000, reach: 38320 },
+  'yenagoa': { population: 524400, reach: 41952 },
+
+  // ═══════════════════════════════════════════════════════════════
+  // BENUE STATE
+  // ═══════════════════════════════════════════════════════════════
+  'ado': { population: 266200, reach: 21296 },
+  'agatu': { population: 166900, reach: 13352 },
+  'apa': { population: 139700, reach: 11176 },
+  'buruku': { population: 297700, reach: 23816 },
+  'gboko': { population: 521700, reach: 41736 },
+  'guma': { population: 280300, reach: 22424 },
+  'gwer east': { population: 243500, reach: 19480 },
+  'gwer west': { population: 176600, reach: 14128 },
+  'katsina-ala': { population: 325500, reach: 26040 },
+  'konshisha': { population: 327000, reach: 26160 },
+  'kwande': { population: 359000, reach: 28720 },
+  'logo': { population: 244800, reach: 19584 },
+  'makurdi': { population: 433700, reach: 34696 },
+  'obi': { population: 142500, reach: 11400 },
+  'ogbadibo': { population: 189100, reach: 15128 },
+  'ohimini': { population: 102100, reach: 8168 },
+  'oju': { population: 243300, reach: 19464 },
+  'okpokwu': { population: 253500, reach: 20280 },
+  'oturkpo': { population: 384600, reach: 30768 },
+  'tarka': { population: 114500, reach: 9160 },
+  'ukum': { population: 313300, reach: 25064 },
+  'ushongo': { population: 277100, reach: 22168 },
+  'vandeikya': { population: 338700, reach: 27096 },
+
+  // ═══════════════════════════════════════════════════════════════
+  // BORNO STATE
+  // ═══════════════════════════════════════════════════════════════
+  'bama': { population: 395800, reach: 31664 },
+  'bayo': { population: 115900, reach: 9272 },
+  'biu': { population: 257500, reach: 20600 },
+  'chibok': { population: 97200, reach: 7776 },
+  'damboa': { population: 341700, reach: 27336 },
+  'dikwa': { population: 153900, reach: 12312 },
+  'gubio': { population: 221700, reach: 17736 },
+  'guzamala': { population: 140600, reach: 11248 },
+  'gwoza': { population: 405200, reach: 32416 },
+  'hawul': { population: 176900, reach: 14152 },
+  'jere': { population: 306400, reach: 24512 },
+  'kaga': { population: 131900, reach: 10552 },
+  'kala/balge': { population: 89100, reach: 7128 },
+  'konduga': { population: 230500, reach: 18440 },
+  'kukawa': { population: 297900, reach: 23832 },
+  'kwaya kusar': { population: 83100, reach: 6648 },
+  'mafa': { population: 151800, reach: 12144 },
+  'magumeri': { population: 205500, reach: 16440 },
+  'maiduguri': { population: 791200, reach: 63296 },
+  'marte': { population: 189600, reach: 15168 },
+  'mobbar': { population: 170900, reach: 13672 },
+  'monguno': { population: 160900, reach: 12872 },
+  'ngala': { population: 346500, reach: 27720 },
+  'nganzai': { population: 145200, reach: 11616 },
+  'shani': { population: 148000, reach: 11840 },
+
+  // ═══════════════════════════════════════════════════════════════
+  // CROSS RIVER STATE
+  // ═══════════════════════════════════════════════════════════════
+  'akamkpa': { population: 228000, reach: 18240 },
+  'akpabuyo': { population: 414700, reach: 33176 },
+  'bakassi': { population: 48200, reach: 3856 },
+  'bekwara': { population: 160700, reach: 12856 },
+  'biase': { population: 256000, reach: 20480 },
+  'boki': { population: 284200, reach: 22736 },
+  'calabar municipal': { population: 279800, reach: 22384 },
+  'calabar south': { population: 291700, reach: 23336 },
+  'etung': { population: 121900, reach: 9752 },
+  'ikom': { population: 249300, reach: 19944 },
+  'obanliku': { population: 167000, reach: 13360 },
+  'obubra': { population: 262800, reach: 21024 },
+  'obudu': { population: 245900, reach: 19672 },
+  'odukpani': { population: 293800, reach: 23504 },
+  'ogoja': { population: 261300, reach: 20904 },
+  'yakurr': { population: 298900, reach: 23912 },
+  'yala': { population: 322200, reach: 25776 },
+
+  // ═══════════════════════════════════════════════════════════════
+  // DELTA STATE
+  // ═══════════════════════════════════════════════════════════════
+  'aniocha north': { population: 142600, reach: 11408 },
+  'aniocha south': { population: 194700, reach: 15576 },
+  'bomadi': { population: 117900, reach: 9432 },
+  'burutu': { population: 285000, reach: 22800 },
+  'ethiope east': { population: 275400, reach: 22032 },
+  'ethiope west': { population: 277800, reach: 22224 },
+  'ika north east': { population: 250600, reach: 20048 },
+  'ika south': { population: 229000, reach: 18320 },
+  'isoko north': { population: 196700, reach: 15736 },
+  'isoko south': { population: 322300, reach: 25784 },
+  'ndokwa east': { population: 141500, reach: 11320 },
+  'ndokwa west': { population: 205600, reach: 16448 },
+  'okpe': { population: 176000, reach: 14080 },
+  'oshimili north': { population: 162500, reach: 13000 },
+  'oshimili south': { population: 205600, reach: 16448 },
+  'patani': { population: 92400, reach: 7392 },
+  'sapele': { population: 238800, reach: 19104 },
+  'udu': { population: 195300, reach: 15624 },
+  'ughelli north': { population: 439500, reach: 35160 },
+  'ughelli south': { population: 291400, reach: 23312 },
+  'ukwuani': { population: 163100, reach: 13048 },
+  'uvwie': { population: 258700, reach: 20696 },
+  'warri north': { population: 186600, reach: 14928 },
+  'warri south': { population: 427600, reach: 34208 },
+  'warri south west': { population: 159700, reach: 12776 },
+
+  // ═══════════════════════════════════════════════════════════════
+  // EBONYI STATE
+  // ═══════════════════════════════════════════════════════════════
+  'abakaliki': { population: 223000, reach: 17840 },
+  'afikpo north': { population: 233300, reach: 18664 },
+  'afikpo south': { population: 234700, reach: 18776 },
+  'ebonyi': { population: 189500, reach: 15160 },
+  'ezza north': { population: 217700, reach: 17416 },
+  'ezza south': { population: 199000, reach: 15920 },
+  'ikwo': { population: 320200, reach: 25616 },
+  'ishielu': { population: 227300, reach: 18184 },
+  'ivo': { population: 180800, reach: 14464 },
+  'izzi': { population: 352500, reach: 28200 },
+  'ohaozara': { population: 220900, reach: 17672 },
+  'ohaukwu': { population: 291300, reach: 23304 },
+  'onicha': { population: 352400, reach: 28192 },
+
+  // ═══════════════════════════════════════════════════════════════
+  // EDO STATE
+  // ═══════════════════════════════════════════════════════════════
+  'akoko-edo': { population: 386400, reach: 30912 },
+  'egor': { population: 502700, reach: 40216 },
+  'esan central': { population: 155500, reach: 12440 },
+  'esan north east': { population: 180200, reach: 14416 },
+  'esan south east': { population: 245700, reach: 19656 },
+  'esan west': { population: 188700, reach: 15096 },
+  'etsako central': { population: 139200, reach: 11136 },
+  'etsako east': { population: 217700, reach: 17416 },
+  'etsako west': { population: 294000, reach: 23520 },
+  'igueben': { population: 103800, reach: 8304 },
+  'ikpoba-okha': { population: 549700, reach: 43976 },
+  'oredo': { population: 553300, reach: 44264 },
+  'orhionmwon': { population: 271800, reach: 21744 },
+  'ovia north east': { population: 229500, reach: 18360 },
+  'ovia south west': { population: 204000, reach: 16320 },
+  'owan east': { population: 228500, reach: 18280 },
+  'owan west': { population: 146300, reach: 11704 },
+  'uhunmwonde': { population: 179900, reach: 14392 },
+
+  // ═══════════════════════════════════════════════════════════════
+  // EKITI STATE
+  // ═══════════════════════════════════════════════════════════════
+  'ado ekiti': { population: 469700, reach: 37576 },
+  'aiyekire': { population: 221600, reach: 17728 },
+  'gbonyin': { population: 221600, reach: 17728 },
+  'efon': { population: 130600, reach: 10448 },
+  'ekiti east': { population: 207100, reach: 16568 },
+  'ekiti south west': { population: 247200, reach: 19776 },
+  'ekiti west': { population: 268900, reach: 21512 },
+  'emure': { population: 141200, reach: 11296 },
+  'ido-osi': { population: 239600, reach: 19168 },
+  'ijero': { population: 332200, reach: 26576 },
+  'ikere': { population: 222400, reach: 17792 },
+  'ikole': { population: 255200, reach: 20416 },
+  'ilejemeje': { population: 65100, reach: 5208 },
+  'irepodun/ifelodun': { population: 196700, reach: 15736 },
+  'ise/orun': { population: 170600, reach: 13648 },
+  'moba': { population: 217700, reach: 17416 },
+  'oye': { population: 206300, reach: 16504 },
+
+  // ═══════════════════════════════════════════════════════════════
+  // ENUGU STATE
+  // ═══════════════════════════════════════════════════════════════
+  'aninri': { population: 195500, reach: 15640 },
+  'awgu': { population: 283200, reach: 22656 },
+  'enugu east': { population: 397700, reach: 31816 },
+  'enugu north': { population: 347500, reach: 27800 },
+  'enugu south': { population: 284200, reach: 22736 },
+  'ezeagu': { population: 244900, reach: 19592 },
+  'igbo-etiti': { population: 299000, reach: 23920 },
+  'igbo-eze north': { population: 371500, reach: 29720 },
+  'igbo-eze south': { population: 211500, reach: 16920 },
+  'isi-uzo': { population: 213300, reach: 17064 },
+  'nkanu east': { population: 220400, reach: 17632 },
+  'nkanu west': { population: 211500, reach: 16920 },
+  'nsukka': { population: 444100, reach: 35528 },
+  'oji-river': { population: 184800, reach: 14784 },
+  'udenu': { population: 256500, reach: 20520 },
+  'udi': { population: 342000, reach: 27360 },
+  'uzo-uwani': { population: 182500, reach: 14600 },
+
+  // ═══════════════════════════════════════════════════════════════
+  // GOMBE STATE
+  // ═══════════════════════════════════════════════════════════════
+  'akko': { population: 565000, reach: 45200 },
+  'balanga': { population: 354100, reach: 28328 },
+  'billiri': { population: 339400, reach: 27152 },
+  'dukku': { population: 347700, reach: 27816 },
+  'funakaye': { population: 398000, reach: 31840 },
+  'gombe': { population: 446800, reach: 35744 },
+  'kaltungo': { population: 268600, reach: 21488 },
+  'kwami': { population: 324800, reach: 25984 },
+  'nafada': { population: 234700, reach: 18776 },
+  'shomgom': { population: 252800, reach: 20224 },
+  'yamaltu/deba': { population: 428200, reach: 34256 },
+
+  // ═══════════════════════════════════════════════════════════════
+  // IMO STATE
+  // ═══════════════════════════════════════════════════════════════
+  'abo-mbaise': { population: 270700, reach: 21656 },
+  'ahiazu-mbaise': { population: 237400, reach: 18992 },
+  'ehime-mbano': { population: 181500, reach: 14520 },
+  'ezinihitte': { population: 234600, reach: 18768 },
+  'ideato north': { population: 217100, reach: 17368 },
+  'ideato south': { population: 221900, reach: 17752 },
+  'ihitte/uboma': { population: 166000, reach: 13280 },
+  'ikeduru': { population: 208100, reach: 16648 },
+  'isiala-mbano': { population: 275100, reach: 22008 },
+  'isu': { population: 228400, reach: 18272 },
+  'mbaitoli': { population: 330100, reach: 26408 },
+  'ngor-okpala': { population: 219400, reach: 17552 },
+  'njaba': { population: 199400, reach: 15952 },
+  'nkwerre': { population: 111600, reach: 8928 },
+  'nwangele': { population: 177500, reach: 14200 },
+  'obowo': { population: 163200, reach: 13056 },
+  'oguta': { population: 197900, reach: 15832 },
+  'ohaji/egbema': { population: 254200, reach: 20336 },
+  'okigwe': { population: 184500, reach: 14760 },
+  'orlu': { population: 198500, reach: 15880 },
+  'orsu': { population: 167100, reach: 13368 },
+  'oru east': { population: 155300, reach: 12424 },
+  'oru west': { population: 160800, reach: 12864 },
+  'owerri municipal': { population: 174200, reach: 13936 },
+  'owerri north': { population: 245100, reach: 19608 },
+  'owerri west': { population: 141400, reach: 11312 },
+  'unuimo': { population: 138100, reach: 11048 },
+
+  // ═══════════════════════════════════════════════════════════════
+  // JIGAWA STATE
+  // ═══════════════════════════════════════════════════════════════
+  'auyo': { population: 227400, reach: 18192 },
+  'babura': { population: 366200, reach: 29296 },
+  'biriniwa': { population: 244200, reach: 19536 },
+  'birnin kudu': { population: 540100, reach: 43208 },
+  'buji': { population: 167300, reach: 13384 },
+  'dutse': { population: 431800, reach: 34544 },
+  'gagarawa': { population: 141300, reach: 11304 },
+  'garki': { population: 258400, reach: 20672 },
+  'gumel': { population: 182900, reach: 14632 },
+  'guri': { population: 194900, reach: 15592 },
+  'gwaram': { population: 466600, reach: 37328 },
+  'gwiwa': { population: 221400, reach: 17712 },
+  'hadejia': { population: 179300, reach: 14344 },
+  'jahun': { population: 395300, reach: 31624 },
+  'kafin hausa': { population: 459600, reach: 36768 },
+  'kaugama': { population: 221800, reach: 17744 },
+  'kazaure': { population: 277100, reach: 22168 },
+  'kiri kasama': { population: 331200, reach: 26496 },
+  'kiyawa': { population: 297400, reach: 23792 },
+  'maigatari': { population: 304500, reach: 24360 },
+  'malam madori': { population: 283400, reach: 22672 },
+  'miga': { population: 219900, reach: 17592 },
+
+  // ═══════════════════════════════════════════════════════════════
+  // KADUNA STATE
+  // ═══════════════════════════════════════════════════════════════
+  'birnin-gwari': { population: 382000, reach: 30560 },
+  'chikun': { population: 550000, reach: 44000 },
+  'giwa': { population: 432000, reach: 34560 },
+  'igabi': { population: 636400, reach: 50912 },
+  'ikara': { population: 287700, reach: 23016 },
+  'jaba': { population: 230400, reach: 18432 },
+  "jema'a": { population: 411000, reach: 32880 },
+  'kachia': { population: 373100, reach: 29848 },
+  'kaduna north': { population: 538600, reach: 43088 },
+  'kaduna south': { population: 595000, reach: 47600 },
+  'kagarko': { population: 353200, reach: 28256 },
+  'kajuru': { population: 162200, reach: 12976 },
+  'kaura': { population: 258000, reach: 20640 },
+  'kauru': { population: 326900, reach: 26152 },
+  'kubau': { population: 414700, reach: 33176 },
+  'kudan': { population: 205300, reach: 16424 },
+  'lere': { population: 501900, reach: 40152 },
+  'makarfi': { population: 216600, reach: 17328 },
+  'sabon-gari': { population: 430500, reach: 34440 },
+  'sanga': { population: 223800, reach: 17904 },
+  'soba': { population: 430200, reach: 34416 },
+  'zangon-kataf': { population: 471300, reach: 37704 },
+  'zaria': { population: 601300, reach: 48104 },
+
+  // ═══════════════════════════════════════════════════════════════
+  // KANO STATE (Already existing, keeping original data)
+  // ═══════════════════════════════════════════════════════════════
   'ajingi': { population: 283900, reach: 22712 },
   'albasu': { population: 308800, reach: 24704 },
   'bagwai': { population: 265700, reach: 21256 },
@@ -509,7 +941,6 @@ const KANO_LGA_POPULATION = {
   'makoda': { population: 362000, reach: 28960 },
   'minjibir': { population: 301200, reach: 24096 },
   'nassarawa': { population: 980900, reach: 78472 },
-  'nasarawa': { population: 980900, reach: 78472 },
   'rano': { population: 243900, reach: 19512 },
   'rimin gado': { population: 170000, reach: 13600 },
   'rogo': { population: 374200, reach: 29936 },
@@ -522,68 +953,451 @@ const KANO_LGA_POPULATION = {
   'tudun wada': { population: 378100, reach: 30248 },
   'ungogo': { population: 601500, reach: 48120 },
   'warawa': { population: 216900, reach: 17352 },
-  'wudil': { population: 310200, reach: 24816 }
+  'wudil': { population: 310200, reach: 24816 },
+
+  // ═══════════════════════════════════════════════════════════════
+  // KATSINA STATE
+  // ═══════════════════════════════════════════════════════════════
+  'bakori': { population: 267200, reach: 21376 },
+  'batagarawa': { population: 337900, reach: 27032 },
+  'batsari': { population: 371500, reach: 29720 },
+  'baure': { population: 362700, reach: 29016 },
+  'bindawa': { population: 269900, reach: 21592 },
+  'charanchi': { population: 244800, reach: 19584 },
+  'dandume': { population: 259700, reach: 20776 },
+  'danja': { population: 224300, reach: 17944 },
+  'dan musa': { population: 202300, reach: 16184 },
+  'daura': { population: 401900, reach: 32152 },
+  'dutsi': { population: 216100, reach: 17288 },
+  'dutsin-ma': { population: 303500, reach: 24280 },
+  'faskari': { population: 347400, reach: 27792 },
+  'funtua': { population: 402400, reach: 32192 },
+  'ingawa': { population: 302300, reach: 24184 },
+  'jibia': { population: 299200, reach: 23936 },
+  'kafur': { population: 374200, reach: 29936 },
+  'kaita': { population: 326000, reach: 26080 },
+  'kankara': { population: 434700, reach: 34776 },
+  'kankia': { population: 270600, reach: 21648 },
+  'katsina': { population: 568600, reach: 45488 },
+  'kurfi': { population: 208600, reach: 16688 },
+  'kusada': { population: 175800, reach: 14064 },
+  "mai'adua": { population: 360700, reach: 28856 },
+  'malumfashi': { population: 326900, reach: 26152 },
+  'mani': { population: 315100, reach: 25208 },
+  'mashi': { population: 305700, reach: 24456 },
+  'matazu': { population: 203400, reach: 16272 },
+  'musawa': { population: 303800, reach: 24304 },
+  'rimi': { population: 275400, reach: 22032 },
+  'sabuwa': { population: 251400, reach: 20112 },
+  'safana': { population: 331000, reach: 26480 },
+  'sandamu': { population: 244700, reach: 19576 },
+  'zango': { population: 278900, reach: 22312 },
+
+  // ═══════════════════════════════════════════════════════════════
+  // KEBBI STATE
+  // ═══════════════════════════════════════════════════════════════
+  'aleiro': { population: 114600, reach: 9168 },
+  'arewa-dandi': { population: 324200, reach: 25936 },
+  'argungu': { population: 342100, reach: 27368 },
+  'augie': { population: 198800, reach: 15904 },
+  'bagudo': { population: 406700, reach: 32536 },
+  'birnin kebbi': { population: 458900, reach: 36712 },
+  'bunza': { population: 211100, reach: 16888 },
+  'dandi': { population: 249800, reach: 19984 },
+  'fakai': { population: 204600, reach: 16368 },
+  'gwandu': { population: 258100, reach: 20648 },
+  'jega': { population: 337900, reach: 27032 },
+  'kalgo': { population: 145100, reach: 11608 },
+  'koko/besse': { population: 264500, reach: 21160 },
+  'maiyama': { population: 296900, reach: 23752 },
+  'ngaski': { population: 215400, reach: 17232 },
+  'sakaba': { population: 156700, reach: 12536 },
+  'shanga': { population: 217200, reach: 17376 },
+  'suru': { population: 253700, reach: 20296 },
+  'wasagu/danko': { population: 453200, reach: 36256 },
+  'yauri': { population: 171800, reach: 13744 },
+  'zuru': { population: 282500, reach: 22600 },
+
+  // ═══════════════════════════════════════════════════════════════
+  // KOGI STATE
+  // ═══════════════════════════════════════════════════════════════
+  'adavi': { population: 292800, reach: 23424 },
+  'ajaokuta': { population: 165000, reach: 13200 },
+  'ankpa': { population: 358800, reach: 28704 },
+  'bassa': { population: 188300, reach: 15064 },
+  'dekina': { population: 351700, reach: 28136 },
+  'ibaji': { population: 171900, reach: 13752 },
+  'idah': { population: 107500, reach: 8600 },
+  'igalamela-odolu': { population: 198200, reach: 15856 },
+  'ijumu': { population: 159800, reach: 12784 },
+  'kabba/bunu': { population: 194900, reach: 15592 },
+  'kogi': { population: 155100, reach: 12408 },
+  'lokoja': { population: 265000, reach: 21200 },
+  'mopa-muro': { population: 59000, reach: 4720 },
+  'ofu': { population: 258100, reach: 20648 },
+  'ogori/magongo': { population: 53700, reach: 4296 },
+  'okehi': { population: 301300, reach: 24104 },
+  'okene': { population: 438900, reach: 35112 },
+  'olamaboro': { population: 213600, reach: 17088 },
+  'omala': { population: 145500, reach: 11640 },
+  'yagba east': { population: 199000, reach: 15920 },
+  'yagba west': { population: 188600, reach: 15088 },
+
+  // ═══════════════════════════════════════════════════════════════
+  // KWARA STATE
+  // ═══════════════════════════════════════════════════════════════
+  'asa': { population: 187200, reach: 14976 },
+  'baruten': { population: 310300, reach: 24824 },
+  'edu': { population: 302700, reach: 24216 },
+  'ekiti': { population: 81700, reach: 6536 },
+  'ifelodun': { population: 307700, reach: 24616 },
+  'ilorin east': { population: 311500, reach: 24920 },
+  'ilorin south': { population: 314100, reach: 25128 },
+  'ilorin west': { population: 548300, reach: 43864 },
+  'irepodun': { population: 221600, reach: 17728 },
+  'isin': { population: 89300, reach: 7144 },
+  'kaiama': { population: 186200, reach: 14896 },
+  'moro': { population: 163200, reach: 13056 },
+  'offa': { population: 133600, reach: 10688 },
+  'oke-ero': { population: 85500, reach: 6840 },
+  'oyun': { population: 141800, reach: 11344 },
+  'pategi': { population: 166400, reach: 13312 },
+
+  // ═══════════════════════════════════════════════════════════════
+  // LAGOS STATE
+  // ═══════════════════════════════════════════════════════════════
+  'agege': { population: 683600, reach: 54688 },
+  'ajeromi-ifelodun': { population: 1017500, reach: 81400 },
+  'alimosho': { population: 1953500, reach: 156280 },
+  'amuwo-odofin': { population: 487000, reach: 38960 },
+  'apapa': { population: 330100, reach: 26408 },
+  'badagry': { population: 351900, reach: 28152 },
+  'epe': { population: 269000, reach: 21520 },
+  'eti-osa': { population: 420100, reach: 33608 },
+  'ibeju/lekki': { population: 174400, reach: 13952 },
+  'ifako-ijaye': { population: 633200, reach: 50656 },
+  'ikeja': { population: 470200, reach: 37616 },
+  'ikorodu': { population: 781500, reach: 62520 },
+  'kosofe': { population: 1010800, reach: 80864 },
+  'lagos island': { population: 314900, reach: 25192 },
+  'lagos mainland': { population: 483600, reach: 38688 },
+  'mushin': { population: 935400, reach: 74832 },
+  'ojo': { population: 901800, reach: 72144 },
+  'oshodi-isolo': { population: 931300, reach: 74504 },
+  'shomolu': { population: 597400, reach: 47792 },
+  'surulere': { population: 744400, reach: 59552 },
+
+  // ═══════════════════════════════════════════════════════════════
+  // NASARAWA STATE
+  // ═══════════════════════════════════════════════════════════════
+  'akwanga': { population: 172800, reach: 13824 },
+  'awe': { population: 174600, reach: 13968 },
+  'doma': { population: 214600, reach: 17168 },
+  'karu': { population: 333800, reach: 26704 },
+  'keana': { population: 126300, reach: 10104 },
+  'keffi': { population: 142900, reach: 11432 },
+  'kokona': { population: 167600, reach: 13408 },
+  'lafia': { population: 509300, reach: 40744 },
+  'nasarawa': { population: 289000, reach: 23120 },
+  'nasarawa-eggon': { population: 229100, reach: 18328 },
+  'toto': { population: 183800, reach: 14704 },
+  'wamba': { population: 112200, reach: 8976 },
+
+  // ═══════════════════════════════════════════════════════════════
+  // NIGER STATE
+  // ═══════════════════════════════════════════════════════════════
+  'agaie': { population: 226600, reach: 18128 },
+  'agwara': { population: 98400, reach: 7872 },
+  'bida': { population: 318300, reach: 25464 },
+  'borgu': { population: 296500, reach: 23720 },
+  'bosso': { population: 254100, reach: 20328 },
+  'chanchaga': { population: 346700, reach: 27736 },
+  'edati': { population: 274100, reach: 21928 },
+  'gbako': { population: 217600, reach: 17408 },
+  'gurara': { population: 155900, reach: 12472 },
+  'katcha': { population: 207400, reach: 16592 },
+  'kontagora': { population: 260700, reach: 20856 },
+  'lapai': { population: 200700, reach: 16056 },
+  'lavun': { population: 359800, reach: 28784 },
+  'magama': { population: 311300, reach: 24904 },
+  'mariga': { population: 342400, reach: 27392 },
+  'mashegu': { population: 369100, reach: 29528 },
+  'mokwa': { population: 416600, reach: 33328 },
+  'muya': { population: 177500, reach: 14200 },
+  'paikoro': { population: 271300, reach: 21704 },
+  'rafi': { population: 319200, reach: 25536 },
+  'rijau': { population: 302200, reach: 24176 },
+  'shiroro': { population: 404200, reach: 32336 },
+  'suleja': { population: 368900, reach: 29512 },
+  'tafa': { population: 143900, reach: 11512 },
+  'wushishi': { population: 140200, reach: 11216 },
+
+  // ═══════════════════════════════════════════════════════════════
+  // OGUN STATE
+  // ═══════════════════════════════════════════════════════════════
+  'abeokuta north': { population: 338100, reach: 27048 },
+  'abeokuta south': { population: 425700, reach: 34056 },
+  'ado-odo/ota': { population: 896700, reach: 71736 },
+  'ewekoro': { population: 93700, reach: 7496 },
+  'ifo': { population: 917000, reach: 73360 },
+  'ijebu east': { population: 185900, reach: 14872 },
+  'ijebu north': { population: 477100, reach: 38168 },
+  'ijebu north east': { population: 117000, reach: 9360 },
+  'ijebu ode': { population: 267300, reach: 21384 },
+  'ikenne': { population: 202600, reach: 16208 },
+  'imeko afon': { population: 141100, reach: 11288 },
+  'ipokia': { population: 255800, reach: 20464 },
+  'obafemi-owode': { population: 399800, reach: 31984 },
+  'odeda': { population: 186300, reach: 14904 },
+  'odogbolu': { population: 213700, reach: 17096 },
+  'ogun waterside': { population: 126200, reach: 10096 },
+  'remo north': { population: 101600, reach: 8128 },
+  'sagamu': { population: 435200, reach: 34816 },
+  'yewa north': { population: 312700, reach: 25016 },
+  'yewa south': { population: 286300, reach: 22904 },
+
+  // ═══════════════════════════════════════════════════════════════
+  // ONDO STATE
+  // ═══════════════════════════════════════════════════════════════
+  'akoko north east': { population: 275100, reach: 22008 },
+  'akoko north west': { population: 325500, reach: 26040 },
+  'akoko south east': { population: 126600, reach: 10128 },
+  'akoko south west': { population: 350800, reach: 28064 },
+  'akure north': { population: 200900, reach: 16072 },
+  'akure south': { population: 553400, reach: 44272 },
+  'ese-odo': { population: 243100, reach: 19448 },
+  'idanre': { population: 199400, reach: 15952 },
+  'ifedore': { population: 270900, reach: 21672 },
+  'ilaje': { population: 445200, reach: 35616 },
+  'ile-oluji-okeigbo': { population: 264000, reach: 21120 },
+  'irele': { population: 221400, reach: 17712 },
+  'odigbo': { population: 356800, reach: 28544 },
+  'okitipupa': { population: 359700, reach: 28776 },
+  'ondo east': { population: 116900, reach: 9352 },
+  'ondo west': { population: 443800, reach: 35504 },
+  'ose': { population: 221400, reach: 17712 },
+  'owo': { population: 341400, reach: 27312 },
+
+  // ═══════════════════════════════════════════════════════════════
+  // OSUN STATE
+  // ═══════════════════════════════════════════════════════════════
+  'aiyedaade': { population: 194200, reach: 15536 },
+  'aiyedire': { population: 99100, reach: 7928 },
+  'atakunmosa east': { population: 98800, reach: 7904 },
+  'atakunmosa west': { population: 88700, reach: 7096 },
+  'boluwaduro': { population: 92100, reach: 7368 },
+  'boripe': { population: 180100, reach: 14408 },
+  'ede north': { population: 108800, reach: 8704 },
+  'ede south': { population: 98000, reach: 7840 },
+  'egbedore': { population: 96000, reach: 7680 },
+  'ejigbo': { population: 172000, reach: 13760 },
+  'ife central': { population: 217100, reach: 17368 },
+  'ifedayo': { population: 48700, reach: 3896 },
+  'ife east': { population: 244900, reach: 19592 },
+  'ife north': { population: 199000, reach: 15920 },
+  'ife south': { population: 174600, reach: 13968 },
+  'ila': { population: 80600, reach: 6448 },
+  'ilesha east': { population: 136800, reach: 10944 },
+  'ilesha west': { population: 138700, reach: 11096 },
+  'irepodun osun': { population: 155200, reach: 12416 },
+  'irewole': { population: 185400, reach: 14832 },
+  'isokan': { population: 132500, reach: 10600 },
+  'iwo': { population: 248400, reach: 19872 },
+  'obokun': { population: 151700, reach: 12136 },
+  'odo-otin': { population: 171500, reach: 13720 },
+  'ola-oluwa': { population: 99000, reach: 7920 },
+  'olorunda': { population: 170900, reach: 13672 },
+  'oriade': { population: 192600, reach: 15408 },
+  'orolu': { population: 133500, reach: 10680 },
+  'osogbo': { population: 201900, reach: 16152 },
+
+  // ═══════════════════════════════════════════════════════════════
+  // OYO STATE
+  // ═══════════════════════════════════════════════════════════════
+  'afijio': { population: 188900, reach: 15112 },
+  'akinyele': { population: 302700, reach: 24216 },
+  'atiba': { population: 240500, reach: 19240 },
+  'atisbo': { population: 157200, reach: 12576 },
+  'egbeda': { population: 405400, reach: 32432 },
+  'ibadan north': { population: 440400, reach: 35232 },
+  'ibadan north east': { population: 473700, reach: 37896 },
+  'ibadan north west': { population: 220100, reach: 17608 },
+  'ibadan south east': { population: 380800, reach: 30464 },
+  'ibadan south west': { population: 404600, reach: 32368 },
+  'ibarapa central': { population: 147600, reach: 11808 },
+  'ibarapa east': { population: 167500, reach: 13400 },
+  'ibarapa north': { population: 143300, reach: 11464 },
+  'ido': { population: 148800, reach: 11904 },
+  'irepo': { population: 173300, reach: 13864 },
+  'iseyin': { population: 365300, reach: 29224 },
+  'itesiwaju': { population: 182100, reach: 14568 },
+  'iwajowa': { population: 147000, reach: 11760 },
+  'kajola': { population: 286600, reach: 22928 },
+  'lagelu': { population: 211700, reach: 16936 },
+  'ogbomosho north': { population: 284200, reach: 22736 },
+  'ogbomosho south': { population: 143500, reach: 11480 },
+  'ogo oluwa': { population: 93200, reach: 7456 },
+  'olorunsogo': { population: 116200, reach: 9296 },
+  'oluyole': { population: 290800, reach: 23264 },
+  'ona-ara': { population: 379500, reach: 30360 },
+  'orelope': { population: 148600, reach: 11888 },
+  'ori ire': { population: 213500, reach: 17080 },
+  'oyo east': { population: 177400, reach: 14192 },
+  'oyo west': { population: 195000, reach: 15600 },
+  'saki east': { population: 155700, reach: 12456 },
+  'saki west': { population: 390500, reach: 31240 },
+  'surulere oyo': { population: 200600, reach: 16048 },
+
+  // ═══════════════════════════════════════════════════════════════
+  // PLATEAU STATE
+  // ═══════════════════════════════════════════════════════════════
+  'barkin ladi': { population: 264500, reach: 21160 },
+  'bassa plateau': { population: 279300, reach: 22344 },
+  'bokkos': { population: 264100, reach: 21128 },
+  'jos east': { population: 129900, reach: 10392 },
+  'jos north': { population: 643200, reach: 51456 },
+  'jos south': { population: 458100, reach: 36648 },
+  'kanam': { population: 246600, reach: 19728 },
+  'kanke': { population: 182800, reach: 14624 },
+  'langtang north': { population: 209400, reach: 16752 },
+  'langtang south': { population: 154700, reach: 12376 },
+  'mangu': { population: 442100, reach: 35368 },
+  'mikang': { population: 141800, reach: 11344 },
+  'pankshin': { population: 279700, reach: 22376 },
+  "qua'an pan": { population: 290200, reach: 23216 },
+  'riyom': { population: 193900, reach: 15512 },
+  'shendam': { population: 301800, reach: 24144 },
+  'wase': { population: 235200, reach: 18816 },
+
+  // ═══════════════════════════════════════════════════════════════
+  // RIVERS STATE
+  // ═══════════════════════════════════════════════════════════════
+  'abua-odual': { population: 406200, reach: 32496 },
+  'ahoada east': { population: 239200, reach: 19136 },
+  'ahoada west': { population: 358400, reach: 28672 },
+  'akuku toru': { population: 231700, reach: 18536 },
+  'andoni': { population: 313400, reach: 25072 },
+  'asari-toru': { population: 316100, reach: 25288 },
+  'bonny': { population: 309200, reach: 24736 },
+  'degema': { population: 358800, reach: 28704 },
+  'eleme': { population: 273500, reach: 21880 },
+  'emuoha': { population: 289200, reach: 23136 },
+  'etche': { population: 359500, reach: 28760 },
+  'gokana': { population: 336300, reach: 26904 },
+  'ikwerre': { population: 271700, reach: 21736 },
+  'khana': { population: 421300, reach: 33704 },
+  'obio/akpor': { population: 665000, reach: 53200 },
+  'ogba-egbema-ndoni': { population: 407400, reach: 32592 },
+  'ogu-bolo': { population: 108300, reach: 8664 },
+  'okrika': { population: 319700, reach: 25576 },
+  'omumma': { population: 144400, reach: 11552 },
+  'opobo-nkoro': { population: 219800, reach: 17584 },
+  'oyigbo': { population: 180300, reach: 14424 },
+  'port-harcourt': { population: 774600, reach: 61968 },
+  'tai': { population: 173000, reach: 13840 },
+
+  // ═══════════════════════════════════════════════════════════════
+  // SOKOTO STATE
+  // ═══════════════════════════════════════════════════════════════
+  'binji': { population: 180000, reach: 14400 },
+  'bodinga': { population: 300900, reach: 24072 },
+  'dange shuni': { population: 333900, reach: 26712 },
+  'gada': { population: 429900, reach: 34392 },
+  'goronyo': { population: 314300, reach: 25144 },
+  'gudu': { population: 164700, reach: 13176 },
+  'gwadabawa': { population: 399700, reach: 31976 },
+  'illela': { population: 259100, reach: 20728 },
+  'isa': { population: 259400, reach: 20752 },
+  'kebbe': { population: 212600, reach: 17008 },
+  'kware': { population: 231400, reach: 18512 },
+  'rabah': { population: 257400, reach: 20592 },
+  'sabon birni': { population: 358100, reach: 28648 },
+  'shagari': { population: 270800, reach: 21664 },
+  'silame': { population: 180500, reach: 14440 },
+  'sokoto north': { population: 402200, reach: 32176 },
+  'sokoto south': { population: 341200, reach: 27296 },
+  'tambuwal': { population: 389900, reach: 31192 },
+  'tangaza': { population: 198100, reach: 15848 },
+  'tureta': { population: 118100, reach: 9448 },
+  'wamakko': { population: 309400, reach: 24752 },
+  'wurno': { population: 280300, reach: 22424 },
+  'yabo': { population: 199000, reach: 15920 },
+
+  // ═══════════════════════════════════════════════════════════════
+  // TARABA STATE
+  // ═══════════════════════════════════════════════════════════════
+  'ardo-kola': { population: 138100, reach: 11048 },
+  'bali': { population: 332000, reach: 26560 },
+  'donga': { population: 209400, reach: 16752 },
+  'gashaka': { population: 137100, reach: 10968 },
+  'gassol': { population: 385500, reach: 30840 },
+  'ibi': { population: 132600, reach: 10608 },
+  'jalingo': { population: 220700, reach: 17656 },
+  'karim-lamido': { population: 305100, reach: 24408 },
+  'kurmi': { population: 143600, reach: 11488 },
+  'lau': { population: 149700, reach: 11976 },
+  'sardauna': { population: 352900, reach: 28232 },
+  'takum': { population: 211700, reach: 16936 },
+  'ussa': { population: 143000, reach: 11440 },
+  'wukari': { population: 374800, reach: 29984 },
+  'yorro': { population: 141400, reach: 11312 },
+  'zing': { population: 200900, reach: 16072 },
+
+  // ═══════════════════════════════════════════════════════════════
+  // YOBE STATE
+  // ═══════════════════════════════════════════════════════════════
+  'bade': { population: 219800, reach: 17584 },
+  'bursari': { population: 172500, reach: 13800 },
+  'damaturu': { population: 137900, reach: 11032 },
+  'fika': { population: 215000, reach: 17200 },
+  'fune': { population: 474700, reach: 37976 },
+  'geidam': { population: 244900, reach: 19592 },
+  'gujba': { population: 204100, reach: 16328 },
+  'gulani': { population: 162700, reach: 13016 },
+  'jakusko': { population: 365500, reach: 29240 },
+  'karasuwa': { population: 165900, reach: 13272 },
+  'machina': { population: 95900, reach: 7672 },
+  'nangere': { population: 137600, reach: 11008 },
+  'nguru': { population: 236900, reach: 18952 },
+  'potiskum': { population: 322100, reach: 25768 },
+  'tarmua': { population: 122100, reach: 9768 },
+  'yunusari': { population: 198000, reach: 15840 },
+  'yusufari': { population: 174100, reach: 13928 },
+
+  // ═══════════════════════════════════════════════════════════════
+  // ZAMFARA STATE
+  // ═══════════════════════════════════════════════════════════════
+  'anka': { population: 255500, reach: 20440 },
+  'bakura': { population: 332900, reach: 26632 },
+  'birnin magaji': { population: 327500, reach: 26200 },
+  'bukkuyum': { population: 384900, reach: 30792 },
+  'bungudu': { population: 460200, reach: 36816 },
+  'gummi': { population: 367800, reach: 29424 },
+  'gusau': { population: 682700, reach: 54616 },
+  'kaura namoda': { population: 507700, reach: 40616 },
+  'maradun': { population: 369300, reach: 29544 },
+  'maru': { population: 521500, reach: 41720 },
+  'shinkafi': { population: 241900, reach: 19352 },
+  'talata mafara': { population: 383700, reach: 30696 },
+  'tsafe': { population: 474900, reach: 37992 },
+  'zurmi': { population: 523000, reach: 41840 },
+
+  // ═══════════════════════════════════════════════════════════════
+  // FCT - ABUJA
+  // ═══════════════════════════════════════════════════════════════
+  'abaji': { population: 85000, reach: 6800 },
+  'abuja municipal': { population: 1200000, reach: 96000 },
+  'amac': { population: 1200000, reach: 96000 },
+  'bwari': { population: 450000, reach: 36000 },
+  'gwagwalada': { population: 280000, reach: 22400 },
+  'kuje': { population: 180000, reach: 14400 },
+  'kwali': { population: 120000, reach: 9600 }
 };
 
-const LGA_REACH_MULTIPLIERS = {
-  // Kano State LGAs - Using actual 2022 population projections
-  ...Object.fromEntries(Object.entries(KANO_LGA_POPULATION).map(([k, v]) => [k, v.reach])),
-  
-  // Lagos State LGAs (20 LGAs, State reach: 7,035,224)
-  'ikeja': 520000,
-  'lagos island': 380000,
-  'lagos mainland': 420000,
-  'eti-osa': 480000,
-  'surulere': 450000,
-  'mushin': 380000,
-  'oshodi-isolo': 350000,
-  'kosofe': 320000,
-  'alimosho': 580000,
-  'ifako-ijaiye': 280000,
-  'agege': 350000,
-  'ajeromi-ifelodun': 320000,
-  'amuwo-odofin': 280000,
-  'apapa': 220000,
-  'somolu': 260000,
-  'ikorodu': 380000,
-  'epe': 180000,
-  'badagry': 200000,
-  'ibeju-lekki': 150000,
-  'ojo': 320000,
-  
-  // Abuja/FCT Area Councils (6 councils)
-  'abuja municipal': 850000,
-  'amac': 850000,
-  'bwari': 320000,
-  'gwagwalada': 180000,
-  'kuje': 120000,
-  'kwali': 80000,
-  'abaji': 60000,
-  
-  // Kaduna State LGAs (major ones)
-  'kaduna north': 180000,
-  'kaduna south': 165000,
-  'chikun': 120000,
-  'igabi': 95000,
-  'zaria': 140000,
-  'sabon gari': 85000,
-  
-  // Rivers State LGAs (major ones)
-  'port harcourt': 380000,
-  'obio-akpor': 420000,
-  'eleme': 85000,
-  'oyigbo': 65000,
-  
-  // Oyo State LGAs (major ones)
-  'ibadan north': 280000,
-  'ibadan south-west': 220000,
-  'ibadan south-east': 180000,
-  'ibadan north-west': 160000,
-  'ibadan north-east': 140000,
-  'oluyole': 120000,
-  'akinyele': 95000,
-  'ona-ara': 85000
-};
+// Create LGA reach multipliers from the population data
+const LGA_REACH_MULTIPLIERS = Object.fromEntries(
+  Object.entries(NIGERIA_LGA_POPULATION).map(([k, v]) => [k, v.reach])
+);
 
 /* ════ State/Country/LGA detection patterns ════ */
 const NIGERIAN_STATES = [
@@ -834,19 +1648,18 @@ function getPopulation(query, locationType) {
     .replace(/\s+nigeria/gi, '')
     .replace(/\s+local government/gi, '')
     .replace(/\s+lga/gi, '')
-    .replace(/,\s*kano$/gi, '')
-    .replace(/,\s*lagos$/gi, '')
+    .replace(/,\s*[a-z]+$/gi, '')
     .trim();
   
-  // Check Kano LGA population data
-  if (KANO_LGA_POPULATION[q]) {
-    return KANO_LGA_POPULATION[q].population;
+  // Check Nigeria LGA population data (all states)
+  if (NIGERIA_LGA_POPULATION[q]) {
+    return NIGERIA_LGA_POPULATION[q].population;
   }
   
-  // Partial match in Kano LGAs
-  for (const key of Object.keys(KANO_LGA_POPULATION)) {
+  // Partial match in all LGAs
+  for (const key of Object.keys(NIGERIA_LGA_POPULATION)) {
     if (q.includes(key) || key.includes(q)) {
-      return KANO_LGA_POPULATION[key].population;
+      return NIGERIA_LGA_POPULATION[key].population;
     }
   }
   
