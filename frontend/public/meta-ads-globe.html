@@ -331,12 +331,12 @@
         </div>
         <div class="stat-card">
           <div class="stat-value blue" id="peopleNearby">—</div>
-          <div class="stat-label">Est. Population (2022)</div>
+          <div class="stat-label">Est. Population</div>
         </div>
         <div class="stat-card">
           <div class="stat-value green" id="peopleOnline">—</div>
           <div class="stat-label">Est. Online Now</div>
-          <div class="live-tag"><div class="live-tag-dot"></div><span id="onlineTimeLabel">—</span></div>
+          <div class="live-tag"><div class="live-tag-dot"></div><span>LIVE</span></div>
         </div>
         <div class="stat-card">
           <div class="stat-value white" id="localTimeStat">—</div>
@@ -854,14 +854,13 @@ function getPopulation(query, locationType) {
 }
 
 /* ════ Local Time Calculation ════ */
-// Approximate timezone offset based on longitude (rough: 15 degrees = 1 hour)
-function getLocalTimeForCoords(lon) {
+// Nigeria uses West Africa Time (WAT) which is UTC+1
+function getNigeriaTime() {
   const now = new Date();
-  // Each 15 degrees of longitude = 1 hour offset from UTC
-  const offsetHours = Math.round(lon / 15);
+  // Get UTC time, then add 1 hour for WAT (West Africa Time)
   const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000);
-  const localTime = new Date(utcTime + (offsetHours * 3600000));
-  return localTime;
+  const nigeriaTime = new Date(utcTime + (1 * 3600000)); // UTC+1
+  return nigeriaTime;
 }
 
 function formatLocalTime(date) {
@@ -877,20 +876,19 @@ function getTimePeriod(hour) {
   // 8am-6pm (hour 8-17 inclusive): Peak hours - 5%
   // 7pm-1am (hour 19-23, 0, 1): Evening/Night - 6%
   // 1am-8am (hour 1-7): Late night/Early morning - 3%
-  // Gap hours (6pm=18, transition): assign to nearest period
   
   if (hour >= 8 && hour <= 17) {
     // 8:00 AM to 5:59 PM
-    return { period: 'Peak Hours (8AM-6PM)', percentage: 0.05 };
+    return { period: 'Peak Hours', percentage: 0.05 };
   } else if (hour >= 19 || hour <= 1) {
     // 7:00 PM to 1:59 AM
-    return { period: 'Evening (7PM-1AM)', percentage: 0.06 };
+    return { period: 'Evening', percentage: 0.06 };
   } else if (hour >= 2 && hour <= 7) {
     // 2:00 AM to 7:59 AM
-    return { period: 'Late Night (2AM-8AM)', percentage: 0.03 };
+    return { period: 'Late Night', percentage: 0.03 };
   } else {
-    // Transition hour 18 (6PM) - assign to Evening since it's closer
-    return { period: 'Evening (6PM-1AM)', percentage: 0.06 };
+    // Transition hour 18 (6PM) - assign to Evening
+    return { period: 'Evening', percentage: 0.06 };
   }
 }
 
@@ -1251,8 +1249,8 @@ async function bootstrap(){
       population = Math.round(state.dailyReach * (8 + rng() * 4)); // Reach is ~8-12% of pop
     }
     
-    // Calculate local time based on longitude
-    const localTime = getLocalTimeForCoords(lon);
+    // Calculate Nigeria time (WAT, UTC+1) - same across all states
+    const localTime = getNigeriaTime();
     const localHour = localTime.getHours();
     const timePeriodInfo = getTimePeriod(localHour);
     
@@ -1260,7 +1258,7 @@ async function bootstrap(){
     // 8am-6pm: 5%, 7pm-1am: 6%, 1am-8am: 3%
     const online = Math.round(population * timePeriodInfo.percentage);
     
-    state.baseStats = { population, online, localTime, lon };
+    state.baseStats = { population, online, localTime };
     
     $('statsTitle').textContent = name;
     animateNum($('dailyReach'), state.dailyReach);
@@ -1270,7 +1268,6 @@ async function bootstrap(){
     // Display local time
     $('localTimeStat').textContent = formatLocalTime(localTime);
     $('timePeriod').textContent = timePeriodInfo.period;
-    $('onlineTimeLabel').textContent = `${(timePeriodInfo.percentage * 100).toFixed(0)}% of pop`;
     
     $('weatherStat').textContent = '…';
     $('weatherCond').textContent = 'Loading...';
@@ -1288,17 +1285,17 @@ async function bootstrap(){
     updateUI();
     
     // Start live time update interval
-    startLocalTimeUpdater(lon, population);
+    startLocalTimeUpdater(population);
   }
   
   // Live time updater - updates every minute
   let localTimeInterval = null;
-  function startLocalTimeUpdater(lon, population) {
+  function startLocalTimeUpdater(population) {
     // Clear existing interval
     if (localTimeInterval) clearInterval(localTimeInterval);
     
     localTimeInterval = setInterval(() => {
-      const localTime = getLocalTimeForCoords(lon);
+      const localTime = getNigeriaTime();
       const localHour = localTime.getHours();
       const timePeriodInfo = getTimePeriod(localHour);
       const online = Math.round(population * timePeriodInfo.percentage);
@@ -1306,7 +1303,6 @@ async function bootstrap(){
       $('localTimeStat').textContent = formatLocalTime(localTime);
       $('timePeriod').textContent = timePeriodInfo.period;
       $('peopleOnline').textContent = fmt(online);
-      $('onlineTimeLabel').textContent = `${(timePeriodInfo.percentage * 100).toFixed(0)}% of pop`;
     }, 60000); // Update every minute
   }
 
