@@ -472,51 +472,60 @@ const DAILY_REACH_DATA = {
   'bayelsa state': 136363
 };
 
-/* ════ LGA Daily Reach (State Reach / Number of LGAs in State) ════ */
+/* ════ LGA Population Data (2022 Projection) & Daily Reach ════ */
+// Daily Reach = Population × 0.08 (8% social media daily reach rate)
+const KANO_LGA_POPULATION = {
+  // Kano State LGAs - Population Projection 2022-03-21
+  'ajingi': { population: 283900, reach: 22712 },
+  'albasu': { population: 308800, reach: 24704 },
+  'bagwai': { population: 265700, reach: 21256 },
+  'bebeji': { population: 315600, reach: 25248 },
+  'bichi': { population: 457700, reach: 36616 },
+  'bunkure': { population: 286900, reach: 22952 },
+  'dala': { population: 608700, reach: 48696 },
+  'dambatta': { population: 346200, reach: 27696 },
+  'dawakin kudu': { population: 370900, reach: 29672 },
+  'dawakin tofa': { population: 404900, reach: 32392 },
+  'doguwa': { population: 247800, reach: 19824 },
+  'fagge': { population: 329100, reach: 26328 },
+  'gabasawa': { population: 347400, reach: 27792 },
+  'garko': { population: 266400, reach: 21312 },
+  'garun mallam': { population: 195100, reach: 15608 },
+  'gaya': { population: 341100, reach: 27288 },
+  'gezawa': { population: 464300, reach: 37144 },
+  'gwale': { population: 588500, reach: 47080 },
+  'gwarzo': { population: 302000, reach: 24160 },
+  'kabo': { population: 251900, reach: 20152 },
+  'kano municipal': { population: 610600, reach: 48848 },
+  'karaye': { population: 236900, reach: 18952 },
+  'kibiya': { population: 228000, reach: 18240 },
+  'kiru': { population: 439400, reach: 35152 },
+  'kumbotso': { population: 484200, reach: 38736 },
+  'kunchi': { population: 181200, reach: 14496 },
+  'kura': { population: 235500, reach: 18840 },
+  'madobi': { population: 226400, reach: 18112 },
+  'makoda': { population: 362000, reach: 28960 },
+  'minjibir': { population: 301200, reach: 24096 },
+  'nassarawa': { population: 980900, reach: 78472 },
+  'nasarawa': { population: 980900, reach: 78472 },
+  'rano': { population: 243900, reach: 19512 },
+  'rimin gado': { population: 170000, reach: 13600 },
+  'rogo': { population: 374200, reach: 29936 },
+  'shanono': { population: 228800, reach: 18304 },
+  'sumaila': { population: 411800, reach: 32944 },
+  'takai': { population: 333200, reach: 26656 },
+  'tarauni': { population: 364900, reach: 29192 },
+  'tofa': { population: 162200, reach: 12976 },
+  'tsanyawa': { population: 259400, reach: 20752 },
+  'tudun wada': { population: 378100, reach: 30248 },
+  'ungogo': { population: 601500, reach: 48120 },
+  'warawa': { population: 216900, reach: 17352 },
+  'wudil': { population: 310200, reach: 24816 }
+};
+
 const LGA_REACH_MULTIPLIERS = {
-  // Kano State LGAs (44 LGAs, State reach: 1,216,388)
-  'kano municipal': 85000,
-  'nassarawa': 72000,
-  'tarauni': 68000,
-  'fagge': 65000,
-  'dala': 62000,
-  'gwale': 58000,
-  'ungogo': 55000,
-  'kumbotso': 52000,
-  'gezawa': 45000,
-  'dawakin tofa': 42000,
-  'minjibir': 38000,
-  'gabasawa': 35000,
-  'warawa': 32000,
-  'wudil': 30000,
-  'kura': 28000,
-  'madobi': 26000,
-  'garun mallam': 24000,
-  'bichi': 35000,
-  'bagwai': 22000,
-  'shanono': 20000,
-  'dambatta': 32000,
-  'makoda': 25000,
-  'kunchi': 18000,
-  'tsanyawa': 20000,
-  'gwarzo': 28000,
-  'rogo': 22000,
-  'kabo': 24000,
-  'karaye': 26000,
-  'rimin gado': 20000,
-  'tofa': 18000,
-  'doguwa': 15000,
-  'tudun wada': 22000,
-  'sumaila': 18000,
-  'takai': 16000,
-  'albasu': 14000,
-  'bebeji': 15000,
-  'kiru': 20000,
-  'rano': 22000,
-  'kibiya': 12000,
-  'gaya': 25000,
-  'ajingi': 14000,
-  'garko': 12000,
+  // Kano State LGAs - Using actual 2022 population projections
+  ...Object.fromEntries(Object.entries(KANO_LGA_POPULATION).map(([k, v]) => [k, v.reach])),
   
   // Lagos State LGAs (20 LGAs, State reach: 7,035,224)
   'ikeja': 520000,
@@ -790,7 +799,7 @@ function getDailyReach(query, locationType) {
       }
     }
     // Default LGA estimate
-    return 35000;
+    return 20000;
   }
   
   // Direct match in state/country data
@@ -814,6 +823,32 @@ function getDailyReach(query, locationType) {
   if (locationType === 'country') return 500000;
   if (locationType === 'state') return 200000;
   return 25000; // city default
+}
+
+/* ════ Get population for location ════ */
+function getPopulation(query, locationType) {
+  const q = query.toLowerCase()
+    .replace(/\s+state\s+nigeria/gi, '')
+    .replace(/\s+nigeria/gi, '')
+    .replace(/\s+local government/gi, '')
+    .replace(/\s+lga/gi, '')
+    .replace(/,\s*kano$/gi, '')
+    .replace(/,\s*lagos$/gi, '')
+    .trim();
+  
+  // Check Kano LGA population data
+  if (KANO_LGA_POPULATION[q]) {
+    return KANO_LGA_POPULATION[q].population;
+  }
+  
+  // Partial match in Kano LGAs
+  for (const key of Object.keys(KANO_LGA_POPULATION)) {
+    if (q.includes(key) || key.includes(q)) {
+      return KANO_LGA_POPULATION[key].population;
+    }
+  }
+  
+  return null; // Will use calculated estimate
 }
 
 /* ════ Weather ════ */
@@ -1161,10 +1196,21 @@ async function bootstrap(){
     state.dailyReach = getDailyReach(name, locationType);
     const rng = seededRand(hashStr(`${name}|${lat.toFixed(3)}`));
     
-    // Scale stats based on daily reach
-    const population = Math.round(state.dailyReach * (2 + rng() * 3));
-    const online = Math.round(state.dailyReach * (0.3 + rng() * 0.4));
-    const devices = Math.round(state.dailyReach * (0.8 + rng() * 0.5));
+    // Try to get actual population data first
+    const actualPopulation = getPopulation(name, locationType);
+    
+    let population, online, devices;
+    if (actualPopulation) {
+      // Use actual population from data
+      population = actualPopulation;
+      online = Math.round(population * (0.04 + rng() * 0.02)); // 4-6% online now
+      devices = Math.round(population * (0.35 + rng() * 0.15)); // 35-50% have devices
+    } else {
+      // Estimate based on daily reach
+      population = Math.round(state.dailyReach * (8 + rng() * 4)); // Reach is ~8-12% of pop
+      online = Math.round(state.dailyReach * (0.3 + rng() * 0.2));
+      devices = Math.round(state.dailyReach * (0.8 + rng() * 0.4));
+    }
     
     state.baseStats = { population, online, devices };
     
