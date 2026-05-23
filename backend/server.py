@@ -1599,16 +1599,20 @@ async def get_search_suggestions(q: str, limit: int = 5):
 
 # Geocoding proxy for AdGlobe (bypasses CORS restrictions)
 @api_router.get("/geocode")
-async def geocode_location(q: str, countrycodes: Optional[str] = None):
+async def geocode_location(q: str, countrycodes: Optional[str] = None, polygon_geojson: Optional[int] = None):
     """Proxy geocoding requests to OpenStreetMap Nominatim to avoid CORS issues."""
     try:
         params = {
             "format": "jsonv2",
             "limit": 1,
-            "q": q
+            "q": q,
+            "addressdetails": 1,
+            "extratags": 1
         }
         if countrycodes:
             params["countrycodes"] = countrycodes
+        if polygon_geojson:
+            params["polygon_geojson"] = 1
         
         async with httpx.AsyncClient() as client:
             response = await client.get(
@@ -1618,7 +1622,7 @@ async def geocode_location(q: str, countrycodes: Optional[str] = None):
                     "User-Agent": "Adlinka-AdGlobe/1.0 (ads-network)",
                     "Accept": "application/json"
                 },
-                timeout=10.0
+                timeout=15.0
             )
             response.raise_for_status()
             return response.json()
@@ -1628,6 +1632,44 @@ async def geocode_location(q: str, countrycodes: Optional[str] = None):
     except Exception as e:
         logging.error(f"Geocoding error: {e}")
         raise HTTPException(status_code=500, detail="Internal geocoding error")
+
+# Boundary polygon proxy for AdGlobe (fetches GeoJSON boundaries)
+@api_router.get("/geocode/boundary")
+async def get_boundary_polygon(osm_type: str, osm_id: int):
+    """Fetch boundary polygon GeoJSON from Nominatim details API."""
+    try:
+        type_char = osm_type[0].upper() if osm_type else 'R'
+        url = f"https://nominatim.openstreetmap.org/details.php"
+        params = {
+            "osmtype": type_char,
+            "osmid": osm_id,
+            "polygon_geojson": 1,
+            "format": "json"
+        }
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                url,
+                params=params,
+                headers={
+                    "User-Agent": "Adlinka-AdGlobe/1.0 (ads-network)",
+                    "Accept": "application/json"
+                },
+                timeout=20.0
+            )
+            response.raise_for_status()
+            data = response.json()
+            
+            # Return only the geometry if available
+            if "geometry" in data:
+                return {"geometry": data["geometry"], "name": data.get("localname", "")}
+            return {"geometry": None, "name": data.get("localname", "")}
+    except httpx.HTTPError as e:
+        logging.error(f"Boundary fetch error: {e}")
+        raise HTTPException(status_code=502, detail="Boundary service unavailable")
+    except Exception as e:
+        logging.error(f"Boundary fetch error: {e}")
+        raise HTTPException(status_code=500, detail="Internal boundary error")
 
 @api_router.get("/influencers", response_model=List[Influencer])
 async def get_influencers(

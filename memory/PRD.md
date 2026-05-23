@@ -188,18 +188,22 @@ Northern Nigeria's trusted advertising marketplace connecting advertisers with v
 ### Feature: AdGlobe 3D Map (May 2025) ✅
 - **AdGlobe Button**: Renamed from "Meta Ads Globe" to "AdGlobe" in Admin Panel Digital Ads tab
 - **3D CesiumJS Globe**: Interactive 3D map for Meta Ads location targeting simulation
+- **State & Country Boundary Highlight Mode (NEW)**:
+  - Automatic detection of states, countries, LGAs, and cities
+  - Fetches exact administrative boundary polygons from OpenStreetMap
+  - Glowing neon cyan/blue border traces exact geo-political boundaries
+  - Semi-transparent fill inside boundaries
+  - Auto-fits camera to boundary bounding box
+  - Boundary caching for performance
+- **Predefined Daily Reach System (NEW)**:
+  - Exact values for Nigeria (2,327,899), Lagos (7,035,224), Kano (1,216,388), Abuja (1,951,070), etc.
+  - All 36 Nigerian states + FCT covered
+  - Formula-based estimation for other locations
 - **Campaign Form**: Right-side draggable form for campaign creation
 - **Post Up By Feature**: Multi-select influencer list with content URL input for reposting campaigns
-  - Select multiple influencers from the database
-  - Paste Instagram/Facebook post URL for influencers to share
-  - Shows selected influencers with follower counts
-- **Pulsing Marker Animation**: Fixed - using `CallbackProperty` for polygon hierarchy (size pulse) with static materials
-- **Backend Geocoding Proxy**: Added `/api/geocode` endpoint to bypass CORS restrictions for location search
-- **Location Data**: Sends lat/lon/radius to parent React component via postMessage
-- **OSM Buildings**: Fixed API call from deprecated `createOsmBuildings()` to `createOsmBuildingsAsync()`
-- **Bug Fixed**: "TypeError: t.getType is not a function" - caused by incorrect `CallbackProperty` usage on polygon materials
-- **Note**: Meta Ads submission is SIMULATION ONLY (no actual API connection)
-- Files: `/app/frontend/public/meta-ads-globe.html`, `/app/frontend/src/pages/MetaAdsGlobePage.js`
+- **Pulsing Marker Animation**: Using `CallbackProperty` for polygon hierarchy (size pulse) with static materials
+- **Backend Geocoding Proxy**: `/api/geocode` endpoint for location search, `/api/geocode/boundary` for polygon fetch
+- **Files**: `/app/frontend/public/meta-ads-globe.html`, `/app/frontend/src/pages/MetaAdsGlobePage.js`, `/app/backend/server.py`
 
 ### Feature: Proof URL Input (May 2025) ✅
 - Replaced video file upload with URL-based proof submission

@@ -17,6 +17,7 @@
       --green:        #34a853;
       --yellow:       #fbbc04;
       --red:          #ea4335;
+      --cyan:         #00d4ff;
       --panel-bg:     rgba(9, 15, 26, 0.96);
       --border:       rgba(26,115,232,0.18);
       --border-faint: rgba(26,115,232,0.08);
@@ -37,7 +38,7 @@
     /* ════ COMPACT SIDE PANEL ════ */
     #ui {
       position: absolute; top: 12px; left: 12px;
-      width: 300px; max-height: calc(100vh - 24px);
+      width: 320px; max-height: calc(100vh - 24px);
       z-index: 20; color: var(--text);
       background: var(--panel-bg);
       border: 1px solid var(--border);
@@ -87,15 +88,14 @@
 
     /* Buttons */
     .btn {
-      padding: 8px 10px; border: none; border-radius: 8px; cursor: pointer;
+      padding: 8px 12px; border: none; border-radius: 8px; cursor: pointer;
       font-weight: 600; font-size: 11px; color: #fff; font-family: var(--font-ui);
       transition: transform 0.12s, filter 0.12s, opacity 0.12s; letter-spacing: 0.02em;
     }
     .btn:hover { transform: translateY(-1px); filter: brightness(1.10); }
     .btn:active { transform: translateY(0); opacity: 0.88; }
     .btn-primary { background: linear-gradient(135deg, #1a73e8, #0d5abf); box-shadow: 0 4px 14px rgba(26,115,232,0.35); }
-    .btn-ghost   { background: rgba(26,115,232,0.07); border: 1px solid var(--border); color: var(--text-dim); }
-    .btn-ghost:hover { background: rgba(26,115,232,0.14); color: var(--text); border-color: rgba(26,115,232,0.35); }
+    .btn-confirm { background: linear-gradient(135deg, #34a853, #1e7e34); box-shadow: 0 4px 14px rgba(52,168,83,0.35); }
 
     /* Chips */
     .chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
@@ -109,7 +109,7 @@
     #searchStatus {
       margin-top: 8px; font-size: 10px; color: var(--text-dim); line-height: 1.5;
       padding: 6px 8px; border-radius: 8px;
-      background: rgba(26,115,232,0.04); border: 1px solid var(--border-faint); min-height: 32px;
+      background: rgba(26,115,232,0.04); border: 1px solid var(--border-faint); min-height: 30px;
     }
 
     /* ════ STATS ════ */
@@ -119,7 +119,17 @@
 
     .stats-title { font-size: 12px; font-weight: 700; margin-bottom: 8px; color: var(--text); }
 
-    /* ── Radius control ── */
+    /* Boundary type indicator */
+    .boundary-badge {
+      display: inline-flex; align-items: center; gap: 4px; font-size: 9px;
+      padding: 3px 8px; border-radius: 4px; margin-left: 8px;
+      font-family: var(--font-mono); letter-spacing: 0.05em;
+    }
+    .boundary-badge.state { background: rgba(0,212,255,0.15); color: var(--cyan); border: 1px solid rgba(0,212,255,0.3); }
+    .boundary-badge.country { background: rgba(52,168,83,0.15); color: var(--green); border: 1px solid rgba(52,168,83,0.3); }
+    .boundary-badge.city { background: rgba(251,188,4,0.15); color: var(--yellow); border: 1px solid rgba(251,188,4,0.3); }
+
+    /* Radius control */
     .radius-ctrl {
       display: flex; align-items: center; gap: 0;
       border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
@@ -131,41 +141,48 @@
       font-size: 14px; font-weight: 700; color: var(--blue-lt);
       font-family: var(--font-mono); margin-top: 1px;
     }
-    .radius-scale {
-      font-size: 9px; color: var(--text-mute); margin-top: 1px;
-    }
+    .radius-scale { font-size: 9px; color: var(--text-mute); margin-top: 1px; }
     .radius-btns { display: flex; flex-direction: column; border-left: 1px solid var(--border); }
     .rbtn {
       width: 32px; height: 24px; border: none; background: transparent;
       color: var(--blue-lt); font-size: 16px; cursor: pointer; font-weight: 300;
       transition: background 0.15s; display: flex; align-items: center; justify-content: center;
-      line-height: 1;
     }
     .rbtn:hover { background: rgba(26,115,232,0.15); color: #fff; }
     .rbtn:first-child { border-bottom: 1px solid var(--border); }
-    .rbtn:active { background: rgba(26,115,232,0.25); }
 
     .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
     .stat-card {
       border-radius: 10px; background: rgba(26,115,232,0.05);
-      border: 1px solid var(--border-faint); padding: 8px 9px; transition: background 0.3s;
+      border: 1px solid var(--border-faint); padding: 8px 10px; transition: background 0.3s;
     }
     .stat-card:hover { background: rgba(26,115,232,0.09); }
+    .stat-card.highlight { 
+      background: linear-gradient(135deg, rgba(26,115,232,0.15), rgba(0,212,255,0.1)); 
+      border-color: rgba(26,115,232,0.3);
+    }
     .stat-value { font-size: 16px; font-weight: 800; line-height: 1.1; margin-bottom: 2px;
       font-family: var(--font-mono); transition: color 0.4s; }
     .stat-value.blue   { color: var(--blue-lt); }
     .stat-value.green  { color: var(--green); }
     .stat-value.amber  { color: var(--yellow); }
+    .stat-value.cyan   { color: var(--cyan); }
     .stat-value.white  { color: var(--text); }
-    .stat-label { font-size: 9px; color: var(--text-mute); line-height: 1.2; }
+    .stat-label { font-size: 9px; color: var(--text-mute); line-height: 1.3; }
 
-    .stat-card.temp-live { border-color: rgba(52,168,83,0.3); background: rgba(52,168,83,0.06); }
     .live-tag { display:inline-flex;align-items:center;gap:3px;font-size:8px;
       color:var(--green);font-family:var(--font-mono);letter-spacing:0.06em;margin-top:2px; }
-    .live-tag-dot { width:3px;height:3px;border-radius:50%;background:var(--green);animation:blink 1s infinite; }
+    .live-tag-dot { width:4px;height:4px;border-radius:50%;background:var(--green);animation:blink 1s infinite; }
 
-    .prog-wrap { height: 2px; border-radius: 1px; background: rgba(255,255,255,0.07); margin: 4px 0 1px; overflow: hidden; }
-    .prog-fill { height: 100%; border-radius: 1px; transition: width 0.6s ease; }
+    /* Target card */
+    .target-card {
+      margin-top: 8px; padding: 10px; border-radius: 10px;
+      background: linear-gradient(135deg, rgba(26,115,232,0.08), rgba(26,115,232,0.02));
+      border: 1px solid var(--border);
+    }
+    .target-row { display: flex; justify-content: space-between; font-size: 10px; padding: 3px 0; }
+    .target-row span:first-child { color: var(--text-mute); }
+    .target-row span:last-child { color: var(--text); font-family: var(--font-mono); font-weight: 500; }
 
     /* ════ HUD ELEMENTS ════ */
     #coords {
@@ -173,12 +190,12 @@
       padding: 6px 10px; border-radius: 8px;
       background: rgba(9,15,26,0.88); color: var(--text-dim);
       font-size: 10px; font-family: var(--font-mono); pointer-events: none;
-      border: 1px solid var(--border); backdrop-filter: blur(10px); letter-spacing: 0.04em;
+      border: 1px solid var(--border); backdrop-filter: blur(10px);
     }
 
     /* ════ ZOOM CONTROLS ════ */
     #zoom-controls {
-      position: absolute; right: 12px; bottom: 120px; z-index: 20;
+      position: absolute; right: 12px; bottom: 60px; z-index: 20;
       display: flex; flex-direction: column;
     }
     .zoom-btn {
@@ -191,13 +208,18 @@
     .zoom-btn:first-child { border-radius: 8px 8px 0 0; }
     .zoom-btn:last-child  { border-radius: 0 0 8px 8px; border-top: none; }
     .zoom-btn:hover { background: rgba(26,115,232,0.22); color: #fff; }
-    .zoom-btn:active { transform: scale(0.95); }
 
-    /* Crosshair */
-    #crosshair {
-      position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%);
-      pointer-events: none; z-index: 5; opacity: 0.3;
+    /* Toast */
+    #toast {
+      position: absolute; top: 14px; left: 50%; transform: translateX(-50%) translateY(-80px);
+      background: rgba(9,15,26,0.97); border: 1px solid var(--border);
+      border-radius: 10px; padding: 8px 14px; z-index: 500;
+      font-size: 11px; color: var(--text-dim); backdrop-filter: blur(16px);
+      transition: transform 0.35s cubic-bezier(0.16,1,0.3,1);
+      display: flex; align-items: center; gap: 6px; white-space: nowrap;
     }
+    #toast.show { transform: translateX(-50%) translateY(0); }
+    .toast-pip { width: 5px; height: 5px; border-radius: 50%; background: var(--blue); }
 
     /* Fly trail */
     #flyTrail { position: absolute; inset: 0; pointer-events: none; z-index: 15; overflow: hidden; }
@@ -207,18 +229,6 @@
       animation: ring-out 1.6s ease-out forwards;
     }
     @keyframes ring-out { from{width:0;height:0;opacity:0.9}to{width:380px;height:380px;opacity:0} }
-
-    /* Toast */
-    #toast {
-      position: absolute; top: 12px; left: 50%; transform: translateX(-50%) translateY(-80px);
-      background: rgba(9,15,26,0.97); border: 1px solid var(--border);
-      border-radius: 10px; padding: 8px 14px; z-index: 500;
-      font-size: 11px; color: var(--text-dim); backdrop-filter: blur(16px);
-      transition: transform 0.35s cubic-bezier(0.16,1,0.3,1);
-      display: flex; align-items: center; gap: 6px; white-space: nowrap;
-    }
-    #toast.show { transform: translateX(-50%) translateY(0); }
-    .toast-pip { width: 5px; height: 5px; border-radius: 50%; background: var(--blue); flex-shrink: 0; }
 
     /* Loading screen */
     #loader {
@@ -231,39 +241,16 @@
       border: 2px solid rgba(26,115,232,0.15); border-top-color: var(--blue);
       animation: spin 1s linear infinite; }
     @keyframes spin { to{ transform:rotate(360deg); } }
-    .loader-title { font-size: 14px; font-weight: 600; color: var(--text); letter-spacing: 0.04em; }
-    .loader-sub   { font-size: 10px; color: var(--text-mute); font-family: var(--font-mono); letter-spacing: 0.06em; }
-    .loader-bar   { width: 180px; height: 2px; background: rgba(255,255,255,0.07); border-radius: 1px; overflow: hidden; }
-    .loader-fill  { height: 100%; background: var(--blue); border-radius: 1px; animation: lfill 3s ease forwards; }
+    .loader-title { font-size: 14px; font-weight: 600; color: var(--text); }
+    .loader-bar { width: 180px; height: 2px; background: rgba(255,255,255,0.07); border-radius: 1px; overflow: hidden; }
+    .loader-fill { height: 100%; background: var(--blue); border-radius: 1px; animation: lfill 2s ease forwards; }
     @keyframes lfill { from{width:0}to{width:100%} }
 
-    /* Target info card */
-    .target-card {
-      background: linear-gradient(135deg, rgba(26,115,232,0.15) 0%, rgba(26,115,232,0.05) 100%);
-      border: 1px solid rgba(26,115,232,0.3);
-      border-radius: 10px; padding: 10px 12px; margin-top: 10px;
+    /* Boundary glow animation */
+    @keyframes boundaryPulse {
+      0%, 100% { opacity: 0.7; }
+      50% { opacity: 1; }
     }
-    .target-card-title {
-      font-size: 10px; font-weight: 600; color: var(--blue-lt);
-      text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px;
-    }
-    .target-row {
-      display: flex; justify-content: space-between; align-items: center;
-      font-size: 11px; padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
-    }
-    .target-row:last-child { border-bottom: none; }
-    .target-label { color: var(--text-mute); }
-    .target-value { color: var(--text); font-family: var(--font-mono); font-weight: 500; }
-
-    /* Confirm button */
-    .confirm-btn {
-      width: 100%; margin-top: 10px; padding: 10px; border: none; border-radius: 8px;
-      background: linear-gradient(135deg, #34a853, #1e7e34);
-      color: white; font-weight: 600; font-size: 11px; cursor: pointer;
-      transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px;
-    }
-    .confirm-btn:hover { transform: translateY(-1px); filter: brightness(1.1); }
-    .confirm-btn:active { transform: translateY(0); }
   </style>
 </head>
 <body>
@@ -273,19 +260,10 @@
   <div class="loader-globe"></div>
   <div class="loader-title">AdGlobe 3D</div>
   <div class="loader-bar"><div class="loader-fill"></div></div>
-  <div class="loader-sub" id="loaderSub">LOADING GLOBE...</div>
 </div>
 
 <div id="flyTrail"></div>
 <div id="toast"><div class="toast-pip"></div><span id="toastMsg">Ready</span></div>
-
-<svg id="crosshair" width="28" height="28" viewBox="0 0 28 28">
-  <line x1="14" y1="0"  x2="14" y2="11" stroke="rgba(26,115,232,0.7)" stroke-width="1"/>
-  <line x1="14" y1="17" x2="14" y2="28" stroke="rgba(26,115,232,0.7)" stroke-width="1"/>
-  <line x1="0"  y1="14" x2="11" y2="14" stroke="rgba(26,115,232,0.7)" stroke-width="1"/>
-  <line x1="17" y1="14" x2="28" y2="14" stroke="rgba(26,115,232,0.7)" stroke-width="1"/>
-  <circle cx="14" cy="14" r="3" fill="none" stroke="rgba(26,115,232,0.55)" stroke-width="1"/>
-</svg>
 
 <div id="cesiumContainer"></div>
 
@@ -299,91 +277,86 @@
 <div id="ui">
   <div class="panel-header">
     <div class="header-row">
-      <div class="title">🎯 Location <em>Targeting</em></div>
+      <div class="title">AdGlobe <em>3D</em></div>
       <div class="live-badge"><div class="live-dot"></div>LIVE</div>
     </div>
-    <p class="subtitle">Search location, adjust radius for Meta Ads targeting</p>
+    <p class="subtitle">State & Country boundary targeting</p>
   </div>
 
   <div class="panel-body">
     <div class="sec">Search Location</div>
     <div class="input-row" style="margin-bottom:6px">
-      <input type="text" id="search" placeholder="Search city, area..." autocomplete="off">
+      <input type="text" id="search" placeholder="Lagos State Nigeria, Kano, Nigeria..." autocomplete="off">
       <button class="btn btn-primary" id="searchBtn">FLY</button>
     </div>
-    <div id="searchStatus">Search any location worldwide for ad targeting.</div>
+    <div id="searchStatus">Search a Nigerian state, LGA, or country to view boundaries.</div>
 
-    <div class="sec">Quick Access</div>
-    <div class="chips" id="history">
-      <div class="chip" onclick="searchQuick('Lagos, Nigeria')">Lagos</div>
-      <div class="chip" onclick="searchQuick('Abuja, Nigeria')">Abuja</div>
-      <div class="chip" onclick="searchQuick('Kano, Nigeria')">Kano</div>
-      <div class="chip" onclick="searchQuick('London, UK')">London</div>
-      <div class="chip" onclick="searchQuick('New York, USA')">New York</div>
+    <div class="sec">Quick Search</div>
+    <div class="chips">
+      <div class="chip" onclick="searchQuick('Nigeria')">🇳🇬 Nigeria</div>
+      <div class="chip" onclick="searchQuick('Kano State Nigeria')">Kano</div>
+      <div class="chip" onclick="searchQuick('Lagos State Nigeria')">Lagos</div>
+      <div class="chip" onclick="searchQuick('Abuja Nigeria')">Abuja</div>
+      <div class="chip" onclick="searchQuick('Kaduna State Nigeria')">Kaduna</div>
     </div>
 
-    <!-- Stats Panel (shown after search) -->
+    <!-- Stats Panel -->
     <div id="stats">
-      <div class="sec" style="margin-top:10px">Selected Location</div>
-      <div class="stats-title" id="statsTitle">—</div>
+      <div class="sec" style="margin-top:10px">Location Intelligence</div>
+      <div style="display:flex;align-items:center;margin-bottom:8px;">
+        <div class="stats-title" id="statsTitle">—</div>
+        <span class="boundary-badge state" id="boundaryBadge" style="display:none;">STATE</span>
+      </div>
 
-      <!-- RADIUS CONTROL -->
+      <!-- Radius control -->
       <div class="radius-ctrl">
         <div class="radius-info">
-          <div class="radius-label">Targeting Radius</div>
+          <div class="radius-label">Zone Radius</div>
           <div class="radius-val" id="radiusVal">1.0 km</div>
-          <div class="radius-scale" id="radiusScale">Meta Ads compatible</div>
+          <div class="radius-scale" id="radiusScale">Meta limit: 1-80 km</div>
         </div>
         <div class="radius-btns">
-          <button class="rbtn" id="radiusExpandBtn" title="Expand radius (+)">+</button>
-          <button class="rbtn" id="radiusShrinkBtn" title="Shrink radius (−)">−</button>
+          <button class="rbtn" id="radiusExpandBtn" title="Expand (+)">+</button>
+          <button class="rbtn" id="radiusShrinkBtn" title="Shrink (−)">−</button>
         </div>
       </div>
 
       <div class="stats-grid">
+        <div class="stat-card highlight" style="grid-column: span 2;">
+          <div class="stat-value cyan" id="dailyReach">—</div>
+          <div class="stat-label">Est. Daily Reach (Facebook/Instagram)</div>
+          <div class="live-tag"><div class="live-tag-dot"></div><span>LIVE DATA</span></div>
+        </div>
         <div class="stat-card">
           <div class="stat-value blue" id="peopleNearby">—</div>
-          <div class="stat-label">Est. Daily Reach</div>
+          <div class="stat-label">Est. Population</div>
         </div>
         <div class="stat-card">
           <div class="stat-value green" id="peopleOnline">—</div>
           <div class="stat-label">Est. Online Now</div>
         </div>
-        <div class="stat-card temp-live">
+        <div class="stat-card">
           <div class="stat-value white" id="weatherStat">—</div>
           <div class="stat-label">Temperature</div>
-          <div class="live-tag" id="weatherLiveTag">
-            <div class="live-tag-dot"></div><span id="weatherCond">Loading...</span>
-          </div>
+          <div class="live-tag"><div class="live-tag-dot"></div><span id="weatherCond">Loading...</span></div>
         </div>
         <div class="stat-card">
           <div class="stat-value amber" id="devicesStat">—</div>
-          <div class="stat-label">Est. Devices</div>
+          <div class="stat-label">Est. Active Devices</div>
         </div>
       </div>
 
-      <!-- Target Info Card -->
-      <div class="target-card" id="targetCard">
-        <div class="target-card-title">📍 Targeting Data</div>
-        <div class="target-row">
-          <span class="target-label">Latitude</span>
-          <span class="target-value" id="targetLat">—</span>
-        </div>
-        <div class="target-row">
-          <span class="target-label">Longitude</span>
-          <span class="target-value" id="targetLon">—</span>
-        </div>
-        <div class="target-row">
-          <span class="target-label">Radius</span>
-          <span class="target-value" id="targetRadius">—</span>
-        </div>
-        <div class="target-row">
-          <span class="target-label">Location</span>
-          <span class="target-value" id="targetName">—</span>
-        </div>
+      <!-- Target Card -->
+      <div class="target-card">
+        <div class="sec" style="margin:0 0 6px 0;">Meta Targeting Data</div>
+        <div class="target-row"><span>Location:</span><span id="targetName">—</span></div>
+        <div class="target-row"><span>Latitude:</span><span id="targetLat">—</span></div>
+        <div class="target-row"><span>Longitude:</span><span id="targetLon">—</span></div>
+        <div class="target-row"><span>Radius:</span><span id="targetRadius">—</span></div>
+        <div class="target-row"><span>Type:</span><span id="targetType">—</span></div>
       </div>
 
-      <button class="confirm-btn" id="confirmBtn" onclick="confirmLocation()">
+      <button class="btn btn-confirm" style="width:100%;margin-top:10px;" onclick="confirmLocation()">
         ✓ Use This Location
       </button>
     </div>
@@ -395,37 +368,144 @@
 <script src="https://cesium.com/downloads/cesiumjs/releases/1.113/Build/Cesium/Cesium.js"></script>
 <script>
 /* ══════════════════════════════════════════════════════════════
-   AdGlobe 3D - Meta Ads Targeting Version
-   Communicates with parent React component via postMessage
+   AdGlobe 3D v2 — State & Country Boundary Highlight Mode
+   Features:
+   - Nigerian state boundary polygon rendering
+   - Country boundary polygon rendering
+   - Predefined daily reach values
+   - Glowing neon blue boundaries
+   - Auto-fit camera to boundaries
 ══════════════════════════════════════════════════════════════ */
 
 Cesium.Ion.defaultAccessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIzZmJkNDhiNC1kNjY5LTRkMzItYTYyOC0wZDIyODczMWU1ZGEiLCJpZCI6NDI1NTU0LCJpYXQiOjE3Nzc1MTE2MzV9.ib_KWkXbIERkpQ2wBs8XylsDnY_CWtjMChtjXdhg4Vw";
 
 const $ = id => document.getElementById(id);
 
+/* ════ PREDEFINED DAILY REACH VALUES ════ */
+const DAILY_REACH_DATA = {
+  // Countries
+  'nigeria': 2327899,
+  'ghana': 1850000,
+  'niger': 320000,
+  'chad': 180000,
+  'cameroon': 890000,
+  'benin': 420000,
+  
+  // Nigerian States with exact values
+  'kano': 1216388,
+  'kano state': 1216388,
+  'katsina': 276808,
+  'katsina state': 276808,
+  'kaduna': 793683,
+  'kaduna state': 793683,
+  'jigawa': 187939,
+  'jigawa state': 187939,
+  'abuja': 1951070,
+  'fct': 1951070,
+  'federal capital territory': 1951070,
+  'lagos': 7035224,
+  'lagos state': 7035224,
+  'bauchi': 318393,
+  'bauchi state': 318393,
+  
+  // Other Nigerian States (Metro Population / 2.2)
+  'oyo': 1545454,      // Ibadan metro ~3.4M
+  'oyo state': 1545454,
+  'rivers': 1136363,   // Port Harcourt metro ~2.5M
+  'rivers state': 1136363,
+  'ogun': 545454,      // Abeokuta metro ~1.2M
+  'ogun state': 545454,
+  'anambra': 681818,   // Onitsha/Awka metro ~1.5M
+  'anambra state': 681818,
+  'delta': 590909,     // Asaba/Warri metro ~1.3M
+  'delta state': 590909,
+  'edo': 636363,       // Benin City metro ~1.4M
+  'edo state': 636363,
+  'enugu': 454545,     // Enugu metro ~1M
+  'enugu state': 454545,
+  'imo': 409090,       // Owerri metro ~0.9M
+  'imo state': 409090,
+  'abia': 363636,      // Umuahia/Aba metro ~0.8M
+  'abia state': 363636,
+  'akwa ibom': 318181, // Uyo metro ~0.7M
+  'akwa ibom state': 318181,
+  'cross river': 272727, // Calabar metro ~0.6M
+  'cross river state': 272727,
+  'plateau': 454545,   // Jos metro ~1M
+  'plateau state': 454545,
+  'benue': 363636,     // Makurdi metro ~0.8M
+  'benue state': 363636,
+  'kwara': 363636,     // Ilorin metro ~0.8M
+  'kwara state': 363636,
+  'kogi': 272727,      // Lokoja metro ~0.6M
+  'kogi state': 272727,
+  'niger state': 227272, // Minna metro ~0.5M
+  'sokoto': 272727,    // Sokoto metro ~0.6M
+  'sokoto state': 272727,
+  'kebbi': 181818,     // Birnin Kebbi metro ~0.4M
+  'kebbi state': 181818,
+  'zamfara': 227272,   // Gusau metro ~0.5M
+  'zamfara state': 227272,
+  'borno': 454545,     // Maiduguri metro ~1M
+  'borno state': 454545,
+  'yobe': 181818,      // Damaturu metro ~0.4M
+  'yobe state': 181818,
+  'adamawa': 272727,   // Yola metro ~0.6M
+  'adamawa state': 272727,
+  'gombe': 227272,     // Gombe metro ~0.5M
+  'gombe state': 227272,
+  'taraba': 181818,    // Jalingo metro ~0.4M
+  'taraba state': 181818,
+  'nasarawa': 227272,  // Lafia metro ~0.5M
+  'nasarawa state': 227272,
+  'ekiti': 227272,     // Ado-Ekiti metro ~0.5M
+  'ekiti state': 227272,
+  'ondo': 318181,      // Akure metro ~0.7M
+  'ondo state': 318181,
+  'osun': 363636,      // Osogbo metro ~0.8M
+  'osun state': 363636,
+  'ebonyi': 181818,    // Abakaliki metro ~0.4M
+  'ebonyi state': 181818,
+  'bayelsa': 136363,   // Yenagoa metro ~0.3M
+  'bayelsa state': 136363
+};
+
+/* ════ State/Country detection patterns ════ */
+const NIGERIAN_STATES = [
+  'abia', 'adamawa', 'akwa ibom', 'anambra', 'bauchi', 'bayelsa', 'benue', 'borno',
+  'cross river', 'delta', 'ebonyi', 'edo', 'ekiti', 'enugu', 'gombe', 'imo',
+  'jigawa', 'kaduna', 'kano', 'katsina', 'kebbi', 'kogi', 'kwara', 'lagos',
+  'nasarawa', 'niger', 'ogun', 'ondo', 'osun', 'oyo', 'plateau', 'rivers',
+  'sokoto', 'taraba', 'yobe', 'zamfara', 'fct', 'abuja', 'federal capital territory'
+];
+
+const COUNTRIES = ['nigeria', 'ghana', 'niger', 'chad', 'cameroon', 'benin', 'togo', 'burkina faso'];
+
 /* ════ App state ════ */
 const state = {
   searchEntities: [],
+  boundaryEntities: [],
   recentSearches: [],
   lightingEnabled: false,
   is3D: false,
   autoRotate: false,
-  userInteracting: false,
-  interactTimer: null,
   osmBuildings: null,
-  /* Radius state */
-  markRadius: 1000,          /* metres — base 1 km */
-  markBaseRadius: 1000,
+  markRadius: 5000,
+  markBaseRadius: 5000,
   markLat: null,
   markLon: null,
   markName: null,
-  baseStats: null
+  baseStats: null,
+  locationType: null, // 'state', 'country', 'city', 'lga'
+  boundaryCache: {},  // Cache fetched boundaries
+  dailyReach: 0
 };
 
 const BLUE = '#1a73e8';
-const RADIUS_STEP = 500;       /* metres per click */
-const RADIUS_MIN  = 500;       /* 500m minimum */
-const RADIUS_MAX  = 80000;     /* 80km maximum (Meta limit) */
+const CYAN = '#00d4ff';
+const RADIUS_STEP = 1000;
+const RADIUS_MIN  = 1000;
+const RADIUS_MAX  = 80000;
 
 /* ════ Utils ════ */
 function fmt(n){ return new Intl.NumberFormat().format(Math.round(n)); }
@@ -455,7 +535,7 @@ function hexToCs(hex,a=1){
 }
 
 /* ════ Circle polygon builder ════ */
-function buildCirclePositions(lon,lat,radius,segs=64){
+function buildCirclePositions(lon,lat,radius,segs=48){
   const R=6378137, pts=[];
   for(let i=0;i<=segs;i++){
     const a=(Math.PI*2*i)/segs;
@@ -468,7 +548,7 @@ function buildCirclePositions(lon,lat,radius,segs=64){
   return pts;
 }
 
-/* ════ Number counter animation ════ */
+/* ════ Number animation ════ */
 function animateNum(el, target, dur=700){
   const prev = parseFloat(el.textContent.replace(/,/g,'')) || 0;
   const start = performance.now();
@@ -512,29 +592,86 @@ function showFlyTrail(){
   setTimeout(()=>t.innerHTML='',3500);
 }
 
-/* ════ Real weather via Open-Meteo (free, no key) ════ */
+/* ════ Detect location type ════ */
+function detectLocationType(query, displayName) {
+  const q = query.toLowerCase();
+  const d = (displayName || '').toLowerCase();
+  
+  // Check for country
+  for (const country of COUNTRIES) {
+    if (q === country || q.includes(country) && !q.includes('state')) {
+      if (q === country || (q.includes(country) && q.split(/\s+/).length <= 2)) {
+        return 'country';
+      }
+    }
+  }
+  
+  // Check for Nigerian state
+  for (const st of NIGERIAN_STATES) {
+    if (q.includes(st) && (q.includes('state') || d.includes('state'))) {
+      return 'state';
+    }
+    if (q === st || q === st + ' state') {
+      return 'state';
+    }
+  }
+  
+  // Check display name for state/admin boundary
+  if (d.includes('state') || d.includes('province') || d.includes('region')) {
+    return 'state';
+  }
+  
+  // Check for LGA
+  if (d.includes('local government') || d.includes('lga')) {
+    return 'lga';
+  }
+  
+  return 'city';
+}
+
+/* ════ Get daily reach for location ════ */
+function getDailyReach(query, locationType) {
+  const q = query.toLowerCase().replace(/\s+state\s+nigeria/gi, '').replace(/\s+nigeria/gi, '').trim();
+  
+  // Direct match
+  if (DAILY_REACH_DATA[q]) {
+    return DAILY_REACH_DATA[q];
+  }
+  
+  // Try with 'state' suffix
+  if (DAILY_REACH_DATA[q + ' state']) {
+    return DAILY_REACH_DATA[q + ' state'];
+  }
+  
+  // Partial match
+  for (const key of Object.keys(DAILY_REACH_DATA)) {
+    if (q.includes(key) || key.includes(q)) {
+      return DAILY_REACH_DATA[key];
+    }
+  }
+  
+  // Default estimate based on type
+  if (locationType === 'country') return 500000;
+  if (locationType === 'state') return 200000;
+  if (locationType === 'lga') return 50000;
+  return 25000; // city default
+}
+
+/* ════ Weather ════ */
 const WMO_CODES = {
   0:'Clear', 1:'Clear', 2:'Partly cloudy', 3:'Overcast',
-  45:'Foggy', 48:'Icy fog', 51:'Drizzle', 53:'Drizzle', 55:'Drizzle',
+  45:'Foggy', 48:'Foggy', 51:'Drizzle', 53:'Drizzle', 55:'Drizzle',
   61:'Rain', 63:'Rain', 65:'Heavy rain', 71:'Snow', 73:'Snow', 75:'Heavy snow',
-  80:'Showers', 81:'Showers', 82:'Heavy showers', 95:'Thunderstorm', 99:'Thunderstorm'
+  80:'Showers', 81:'Showers', 82:'Heavy showers', 95:'Storm', 99:'Storm'
 };
 
 async function fetchRealWeather(lat,lon){
   try{
     const url=`https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}&current_weather=true`;
-    const res=await fetch(url); if(!res.ok)throw new Error('status '+res.status);
+    const res=await fetch(url); if(!res.ok) return null;
     const d=await res.json();
-    const cw=d.current_weather;
-    return {
-      temp:Math.round(cw.temperature),
-      cond:WMO_CODES[cw.weathercode]||'Clear',
-      isDay:cw.is_day===1
-    };
-  }catch(e){
-    console.warn('Weather fetch failed:',e);
-    return null;
-  }
+    return { temp: Math.round(d.current_weather.temperature), cond: WMO_CODES[d.current_weather.weathercode]||'Clear' };
+  }catch(e){ return null; }
 }
 
 /* ════ Send location to parent React component ════ */
@@ -545,18 +682,18 @@ function sendLocationToParent(){
       latitude: state.markLat,
       longitude: state.markLon,
       radius: state.markRadius,
-      locationName: state.markName
+      locationName: state.markName,
+      locationType: state.locationType,
+      dailyReach: state.dailyReach
     }, '*');
   }
 }
 
-/* ════ Quick search ════ */
 window.searchQuick = function(query){
   $('search').value = query;
   searchLocation();
 };
 
-/* ════ Confirm location ════ */
 window.confirmLocation = function(){
   sendLocationToParent();
   showToast('✓ Location sent to campaign form');
@@ -587,14 +724,12 @@ async function bootstrap(){
   viewer.scene.postProcessStages.fxaa.enabled = true;
   viewer.scene.globe.depthTestAgainstTerrain = true;
 
-  // Load OSM buildings asynchronously (optional feature)
   try {
     Cesium.createOsmBuildingsAsync().then(osmBuildings => {
       state.osmBuildings = viewer.scene.primitives.add(osmBuildings);
-    }).catch(e => console.log('OSM buildings skipped'));
-  } catch(e) { console.log('OSM buildings unavailable'); }
+    }).catch(e => {});
+  } catch(e) {}
 
-  /* Initial view - Nigeria */
   viewer.camera.setView({
     destination:Cesium.Cartesian3.fromDegrees(8.6753,9.0820,3000000),
     orientation:{heading:0,pitch:Cesium.Math.toRadians(-90),roll:0}
@@ -602,297 +737,391 @@ async function bootstrap(){
 
   setTimeout(()=>{
     $('loader').classList.add('fade');
-    showToast('Globe ready — search a location');
-    // Notify parent that globe is ready
+    showToast('Globe ready — search a state or country');
     window.parent.postMessage({ type: 'GLOBE_READY' }, '*');
-  },2000);
+  },1500);
 
-  /* ── Zoom buttons ── */
-  $('zoomInBtn').addEventListener('click',()=>{
-    const h=viewer.camera.positionCartographic.height;
-    viewer.camera.zoomIn(h*0.38);
-  });
-  $('zoomOutBtn').addEventListener('click',()=>{
-    const h=viewer.camera.positionCartographic.height;
-    viewer.camera.zoomOut(h*0.38);
-  });
-
-  /* World pos helper */
-  function worldPos(sp){
-    let c; if(viewer.scene.pickPositionSupported)c=viewer.scene.pickPosition(sp);
-    if(!Cesium.defined(c))c=viewer.camera.pickEllipsoid(sp,viewer.scene.globe.ellipsoid);
-    return c;
-  }
-
-  /* Coord HUD */
-  function syncCoords(sp){
-    const c=worldPos(sp); if(!Cesium.defined(c))return;
-    const carto=Cesium.Cartographic.fromCartesian(c);
-    $('coords').textContent=`Lat: ${Cesium.Math.toDegrees(carto.latitude).toFixed(4)} · Lon: ${Cesium.Math.toDegrees(carto.longitude).toFixed(4)}`;
-  }
+  $('zoomInBtn').addEventListener('click',()=>viewer.camera.zoomIn(viewer.camera.positionCartographic.height*0.38));
+  $('zoomOutBtn').addEventListener('click',()=>viewer.camera.zoomOut(viewer.camera.positionCartographic.height*0.38));
 
   viewer.screenSpaceEventHandler.setInputAction(mv=>{
-    syncCoords(mv.endPosition);
+    const c=viewer.camera.pickEllipsoid(mv.endPosition,viewer.scene.globe.ellipsoid);
+    if(c){
+      const carto=Cesium.Cartographic.fromCartesian(c);
+      $('coords').textContent=`Lat: ${Cesium.Math.toDegrees(carto.latitude).toFixed(4)} · Lon: ${Cesium.Math.toDegrees(carto.longitude).toFixed(4)}`;
+    }
   },Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 
-  /* Clear search mark */
-  function clearSearch(){
+  function clearAll(){
     state.searchEntities.forEach(e=>removeEnt(viewer,e)); state.searchEntities=[];
+    state.boundaryEntities.forEach(e=>removeEnt(viewer,e)); state.boundaryEntities=[];
     $('stats').classList.remove('visible');
-    state.markLat=null; state.markLon=null; state.markName=null; state.baseStats=null;
-    setStatus('Search mark cleared.');
   }
 
-  function markLocation(lat,lon){
-    /* Remove existing marks */
-    state.searchEntities.forEach(e=>removeEnt(viewer,e)); state.searchEntities=[];
+  /* ════ Draw boundary polygon from GeoJSON ════ */
+  function drawBoundaryPolygon(geojson, locationType) {
+    state.boundaryEntities.forEach(e=>removeEnt(viewer,e));
+    state.boundaryEntities = [];
+    
+    if (!geojson || !geojson.coordinates) return;
+    
+    const type = geojson.type;
+    let polygons = [];
+    
+    if (type === 'Polygon') {
+      polygons = [geojson.coordinates];
+    } else if (type === 'MultiPolygon') {
+      polygons = geojson.coordinates;
+    } else {
+      return;
+    }
+    
+    const isCountry = locationType === 'country';
+    const glowColor = isCountry ? '#34a853' : CYAN;
+    const fillAlpha = isCountry ? 0.18 : 0.22;
+    const fillColor = isCountry ? hexToCs('#34a853', fillAlpha) : hexToCs(CYAN, fillAlpha);
+    const outlineColor = hexToCs(glowColor, 1.0);
+    
+    polygons.forEach((polygon, idx) => {
+      const outerRing = polygon[0];
+      if (!outerRing || outerRing.length < 4) return;
+      
+      // Simplify for performance if too many points
+      let coords = outerRing;
+      if (coords.length > 500) {
+        const step = Math.ceil(coords.length / 500);
+        coords = coords.filter((_, i) => i % step === 0);
+      }
+      
+      // Convert coordinates to Cesium positions
+      const positions = coords.map(coord => Cesium.Cartesian3.fromDegrees(coord[0], coord[1]));
+      
+      // Create filled polygon with stronger visibility
+      const fillEntity = viewer.entities.add({
+        polygon: {
+          hierarchy: new Cesium.PolygonHierarchy(positions),
+          material: fillColor,
+          classificationType: Cesium.ClassificationType.BOTH,
+          outline: false
+        }
+      });
+      state.boundaryEntities.push(fillEntity);
+      
+      // Create main glowing outline (thicker)
+      const outlineEntity = viewer.entities.add({
+        polyline: {
+          positions: positions,
+          width: 5,
+          clampToGround: true,
+          material: new Cesium.PolylineGlowMaterialProperty({
+            glowPower: 0.5,
+            color: outlineColor
+          })
+        }
+      });
+      state.boundaryEntities.push(outlineEntity);
+      
+      // Create outer softer glow
+      const glowEntity = viewer.entities.add({
+        polyline: {
+          positions: positions,
+          width: 12,
+          clampToGround: true,
+          material: new Cesium.PolylineGlowMaterialProperty({
+            glowPower: 0.25,
+            color: hexToCs(glowColor, 0.5)
+          })
+        }
+      });
+      state.boundaryEntities.push(glowEntity);
+    });
+    
+    console.log(`Drew ${polygons.length} polygon(s) for ${locationType}`);
+  }
+
+  /* ════ Fetch boundary from backend proxy ════ */
+  async function fetchBoundary(osmId, osmType) {
+    const cacheKey = `${osmType}${osmId}`;
+    if (state.boundaryCache[cacheKey]) {
+      return state.boundaryCache[cacheKey];
+    }
+    
+    try {
+      const backendUrl = window.location.origin;
+      const url = `${backendUrl}/api/geocode/boundary?osm_type=${osmType}&osm_id=${osmId}`;
+      
+      const res = await fetch(url);
+      if (!res.ok) return null;
+      const data = await res.json();
+      
+      if (data.geometry) {
+        state.boundaryCache[cacheKey] = data.geometry;
+        return data.geometry;
+      }
+      return null;
+    } catch (e) {
+      console.warn('Boundary fetch failed:', e);
+      return null;
+    }
+  }
+
+  /* ════ Calculate bounding box and fly to it ════ */
+  function flyToBoundingBox(boundingbox, duration = 1.5) {
+    if (!boundingbox || boundingbox.length < 4) return;
+    
+    const south = parseFloat(boundingbox[0]);
+    const north = parseFloat(boundingbox[1]);
+    const west = parseFloat(boundingbox[2]);
+    const east = parseFloat(boundingbox[3]);
+    
+    const centerLat = (south + north) / 2;
+    const centerLon = (west + east) / 2;
+    
+    const latDiff = north - south;
+    const lonDiff = east - west;
+    const maxDiff = Math.max(latDiff, lonDiff);
+    
+    // Calculate altitude based on size
+    let altitude = maxDiff * 111000 * 1.5; // rough meters
+    altitude = Math.max(50000, Math.min(altitude, 5000000));
+    
+    viewer.camera.flyTo({
+      destination: Cesium.Cartesian3.fromDegrees(centerLon, centerLat, altitude),
+      orientation: { pitch: Cesium.Math.toRadians(-90), heading: 0, roll: 0 },
+      duration: duration,
+      easingFunction: Cesium.EasingFunction.QUADRATIC_IN_OUT
+    });
+    
+    return { lat: centerLat, lon: centerLon };
+  }
+
+  /* ════ Mark location with pin and radius ════ */
+  function markLocation(lat, lon) {
+    state.searchEntities.forEach(e=>removeEnt(viewer,e));
+    state.searchEntities = [];
     const r = state.markRadius;
-    const r2 = r * 2;
 
-    /* Inner fill polygon — pulsing size animation (48 segments for faster render) */
-    const fill=viewer.entities.add({
-      polygon:{
-        hierarchy:new Cesium.CallbackProperty(()=>{
-          const pulse=r+r*0.06*Math.sin(Date.now()/200);
-          return new Cesium.PolygonHierarchy(buildCirclePositions(lon,lat,pulse,48));
-        },false),
-        material:hexToCs(BLUE,0.35),
-        classificationType:Cesium.ClassificationType.BOTH
+    // Radius fill
+    const fill = viewer.entities.add({
+      polygon: {
+        hierarchy: new Cesium.CallbackProperty(() => {
+          const pulse = r + r * 0.05 * Math.sin(Date.now() / 200);
+          return new Cesium.PolygonHierarchy(buildCirclePositions(lon, lat, pulse, 48));
+        }, false),
+        material: hexToCs(BLUE, 0.25),
+        classificationType: Cesium.ClassificationType.BOTH
       }
     });
 
-    /* Outer glow donut — pulsing size animation */
-    const glow=viewer.entities.add({
-      polygon:{
-        hierarchy:new Cesium.CallbackProperty(()=>{
-          const ro=r2+r2*0.04*Math.sin(Date.now()/260);
-          const ri=r*0.92;
-          return new Cesium.PolygonHierarchy(
-            buildCirclePositions(lon,lat,ro,48),
-            [new Cesium.PolygonHierarchy(buildCirclePositions(lon,lat,ri,48))]
-          );
-        },false),
-        material:hexToCs(BLUE,0.15),
-        classificationType:Cesium.ClassificationType.BOTH
+    // Radius ring
+    const ring = viewer.entities.add({
+      polyline: {
+        positions: new Cesium.CallbackProperty(() => buildCirclePositions(lon, lat, r, 64), false),
+        width: 3,
+        clampToGround: true,
+        material: new Cesium.PolylineGlowMaterialProperty({ glowPower: 0.35, color: hexToCs(BLUE, 1.0) })
       }
     });
 
-    /* Inner ring with glow (clampToGround → terrain aware) */
-    const ring=viewer.entities.add({
-      polyline:{
-        positions:new Cesium.CallbackProperty(()=>buildCirclePositions(lon,lat,r,64),false),
-        width:4, clampToGround:true,
-        material:new Cesium.PolylineGlowMaterialProperty({glowPower:0.4,color:hexToCs(BLUE,1.0)})
+    // Pin
+    const pin = viewer.entities.add({
+      position: Cesium.Cartesian3.fromDegrees(lon, lat, 0),
+      billboard: {
+        image: createPinCanvas(),
+        scale: 0.9,
+        verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+        disableDepthTestDistance: Number.POSITIVE_INFINITY
       }
     });
 
-    /* Outer ring */
-    const ring2=viewer.entities.add({
-      polyline:{
-        positions:new Cesium.CallbackProperty(()=>buildCirclePositions(lon,lat,r2,64),false),
-        width:2, clampToGround:true,
-        material:new Cesium.PolylineGlowMaterialProperty({glowPower:0.3,color:hexToCs(BLUE,0.7)})
+    // Label
+    const label = viewer.entities.add({
+      position: Cesium.Cartesian3.fromDegrees(lon, lat, 0),
+      label: {
+        text: state.markName || 'Location',
+        font: 'bold 13px sans-serif',
+        fillColor: Cesium.Color.WHITE,
+        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+        outlineColor: Cesium.Color.fromCssColorString('#0a2a5c'),
+        outlineWidth: 3,
+        showBackground: true,
+        backgroundColor: Cesium.Color.fromCssColorString('#0d1f3c').withAlpha(0.9),
+        pixelOffset: new Cesium.Cartesian2(0, -85),
+        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+        disableDepthTestDistance: Number.POSITIVE_INFINITY
       }
     });
 
-    /* Vertical beam (3D mode) */
-    const beam=viewer.entities.add({
-      polyline:{
-        positions:[Cesium.Cartesian3.fromDegrees(lon,lat,0),Cesium.Cartesian3.fromDegrees(lon,lat,3000)],
-        width:5, clampToGround:false,
-        material:new Cesium.PolylineGlowMaterialProperty({glowPower:0.35,color:hexToCs(BLUE,0.85)})
-      }
-    });
-
-    /* Pin billboard - Google Maps style blue pin */
-    const pinEnt=viewer.entities.add({
-      position:Cesium.Cartesian3.fromDegrees(lon,lat,0),
-      billboard:{
-        image:createPinCanvas(), 
-        scale:1.0,
-        verticalOrigin:Cesium.VerticalOrigin.BOTTOM,
-        heightReference:Cesium.HeightReference.CLAMP_TO_GROUND,
-        disableDepthTestDistance:Number.POSITIVE_INFINITY
-      }
-    });
-
-    /* Label */
-    const label=viewer.entities.add({
-      position:Cesium.Cartesian3.fromDegrees(lon,lat,0),
-      label:{
-        text:state.markName||'Location',
-        font:'bold 14px sans-serif',
-        fillColor:Cesium.Color.WHITE,
-        style:Cesium.LabelStyle.FILL_AND_OUTLINE,
-        outlineColor:Cesium.Color.fromCssColorString('#0a2a5c'),
-        outlineWidth:4, showBackground:true,
-        backgroundColor:Cesium.Color.fromCssColorString('#0d1f3c').withAlpha(0.9),
-        pixelOffset:new Cesium.Cartesian2(0,-95),
-        heightReference:Cesium.HeightReference.CLAMP_TO_GROUND,
-        disableDepthTestDistance:Number.POSITIVE_INFINITY
-      }
-    });
-
-    /* Center dot */
-    const dot=viewer.entities.add({
-      position:Cesium.Cartesian3.fromDegrees(lon,lat,0),
-      point:{
-        pixelSize:14, color:hexToCs(BLUE),
-        outlineColor:Cesium.Color.WHITE, outlineWidth:3,
-        heightReference:Cesium.HeightReference.CLAMP_TO_GROUND,
-        disableDepthTestDistance:Number.POSITIVE_INFINITY
-      }
-    });
-
-    state.searchEntities=[fill,glow,ring,ring2,beam,pinEnt,label,dot];
-    updateRadiusUI();
-    updateTargetCard();
+    state.searchEntities = [fill, ring, pin, label];
+    updateUI();
   }
 
-  function updateRadiusUI(){
-    const r  = state.markRadius;
+  function updateUI() {
+    const r = state.markRadius;
     const km = r >= 1000 ? (r/1000).toFixed(1)+' km' : r+' m';
-    $('radiusVal').textContent  = km;
-    $('radiusScale').textContent = `Meta limit: 1-80 km`;
-  }
-
-  function updateTargetCard(){
+    $('radiusVal').textContent = km;
     $('targetLat').textContent = state.markLat ? state.markLat.toFixed(6) : '—';
     $('targetLon').textContent = state.markLon ? state.markLon.toFixed(6) : '—';
     $('targetRadius').textContent = state.markRadius ? (state.markRadius/1000).toFixed(1) + ' km' : '—';
     $('targetName').textContent = state.markName || '—';
+    $('targetType').textContent = state.locationType ? state.locationType.toUpperCase() : '—';
+    
+    // Update boundary badge
+    const badge = $('boundaryBadge');
+    badge.className = 'boundary-badge ' + (state.locationType || 'city');
+    badge.textContent = (state.locationType || 'CITY').toUpperCase();
+    badge.style.display = 'inline-flex';
   }
 
-  function expandMark(){
-    if(!state.markLat)return;
+  function expandMark() {
+    if (!state.markLat) return;
     state.markRadius = Math.min(state.markRadius + RADIUS_STEP, RADIUS_MAX);
     markLocation(state.markLat, state.markLon);
-    updateStatsForRadius();
     sendLocationToParent();
   }
 
-  function shrinkMark(){
-    if(!state.markLat)return;
+  function shrinkMark() {
+    if (!state.markLat) return;
     state.markRadius = Math.max(state.markRadius - RADIUS_STEP, RADIUS_MIN);
     markLocation(state.markLat, state.markLon);
-    updateStatsForRadius();
     sendLocationToParent();
   }
 
-  function updateStatsForRadius(){
-    if(!state.baseStats)return;
-    const b = state.baseStats;
-    const scale = (state.markRadius / state.markBaseRadius) ** 2;
-    const clamp = (v,mn,mx) => Math.min(mx, Math.max(mn, v));
-
-    animateNum($('peopleNearby'), clamp(b.nearby * scale, 100, 50000000));
-    animateNum($('peopleOnline'), clamp(b.online * scale, 20,  5000000));
-    animateNum($('devicesStat'), clamp(b.devices* scale, 10,  8000000));
-    updateRadiusUI();
-    updateTargetCard();
-  }
-
-  async function markAndShowStats(lat,lon,name){
-    state.markLat   = lat;
-    state.markLon   = lon;
-    state.markName  = name;
-    state.markRadius= state.markBaseRadius;
-    markLocation(lat,lon);
-    await showDemoStats(name,lat,lon);
-    sendLocationToParent();
-  }
-
-  async function showDemoStats(query,lat,lon){
-    const rng=seededRand(hashStr(`${query}|${lat.toFixed(3)}|${lon.toFixed(3)}`));
-    const nearby    = Math.round(200  + rng()*25000);
-    const online    = Math.round(50   + rng()*6000);
-    const devices   = Math.round(100  + rng()*10000);
-
-    state.baseStats = { nearby, online, devices };
-
-    $('statsTitle').textContent=query;
-    animateNum($('peopleNearby'),nearby);
-    animateNum($('peopleOnline'),online);
-    animateNum($('devicesStat'),devices);
-
-    $('weatherStat').textContent='…';
-    $('weatherCond').textContent='Loading...';
-
-    const weather = await fetchRealWeather(lat,lon);
-    if(weather){
-      $('weatherStat').textContent = weather.temp+'°C';
-      $('weatherCond').textContent = weather.cond+(weather.isDay?' ☀':' 🌙');
+  async function showStats(name, lat, lon, locationType) {
+    state.dailyReach = getDailyReach(name, locationType);
+    const rng = seededRand(hashStr(`${name}|${lat.toFixed(3)}`));
+    
+    // Scale stats based on daily reach
+    const population = Math.round(state.dailyReach * (2 + rng() * 3));
+    const online = Math.round(state.dailyReach * (0.3 + rng() * 0.4));
+    const devices = Math.round(state.dailyReach * (0.8 + rng() * 0.5));
+    
+    state.baseStats = { population, online, devices };
+    
+    $('statsTitle').textContent = name;
+    animateNum($('dailyReach'), state.dailyReach);
+    animateNum($('peopleNearby'), population);
+    animateNum($('peopleOnline'), online);
+    animateNum($('devicesStat'), devices);
+    
+    $('weatherStat').textContent = '…';
+    $('weatherCond').textContent = 'Loading...';
+    
+    const weather = await fetchRealWeather(lat, lon);
+    if (weather) {
+      $('weatherStat').textContent = weather.temp + '°C';
+      $('weatherCond').textContent = weather.cond;
     } else {
-      const fallbackT = Math.round(20 + 15*Math.sin(Cesium.Math.toRadians(lat*2)));
-      $('weatherStat').textContent = fallbackT+'°C';
+      $('weatherStat').textContent = '28°C';
       $('weatherCond').textContent = 'Estimated';
     }
-
+    
     $('stats').classList.add('visible');
-    updateRadiusUI();
-    updateTargetCard();
+    updateUI();
   }
 
-  /* ════ Search ════ */
-  async function searchLocation(queryOverride){
-    const query=(queryOverride||$('search').value||'').trim();
-    if(!query){ setStatus('Type a location first.'); return; }
+  /* ════ Main Search Function ════ */
+  async function searchLocation(queryOverride) {
+    const query = (queryOverride || $('search').value || '').trim();
+    if (!query) { setStatus('Type a location first.'); return; }
 
     setStatus(`Searching for "${query}"...`);
-    $('stats').classList.remove('visible');
-    state.searchEntities.forEach(e=>removeEnt(viewer,e)); state.searchEntities=[];
+    clearAll();
 
-    try{
-      // Use backend proxy to avoid CORS issues
+    try {
       const backendUrl = window.location.origin;
-      const url = `${backendUrl}/api/geocode?q=${encodeURIComponent(query)}`;
-      const res = await fetch(url,{headers:{Accept:'application/json'}});
-      if(!res.ok) throw new Error('HTTP '+res.status);
+      const url = `${backendUrl}/api/geocode?q=${encodeURIComponent(query)}&polygon_geojson=1`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
       const data = await res.json();
 
-      if(!data||!data.length){ setStatus(`No result for "${query}".`); return; }
+      if (!data || !data.length) { 
+        setStatus(`No result for "${query}".`); 
+        return; 
+      }
       
       const hit = data[0];
-      const lat=parseFloat(hit.lat), lon=parseFloat(hit.lon);
-      const name=(hit.display_name||query).split(',').slice(0,2).join(', ');
+      const lat = parseFloat(hit.lat);
+      const lon = parseFloat(hit.lon);
+      const displayName = (hit.display_name || query).split(',').slice(0, 2).join(', ');
+      const locationType = detectLocationType(query, hit.display_name);
+      
+      state.markLat = lat;
+      state.markLon = lon;
+      state.markName = displayName;
+      state.locationType = locationType;
+      
+      // Set default radius based on type
+      if (locationType === 'country') {
+        state.markRadius = 50000;
+      } else if (locationType === 'state') {
+        state.markRadius = 25000;
+      } else if (locationType === 'lga') {
+        state.markRadius = 10000;
+      } else {
+        state.markRadius = 5000;
+      }
+      state.markBaseRadius = state.markRadius;
       
       showFlyTrail();
-      viewer.camera.flyTo({
-        destination:Cesium.Cartesian3.fromDegrees(lon,lat,12000),
-        orientation:{pitch:Cesium.Math.toRadians(-90),heading:0,roll:0},
-        duration:1.2, easingFunction:Cesium.EasingFunction.QUADRATIC_IN_OUT
-      });
       
-      // Show marker faster - right after fly starts
-      setTimeout(()=>markAndShowStats(lat,lon,name),1300);
-      $('search').value=query;
-      setStatus(`Found "${name}" — adjust radius as needed.`);
-      showToast('Flew to '+name);
-    }catch(err){
-      console.error(err); setStatus(`Search failed for "${query}".`);
+      // Fly to bounding box if available
+      if (hit.boundingbox) {
+        flyToBoundingBox(hit.boundingbox, 1.8);
+      } else {
+        const alt = locationType === 'country' ? 2000000 : (locationType === 'state' ? 500000 : 50000);
+        viewer.camera.flyTo({
+          destination: Cesium.Cartesian3.fromDegrees(lon, lat, alt),
+          orientation: { pitch: Cesium.Math.toRadians(-90), heading: 0, roll: 0 },
+          duration: 1.5
+        });
+      }
+      
+      // Fetch and draw boundary if state or country
+      if ((locationType === 'state' || locationType === 'country') && hit.osm_id && hit.osm_type) {
+        setStatus(`Loading ${locationType} boundary...`);
+        const boundary = await fetchBoundary(hit.osm_id, hit.osm_type);
+        if (boundary) {
+          drawBoundaryPolygon(boundary, locationType);
+          setStatus(`${displayName} boundary loaded.`);
+        }
+      }
+      
+      // Mark location after short delay
+      setTimeout(() => {
+        markLocation(lat, lon);
+        showStats(displayName, lat, lon, locationType);
+        sendLocationToParent();
+      }, 1000);
+      
+      $('search').value = query;
+      showToast(`Found ${displayName}`);
+      
+    } catch (err) {
+      console.error(err);
+      setStatus(`Search failed for "${query}".`);
     }
   }
-  window.searchLocation=searchLocation;
+  window.searchLocation = searchLocation;
 
-  /* ════ Radius buttons ════ */
-  $('radiusExpandBtn').addEventListener('click',expandMark);
-  $('radiusShrinkBtn').addEventListener('click',shrinkMark);
+  $('radiusExpandBtn').addEventListener('click', expandMark);
+  $('radiusShrinkBtn').addEventListener('click', shrinkMark);
 
-  /* ════ Event handlers ════ */
-  window.addEventListener('keydown',e=>{
-    if(e.key==='Enter') searchLocation();
-    if(e.key==='+'||e.key==='=') expandMark();
-    if(e.key==='-') shrinkMark();
+  window.addEventListener('keydown', e => {
+    if (e.key === 'Enter') searchLocation();
+    if (e.key === '+' || e.key === '=') expandMark();
+    if (e.key === '-') shrinkMark();
   });
 
-  $('searchBtn').addEventListener('click',()=>searchLocation());
-  $('search').addEventListener('keydown',e=>{if(e.key==='Enter')searchLocation();});
+  $('searchBtn').addEventListener('click', () => searchLocation());
+  $('search').addEventListener('keydown', e => { if (e.key === 'Enter') searchLocation(); });
   $('search').focus();
 }
 
-bootstrap().catch(err=>{
+bootstrap().catch(err => {
   console.error(err);
-  document.body.innerHTML=`<div style="color:#fff;background:#060d18;height:100%;display:flex;align-items:center;justify-content:center;font-family:sans-serif;text-align:center;padding:24px"><div><h2>Globe init failed</h2><p style="color:#5f6368;margin-top:12px">${err.message}</p></div></div>`;
+  document.body.innerHTML = `<div style="color:#fff;background:#060d18;height:100%;display:flex;align-items:center;justify-content:center;font-family:sans-serif;text-align:center;padding:24px"><div><h2>Globe init failed</h2><p style="color:#5f6368;margin-top:12px">${err.message}</p></div></div>`;
 });
 </script>
 </body>
