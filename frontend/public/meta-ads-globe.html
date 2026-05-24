@@ -386,92 +386,100 @@ Cesium.Ion.defaultAccessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOi
 const $ = id => document.getElementById(id);
 
 /* ════ PREDEFINED DAILY REACH VALUES ════ */
+/* ════ State Population Data (2023 Estimates from Wikipedia) ════ */
+// Daily Reach = Population × 0.08 (8% social media daily reach rate)
+const NIGERIA_STATE_POPULATION = {
+  // All 36 Nigerian States + FCT with 2023 estimated populations
+  'kano': { population: 16253549, reach: 1300284 },
+  'kano state': { population: 16253549, reach: 1300284 },
+  'lagos': { population: 15772884, reach: 1261831 },
+  'lagos state': { population: 15772884, reach: 1261831 },
+  'katsina': { population: 9300382, reach: 744031 },
+  'katsina state': { population: 9300382, reach: 744031 },
+  'kaduna': { population: 8324285, reach: 665943 },
+  'kaduna state': { population: 8324285, reach: 665943 },
+  'bauchi': { population: 7540663, reach: 603253 },
+  'bauchi state': { population: 7540663, reach: 603253 },
+  'oyo': { population: 7512855, reach: 601028 },
+  'oyo state': { population: 7512855, reach: 601028 },
+  'anambra': { population: 7299910, reach: 583993 },
+  'anambra state': { population: 7299910, reach: 583993 },
+  'rivers': { population: 7234973, reach: 578798 },
+  'rivers state': { population: 7234973, reach: 578798 },
+  'jigawa': { population: 6979080, reach: 558326 },
+  'jigawa state': { population: 6979080, reach: 558326 },
+  'niger': { population: 6720617, reach: 537649 },
+  'niger state': { population: 6720617, reach: 537649 },
+  'benue': { population: 6687706, reach: 535016 },
+  'benue state': { population: 6687706, reach: 535016 },
+  'borno': { population: 6651590, reach: 532127 },
+  'borno state': { population: 6651590, reach: 532127 },
+  'ogun': { population: 6445275, reach: 515622 },
+  'ogun state': { population: 6445275, reach: 515622 },
+  'sokoto': { population: 6163187, reach: 493055 },
+  'sokoto state': { population: 6163187, reach: 493055 },
+  'delta': { population: 6107543, reach: 488603 },
+  'delta state': { population: 6107543, reach: 488603 },
+  'imo': { population: 6067722, reach: 485418 },
+  'imo state': { population: 6067722, reach: 485418 },
+  'kebbi': { population: 6001610, reach: 480129 },
+  'kebbi state': { population: 6001610, reach: 480129 },
+  'akwa ibom': { population: 5780581, reach: 462446 },
+  'akwa ibom state': { population: 5780581, reach: 462446 },
+  'edo': { population: 5527810, reach: 442225 },
+  'edo state': { population: 5527810, reach: 442225 },
+  'zamfara': { population: 5517793, reach: 441423 },
+  'zamfara state': { population: 5517793, reach: 441423 },
+  'ondo': { population: 5469707, reach: 437577 },
+  'ondo state': { population: 5469707, reach: 437577 },
+  'plateau': { population: 5400974, reach: 432078 },
+  'plateau state': { population: 5400974, reach: 432078 },
+  'enugu': { population: 5396098, reach: 431688 },
+  'enugu state': { population: 5396098, reach: 431688 },
+  'adamawa': { population: 5236948, reach: 418956 },
+  'adamawa state': { population: 5236948, reach: 418956 },
+  'kogi': { population: 5053734, reach: 404299 },
+  'kogi state': { population: 5053734, reach: 404299 },
+  'abia': { population: 4841943, reach: 387355 },
+  'abia state': { population: 4841943, reach: 387355 },
+  'abuja': { population: 4802443, reach: 384195 },
+  'fct': { population: 4802443, reach: 384195 },
+  'federal capital territory': { population: 4802443, reach: 384195 },
+  'gombe': { population: 4623462, reach: 369877 },
+  'gombe state': { population: 4623462, reach: 369877 },
+  'yobe': { population: 4350401, reach: 348032 },
+  'yobe state': { population: 4350401, reach: 348032 },
+  'taraba': { population: 4331885, reach: 346551 },
+  'taraba state': { population: 4331885, reach: 346551 },
+  'kwara': { population: 4259613, reach: 340769 },
+  'kwara state': { population: 4259613, reach: 340769 },
+  'osun': { population: 4237396, reach: 338992 },
+  'osun state': { population: 4237396, reach: 338992 },
+  'cross river': { population: 4175020, reach: 334002 },
+  'cross river state': { population: 4175020, reach: 334002 },
+  'ebonyi': { population: 4007155, reach: 320572 },
+  'ebonyi state': { population: 4007155, reach: 320572 },
+  'nasarawa': { population: 3632239, reach: 290579 },
+  'nasarawa state': { population: 3632239, reach: 290579 },
+  'ekiti': { population: 3398177, reach: 271854 },
+  'ekiti state': { population: 3398177, reach: 271854 },
+  'bayelsa': { population: 2394725, reach: 191578 },
+  'bayelsa state': { population: 2394725, reach: 191578 }
+};
+
 const DAILY_REACH_DATA = {
   // Countries
-  'nigeria': 2327899,
-  'ghana': 1850000,
-  'niger': 320000,
-  'chad': 180000,
-  'cameroon': 890000,
-  'benin': 420000,
+  'nigeria': 17369000,  // ~8% of 217M population
+  'ghana': 2640000,     // ~8% of 33M
+  'niger': 1920000,     // ~8% of 24M
+  'chad': 1440000,      // ~8% of 18M
+  'cameroon': 2240000,  // ~8% of 28M
+  'benin': 1040000,     // ~8% of 13M
   
-  // Nigerian States with exact values
-  'kano': 1216388,
-  'kano state': 1216388,
-  'katsina': 276808,
-  'katsina state': 276808,
-  'kaduna': 793683,
-  'kaduna state': 793683,
-  'jigawa': 187939,
-  'jigawa state': 187939,
-  'abuja': 1951070,
-  'fct': 1951070,
-  'federal capital territory': 1951070,
-  'lagos': 7035224,
-  'lagos state': 7035224,
-  'bauchi': 318393,
-  'bauchi state': 318393,
-  
-  // Other Nigerian States (Metro Population / 2.2)
-  'oyo': 1545454,      // Ibadan metro ~3.4M
-  'oyo state': 1545454,
-  'rivers': 1136363,   // Port Harcourt metro ~2.5M
-  'rivers state': 1136363,
-  'ogun': 545454,      // Abeokuta metro ~1.2M
-  'ogun state': 545454,
-  'anambra': 681818,   // Onitsha/Awka metro ~1.5M
-  'anambra state': 681818,
-  'delta': 590909,     // Asaba/Warri metro ~1.3M
-  'delta state': 590909,
-  'edo': 636363,       // Benin City metro ~1.4M
-  'edo state': 636363,
-  'enugu': 454545,     // Enugu metro ~1M
-  'enugu state': 454545,
-  'imo': 409090,       // Owerri metro ~0.9M
-  'imo state': 409090,
-  'abia': 363636,      // Umuahia/Aba metro ~0.8M
-  'abia state': 363636,
-  'akwa ibom': 318181, // Uyo metro ~0.7M
-  'akwa ibom state': 318181,
-  'cross river': 272727, // Calabar metro ~0.6M
-  'cross river state': 272727,
-  'plateau': 454545,   // Jos metro ~1M
-  'plateau state': 454545,
-  'benue': 363636,     // Makurdi metro ~0.8M
-  'benue state': 363636,
-  'kwara': 363636,     // Ilorin metro ~0.8M
-  'kwara state': 363636,
-  'kogi': 272727,      // Lokoja metro ~0.6M
-  'kogi state': 272727,
-  'niger state': 227272, // Minna metro ~0.5M
-  'sokoto': 272727,    // Sokoto metro ~0.6M
-  'sokoto state': 272727,
-  'kebbi': 181818,     // Birnin Kebbi metro ~0.4M
-  'kebbi state': 181818,
-  'zamfara': 227272,   // Gusau metro ~0.5M
-  'zamfara state': 227272,
-  'borno': 454545,     // Maiduguri metro ~1M
-  'borno state': 454545,
-  'yobe': 181818,      // Damaturu metro ~0.4M
-  'yobe state': 181818,
-  'adamawa': 272727,   // Yola metro ~0.6M
-  'adamawa state': 272727,
-  'gombe': 227272,     // Gombe metro ~0.5M
-  'gombe state': 227272,
-  'taraba': 181818,    // Jalingo metro ~0.4M
-  'taraba state': 181818,
-  'nasarawa': 227272,  // Lafia metro ~0.5M
-  'nasarawa state': 227272,
-  'ekiti': 227272,     // Ado-Ekiti metro ~0.5M
-  'ekiti state': 227272,
-  'ondo': 318181,      // Akure metro ~0.7M
-  'ondo state': 318181,
-  'osun': 363636,      // Osogbo metro ~0.8M
-  'osun state': 363636,
-  'ebonyi': 181818,    // Abakaliki metro ~0.4M
-  'ebonyi state': 181818,
-  'bayelsa': 136363,   // Yenagoa metro ~0.3M
-  'bayelsa state': 136363
+  // Nigerian States - populated from NIGERIA_STATE_POPULATION
+  ...Object.fromEntries(
+    Object.entries(NIGERIA_STATE_POPULATION).map(([k, v]) => [k, v.reach])
+  )
 };
 
 /* ════ LGA Population Data (2022 Projection) & Daily Reach ════ */
@@ -1650,6 +1658,22 @@ function getPopulation(query, locationType) {
     .replace(/\s+lga/gi, '')
     .replace(/,\s*[a-z]+$/gi, '')
     .trim();
+  
+  // Check state-level population first (for states)
+  if (locationType === 'state') {
+    if (NIGERIA_STATE_POPULATION[q]) {
+      return NIGERIA_STATE_POPULATION[q].population;
+    }
+    if (NIGERIA_STATE_POPULATION[q + ' state']) {
+      return NIGERIA_STATE_POPULATION[q + ' state'].population;
+    }
+    // Partial match for states
+    for (const key of Object.keys(NIGERIA_STATE_POPULATION)) {
+      if (q.includes(key) || key.includes(q)) {
+        return NIGERIA_STATE_POPULATION[key].population;
+      }
+    }
+  }
   
   // Check Nigeria LGA population data (all states)
   if (NIGERIA_LGA_POPULATION[q]) {
