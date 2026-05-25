@@ -3558,8 +3558,8 @@ async def get_all_orders_admin(current_user: User = Depends(get_current_user)):
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     
-    # Get regular orders
-    orders = await db.orders.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
+    # Get regular orders - sort by admin_priority first (if set), then by created_at
+    orders = await db.orders.find({}, {"_id": 0}).sort([("admin_priority", 1), ("created_at", -1)]).to_list(500)
     
     # Batch fetch all users for orders
     advertiser_ids = list(set(o.get("advertiser_id") for o in orders if o.get("advertiser_id")))
@@ -4119,6 +4119,23 @@ async def admin_reorder_influencers(
         )
     
     return {"status": "success", "message": "Influencers reordered successfully"}
+
+@api_router.post("/admin/orders/reorder")
+async def admin_reorder_orders(
+    data: ReorderRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Reorder orders for admin priority management"""
+    await check_admin(current_user)
+    
+    # Update priority position for each order
+    for index, order_id in enumerate(data.ordered_ids):
+        await db.orders.update_one(
+            {"id": order_id},
+            {"$set": {"admin_priority": index, "updated_at": datetime.now(timezone.utc).isoformat()}}
+        )
+    
+    return {"status": "success", "message": "Order priority saved successfully"}
 
 # ========== BILLBOARD MANAGEMENT ==========
 

@@ -175,6 +175,125 @@ const SortableInfluencerRow = ({ item, formatPrice, getStatusBadge, toggleVisibi
   );
 };
 
+// Sortable Order Row Component for drag-and-drop
+const SortableOrderRow = ({ 
+  item, 
+  formatPrice, 
+  formatDateTime, 
+  getStatusBadge, 
+  viewOrderDetails, 
+  openEditModal, 
+  confirmDelete,
+  selectedOrders,
+  toggleOrderSelection 
+}) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: item.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    backgroundColor: isDragging ? 'rgba(196, 163, 90, 0.1)' : undefined,
+  };
+
+  return (
+    <tr
+      ref={setNodeRef}
+      style={style}
+      className={`border-b hover:bg-muted/30 ${selectedOrders.includes(item.id) ? 'bg-blue-50' : ''}`}
+    >
+      <td className="py-3 px-2">
+        <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded">
+          <GripVertical className="h-4 w-4 text-muted-foreground" />
+        </div>
+      </td>
+      <td className="py-3 px-2">
+        <input
+          type="checkbox"
+          checked={selectedOrders.includes(item.id)}
+          onChange={() => toggleOrderSelection(item.id)}
+          className="h-4 w-4 rounded border-gray-300"
+          data-testid={`select-order-${item.id}`}
+        />
+      </td>
+      <td className="py-3 px-2">
+        <Badge 
+          variant={item.order_type === 'consultation' ? 'secondary' : 'default'}
+          className={item.order_type === 'consultation' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}
+        >
+          {item.order_type === 'consultation' ? 'Consultation' : 'Service'}
+        </Badge>
+        <p className="text-xs text-muted-foreground mt-1 capitalize">{item.listing_type?.replace(/_/g, ' ') || 'N/A'}</p>
+      </td>
+      <td className="py-3 px-2">
+        <p className="font-medium text-sm">{item.package_details?.packageTitle || item.package_details?.title || 'N/A'}</p>
+        <p className="text-xs text-muted-foreground font-mono">#{item.id?.slice(0, 8)}</p>
+        {item.order_type === 'consultation' && item.package_details?.business_name && (
+          <p className="text-xs text-muted-foreground mt-1">{item.package_details.business_name}</p>
+        )}
+      </td>
+      <td className="py-3 px-2">
+        <p className="text-sm font-medium">{item.user_info?.name || 'N/A'}</p>
+        <p className="text-xs text-muted-foreground">{item.user_info?.email || '-'}</p>
+        {item.user_info?.phone && <p className="text-xs text-muted-foreground">{item.user_info.phone}</p>}
+      </td>
+      <td className="py-3 px-2">
+        <p className="text-sm">{formatDateTime(item.created_at)}</p>
+        {item.order_type === 'consultation' && item.scheduled_date && (
+          <div className="mt-1 px-2 py-1 bg-green-50 rounded text-xs">
+            <p className="text-green-700 font-medium">Scheduled:</p>
+            <p className="text-green-600">{item.scheduled_date} {item.scheduled_time}</p>
+          </div>
+        )}
+      </td>
+      <td className="py-3 px-2">{getStatusBadge(item.order_status)}</td>
+      <td className="py-3 px-2">
+        {getStatusBadge(item.payment_status)}
+        {item.payment_method && (
+          <p className="text-xs text-muted-foreground mt-1 capitalize">{item.payment_method}</p>
+        )}
+      </td>
+      <td className="py-3 px-2 text-right font-semibold text-primary">{formatPrice(item.total_amount)}</td>
+      <td className="py-3 px-2">
+        <div className="flex items-center justify-center gap-1">
+          <Button 
+            variant="outline" 
+            size="sm"
+            className="text-xs"
+            onClick={() => viewOrderDetails(item)}
+            data-testid={`view-order-${item.id}`}
+          >
+            <Eye className="h-3 w-3 mr-1" />
+            View
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => openEditModal(item.order_type === 'consultation' ? 'consultation' : 'order', item)}
+          >
+            <Edit className="h-4 w-4" />
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="text-red-500" 
+            onClick={() => confirmDelete(item.order_type === 'consultation' ? 'consultation' : 'order', item)}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </td>
+    </tr>
+  );
+};
+
 const STATUS_OPTIONS = [
   { value: 'pending', label: 'Pending' },
   { value: 'accepted', label: 'Accepted' },
@@ -1708,6 +1827,31 @@ export const AdminPanelPage = () => {
       }
     }
   };
+
+  // Handle drag end for orders reordering (admin priority)
+  const handleOrderDragEnd = async (event) => {
+    const { active, over } = event;
+    
+    if (active.id !== over?.id) {
+      const oldIndex = orders.findIndex((item) => item.id === active.id);
+      const newIndex = orders.findIndex((item) => item.id === over.id);
+      
+      const newOrder = arrayMove(orders, oldIndex, newIndex);
+      setOrders(newOrder);
+      
+      // Save the new order priority to backend
+      try {
+        await api.post('/admin/orders/reorder', {
+          ordered_ids: newOrder.map(item => item.id)
+        });
+        toast.success('Order priority saved');
+      } catch (error) {
+        toast.error('Failed to save order priority');
+        // Revert on error
+        fetchData();
+      }
+    }
+  };
   
   // Search states for each tab
   const [searchQueries, setSearchQueries] = useState({
@@ -2779,111 +2923,60 @@ export const AdminPanelPage = () => {
                       totalCount={orders.length}
                     />
                     <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead>
-                          <tr className="border-b bg-muted/30">
-                            <th className="text-left py-3 px-2">
-                              <input
-                                type="checkbox"
-                                checked={filteredOrders.slice(0, 100).length > 0 && filteredOrders.slice(0, 100).every(o => selectedOrders.includes(o.id))}
-                                onChange={toggleAllOrdersSelection}
-                                className="h-4 w-4 rounded border-gray-300"
-                                data-testid="select-all-orders"
-                              />
-                            </th>
-                            <th className="text-left py-3 px-2 text-sm font-semibold">Type</th>
-                            <th className="text-left py-3 px-2 text-sm font-semibold">Package</th>
-                            <th className="text-left py-3 px-2 text-sm font-semibold">Customer</th>
-                            <th className="text-left py-3 px-2 text-sm font-semibold">Date & Time</th>
-                            <th className="text-left py-3 px-2 text-sm font-semibold">Status</th>
-                            <th className="text-left py-3 px-2 text-sm font-semibold">Payment</th>
-                            <th className="text-right py-3 px-2 text-sm font-semibold">Amount</th>
-                            <th className="text-center py-3 px-2 text-sm font-semibold">Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {filteredOrders.slice(0, 100).map((item) => (
-                            <tr key={item.id} className={`border-b hover:bg-muted/30 ${selectedOrders.includes(item.id) ? 'bg-blue-50' : ''}`}>
-                              <td className="py-3 px-2">
+                      <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+                        <GripVertical className="h-3 w-3" /> Drag to reorder and prioritize orders
+                      </p>
+                      <DndContext
+                        sensors={sensors}
+                        collisionDetection={closestCenter}
+                        onDragEnd={handleOrderDragEnd}
+                      >
+                        <table className="w-full">
+                          <thead>
+                            <tr className="border-b bg-muted/30">
+                              <th className="w-10 py-3 px-2"></th>
+                              <th className="text-left py-3 px-2">
                                 <input
                                   type="checkbox"
-                                  checked={selectedOrders.includes(item.id)}
-                                  onChange={() => toggleOrderSelection(item.id)}
+                                  checked={filteredOrders.slice(0, 100).length > 0 && filteredOrders.slice(0, 100).every(o => selectedOrders.includes(o.id))}
+                                  onChange={toggleAllOrdersSelection}
                                   className="h-4 w-4 rounded border-gray-300"
-                                  data-testid={`select-order-${item.id}`}
+                                  data-testid="select-all-orders"
                                 />
-                              </td>
-                              <td className="py-3 px-2">
-                                <Badge 
-                                  variant={item.order_type === 'consultation' ? 'secondary' : 'default'}
-                                  className={item.order_type === 'consultation' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}
-                                >
-                                  {item.order_type === 'consultation' ? 'Consultation' : 'Service'}
-                                </Badge>
-                                <p className="text-xs text-muted-foreground mt-1 capitalize">{item.listing_type?.replace(/_/g, ' ') || 'N/A'}</p>
-                              </td>
-                              <td className="py-3 px-2">
-                                <p className="font-medium text-sm">{item.package_details?.packageTitle || item.package_details?.title || 'N/A'}</p>
-                                <p className="text-xs text-muted-foreground font-mono">#{item.id?.slice(0, 8)}</p>
-                                {item.order_type === 'consultation' && item.package_details?.business_name && (
-                                  <p className="text-xs text-muted-foreground mt-1">{item.package_details.business_name}</p>
-                                )}
-                              </td>
-                              <td className="py-3 px-2">
-                                <p className="text-sm font-medium">{item.user_info?.name || 'N/A'}</p>
-                                <p className="text-xs text-muted-foreground">{item.user_info?.email || '-'}</p>
-                                {item.user_info?.phone && <p className="text-xs text-muted-foreground">{item.user_info.phone}</p>}
-                              </td>
-                              <td className="py-3 px-2">
-                                <p className="text-sm">{formatDateTime(item.created_at)}</p>
-                                {item.order_type === 'consultation' && item.scheduled_date && (
-                                  <div className="mt-1 px-2 py-1 bg-green-50 rounded text-xs">
-                                    <p className="text-green-700 font-medium">Scheduled:</p>
-                                    <p className="text-green-600">{item.scheduled_date} {item.scheduled_time}</p>
-                                  </div>
-                                )}
-                              </td>
-                              <td className="py-3 px-2">{getStatusBadge(item.order_status)}</td>
-                              <td className="py-3 px-2">
-                                {getStatusBadge(item.payment_status)}
-                                {item.payment_method && (
-                                  <p className="text-xs text-muted-foreground mt-1 capitalize">{item.payment_method}</p>
-                                )}
-                              </td>
-                              <td className="py-3 px-2 text-right font-semibold text-primary">{formatPrice(item.total_amount)}</td>
-                              <td className="py-3 px-2">
-                                <div className="flex items-center justify-center gap-1">
-                                  <Button 
-                                    variant="outline" 
-                                    size="sm"
-                                    className="text-xs"
-                                    onClick={() => viewOrderDetails(item)}
-                                    data-testid={`view-order-${item.id}`}
-                                  >
-                                    <Eye className="h-3 w-3 mr-1" />
-                                    View
-                                  </Button>
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm" 
-                                    onClick={() => openEditModal(item.order_type === 'consultation' ? 'consultation' : 'order', item)}
-                                  >
-                                    <Edit className="h-4 w-4" />
-                                  </Button>
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm" 
-                                    className="text-red-500" 
-                                    onClick={() => confirmDelete(item.order_type === 'consultation' ? 'consultation' : 'order', item)}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              </td>
+                              </th>
+                              <th className="text-left py-3 px-2 text-sm font-semibold">Type</th>
+                              <th className="text-left py-3 px-2 text-sm font-semibold">Package</th>
+                              <th className="text-left py-3 px-2 text-sm font-semibold">Customer</th>
+                              <th className="text-left py-3 px-2 text-sm font-semibold">Date & Time</th>
+                              <th className="text-left py-3 px-2 text-sm font-semibold">Status</th>
+                              <th className="text-left py-3 px-2 text-sm font-semibold">Payment</th>
+                              <th className="text-right py-3 px-2 text-sm font-semibold">Amount</th>
+                              <th className="text-center py-3 px-2 text-sm font-semibold">Actions</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody>
+                            <SortableContext
+                              items={filteredOrders.slice(0, 100).map(item => item.id)}
+                              strategy={verticalListSortingStrategy}
+                            >
+                              {filteredOrders.slice(0, 100).map((item) => (
+                                <SortableOrderRow
+                                  key={item.id}
+                                  item={item}
+                                  formatPrice={formatPrice}
+                                  formatDateTime={formatDateTime}
+                                  getStatusBadge={getStatusBadge}
+                                  viewOrderDetails={viewOrderDetails}
+                                  openEditModal={openEditModal}
+                                  confirmDelete={confirmDelete}
+                                  selectedOrders={selectedOrders}
+                                  toggleOrderSelection={toggleOrderSelection}
+                                />
+                              ))}
+                            </SortableContext>
+                          </tbody>
+                        </table>
+                      </DndContext>
                     </div>
                   </CardContent>
                 </Card>
