@@ -14,9 +14,15 @@ const apiClient: AxiosInstance = axios.create({
 // Request interceptor - add auth token
 apiClient.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
-    const token = await authStorage.getToken();
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    try {
+      const token = await authStorage.getToken();
+      if (token && token.length > 0) {
+        config.headers.Authorization = `Bearer ${token}`;
+      } else {
+        console.log('API Request: No token available for', config.url);
+      }
+    } catch (error) {
+      console.error('Error getting auth token:', error);
     }
     return config;
   },

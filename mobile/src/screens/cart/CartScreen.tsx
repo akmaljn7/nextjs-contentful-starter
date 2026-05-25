@@ -26,6 +26,7 @@ import { Card, Button, EmptyState } from '../../components/common';
 import { useCartStore, useAuthStore } from '../../store';
 import { formatPrice } from '../../utils/formatters';
 import { ordersApi, settingsApi, SiteSettings, authApi } from '../../api';
+import { authStorage } from '../../utils/storage';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useTranslation } from '../../i18n';
 
@@ -123,6 +124,18 @@ export const CartScreen: React.FC = () => {
       return;
     }
 
+    // Verify token exists before proceeding
+    const token = await authStorage.getToken();
+    if (!token) {
+      setShowPaymentOptions(false);
+      Alert.alert(
+        'Session Expired',
+        'Your login session has expired. Please log in again to complete your order.',
+        [{ text: 'Login', onPress: () => navigation.navigate('Auth', { screen: 'Login' }) }]
+      );
+      return;
+    }
+
     // Check if user has phone number - required for order contact
     if (!user.phone || user.phone.trim() === '') {
       // Close payment options first, then show profile modal
@@ -207,7 +220,16 @@ export const CartScreen: React.FC = () => {
       }
     } catch (error: any) {
       setIsCheckingOut(false);
-      Alert.alert('Payment Error', error.message || 'Could not initialize payment.');
+      // Check if it's an authentication error
+      if (error.message?.includes('Not authenticated') || error.status === 401) {
+        Alert.alert(
+          'Session Expired',
+          'Your login session has expired. Please log in again to complete your order.',
+          [{ text: 'Login', onPress: () => navigation.navigate('Auth', { screen: 'Login' }) }]
+        );
+      } else {
+        Alert.alert('Payment Error', error.message || 'Could not initialize payment.');
+      }
     }
   };
 
@@ -215,6 +237,18 @@ export const CartScreen: React.FC = () => {
     if (!user) {
       setShowPaymentOptions(false);
       navigation.navigate('Auth', { screen: 'Login' });
+      return;
+    }
+
+    // Verify token exists before proceeding
+    const token = await authStorage.getToken();
+    if (!token) {
+      setShowPaymentOptions(false);
+      Alert.alert(
+        'Session Expired',
+        'Your login session has expired. Please log in again to complete your order.',
+        [{ text: 'Login', onPress: () => navigation.navigate('Auth', { screen: 'Login' }) }]
+      );
       return;
     }
 
@@ -287,15 +321,40 @@ export const CartScreen: React.FC = () => {
       );
     } catch (error: any) {
       setIsCheckingOut(false);
-      Alert.alert(t.common.error, error.message || t.errors.somethingWentWrong);
+      // Check if it's an authentication error
+      if (error.message?.includes('Not authenticated') || error.status === 401) {
+        Alert.alert(
+          'Session Expired',
+          'Your login session has expired. Please log in again to complete your order.',
+          [{ text: 'Login', onPress: () => navigation.navigate('Auth', { screen: 'Login' }) }]
+        );
+      } else {
+        Alert.alert(t.common.error, error.message || t.errors.somethingWentWrong);
+      }
     }
   };
 
-  const showCheckoutOptions = () => {
+  const showCheckoutOptions = async () => {
     if (!user) {
       navigation.navigate('Auth', { screen: 'Login' });
       return;
     }
+    
+    // Verify token is still valid before showing checkout options
+    try {
+      const token = await authStorage.getToken();
+      if (!token) {
+        Alert.alert(
+          'Session Expired',
+          'Please log in again to continue with your order.',
+          [{ text: 'Login', onPress: () => navigation.navigate('Auth', { screen: 'Login' }) }]
+        );
+        return;
+      }
+    } catch (error) {
+      console.error('Token check error:', error);
+    }
+    
     cartItemsRef.current = items;
     setShowPaymentOptions(true);
   };
