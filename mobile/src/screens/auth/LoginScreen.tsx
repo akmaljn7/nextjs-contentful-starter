@@ -66,7 +66,7 @@ export const LoginScreen: React.FC = () => {
     if (GoogleSignin) {
       try {
         GoogleSignin.configure({
-          webClientId: '79558932759-8hn7kfbob9bgv8glpuvieod6sibp3i7b.apps.googleusercontent.com',
+          webClientId: '79558932759-ffmsuf0f4t0mhftqb5puuikn8j0bmjmd.apps.googleusercontent.com',
           iosClientId: '79558932759-025f0627p5qvq5oh6s5r9l29dgtavehm.apps.googleusercontent.com',
           offlineAccess: true,
         });
