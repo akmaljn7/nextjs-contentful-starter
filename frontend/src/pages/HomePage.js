@@ -152,7 +152,7 @@ export const HomePage = () => {
                   />
                 </a>
                 <a 
-                  href="https://play.google.com/store/apps/details?id=com.adlinka.ads" 
+                  href="https://play.google.com/store/apps/details?id=com.adlinka.app" 
                   target="_blank" 
                   rel="noopener noreferrer"
                   data-testid="play-store-link"

@@ -17,7 +17,7 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.adlinka.ads",
+      "bundleIdentifier": "com.adlinka.app",
       "buildNumber": "2",
       "infoPlist": {
         "CFBundleAllowMixedLocalizations": true
@@ -31,7 +31,7 @@
         "foregroundImage": "./src/assets/adaptive-icon.png",
         "backgroundColor": "#000000"
       },
-      "package": "com.adlinka.ads",
+      "package": "com.adlinka.app",
       "versionCode": 2,
       "permissions": [
         "NOTIFICATIONS"
