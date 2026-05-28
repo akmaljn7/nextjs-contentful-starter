@@ -32,7 +32,7 @@ import { useTranslation } from '../../i18n';
 
 export const CartScreen: React.FC = () => {
   const navigation = useNavigation<any>();
-  const { user, updateUser } = useAuthStore();
+  const { user, updateUser, logout } = useAuthStore();
   const { items, removeItem, clearCart, totalAmount } = useCartStore();
   const { colors } = useTheme();
   const { t } = useTranslation();
@@ -120,7 +120,8 @@ export const CartScreen: React.FC = () => {
   const processOnlinePayment = async () => {
     if (!user) {
       setShowPaymentOptions(false);
-      navigation.navigate('Auth', { screen: 'Login' });
+      Alert.alert('Login Required', 'Please login to continue.');
+      await logout();
       return;
     }
 
@@ -130,8 +131,8 @@ export const CartScreen: React.FC = () => {
       setShowPaymentOptions(false);
       Alert.alert(
         'Session Expired',
-        'Your login session has expired. Please log in again to complete your order.',
-        [{ text: 'Login', onPress: () => navigation.navigate('Auth', { screen: 'Login' }) }]
+        'Your login session has expired. Please log in again.',
+        [{ text: 'OK', onPress: () => logout() }]
       );
       return;
     }
@@ -224,8 +225,8 @@ export const CartScreen: React.FC = () => {
       if (error.message?.includes('Not authenticated') || error.status === 401) {
         Alert.alert(
           'Session Expired',
-          'Your login session has expired. Please log in again to complete your order.',
-          [{ text: 'Login', onPress: () => navigation.navigate('Auth', { screen: 'Login' }) }]
+          'Your login session has expired. Please log in again.',
+          [{ text: 'OK', onPress: () => logout() }]
         );
       } else {
         Alert.alert('Payment Error', error.message || 'Could not initialize payment.');
@@ -236,7 +237,8 @@ export const CartScreen: React.FC = () => {
   const processCashPayment = async () => {
     if (!user) {
       setShowPaymentOptions(false);
-      navigation.navigate('Auth', { screen: 'Login' });
+      Alert.alert('Login Required', 'Please login to continue.');
+      await logout();
       return;
     }
 
@@ -246,8 +248,8 @@ export const CartScreen: React.FC = () => {
       setShowPaymentOptions(false);
       Alert.alert(
         'Session Expired',
-        'Your login session has expired. Please log in again to complete your order.',
-        [{ text: 'Login', onPress: () => navigation.navigate('Auth', { screen: 'Login' }) }]
+        'Your login session has expired. Please log in again.',
+        [{ text: 'OK', onPress: () => logout() }]
       );
       return;
     }
@@ -325,8 +327,8 @@ export const CartScreen: React.FC = () => {
       if (error.message?.includes('Not authenticated') || error.status === 401) {
         Alert.alert(
           'Session Expired',
-          'Your login session has expired. Please log in again to complete your order.',
-          [{ text: 'Login', onPress: () => navigation.navigate('Auth', { screen: 'Login' }) }]
+          'Your login session has expired. Please log in again.',
+          [{ text: 'OK', onPress: () => logout() }]
         );
       } else {
         Alert.alert(t.common.error, error.message || t.errors.somethingWentWrong);
@@ -336,7 +338,8 @@ export const CartScreen: React.FC = () => {
 
   const showCheckoutOptions = async () => {
     if (!user) {
-      navigation.navigate('Auth', { screen: 'Login' });
+      Alert.alert('Login Required', 'Please login to continue with checkout.');
+      await logout();
       return;
     }
     
@@ -347,7 +350,7 @@ export const CartScreen: React.FC = () => {
         Alert.alert(
           'Session Expired',
           'Please log in again to continue with your order.',
-          [{ text: 'Login', onPress: () => navigation.navigate('Auth', { screen: 'Login' }) }]
+          [{ text: 'OK', onPress: () => logout() }]
         );
         return;
       }

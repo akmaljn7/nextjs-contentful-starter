@@ -47,9 +47,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const response: AuthResponse = await authApi.login(credentials);
       
+      console.log('Login successful, storing token...');
+      
       // Store token and user
       await authStorage.setToken(response.access_token);
       await userStorage.setUser(response.user);
+      
+      // Verify token was stored
+      const storedToken = await authStorage.getToken();
+      console.log('Token stored successfully:', storedToken ? 'Yes' : 'No');
       
       set({
         user: response.user,
@@ -190,14 +196,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ isLoading: true });
     try {
       const token = await authStorage.getToken();
+      console.log('loadUser: Token exists?', token ? 'Yes' : 'No');
       
       if (!token) {
+        console.log('loadUser: No token found, setting not authenticated');
         set({ isLoading: false, isAuthenticated: false });
         return;
       }
 
       // Try to get user from storage first
       const storedUser = await userStorage.getUser();
+      console.log('loadUser: Stored user exists?', storedUser ? 'Yes' : 'No');
       
       if (storedUser) {
         set({
@@ -210,23 +219,42 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // Verify token is still valid by fetching current user
       try {
         const user = await authApi.getCurrentUser();
+        console.log('loadUser: Token verification successful');
         await userStorage.setUser(user);
         set({
           user,
           isAuthenticated: true,
           isLoading: false,
         });
-      } catch (error) {
-        // Token expired or invalid
-        await clearAllStorage();
-        set({
-          user: null,
-          isAuthenticated: false,
-          isLoading: false,
-        });
+      } catch (error: any) {
+        // Only clear storage if it's a definite auth error (401)
+        // Don't clear on network errors or other issues
+        console.log('loadUser: Token verification failed:', error.status, error.message);
+        if (error.status === 401) {
+          console.log('loadUser: 401 error, clearing storage');
+          await clearAllStorage();
+          set({
+            user: null,
+            isAuthenticated: false,
+            isLoading: false,
+          });
+        } else {
+          // For network errors, keep the user logged in with stored data
+          console.log('loadUser: Non-401 error, keeping user authenticated with stored data');
+          if (storedUser) {
+            set({
+              user: storedUser,
+              isAuthenticated: true,
+              isLoading: false,
+            });
+          } else {
+            set({ isLoading: false });
+          }
+        }
       }
     } catch (error) {
-      set({ isLoading: false, isAuthenticated: false });
+      console.log('loadUser: Unexpected error:', error);
+      set({ isLoading: false });
     }
   },
 
