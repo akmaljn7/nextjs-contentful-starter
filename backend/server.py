@@ -807,43 +807,73 @@ async def get_site_settings() -> dict:
 # ========== RATE LIMITING & BOT PROTECTION ==========
 from collections import defaultdict
 import time
+import re
 
 # Rate limiting storage (in production, use Redis)
 registration_attempts = defaultdict(list)
+blocked_ips = set()  # Temporarily blocked IPs
 RATE_LIMIT_WINDOW = 3600  # 1 hour
-MAX_REGISTRATIONS_PER_HOUR = 5  # Max registrations per IP per hour
+MAX_REGISTRATIONS_PER_HOUR = 3  # Reduced from 5 to 3
+IP_BLOCK_DURATION = 86400  # 24 hours for blocked IPs
 
-# Suspicious patterns to block
+# Suspicious patterns to block (add new patterns as attacks evolve)
 SUSPICIOUS_PATTERNS = [
     "Dg54asdkfoda",  # Known bot pattern
     "test123",
     "asdfasdf",
+    "qwerty",
+    "abc123",
+    "password",
+    "admin123",
 ]
 
-def is_suspicious_registration(name: str, phone: str) -> bool:
-    """Check if registration data matches known bot patterns"""
+# Suspicious email domains often used by bots
+SUSPICIOUS_EMAIL_PATTERNS = [
+    r".*\+.*@.*",  # Plus addressing often used by bots
+]
+
+def is_suspicious_registration(name: str, phone: str, email: str) -> tuple[bool, str]:
+    """Check if registration data matches known bot patterns. Returns (is_suspicious, reason)"""
     name_lower = name.lower() if name else ""
     phone_lower = phone.lower() if phone else ""
+    email_lower = email.lower() if email else ""
     
-    # Check for known suspicious patterns
+    # Check for known suspicious name patterns
     for pattern in SUSPICIOUS_PATTERNS:
-        if pattern.lower() in name_lower or pattern.lower() in phone_lower:
-            return True
+        if pattern.lower() in name_lower:
+            return True, f"suspicious_name_pattern:{pattern}"
+        if pattern.lower() in phone_lower:
+            return True, f"suspicious_phone_pattern:{pattern}"
     
     # Check for non-alphanumeric heavy strings (bot signatures like "Dg54asdkfoda+-")
     if name and len(name) > 5:
         special_chars = sum(1 for c in name if not c.isalnum() and c != ' ')
         if special_chars > 2:  # More than 2 special characters in name
-            return True
+            return True, "too_many_special_chars_in_name"
     
     # Check if phone contains letters (invalid phone)
-    if phone and any(c.isalpha() for c in phone.replace('+', '')):
-        return True
+    if phone and any(c.isalpha() for c in phone.replace('+', '').replace(' ', '').replace('-', '')):
+        return True, "letters_in_phone"
     
-    return False
+    # Check if name equals phone (bot behavior)
+    if name and phone and name == phone:
+        return True, "name_equals_phone"
+    
+    # Check for suspicious email patterns
+    for pattern in SUSPICIOUS_EMAIL_PATTERNS:
+        if re.match(pattern, email_lower):
+            return True, f"suspicious_email_pattern"
+    
+    # Check for very short names (likely bot)
+    if name and len(name.strip()) < 2:
+        return True, "name_too_short"
+    
+    return False, ""
 
 def check_rate_limit(ip: str) -> bool:
     """Check if IP has exceeded rate limit"""
+    if ip in blocked_ips:
+        return True
     current_time = time.time()
     # Clean old entries
     registration_attempts[ip] = [t for t in registration_attempts[ip] if current_time - t < RATE_LIMIT_WINDOW]
@@ -853,6 +883,17 @@ def record_registration_attempt(ip: str):
     """Record a registration attempt for rate limiting"""
     registration_attempts[ip].append(time.time())
 
+def block_ip(ip: str):
+    """Block an IP address"""
+    blocked_ips.add(ip)
+    print(f"BLOCKED IP: {ip}")
+
+async def check_email_already_attempted(email: str) -> bool:
+    """Check if this email was recently attempted (even if failed)"""
+    # This helps prevent the same email being tried multiple times
+    recent_user = await db.users.find_one({"email": email})
+    return recent_user is not None
+
 @api_router.post("/auth/register", response_model=Token)
 async def register(user_data: UserRegister, request: Request):
     # Get client IP for rate limiting
@@ -861,17 +902,29 @@ async def register(user_data: UserRegister, request: Request):
     if forwarded_for:
         client_ip = forwarded_for.split(",")[0].strip()
     
+    # Check if IP is blocked
+    if client_ip in blocked_ips:
+        print(f"BLOCKED REQUEST FROM BANNED IP: {client_ip}, Email={user_data.email}")
+        raise HTTPException(
+            status_code=429, 
+            detail="Registration temporarily unavailable. Please try again later."
+        )
+    
     # Check rate limit
     if check_rate_limit(client_ip):
+        block_ip(client_ip)  # Block IP after exceeding rate limit
+        print(f"RATE LIMIT EXCEEDED - IP BLOCKED: {client_ip}, Email={user_data.email}")
         raise HTTPException(
             status_code=429, 
             detail="Too many registration attempts. Please try again later."
         )
     
     # Check for suspicious bot patterns
-    if is_suspicious_registration(user_data.name, user_data.phone):
-        # Log the attempt but don't reveal detection to the bot
-        print(f"BLOCKED BOT REGISTRATION: IP={client_ip}, Name={user_data.name}, Email={user_data.email}")
+    is_suspicious, reason = is_suspicious_registration(user_data.name, user_data.phone, user_data.email)
+    if is_suspicious:
+        # Log the attempt and block the IP
+        print(f"BLOCKED BOT REGISTRATION: IP={client_ip}, Reason={reason}, Name={user_data.name}, Email={user_data.email}, Phone={user_data.phone}")
+        block_ip(client_ip)  # Block this IP
         raise HTTPException(
             status_code=400, 
             detail="Registration failed. Please use valid information."
@@ -887,12 +940,27 @@ async def register(user_data: UserRegister, request: Request):
         "name": user_data.name,
         "created_at": {"$gte": (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()}
     })
-    if recent_same_name >= 3:
-        print(f"BLOCKED DUPLICATE NAME: IP={client_ip}, Name={user_data.name}, Email={user_data.email}")
+    if recent_same_name >= 2:  # Reduced threshold from 3 to 2
+        print(f"BLOCKED DUPLICATE NAME: IP={client_ip}, Name={user_data.name}, Email={user_data.email}, Count={recent_same_name}")
+        block_ip(client_ip)
         raise HTTPException(
             status_code=400, 
             detail="Registration failed. Please use valid information."
         )
+    
+    # Check for same phone used multiple times (bots often reuse phone)
+    if user_data.phone:
+        recent_same_phone = await db.users.count_documents({
+            "phone": user_data.phone,
+            "created_at": {"$gte": (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()}
+        })
+        if recent_same_phone >= 2:
+            print(f"BLOCKED DUPLICATE PHONE: IP={client_ip}, Phone={user_data.phone}, Email={user_data.email}")
+            block_ip(client_ip)
+            raise HTTPException(
+                status_code=400, 
+                detail="Registration failed. Please use valid information."
+            )
     
     # Record the registration attempt for rate limiting
     record_registration_attempt(client_ip)
@@ -918,6 +986,8 @@ async def register(user_data: UserRegister, request: Request):
     
     # Create token
     access_token = create_access_token(data={"sub": user.id})
+    
+    print(f"NEW USER REGISTERED: IP={client_ip}, Email={user_data.email}, Name={user_data.name}")
     
     return Token(access_token=access_token, token_type="bearer", user=user)
 
