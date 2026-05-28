@@ -804,12 +804,98 @@ async def get_site_settings() -> dict:
 # ============= ROUTES =============
 
 # Auth Routes
+# ========== RATE LIMITING & BOT PROTECTION ==========
+from collections import defaultdict
+import time
+
+# Rate limiting storage (in production, use Redis)
+registration_attempts = defaultdict(list)
+RATE_LIMIT_WINDOW = 3600  # 1 hour
+MAX_REGISTRATIONS_PER_HOUR = 5  # Max registrations per IP per hour
+
+# Suspicious patterns to block
+SUSPICIOUS_PATTERNS = [
+    "Dg54asdkfoda",  # Known bot pattern
+    "test123",
+    "asdfasdf",
+]
+
+def is_suspicious_registration(name: str, phone: str) -> bool:
+    """Check if registration data matches known bot patterns"""
+    name_lower = name.lower() if name else ""
+    phone_lower = phone.lower() if phone else ""
+    
+    # Check for known suspicious patterns
+    for pattern in SUSPICIOUS_PATTERNS:
+        if pattern.lower() in name_lower or pattern.lower() in phone_lower:
+            return True
+    
+    # Check for non-alphanumeric heavy strings (bot signatures like "Dg54asdkfoda+-")
+    if name and len(name) > 5:
+        special_chars = sum(1 for c in name if not c.isalnum() and c != ' ')
+        if special_chars > 2:  # More than 2 special characters in name
+            return True
+    
+    # Check if phone contains letters (invalid phone)
+    if phone and any(c.isalpha() for c in phone.replace('+', '')):
+        return True
+    
+    return False
+
+def check_rate_limit(ip: str) -> bool:
+    """Check if IP has exceeded rate limit"""
+    current_time = time.time()
+    # Clean old entries
+    registration_attempts[ip] = [t for t in registration_attempts[ip] if current_time - t < RATE_LIMIT_WINDOW]
+    return len(registration_attempts[ip]) >= MAX_REGISTRATIONS_PER_HOUR
+
+def record_registration_attempt(ip: str):
+    """Record a registration attempt for rate limiting"""
+    registration_attempts[ip].append(time.time())
+
 @api_router.post("/auth/register", response_model=Token)
-async def register(user_data: UserRegister):
+async def register(user_data: UserRegister, request: Request):
+    # Get client IP for rate limiting
+    client_ip = request.client.host if request.client else "unknown"
+    forwarded_for = request.headers.get("X-Forwarded-For")
+    if forwarded_for:
+        client_ip = forwarded_for.split(",")[0].strip()
+    
+    # Check rate limit
+    if check_rate_limit(client_ip):
+        raise HTTPException(
+            status_code=429, 
+            detail="Too many registration attempts. Please try again later."
+        )
+    
+    # Check for suspicious bot patterns
+    if is_suspicious_registration(user_data.name, user_data.phone):
+        # Log the attempt but don't reveal detection to the bot
+        print(f"BLOCKED BOT REGISTRATION: IP={client_ip}, Name={user_data.name}, Email={user_data.email}")
+        raise HTTPException(
+            status_code=400, 
+            detail="Registration failed. Please use valid information."
+        )
+    
     # Check if user exists
     existing_user = await db.users.find_one({"email": user_data.email})
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered")
+    
+    # Check for duplicate suspicious registrations (same name used multiple times recently)
+    recent_same_name = await db.users.count_documents({
+        "name": user_data.name,
+        "created_at": {"$gte": (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()}
+    })
+    if recent_same_name >= 3:
+        print(f"BLOCKED DUPLICATE NAME: IP={client_ip}, Name={user_data.name}, Email={user_data.email}")
+        raise HTTPException(
+            status_code=400, 
+            detail="Registration failed. Please use valid information."
+        )
+    
+    # Record the registration attempt for rate limiting
+    record_registration_attempt(client_ip)
     
     # Hash password
     hashed_password = pwd_context.hash(user_data.password)
@@ -826,6 +912,7 @@ async def register(user_data: UserRegister):
     user_dict = user.model_dump()
     user_dict['password'] = hashed_password
     user_dict['created_at'] = user_dict['created_at'].isoformat()
+    user_dict['registration_ip'] = client_ip  # Store IP for audit
     
     await db.users.insert_one(user_dict)
     
@@ -4506,6 +4593,93 @@ async def admin_delete_user(
         raise HTTPException(status_code=404, detail="User not found")
     
     return {"status": "success", "message": "User deleted"}
+
+# Bulk delete spam users
+class BulkDeleteRequest(BaseModel):
+    user_ids: Optional[List[str]] = None
+    pattern: Optional[str] = None  # Delete users matching this name pattern
+
+@api_router.post("/admin/users/bulk-delete-spam")
+async def admin_bulk_delete_spam_users(
+    data: BulkDeleteRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Bulk delete spam/bot user accounts"""
+    await check_admin(current_user)
+    
+    deleted_count = 0
+    
+    if data.user_ids:
+        # Delete specific users by ID
+        for user_id in data.user_ids:
+            if user_id != current_user.id:  # Don't delete self
+                result = await db.users.delete_one({"id": user_id})
+                deleted_count += result.deleted_count
+    
+    if data.pattern:
+        # Delete users matching the name pattern (for bot cleanup)
+        # Only delete non-admin users
+        result = await db.users.delete_many({
+            "name": {"$regex": data.pattern, "$options": "i"},
+            "role": {"$ne": "admin"},
+            "id": {"$ne": current_user.id}
+        })
+        deleted_count += result.deleted_count
+    
+    return {
+        "status": "success", 
+        "message": f"Deleted {deleted_count} spam users",
+        "deleted_count": deleted_count
+    }
+
+@api_router.get("/admin/users/detect-spam")
+async def admin_detect_spam_users(current_user: User = Depends(get_current_user)):
+    """Detect potential spam/bot users based on patterns"""
+    await check_admin(current_user)
+    
+    # Find users with suspicious patterns
+    suspicious_users = []
+    
+    # Find users with same name appearing multiple times
+    pipeline = [
+        {"$group": {"_id": "$name", "count": {"$sum": 1}, "users": {"$push": {"id": "$id", "email": "$email", "created_at": "$created_at"}}}},
+        {"$match": {"count": {"$gte": 3}}},
+        {"$sort": {"count": -1}}
+    ]
+    
+    duplicate_names = await db.users.aggregate(pipeline).to_list(100)
+    
+    for group in duplicate_names:
+        if group["_id"] and group["_id"] != "":
+            suspicious_users.append({
+                "pattern": group["_id"],
+                "count": group["count"],
+                "type": "duplicate_name",
+                "sample_emails": [u["email"] for u in group["users"][:5]]
+            })
+    
+    # Find users with non-alphanumeric names (bot signatures)
+    all_users = await db.users.find({"role": {"$ne": "admin"}}, {"_id": 0, "id": 1, "name": 1, "email": 1, "phone": 1, "created_at": 1}).to_list(1000)
+    
+    bot_pattern_users = []
+    for user in all_users:
+        name = user.get("name", "")
+        phone = user.get("phone", "")
+        # Check for special characters in name
+        if name and len(name) > 3:
+            special_chars = sum(1 for c in name if not c.isalnum() and c != ' ')
+            if special_chars > 2:
+                bot_pattern_users.append(user)
+        # Check for letters in phone
+        if phone and any(c.isalpha() for c in phone.replace('+', '')):
+            if user not in bot_pattern_users:
+                bot_pattern_users.append(user)
+    
+    return {
+        "duplicate_name_groups": suspicious_users,
+        "bot_pattern_users": bot_pattern_users[:50],  # Limit to 50
+        "total_suspicious": len(bot_pattern_users)
+    }
 
 # ========== COMPLETE ORDER MANAGEMENT ==========
 

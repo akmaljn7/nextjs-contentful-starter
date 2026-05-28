@@ -2985,8 +2985,26 @@ export const AdminPanelPage = () => {
               {/* Users Tab */}
               <TabsContent value="users">
                 <Card className="border-2">
-                  <CardHeader>
+                  <CardHeader className="flex flex-row items-center justify-between">
                     <CardTitle>Manage Users ({filteredUsers.length})</CardTitle>
+                    <Button 
+                      variant="destructive" 
+                      size="sm"
+                      onClick={async () => {
+                        if (!confirm('This will delete all users with the name pattern "Dg54asdkfoda". Are you sure?')) return;
+                        try {
+                          const response = await api.post('/admin/users/bulk-delete-spam', { pattern: 'Dg54asdkfoda' });
+                          toast.success(`Deleted ${response.data.deleted_count} spam users`);
+                          fetchData();
+                        } catch (error) {
+                          toast.error('Failed to delete spam users');
+                        }
+                      }}
+                      data-testid="delete-spam-users-btn"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete Spam Users
+                    </Button>
                   </CardHeader>
                   <CardContent>
                     <AdminSearchBar
