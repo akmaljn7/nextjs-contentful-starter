@@ -1,7 +1,7 @@
 {
   "name": "Adlinka",
   "slug": "adlinka-mobile",
-  "version": "1.1.6",
+  "version": "1.1.7",
   "orientation": "portrait",
   "icon": "./src/assets/icon.png",
   "userInterfaceStyle": "automatic",
@@ -17,7 +17,7 @@
   "ios": {
     "supportsTablet": true,
     "bundleIdentifier": "com.adlinka.ads",
-    "buildNumber": "7",
+    "buildNumber": "8",
     "infoPlist": {
       "CFBundleAllowMixedLocalizations": true
     }
@@ -28,7 +28,7 @@
       "backgroundColor": "#000000"
     },
     "package": "com.adlinka.app",
-    "versionCode": 11,
+    "versionCode": 12,
     "permissions": [
       "NOTIFICATIONS"
     ]
