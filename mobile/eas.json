@@ -28,8 +28,20 @@
         "buildType": "app-bundle"
       },
       "ios": {
-        "distribution": "store",
-        "autoIncrement": "buildNumber"
+        "distribution": "store"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "android": {
+        "serviceAccountKeyPath": "./google-service-account.json",
+        "track": "production"
+      },
+      "ios": {
+        "appleId": "",
+        "ascAppId": "",
+        "appleTeamId": ""
       }
     }
   }
