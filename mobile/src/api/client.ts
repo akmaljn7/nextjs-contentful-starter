@@ -38,10 +38,13 @@ apiClient.interceptors.response.use(
     if (error.response) {
       const { status, data } = error.response;
 
-      // Handle 401 Unauthorized
+      // Handle 401 Unauthorized - DON'T automatically remove token
+      // This was causing issues where temporary 401s would log users out permanently
+      // Instead, let the calling code handle the re-authentication
       if (status === 401) {
-        await authStorage.removeToken();
-        // The auth store will handle navigation to login
+        console.log('401 Unauthorized - token may be expired or invalid');
+        // Don't remove token here - let the user retry or the app will prompt re-login
+        // await authStorage.removeToken(); // REMOVED - was causing permanent logout issues
       }
 
       // Extract error message
