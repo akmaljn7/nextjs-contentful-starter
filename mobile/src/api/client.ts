@@ -18,6 +18,7 @@ apiClient.interceptors.request.use(
       const token = await authStorage.getToken();
       if (token && token.length > 0) {
         config.headers.Authorization = `Bearer ${token}`;
+        console.log('API Request: Token attached for', config.url, '- Token length:', token.length);
       } else {
         console.log('API Request: No token available for', config.url);
       }

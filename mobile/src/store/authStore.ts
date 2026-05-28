@@ -48,6 +48,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const response: AuthResponse = await authApi.login(credentials);
       
       console.log('Login successful, storing token...');
+      console.log('Token length:', response.access_token?.length);
+      console.log('User ID:', response.user?.id);
       
       // Store token and user
       await authStorage.setToken(response.access_token);
@@ -56,6 +58,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // Verify token was stored
       const storedToken = await authStorage.getToken();
       console.log('Token stored successfully:', storedToken ? 'Yes' : 'No');
+      console.log('Stored token matches:', storedToken === response.access_token ? 'Yes' : 'No');
       
       set({
         user: response.user,

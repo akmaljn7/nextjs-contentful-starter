@@ -64,10 +64,16 @@ export default function App() {
   // Register push notifications when user is authenticated
   useEffect(() => {
     if (isAuthenticated && appIsReady) {
-      // Register push notifications silently - don't show errors to user
-      notificationService.registerTokenWithBackend().catch(() => {
-        // Silently ignore - push notifications will work once EAS is configured
-      });
+      // Add a small delay to ensure token is fully stored and available
+      // This fixes a race condition where push token registration
+      // happens before the auth token is readable from SecureStore
+      const timer = setTimeout(() => {
+        notificationService.registerTokenWithBackend().catch(() => {
+          // Silently ignore - push notifications will work once EAS is configured
+        });
+      }, 1000); // 1 second delay to ensure token is available
+      
+      return () => clearTimeout(timer);
     }
   }, [isAuthenticated, appIsReady]);
 

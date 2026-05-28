@@ -1,6 +1,6 @@
 // API Configuration
-// Production URL - Adlinka
-export const API_URL = process.env.API_URL || 'https://www.adlinka.com/api';
+// Production URL - Adlinka (WITHOUT www to avoid redirect stripping auth headers)
+export const API_URL = process.env.API_URL || 'https://adlinka.com/api';
 
 // Uncomment below line to test with preview environment:
 // export const API_URL = 'https://ads-kano.preview.emergentagent.com/api';
