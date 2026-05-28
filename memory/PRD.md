@@ -1,262 +1,62 @@
-# Adlinka Ads Network - Product Requirements Document
+# Adlinka - Ads Network Marketplace PRD
 
 ## Original Problem Statement
-Create a polished, conversion-focused, responsive marketplace website for "Adlinka Ads Network" (Northern Nigeria). The platform connects advertisers with suppliers (influencers, billboard owners, etc.). Additionally, build a cross-platform mobile application (React Native/Expo) that seamlessly connects to the existing backend and mirrors the web application's functionality.
-
-## Product Vision
-Northern Nigeria's trusted advertising marketplace connecting advertisers with verified suppliers across influencer marketing, billboards, digital ads, and Kannywood film placements.
-
-## User Personas
-1. **Advertisers** - Businesses wanting to promote products/services
-2. **Suppliers** - Influencers, billboard owners, digital ad platforms, Kannywood producers
-3. **Admins** - Platform managers handling approvals, content, and settings
+Create a polished, conversion-focused, responsive marketplace website and cross-platform mobile application (React Native/Expo) for an ads network ("Adlinka"). The platform connects advertisers with suppliers (influencers, billboard owners, digital ads, Kannywood).
 
 ## Core Requirements
-- Public Pages: Home, Search, Category Pages, Detail Pages, Campaign Builder, Checkout, Order Tracking
-- Authenticated Dashboards for Advertisers, Suppliers, Admins
-- Mobile App: Cross-platform Expo React Native app sharing the same backend
-- Integrations: Payments (Paystack), Messaging (Termii - pending), CRM (HubSpot - pending)
-- Visual Style: Modern, trustworthy, navy blue branding
-- Localization: Bilingual support (English and Hausa)
+- Public Pages & Authenticated Dashboards
+- Mobile App sharing backend with web
+- Paystack/Termii/HubSpot Integrations
+- Bilingual support (English/Hausa)
+- Push Notifications
+- Google/Apple Sign-In
+- Custom 3D AdGlobe (Meta Ads simulation)
 
 ## Tech Stack
-- **Backend**: FastAPI, MongoDB (pymongo), Python
-- **Web Frontend**: React, TailwindCSS, Zustand, shadcn/ui
-- **Mobile**: React Native, Expo SDK 54, React Navigation v7, Zustand, WebView
+- **Frontend**: React, TailwindCSS, CesiumJS (3D Maps), Dnd-kit
+- **Backend**: FastAPI, MongoDB
+- **Mobile**: React Native, Expo SDK 54, EAS Build System
+- **Integrations**: Paystack (Live), Open-Meteo API, OpenStreetMap/Nominatim
 
-## What's Been Implemented
+## Current Status (December 2025)
 
-### Web Application (Complete)
-- Full marketplace with all public pages
-- User authentication (JWT)
-- Admin panel with content management
-- Payment integration (Paystack)
-- Order management and tracking
-- Messaging center
-- Search functionality
+### Completed Features ✅
+- Full web platform with public/authenticated pages
+- Admin Panel with drag-and-drop order prioritization
+- 3D AdGlobe with Nigerian state/LGA population data (774+ LGAs)
+- Real-time "Est. Online Now" calculations based on local time
+- Bot protection on registration endpoint
+- Bulk spam user deletion feature
+- Mobile app with Google/Apple Sign-In
+- Push notifications (Expo)
+- Fixed mobile auth bug (WWW redirect stripping headers)
 
-### Mobile Application (Complete)
-- **Date: December 2024**
-- Full app wired to Live Production Backend (https://www.lightban.com/api)
-- Auth flow (Login, Register, Forgot Password)
-- Home screen with service categories
-- Explore screens (Influencers, Billboards, Digital Ads, Kannywood)
-- Cart with dynamic platform fee
-- Paystack payment via in-app WebView modal
-- Order tracking
-- Profile and Settings
-- Custom splash screen (navy blue #0d1b2a)
+### Mobile App Config (v1.1.7)
+- iOS: bundleIdentifier `com.adlinka.ads`, buildNumber `15`
+- Android: package `com.adlinka.app`, versionCode `13`
+- EAS projectId: `166884d9-115c-4d83-a792-43664e6b47f3`
 
-### Feature: Apple App Store Compliance (March 2024) ✅
-- **Sign in with Apple**: Added Apple authentication option on login screen (iOS only)
-- **Account Deletion**: Added "Delete Account" option in Profile screen with double confirmation
-- **Payment Disclosure**: Added text clarifying payments are for advertising services (not in-app purchases)
-- Backend endpoints: `/api/auth/apple` (Apple sign-in), `/api/auth/account` (DELETE - account deletion)
+### In Progress 🟡
+None currently
 
-### Feature: Google Sign-In (December 2024) ✅
-- **Sign in with Google**: Added Google authentication option on login screen (both iOS and Android)
-- Installed `@react-native-google-signin/google-signin` library
-- Works with native Google Sign-In picker
-- Backend endpoint: `/api/auth/google` (Google sign-in)
-- Same phone number check at checkout as Apple Sign-In (prompts user if missing phone)
+### Upcoming Tasks (P1)
+- Connect real Meta Ads API for AdGlobe
+- Add Meta App credentials in Admin panel
+- Implement Termii SMS notifications
 
-### Feature: Simplified Registration (December 2024) ✅
-- Removed "Confirm Password" field from registration screen
-- Simplified form validation (no longer requires password confirmation)
-- Cleaner user experience for faster sign-up
+### Future/Backlog (P2)
+- Refactor monolithic `server.py` (>5000 lines)
+- Refactor `AdminPanelPage.js` into components
+- Refactor `meta-ads-globe.html` (>1400 lines)
 
-### Feature: Bulk Order Delete (March 2024) ✅
-- Admin can select multiple orders and delete them at once
-- Added checkboxes to order list in admin panel
-- "Select All" functionality for current page
-- Confirmation dialog before bulk deletion
+## Key DB Schema
+- `orders`: `{ ..., admin_priority: int }`
+- `users`: `{ ..., registration_ip: string }`
 
-### Feature: Admin Branding Tab (March 2024) ✅
-- Added `profile_link` field to backend models (InfluencerCreate, AdminInfluencerCreate/Update)
-- Added Profile Link input to Admin Panel influencer form with description
-- Made platform badges clickable in mobile app (InfluencerDetailScreen, InfluencerCard)
-- Uses React Native `Linking.openURL()` to open external social profile URLs
-- Updated 5 influencers in DB with profile links (Abis Fulani, Baddo, G_fresh, Meenal, Maryamaaah_)
-- Note: "Abdool gaya" influencer not found in DB - may need to be created
+## Critical Notes
+- **Mobile API URL**: Use `https://adlinka.com/api` (NOT www. - causes 308 redirect that strips auth headers)
+- **Expo SDK**: Must stay on SDK 54
+- **Bot Attack**: Active credential stuffing attack (pattern: `Dg54asdkfoda+-`) - protection in place
 
-### Feature: Dark Mode (March 2024) ✅
-- ThemeContext with `useTheme` hook created at `/app/mobile/src/contexts/ThemeContext.tsx`
-- DarkColors defined in `/app/mobile/src/constants/colors.ts`
-- Settings store persists theme preference
-- Updated screens to use theme colors:
-  - SettingsScreen (toggle works)
-  - HomeScreen
-  - ProfileScreen
-  - CartScreen
-  - Card component (auto adapts)
-  - MainTabNavigator (tab bar colors)
-
-### Feature: Hausa Localization (March 2024) ✅
-- Complete i18n system at `/app/mobile/src/i18n/`
-- English translations: `/app/mobile/src/i18n/translations/en.ts`
-- Hausa translations: `/app/mobile/src/i18n/translations/ha.ts`
-- `useTranslation` hook for accessing translations
-- I18nProvider wraps the entire app
-- Language toggle in Settings screen
-- Translations cover:
-  - Common UI elements
-  - Navigation tabs
-  - Auth screens
-  - Home screen
-  - Services
-  - Influencers, Billboards, Digital Ads, Kannywood
-  - Cart & Checkout
-  - Orders
-  - Consultation
-  - Profile & Settings
-  - Messages
-  - Error messages
-  - Notifications
-
-### Feature: Push Notifications (March 2024) ✅
-- Backend push notification system using Expo Push API
-- Push token registration/unregistration endpoints
-- Notifications triggered for:
-  - All order status changes (pending, confirmed, in_progress, completed, cancelled)
-  - Consultation status updates and schedule confirmations
-  - New messages (user-to-admin and admin-to-user)
-- Mobile app integration:
-  - `notificationService.ts` - handles token registration with Expo and backend
-  - `InAppNotification.tsx` - animated in-app notification banner
-  - Auto-registers push token on login
-- In-app banners show for foreground notifications with type-specific icons
-
-### Feature: Admin Branding Tab (March 2024) ✅
-- Added new "Branding" tab in Admin Panel for logo management
-- **Web Application assets:**
-  - Website Logo (Header/Footer)
-  - Favicon
-- **Mobile Application assets:**
-  - App Icon (1024x1024px)
-  - Splash Screen Logo
-  - Login Screen Logo
-  - Notification Icon
-- **General Branding:**
-  - Primary Logo (Full Color)
-  - Logo (White/Light Version for dark backgrounds)
-- Web Header/Footer automatically use uploaded web_logo_url
-- All uploads use chunked upload system for reliability
-
-### Feature: Rebranding Lightban → Adlinka (March 2024) ✅
-- Renamed entire application from "Lightban" to "Adlinka"
-- Updated mobile app configuration (`app.json`):
-  - App name: "Adlinka"
-  - App slug: "adlinka-mobile"
-  - Bundle ID: "com.adlinka.ads"
-- Generated new App Store assets:
-  - splash.png - New Adlinka branding (black background)
-  - icon.png - New Adlinka app icon
-  - adaptive-icon.png - Android adaptive icon
-- Updated all web frontend text references:
-  - Header/Footer logos
-  - Privacy Policy, Terms of Service, About page
-  - Testimonials, Contact page
-  - Translations (English and Hausa)
-- Mobile app storage keys renamed (e.g., `adlinka_auth_token`)
-- **Note:** Database settings (admin panel) still need updating for email/company name
-
-## Bug Fixes (December 2024)
-- ✅ Splash screen color matched to web (from #1a3a5c to #0d1b2a)
-- ✅ Login screen uses logo image instead of text
-- ✅ Billboard API error handling improved for iOS
-- ⚠️ Kannywood images - DATA ISSUE (null in database, needs admin upload)
-
-## Bug Fixes (December 2024 - Session 3)
-- ✅ Billboard dropdowns fixed for iOS (added key props for re-render)
-- ✅ Consultation form now has all fields: Business Stage, Budget Range, Preferred Date/Time
-- ✅ App background changed from white to cream/beige `#f5f0e8`
-- ✅ Splash screen color updated to `#161433`
-- ✅ Admin Kannywood shows all productions from both collections
-
-## Bug Fixes (April 2026 - Session)
-- ✅ Video upload in Admin "Proof of Completion" feature now works
-  - Added video extensions (.mp4, .mov, .webm, .avi, .mkv) to allowed uploads
-  - Increased max file size: 10MB for images, 50MB for videos
-  - Added proper video content-type mappings for file serving
-  - Improved error messages to show backend validation details
-- ✅ Video playback in user's Order Tracking page now works
-  - Added HTTP Range request support for video streaming (206 Partial Content)
-  - Fixed relative URLs to absolute URLs for media files in both web and mobile
-  - Added "Open Video" fallback link if inline playback fails
-  - Mobile app (React Native) also uses absolute URLs for video/image proofs
-
-### Feature: AdGlobe 3D Map (May 2025) ✅
-- **AdGlobe Button**: Renamed from "Meta Ads Globe" to "AdGlobe" in Admin Panel Digital Ads tab
-- **3D CesiumJS Globe**: Interactive 3D map for Meta Ads location targeting simulation
-- **State, LGA & Country Boundary Highlight Mode**:
-  - Automatic detection using OSM `addresstype` (county=LGA, state, country)
-  - Fetches exact administrative boundary polygons from OpenStreetMap
-  - **Color-coded boundaries**:
-    - Countries: Green glow
-    - States: Cyan/blue glow  
-    - LGAs: Orange glow
-  - Semi-transparent fill inside boundaries
-  - Auto-fits camera to boundary bounding box
-  - Boundary caching for performance
-- **Predefined Daily Reach System**:
-  - Nigeria (2,327,899), Lagos (7,035,224), Kano (1,216,388), Abuja (1,951,070)
-  - All 36 Nigerian states + FCT covered
-  - **44 Kano State LGAs** with exact 2022 population projections (Tarauni: 364,900, Nassarawa: 980,900, Kano Municipal: 610,600, etc.)
-  - **Lagos State LGAs** (Ikeja: 520,000, Alimosho: 580,000, etc.)
-  - **Abuja Area Councils** (AMAC: 850,000, Bwari: 320,000, etc.)
-  - Formula-based estimation for other locations
-- **Campaign Form**: Right-side draggable form for campaign creation
-- **Post Up By Feature**: Multi-select influencer list with content URL input
-- **Backend API Endpoints**: 
-  - `/api/geocode` - Location search proxy
-  - `/api/geocode/boundary` - Boundary polygon fetch proxy
-- **Files**: `/app/frontend/public/meta-ads-globe.html`, `/app/frontend/src/pages/MetaAdsGlobePage.js`
-
-### Feature: AdGlobe Dynamic Time-Based Stats (May 2025) ✅
-- **Local Time Display**: Shows real-time local time based on the searched location's longitude
-- **Time-Based "Est. Online Now"**: Calculates estimated online population using time-of-day percentages:
-  - 8AM-6PM (Peak Hours): Population × 5%
-  - 6PM-1AM (Evening): Population × 6%
-  - 2AM-8AM (Late Night): Population × 3%
-- **Live Updates**: Local time and online estimates update every minute automatically
-- **Time Period Indicator**: Shows current period (e.g., "Evening (6PM-1AM)") with percentage
-- **File**: `/app/frontend/public/meta-ads-globe.html`
-
-### Feature: Proof URL Input (May 2025) ✅
-- Replaced video file upload with URL-based proof submission
-- Admins can submit external URLs (e.g., Google Drive) instead of uploading heavy files
-- File: `/app/frontend/src/components/ProofUrlInput.jsx`
-
-## Pending Tasks
-
-### P1 (High Priority)
-- [ ] Connect real Meta Ads API for AdGlobe (currently SIMULATION mode)
-- [ ] Add Meta App credentials settings in Admin panel
-- [ ] Termii SMS integration for notifications
-- [ ] Update database settings in admin panel for Adlinka branding (email, company name)
-
-### P2 (Medium Priority)  
-- [ ] Kannywood image uploads (admin task)
-- [ ] Create "Abdool gaya" influencer in database
-- [ ] Add notification navigation (tap notification to go to relevant screen)
-
-### Future/Backlog
-- [ ] Refactor `/app/backend/server.py` monolith into routers/services (>4900 lines)
-- [ ] Refactor `/app/frontend/src/pages/AdminPanelPage.js` into components (>4500 lines)
-- [ ] Real-time notifications (WebSocket/email)
-- [ ] HubSpot CRM integration
-
-## Key Files Reference
-- `/app/mobile/src/api/` - API client and endpoints
-- `/app/mobile/src/screens/` - All mobile screens
-- `/app/mobile/src/contexts/ThemeContext.tsx` - Dark mode implementation
-- `/app/mobile/src/components/SplashScreen.tsx` - Custom splash
-- `/app/mobile/app.json` - Expo configuration
-- `/app/backend/server.py` - Backend monolith (needs refactoring)
-
-## API Configuration
-- Mobile app points to: `https://www.lightban.com/api` (LIVE - domain remains, app rebranded to Adlinka)
-- Web preview: Uses preview environment
-
-## Credentials (Testing)
-- Admin: `admin@lightban.com` / `LightbanAdmin2024` (domain unchanged for now)
+## Test Credentials
+- Admin: `admin@lightban.com` / `LightbanAdmin2024`

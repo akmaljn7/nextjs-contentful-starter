@@ -1,73 +1,69 @@
 {
-  "name": "Adlinka",
-  "slug": "adlinka-mobile",
-  "version": "1.1.7",
-  "orientation": "portrait",
-  "icon": "./src/assets/icon.png",
-  "userInterfaceStyle": "automatic",
-  "newArchEnabled": true,
-  "splash": {
-    "image": "./src/assets/splash.png",
-    "resizeMode": "contain",
-    "backgroundColor": "#000000"
-  },
-  "assetBundlePatterns": [
-    "**/*"
-  ],
-  "ios": {
-    "supportsTablet": true,
-    "bundleIdentifier": "com.adlinka.ads",
-    "buildNumber": "11",
-    "infoPlist": {
-      "CFBundleAllowMixedLocalizations": true,
-      "UIDeviceFamily": [1, 2]
-    }
-  },
-  "android": {
-    "adaptiveIcon": {
-      "foregroundImage": "./src/assets/adaptive-icon.png",
+  "expo": {
+    "name": "Adlinka",
+    "slug": "adlinka-mobile",
+    "version": "1.1.7",
+    "orientation": "portrait",
+    "icon": "./src/assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./src/assets/splash.png",
+      "resizeMode": "contain",
       "backgroundColor": "#000000"
     },
-    "package": "com.adlinka.app",
-    "versionCode": 12,
-    "permissions": [
-      "NOTIFICATIONS"
-    ]
-  },
-  "web": {
-    "favicon": "./src/assets/favicon.png"
-  },
-  "plugins": [
-    [
-      "expo-notifications",
-      {
-        "icon": "./src/assets/notification-icon.png",
-        "color": "#c4a35a"
-      }
+    "assetBundlePatterns": [
+      "**/*"
     ],
-    "expo-secure-store",
-    "expo-splash-screen",
-    "expo-apple-authentication",
-    "expo-web-browser",
-    [
-      "@react-native-google-signin/google-signin",
-      {
-        "iosUrlScheme": "com.googleusercontent.apps.79558932759-025f0627p5qvq5oh6s5r9l29dgtavehm"
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.adlinka.ads",
+      "buildNumber": "15",
+      "infoPlist": {
+        "CFBundleAllowMixedLocalizations": true
+      },
+      "config": {
+        "usesNonExemptEncryption": false
       }
-    ]
-  ],
-  "extra": {
-    "eas": {
-      "projectId": "166884d9-115c-4d83-a792-43664e6b47f3"
-    }
-  },
-  "owner": "akmaljn7",
-  "sdkVersion": "54.0.0",
-  "platforms": [
-    "ios",
-    "android"
-  ],
-  "androidStatusBar": {
-    "backgroundColor": "#000000"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./src/assets/adaptive-icon.png",
+        "backgroundColor": "#000000"
+      },
+      "package": "com.adlinka.app",
+      "versionCode": 13,
+      "permissions": [
+        "NOTIFICATIONS"
+      ]
+    },
+    "web": {
+      "favicon": "./src/assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "icon": "./src/assets/notification-icon.png",
+          "color": "#c4a35a"
+        }
+      ],
+      "expo-secure-store",
+      "expo-splash-screen",
+      "expo-apple-authentication",
+      "expo-web-browser",
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.79558932759-025f0627p5qvq5oh6s5r9l29dgtavehm"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "166884d9-115c-4d83-a792-43664e6b47f3"
+      }
+    },
+    "owner": "akmaljn7"
   }
 }
