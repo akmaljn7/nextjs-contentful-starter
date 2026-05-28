@@ -17,9 +17,10 @@
   "ios": {
     "supportsTablet": true,
     "bundleIdentifier": "com.adlinka.ads",
-    "buildNumber": "8",
+    "buildNumber": "11",
     "infoPlist": {
-      "CFBundleAllowMixedLocalizations": true
+      "CFBundleAllowMixedLocalizations": true,
+      "UIDeviceFamily": [1, 2]
     }
   },
   "android": {
