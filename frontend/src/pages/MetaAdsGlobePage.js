@@ -249,6 +249,12 @@ export default function MetaAdsGlobePage() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [submittedData, setSubmittedData] = useState(null);
   const [activeSection, setActiveSection] = useState('campaigns');
+  
+  // Meta Login State
+  const [showMetaLoginModal, setShowMetaLoginModal] = useState(true);
+  const [isMetaConnected, setIsMetaConnected] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [connectedAccount, setConnectedAccount] = useState(null);
 
   // Fetch influencers on mount
   useEffect(() => {
@@ -265,6 +271,39 @@ export default function MetaAdsGlobePage() {
     };
     fetchInfluencers();
   }, []);
+
+  // Simulated Meta Login (will be replaced with real OAuth after Meta approval)
+  const handleMetaLogin = async (loginType) => {
+    setIsConnecting(true);
+    
+    // Simulate OAuth popup and authentication delay
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    // Simulate successful connection
+    setConnectedAccount({
+      name: 'Adlinka Marketing',
+      email: 'marketing@adlinka.com',
+      profilePicture: 'https://ui-avatars.com/api/?name=Adlinka&background=1877f2&color=fff',
+      loginType: loginType,
+      pages: MOCK_FACEBOOK_PAGES,
+      adAccounts: MOCK_AD_ACCOUNTS,
+    });
+    
+    setIsMetaConnected(true);
+    setIsConnecting(false);
+    setShowMetaLoginModal(false);
+    
+    toast.success(`Connected to Meta ${loginType === 'facebook' ? 'via Facebook' : 'Business Suite'}`, {
+      description: 'Your ad accounts and pages are now accessible',
+    });
+  };
+
+  const handleDisconnectMeta = () => {
+    setIsMetaConnected(false);
+    setConnectedAccount(null);
+    setShowMetaLoginModal(true);
+    toast.info('Disconnected from Meta');
+  };
 
   // Listen for messages from the globe iframe
   useEffect(() => {
@@ -528,14 +567,29 @@ export default function MetaAdsGlobePage() {
                     <p className="text-xs text-blue-200/60">Create targeted digital advertising</p>
                   </div>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setSidebarOpen(false)}
-                  className="h-8 w-8 text-white/50 hover:text-white hover:bg-white/10"
-                >
-                  <PanelRightClose className="h-4 w-4" />
-                </Button>
+                <div className="flex items-center gap-2">
+                  {/* Connected Account Indicator */}
+                  {isMetaConnected && connectedAccount && (
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-green-500/10 border border-green-500/30">
+                      <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                      <span className="text-xs text-green-300 font-medium">Connected</span>
+                      <button
+                        onClick={handleDisconnectMeta}
+                        className="ml-1 p-1 rounded hover:bg-white/10 text-white/50 hover:text-white"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setSidebarOpen(false)}
+                    className="h-8 w-8 text-white/50 hover:text-white hover:bg-white/10"
+                  >
+                    <PanelRightClose className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </div>
 
@@ -1278,6 +1332,109 @@ export default function MetaAdsGlobePage() {
                     )}
                   </Button>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Meta Login Modal */}
+      {showMetaLoginModal && !isMetaConnected && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-gradient-to-b from-slate-800 to-slate-900 rounded-2xl max-w-md w-full overflow-hidden shadow-2xl border border-white/10">
+            {/* Header */}
+            <div className="relative p-6 pb-4">
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 via-transparent to-purple-600/20" />
+              <div className="relative flex flex-col items-center text-center">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center mb-4 shadow-lg shadow-blue-500/30">
+                  <Globe className="h-8 w-8 text-white" />
+                </div>
+                <h2 className="text-xl font-bold text-white">Connect to Meta</h2>
+                <p className="text-white/60 text-sm mt-2">
+                  Sign in to access your ad accounts, pages, and campaign data
+                </p>
+              </div>
+            </div>
+
+            {/* Login Options */}
+            <div className="p-6 pt-2 space-y-3">
+              {/* Facebook Login Button */}
+              <button
+                onClick={() => handleMetaLogin('facebook')}
+                disabled={isConnecting}
+                className="w-full flex items-center justify-center gap-3 px-4 py-3.5 rounded-xl bg-[#1877F2] hover:bg-[#166FE5] text-white font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-500/20"
+              >
+                {isConnecting ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                  </svg>
+                )}
+                {isConnecting ? 'Connecting...' : 'Continue with Facebook'}
+              </button>
+
+              {/* Divider */}
+              <div className="flex items-center gap-3 py-2">
+                <div className="flex-1 h-px bg-white/10" />
+                <span className="text-white/40 text-xs uppercase tracking-wider">or</span>
+                <div className="flex-1 h-px bg-white/10" />
+              </div>
+
+              {/* Meta Business Suite Button */}
+              <button
+                onClick={() => handleMetaLogin('business_suite')}
+                disabled={isConnecting}
+                className="w-full flex items-center justify-center gap-3 px-4 py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-indigo-500/20"
+              >
+                {isConnecting ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Building2 className="h-5 w-5" />
+                )}
+                {isConnecting ? 'Connecting...' : 'Meta Business Suite'}
+              </button>
+
+              {/* Ads Manager Button */}
+              <button
+                onClick={() => handleMetaLogin('ads_manager')}
+                disabled={isConnecting}
+                className="w-full flex items-center justify-center gap-3 px-4 py-3.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isConnecting ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <BarChart3 className="h-5 w-5" />
+                )}
+                {isConnecting ? 'Connecting...' : 'Meta Ads Manager'}
+              </button>
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 pb-6">
+              <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+                <div className="flex items-start gap-3">
+                  <Info className="h-4 w-4 text-blue-400 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-xs text-white/60 leading-relaxed">
+                      By connecting, you authorize AdGlobe to access your Meta ad accounts, pages, and campaign data. 
+                      You can disconnect anytime from settings.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Permissions Badge */}
+              <div className="flex flex-wrap gap-2 mt-4 justify-center">
+                <span className="px-2 py-1 rounded-full bg-blue-500/10 text-blue-300 text-xs border border-blue-500/20">
+                  Pages Access
+                </span>
+                <span className="px-2 py-1 rounded-full bg-green-500/10 text-green-300 text-xs border border-green-500/20">
+                  Ads Management
+                </span>
+                <span className="px-2 py-1 rounded-full bg-purple-500/10 text-purple-300 text-xs border border-purple-500/20">
+                  Business Data
+                </span>
               </div>
             </div>
           </div>
