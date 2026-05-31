@@ -24,7 +24,6 @@ import {
   Info,
   PanelRightClose,
   PanelRight,
-  GripVertical,
   Users,
   Share2,
   Facebook,
@@ -167,8 +166,6 @@ export default function MetaAdsGlobePage() {
   
   // Sidebar state
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [sidebarWidth, setSidebarWidth] = useState(480);
-  const [isDragging, setIsDragging] = useState(false);
   
   // Influencers for Post Up feature
   const [influencers, setInfluencers] = useState([]);
@@ -225,35 +222,6 @@ export default function MetaAdsGlobePage() {
     };
     fetchInfluencers();
   }, []);
-
-  // Handle sidebar dragging
-  const handleMouseDown = (e) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  useEffect(() => {
-    const handleMouseMove = (e) => {
-      if (!isDragging) return;
-      // Calculate width from right edge of screen
-      const newWidth = Math.min(Math.max(380, window.innerWidth - e.clientX), 700);
-      setSidebarWidth(newWidth);
-    };
-
-    const handleMouseUp = () => {
-      setIsDragging(false);
-    };
-
-    if (isDragging) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-    }
-
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isDragging]);
 
   // Listen for messages from the globe iframe
   useEffect(() => {
@@ -478,12 +446,11 @@ export default function MetaAdsGlobePage() {
         </button>
       )}
 
-      {/* Sidebar - Right Side */}
+      {/* Sidebar - Right Side (Fixed 50% width) */}
       {sidebarOpen && (
         <div 
           ref={sidebarRef}
-          className="absolute right-0 top-0 h-full flex flex-col z-20 shadow-2xl shadow-black/50"
-          style={{ width: sidebarWidth }}
+          className="absolute right-0 top-0 h-full w-1/2 flex flex-col z-20 shadow-2xl shadow-black/50"
         >
           {/* Gradient Background */}
           <div className="absolute inset-0 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 opacity-98" />
@@ -1132,16 +1099,6 @@ export default function MetaAdsGlobePage() {
                   </Button>
                 </div>
               </div>
-            </div>
-          </div>
-
-          {/* Resize Handle - Left side */}
-          <div
-            className="absolute top-0 left-0 w-1 h-full cursor-ew-resize group"
-            onMouseDown={handleMouseDown}
-          >
-            <div className="absolute top-1/2 -translate-y-1/2 left-0 w-4 h-12 bg-white/10 rounded-r-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-              <GripVertical className="h-4 w-4 text-white/50" />
             </div>
           </div>
         </div>
