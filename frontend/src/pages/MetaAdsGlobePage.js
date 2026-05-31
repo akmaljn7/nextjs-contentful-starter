@@ -276,34 +276,123 @@ export default function MetaAdsGlobePage() {
   const handleMetaLogin = async (loginType) => {
     setIsConnecting(true);
     
-    // Simulate OAuth popup and authentication delay
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // Simulate successful connection
-    setConnectedAccount({
-      name: 'Adlinka Marketing',
-      email: 'marketing@adlinka.com',
-      profilePicture: 'https://ui-avatars.com/api/?name=Adlinka&background=1877f2&color=fff',
-      loginType: loginType,
-      pages: MOCK_FACEBOOK_PAGES,
-      adAccounts: MOCK_AD_ACCOUNTS,
-    });
-    
-    setIsMetaConnected(true);
-    setIsConnecting(false);
-    setShowMetaLoginModal(false);
-    
-    toast.success(`Connected to Meta ${loginType === 'facebook' ? 'via Facebook' : 'Business Suite'}`, {
-      description: 'Your ad accounts and pages are now accessible',
-    });
+    // Check if Facebook SDK is loaded
+    if (typeof window.FB === 'undefined') {
+      toast.error('Facebook SDK not loaded. Please refresh the page.');
+      setIsConnecting(false);
+      return;
+    }
+
+    // Define the permissions to request
+    const permissions = [
+      'public_profile',
+      'email',
+      // These will only work after Meta approval, but we request them anyway
+      'pages_show_list',
+      'pages_read_engagement', 
+      'business_management',
+      'ads_read',
+      'ads_management',
+      'pages_manage_ads'
+    ].join(',');
+
+    try {
+      // Real Facebook Login
+      window.FB.login(function(response) {
+        if (response.authResponse) {
+          // Successfully logged in - get user info
+          window.FB.api('/me', { fields: 'name,email,picture.width(100)' }, function(userInfo) {
+            const accessToken = response.authResponse.accessToken;
+            
+            // Store the access token for future API calls (after Meta approval)
+            localStorage.setItem('meta_access_token', accessToken);
+            localStorage.setItem('meta_user_id', response.authResponse.userID);
+            
+            // Set connected state with real user info + mock business data
+            setConnectedAccount({
+              name: userInfo.name || 'Meta User',
+              email: userInfo.email || '',
+              profilePicture: userInfo.picture?.data?.url || `https://ui-avatars.com/api/?name=${encodeURIComponent(userInfo.name)}&background=1877f2&color=fff`,
+              loginType: loginType,
+              accessToken: accessToken,
+              userId: response.authResponse.userID,
+              // Mock data until Meta approves permissions
+              pages: MOCK_FACEBOOK_PAGES,
+              adAccounts: MOCK_AD_ACCOUNTS,
+            });
+            
+            setIsMetaConnected(true);
+            setIsConnecting(false);
+            setShowMetaLoginModal(false);
+            
+            toast.success(`Welcome, ${userInfo.name}!`, {
+              description: 'Connected to Meta. Campaign data will be live after Meta approval.',
+            });
+          });
+        } else {
+          // User cancelled login or didn't authorize
+          setIsConnecting(false);
+          toast.error('Login cancelled or not authorized');
+        }
+      }, { 
+        scope: permissions,
+        return_scopes: true 
+      });
+    } catch (error) {
+      console.error('Facebook login error:', error);
+      setIsConnecting(false);
+      toast.error('Failed to connect to Meta');
+    }
   };
 
   const handleDisconnectMeta = () => {
+    // Logout from Facebook
+    if (typeof window.FB !== 'undefined') {
+      window.FB.logout(function(response) {
+        console.log('Logged out from Facebook');
+      });
+    }
+    
+    // Clear stored tokens
+    localStorage.removeItem('meta_access_token');
+    localStorage.removeItem('meta_user_id');
+    
     setIsMetaConnected(false);
     setConnectedAccount(null);
     setShowMetaLoginModal(true);
     toast.info('Disconnected from Meta');
   };
+
+  // Check if user is already logged in on mount
+  useEffect(() => {
+    const checkExistingLogin = () => {
+      if (typeof window.FB !== 'undefined') {
+        window.FB.getLoginStatus(function(response) {
+          if (response.status === 'connected') {
+            // User is logged in and has authorized the app
+            window.FB.api('/me', { fields: 'name,email,picture.width(100)' }, function(userInfo) {
+              setConnectedAccount({
+                name: userInfo.name || 'Meta User',
+                email: userInfo.email || '',
+                profilePicture: userInfo.picture?.data?.url || `https://ui-avatars.com/api/?name=${encodeURIComponent(userInfo.name)}&background=1877f2&color=fff`,
+                loginType: 'facebook',
+                accessToken: response.authResponse.accessToken,
+                userId: response.authResponse.userID,
+                pages: MOCK_FACEBOOK_PAGES,
+                adAccounts: MOCK_AD_ACCOUNTS,
+              });
+              setIsMetaConnected(true);
+              setShowMetaLoginModal(false);
+            });
+          }
+        });
+      }
+    };
+
+    // Wait a bit for FB SDK to initialize
+    const timer = setTimeout(checkExistingLogin, 1500);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Listen for messages from the globe iframe
   useEffect(() => {
@@ -571,11 +660,17 @@ export default function MetaAdsGlobePage() {
                   {/* Connected Account Indicator */}
                   {isMetaConnected && connectedAccount && (
                     <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-green-500/10 border border-green-500/30">
-                      <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-                      <span className="text-xs text-green-300 font-medium">Connected</span>
+                      <img 
+                        src={connectedAccount.profilePicture} 
+                        alt={connectedAccount.name}
+                        className="w-5 h-5 rounded-full border border-green-500/50"
+                      />
+                      <span className="text-xs text-green-300 font-medium max-w-[100px] truncate">{connectedAccount.name}</span>
+                      <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
                       <button
                         onClick={handleDisconnectMeta}
                         className="ml-1 p-1 rounded hover:bg-white/10 text-white/50 hover:text-white"
+                        title="Disconnect"
                       >
                         <X className="h-3 w-3" />
                       </button>
