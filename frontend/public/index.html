@@ -42,7 +42,7 @@
         <noscript>You need to enable JavaScript to run this app.</noscript>
         <div id="root"></div>
         
-        <!-- Facebook SDK -->
+        <!-- Facebook SDK for Business Login -->
         <script>
           window.fbAsyncInit = function() {
             FB.init({
@@ -60,6 +60,9 @@
              js.src = "https://connect.facebook.net/en_US/sdk.js";
              fjs.parentNode.insertBefore(js, fjs);
            }(document, 'script', 'facebook-jssdk'));
+          
+          // Facebook Login for Business config
+          window.FB_CONFIG_ID = '1018089424501122';
         </script>
     </body>
 </html>

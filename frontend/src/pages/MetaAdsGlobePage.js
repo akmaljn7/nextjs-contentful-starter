@@ -283,21 +283,11 @@ export default function MetaAdsGlobePage() {
       return;
     }
 
-    // Define the permissions to request
-    const permissions = [
-      'public_profile',
-      'email',
-      // These will only work after Meta approval, but we request them anyway
-      'pages_show_list',
-      'pages_read_engagement', 
-      'business_management',
-      'ads_read',
-      'ads_management',
-      'pages_manage_ads'
-    ].join(',');
+    // Facebook Login for Business uses config_id
+    const configId = window.FB_CONFIG_ID || '1018089424501122';
 
     try {
-      // Real Facebook Login
+      // Use Facebook Login for Business with config_id
       window.FB.login(function(response) {
         if (response.authResponse) {
           // Successfully logged in - get user info
@@ -312,7 +302,7 @@ export default function MetaAdsGlobePage() {
             setConnectedAccount({
               name: userInfo.name || 'Meta User',
               email: userInfo.email || '',
-              profilePicture: userInfo.picture?.data?.url || `https://ui-avatars.com/api/?name=${encodeURIComponent(userInfo.name)}&background=1877f2&color=fff`,
+              profilePicture: userInfo.picture?.data?.url || `https://ui-avatars.com/api/?name=${encodeURIComponent(userInfo.name || 'User')}&background=1877f2&color=fff`,
               loginType: loginType,
               accessToken: accessToken,
               userId: response.authResponse.userID,
@@ -332,11 +322,16 @@ export default function MetaAdsGlobePage() {
         } else {
           // User cancelled login or didn't authorize
           setIsConnecting(false);
-          toast.error('Login cancelled or not authorized');
+          if (response.status === 'unknown') {
+            toast.error('Login was cancelled');
+          } else {
+            toast.error('Login failed. Please try again.');
+          }
         }
       }, { 
-        scope: permissions,
-        return_scopes: true 
+        config_id: configId,
+        response_type: 'code',
+        override_default_response_type: true
       });
     } catch (error) {
       console.error('Facebook login error:', error);
