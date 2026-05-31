@@ -159,6 +159,41 @@ const MOCK_CAMPAIGNS = [
   },
 ];
 
+// Age options (13-65+)
+const AGE_OPTIONS = [
+  { value: '13', label: '13' },
+  { value: '18', label: '18' },
+  { value: '21', label: '21' },
+  { value: '25', label: '25' },
+  { value: '30', label: '30' },
+  { value: '35', label: '35' },
+  { value: '40', label: '40' },
+  { value: '45', label: '45' },
+  { value: '50', label: '50' },
+  { value: '55', label: '55' },
+  { value: '60', label: '60' },
+  { value: '65', label: '65+' },
+];
+
+// Gender options
+const GENDER_OPTIONS = [
+  { value: 'ALL', label: 'All' },
+  { value: 'MALE', label: 'Male' },
+  { value: 'FEMALE', label: 'Female' },
+];
+
+// Language options (Nigerian focus + common)
+const LANGUAGE_OPTIONS = [
+  { value: 'all', label: 'All Languages' },
+  { value: 'en', label: 'English' },
+  { value: 'ha', label: 'Hausa' },
+  { value: 'yo', label: 'Yoruba' },
+  { value: 'ig', label: 'Igbo' },
+  { value: 'pcm', label: 'Nigerian Pidgin' },
+  { value: 'ar', label: 'Arabic' },
+  { value: 'fr', label: 'French' },
+];
+
 export default function MetaAdsGlobePage() {
   const navigate = useNavigate();
   const iframeRef = useRef(null);
@@ -178,6 +213,8 @@ export default function MetaAdsGlobePage() {
     // Facebook Page & Ad Account selection (for Meta permissions)
     selectedPageId: '',
     selectedAdAccountId: '',
+    // Order type
+    orderType: 'AUCTION',
     // Post Up feature
     postUpInfluencers: [],
     postUpContentUrl: '',
@@ -193,6 +230,12 @@ export default function MetaAdsGlobePage() {
     longitude: null,
     radius: 1,
     locationName: '',
+    // Target Audience
+    minAge: '18',
+    maxAge: '65',
+    gender: 'ALL',
+    languages: ['all'],
+    // Creative
     primaryText: '',
     headline: '',
     description: '',
@@ -389,6 +432,7 @@ export default function MetaAdsGlobePage() {
       objective: '',
       selectedPageId: '',
       selectedAdAccountId: '',
+      orderType: 'AUCTION',
       postUpInfluencers: [],
       postUpContentUrl: '',
       specialAdCategory: 'NONE',
@@ -403,6 +447,10 @@ export default function MetaAdsGlobePage() {
       longitude: null,
       radius: 1,
       locationName: '',
+      minAge: '18',
+      maxAge: '65',
+      gender: 'ALL',
+      languages: ['all'],
       primaryText: '',
       headline: '',
       description: '',
@@ -418,7 +466,7 @@ export default function MetaAdsGlobePage() {
   const sections = [
     { id: 'campaigns', label: 'Campaigns', icon: BarChart3, color: 'from-cyan-500 to-cyan-600' },
     { id: 'campaign', label: 'New Campaign', icon: Target, color: 'from-blue-500 to-blue-600' },
-    { id: 'targeting', label: 'Targeting', icon: MapPin, color: 'from-green-500 to-green-600' },
+    { id: 'targeting', label: 'Target Audience', icon: Users, color: 'from-green-500 to-green-600' },
     { id: 'budget', label: 'Budget', icon: DollarSign, color: 'from-amber-500 to-amber-600' },
     { id: 'creative', label: 'Creative', icon: ImageIcon, color: 'from-purple-500 to-purple-600' },
   ];
@@ -744,6 +792,31 @@ export default function MetaAdsGlobePage() {
                     </Select>
                   </div>
 
+                  {/* Order Type - Auction or Reserved */}
+                  <div className="space-y-2">
+                    <Label className="text-white/80 text-sm">Buying Type *</Label>
+                    <Select value={formData.orderType} onValueChange={(v) => updateField('orderType', v)}>
+                      <SelectTrigger className="bg-white/5 border-white/10 text-white">
+                        <SelectValue placeholder="Select buying type" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-slate-800 border-white/10">
+                        <SelectItem value="AUCTION" className="text-white hover:bg-white/10">
+                          <div>
+                            <div className="font-medium">Auction</div>
+                            <div className="text-xs text-white/50">Compete for ad placements in real-time</div>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="RESERVED" className="text-white hover:bg-white/10">
+                          <div>
+                            <div className="font-medium">Reserved</div>
+                            <div className="text-xs text-white/50">Guaranteed delivery at fixed price</div>
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-white/40">Auction is recommended for most campaigns</p>
+                  </div>
+
                   {/* TEMPORARILY HIDDEN FOR META REVIEW - Post Up Feature
                   <div className="space-y-3 p-4 rounded-xl bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20">
                     <div className="flex items-center gap-2">
@@ -801,9 +874,116 @@ export default function MetaAdsGlobePage() {
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 mb-3">
                     <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center">
-                      <MapPin className="h-4 w-4 text-white" />
+                      <Users className="h-4 w-4 text-white" />
                     </div>
-                    <h2 className="font-semibold text-white">Location Targeting</h2>
+                    <h2 className="font-semibold text-white">Target Audience</h2>
+                  </div>
+
+                  {/* Age Selection */}
+                  <div className="space-y-3 p-4 rounded-xl bg-white/5 border border-white/10">
+                    <Label className="text-white/90 text-sm font-medium">Age Range</Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-white/60 text-xs">Minimum age</Label>
+                        <Select value={formData.minAge} onValueChange={(v) => updateField('minAge', v)}>
+                          <SelectTrigger className="bg-white/5 border-white/10 text-white">
+                            <SelectValue placeholder="Min" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-slate-800 border-white/10">
+                            {AGE_OPTIONS.map((age) => (
+                              <SelectItem key={age.value} value={age.value} className="text-white hover:bg-white/10">
+                                {age.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-white/60 text-xs">Maximum age</Label>
+                        <Select value={formData.maxAge} onValueChange={(v) => updateField('maxAge', v)}>
+                          <SelectTrigger className="bg-white/5 border-white/10 text-white">
+                            <SelectValue placeholder="Max" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-slate-800 border-white/10">
+                            {AGE_OPTIONS.map((age) => (
+                              <SelectItem key={age.value} value={age.value} className="text-white hover:bg-white/10">
+                                {age.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Gender Selection */}
+                  <div className="space-y-3 p-4 rounded-xl bg-white/5 border border-white/10">
+                    <Label className="text-white/90 text-sm font-medium">Gender</Label>
+                    <Select value={formData.gender} onValueChange={(v) => updateField('gender', v)}>
+                      <SelectTrigger className="bg-white/5 border-white/10 text-white">
+                        <SelectValue placeholder="Select gender" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-slate-800 border-white/10">
+                        {GENDER_OPTIONS.map((g) => (
+                          <SelectItem key={g.value} value={g.value} className="text-white hover:bg-white/10">
+                            {g.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Languages Selection */}
+                  <div className="space-y-3 p-4 rounded-xl bg-white/5 border border-white/10">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Label className="text-white/90 text-sm font-medium">Languages</Label>
+                        <Info className="h-3.5 w-3.5 text-white/40" />
+                      </div>
+                      <span className="text-xs text-blue-400">
+                        {formData.languages.includes('all') ? 'All languages' : `${formData.languages.length} selected`}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {LANGUAGE_OPTIONS.map((lang) => {
+                        const isSelected = formData.languages.includes(lang.value);
+                        const isAll = lang.value === 'all';
+                        return (
+                          <button
+                            key={lang.value}
+                            type="button"
+                            onClick={() => {
+                              if (isAll) {
+                                updateField('languages', ['all']);
+                              } else {
+                                const newLangs = formData.languages.filter(l => l !== 'all');
+                                if (isSelected) {
+                                  const filtered = newLangs.filter(l => l !== lang.value);
+                                  updateField('languages', filtered.length === 0 ? ['all'] : filtered);
+                                } else {
+                                  updateField('languages', [...newLangs, lang.value]);
+                                }
+                              }
+                            }}
+                            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                              isSelected
+                                ? 'bg-green-500/30 text-green-300 border border-green-500/50'
+                                : 'bg-white/5 text-white/60 border border-white/10 hover:bg-white/10'
+                            }`}
+                          >
+                            {lang.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Location Targeting Header */}
+                  <div className="flex items-center gap-2 mt-6 mb-3">
+                    <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
+                      <MapPin className="h-3 w-3 text-white" />
+                    </div>
+                    <h3 className="font-medium text-white/90 text-sm">Location Targeting</h3>
                   </div>
 
                   <div className="p-3 rounded-xl bg-gradient-to-r from-blue-500/20 to-indigo-500/20 border border-blue-500/30">
