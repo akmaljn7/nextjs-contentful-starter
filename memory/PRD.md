@@ -24,6 +24,10 @@ Create a polished, conversion-focused, responsive marketplace website and cross-
 - Temporary changes applied to hide simulated data for Meta review screencast
 - See `/app/META_REVIEW_REVERT_GUIDE.md` for revert instructions
 - Budget currency changed from USD to Naira (NGN) - PERMANENT
+- Added 3 new features for Meta permissions:
+  1. "My Campaigns" tab (ads_read)
+  2. Facebook Page selector (pages_show_list)
+  3. Ad Account selector (business_management)
 
 ### Completed Features ✅
 - Full web platform with public/authenticated pages

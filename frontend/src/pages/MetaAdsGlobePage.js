@@ -26,7 +26,15 @@ import {
   PanelRight,
   GripVertical,
   Users,
-  Share2
+  Share2,
+  Facebook,
+  Building2,
+  BarChart3,
+  Play,
+  Pause,
+  TrendingUp,
+  MousePointerClick,
+  Eye
 } from 'lucide-react';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -96,6 +104,62 @@ const OPTIMIZATION_GOALS = {
   ],
 };
 
+// Mock Facebook Pages (for pages_show_list permission demo)
+const MOCK_FACEBOOK_PAGES = [
+  { id: 'page_001', name: 'Adlinka Official', category: 'Advertising Agency', followers: 45200, picture: 'https://ui-avatars.com/api/?name=Adlinka&background=1877f2&color=fff' },
+  { id: 'page_002', name: 'LightBan Media', category: 'Media Company', followers: 23800, picture: 'https://ui-avatars.com/api/?name=LB&background=1877f2&color=fff' },
+  { id: 'page_003', name: 'Kano Digital Hub', category: 'Business Service', followers: 12500, picture: 'https://ui-avatars.com/api/?name=KDH&background=1877f2&color=fff' },
+];
+
+// Mock Ad Accounts (for business_management permission demo)
+const MOCK_AD_ACCOUNTS = [
+  { id: 'act_123456789', name: 'Adlinka Main Account', currency: 'NGN', status: 'ACTIVE', spend_cap: 5000000 },
+  { id: 'act_987654321', name: 'LightBan Campaigns', currency: 'NGN', status: 'ACTIVE', spend_cap: 2000000 },
+];
+
+// Mock Existing Campaigns (for ads_read permission demo)
+const MOCK_CAMPAIGNS = [
+  { 
+    id: 'camp_001', 
+    name: 'Kano State Awareness Q4', 
+    status: 'ACTIVE', 
+    objective: 'OUTCOME_AWARENESS',
+    daily_budget: 50000,
+    spent: 127500,
+    impressions: 458200,
+    reach: 312400,
+    clicks: 8920,
+    ctr: 1.95,
+    created_at: '2025-11-15',
+  },
+  { 
+    id: 'camp_002', 
+    name: 'Lagos Traffic Campaign', 
+    status: 'PAUSED', 
+    objective: 'OUTCOME_TRAFFIC',
+    daily_budget: 75000,
+    spent: 89000,
+    impressions: 234500,
+    reach: 156300,
+    clicks: 12450,
+    ctr: 5.31,
+    created_at: '2025-11-28',
+  },
+  { 
+    id: 'camp_003', 
+    name: 'Abuja Lead Generation', 
+    status: 'ACTIVE', 
+    objective: 'OUTCOME_LEADS',
+    daily_budget: 100000,
+    spent: 245000,
+    impressions: 567800,
+    reach: 423100,
+    clicks: 15670,
+    ctr: 2.76,
+    created_at: '2025-12-01',
+  },
+];
+
 export default function MetaAdsGlobePage() {
   const navigate = useNavigate();
   const iframeRef = useRef(null);
@@ -114,6 +178,9 @@ export default function MetaAdsGlobePage() {
   const [formData, setFormData] = useState({
     campaignName: '',
     objective: '',
+    // Facebook Page & Ad Account selection (for Meta permissions)
+    selectedPageId: '',
+    selectedAdAccountId: '',
     // Post Up feature
     postUpInfluencers: [],
     postUpContentUrl: '',
@@ -141,7 +208,7 @@ export default function MetaAdsGlobePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [submittedData, setSubmittedData] = useState(null);
-  const [activeSection, setActiveSection] = useState('campaign');
+  const [activeSection, setActiveSection] = useState('campaigns');
 
   // Fetch influencers on mount
   useEffect(() => {
@@ -352,6 +419,8 @@ export default function MetaAdsGlobePage() {
     setFormData({
       campaignName: '',
       objective: '',
+      selectedPageId: '',
+      selectedAdAccountId: '',
       postUpInfluencers: [],
       postUpContentUrl: '',
       specialAdCategory: 'NONE',
@@ -379,7 +448,8 @@ export default function MetaAdsGlobePage() {
   };
 
   const sections = [
-    { id: 'campaign', label: 'Campaign', icon: Target, color: 'from-blue-500 to-blue-600' },
+    { id: 'campaigns', label: 'Campaigns', icon: BarChart3, color: 'from-cyan-500 to-cyan-600' },
+    { id: 'campaign', label: 'New Campaign', icon: Target, color: 'from-blue-500 to-blue-600' },
     { id: 'targeting', label: 'Targeting', icon: MapPin, color: 'from-green-500 to-green-600' },
     { id: 'budget', label: 'Budget', icon: DollarSign, color: 'from-amber-500 to-amber-600' },
     { id: 'creative', label: 'Creative', icon: ImageIcon, color: 'from-purple-500 to-purple-600' },
@@ -475,6 +545,122 @@ export default function MetaAdsGlobePage() {
             {/* Form Content */}
             <div className="flex-1 overflow-y-auto p-5 space-y-5 custom-scrollbar">
               
+              {/* Campaigns List Section - for ads_read permission */}
+              {activeSection === 'campaigns' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-cyan-600 flex items-center justify-center">
+                        <BarChart3 className="h-4 w-4 text-white" />
+                      </div>
+                      <div>
+                        <h2 className="font-semibold text-white">My Campaigns</h2>
+                        <p className="text-xs text-white/50">View and manage your ad campaigns</p>
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={() => setActiveSection('campaign')}
+                      className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs"
+                    >
+                      + New Campaign
+                    </Button>
+                  </div>
+
+                  {/* Campaign Stats Summary */}
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="p-3 rounded-xl bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-500/20">
+                      <div className="text-2xl font-bold text-green-400">{MOCK_CAMPAIGNS.filter(c => c.status === 'ACTIVE').length}</div>
+                      <div className="text-xs text-green-300/70">Active Campaigns</div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500/10 to-indigo-500/10 border border-blue-500/20">
+                      <div className="text-2xl font-bold text-blue-400">₦{(MOCK_CAMPAIGNS.reduce((sum, c) => sum + c.spent, 0) / 1000).toFixed(0)}K</div>
+                      <div className="text-xs text-blue-300/70">Total Spent</div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/20">
+                      <div className="text-2xl font-bold text-purple-400">{(MOCK_CAMPAIGNS.reduce((sum, c) => sum + c.reach, 0) / 1000000).toFixed(2)}M</div>
+                      <div className="text-xs text-purple-300/70">Total Reach</div>
+                    </div>
+                  </div>
+
+                  {/* Campaign List */}
+                  <div className="space-y-3">
+                    {MOCK_CAMPAIGNS.map((campaign) => (
+                      <div 
+                        key={campaign.id}
+                        className="p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/8 transition-all"
+                      >
+                        <div className="flex items-start justify-between mb-3">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-semibold text-white">{campaign.name}</h3>
+                              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                                campaign.status === 'ACTIVE' 
+                                  ? 'bg-green-500/20 text-green-400 border border-green-500/30' 
+                                  : 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
+                              }`}>
+                                <span className="flex items-center gap-1">
+                                  {campaign.status === 'ACTIVE' ? <Play className="h-3 w-3" /> : <Pause className="h-3 w-3" />}
+                                  {campaign.status}
+                                </span>
+                              </span>
+                            </div>
+                            <div className="text-xs text-white/50 mt-1">
+                              {campaign.objective.replace('OUTCOME_', '')} • Created {campaign.created_at}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-sm font-semibold text-white">₦{(campaign.daily_budget / 1000).toFixed(0)}K/day</div>
+                            <div className="text-xs text-white/50">Spent: ₦{(campaign.spent / 1000).toFixed(0)}K</div>
+                          </div>
+                        </div>
+                        
+                        {/* Campaign Metrics */}
+                        <div className="grid grid-cols-4 gap-2">
+                          <div className="p-2 rounded-lg bg-white/5">
+                            <div className="flex items-center gap-1 text-xs text-white/50 mb-1">
+                              <Eye className="h-3 w-3" /> Impressions
+                            </div>
+                            <div className="font-semibold text-white text-sm">{(campaign.impressions / 1000).toFixed(0)}K</div>
+                          </div>
+                          <div className="p-2 rounded-lg bg-white/5">
+                            <div className="flex items-center gap-1 text-xs text-white/50 mb-1">
+                              <Users className="h-3 w-3" /> Reach
+                            </div>
+                            <div className="font-semibold text-white text-sm">{(campaign.reach / 1000).toFixed(0)}K</div>
+                          </div>
+                          <div className="p-2 rounded-lg bg-white/5">
+                            <div className="flex items-center gap-1 text-xs text-white/50 mb-1">
+                              <MousePointerClick className="h-3 w-3" /> Clicks
+                            </div>
+                            <div className="font-semibold text-white text-sm">{(campaign.clicks / 1000).toFixed(1)}K</div>
+                          </div>
+                          <div className="p-2 rounded-lg bg-white/5">
+                            <div className="flex items-center gap-1 text-xs text-white/50 mb-1">
+                              <TrendingUp className="h-3 w-3" /> CTR
+                            </div>
+                            <div className="font-semibold text-cyan-400 text-sm">{campaign.ctr}%</div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Info Note */}
+                  <div className="p-3 rounded-xl bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-500/20">
+                    <div className="flex items-start gap-2">
+                      <Info className="h-4 w-4 text-cyan-400 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium text-cyan-300">Campaign Performance</p>
+                        <p className="text-xs text-cyan-200/60 mt-1">
+                          Data synced from Meta Ads Manager. Click on a campaign to view detailed analytics and make edits.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Campaign Section */}
               {activeSection === 'campaign' && (
                 <div className="space-y-4">
@@ -483,6 +669,83 @@ export default function MetaAdsGlobePage() {
                       <Target className="h-4 w-4 text-white" />
                     </div>
                     <h2 className="font-semibold text-white">Campaign Settings</h2>
+                  </div>
+
+                  {/* Facebook Page Selection - for pages_show_list permission */}
+                  <div className="space-y-3 p-4 rounded-xl bg-gradient-to-r from-blue-500/10 to-indigo-500/10 border border-blue-500/20">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-600 to-blue-700 flex items-center justify-center">
+                        <Facebook className="h-3.5 w-3.5 text-white" />
+                      </div>
+                      <div>
+                        <Label className="text-white/90 text-sm font-semibold">Facebook Page *</Label>
+                        <p className="text-xs text-blue-200/60">Select the Page to run ads from</p>
+                      </div>
+                    </div>
+                    <Select value={formData.selectedPageId} onValueChange={(v) => updateField('selectedPageId', v)}>
+                      <SelectTrigger className="bg-white/5 border-blue-500/20 text-white">
+                        <SelectValue placeholder="Select a Facebook Page" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-slate-800 border-white/10">
+                        {MOCK_FACEBOOK_PAGES.map((page) => (
+                          <SelectItem key={page.id} value={page.id} className="text-white hover:bg-white/10">
+                            <div className="flex items-center gap-3">
+                              <img src={page.picture} alt={page.name} className="w-8 h-8 rounded-full" />
+                              <div>
+                                <div className="font-medium">{page.name}</div>
+                                <div className="text-xs text-white/50">{page.category} • {(page.followers / 1000).toFixed(1)}K followers</div>
+                              </div>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {formData.selectedPageId && (
+                      <div className="flex items-center gap-2 p-2 rounded-lg bg-green-500/10 border border-green-500/30">
+                        <CheckCircle className="h-4 w-4 text-green-400" />
+                        <span className="text-xs text-green-300">
+                          Page selected: {MOCK_FACEBOOK_PAGES.find(p => p.id === formData.selectedPageId)?.name}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Ad Account Selection - for business_management permission */}
+                  <div className="space-y-3 p-4 rounded-xl bg-gradient-to-r from-indigo-500/10 to-purple-500/10 border border-indigo-500/20">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-600 to-indigo-700 flex items-center justify-center">
+                        <Building2 className="h-3.5 w-3.5 text-white" />
+                      </div>
+                      <div>
+                        <Label className="text-white/90 text-sm font-semibold">Ad Account *</Label>
+                        <p className="text-xs text-indigo-200/60">Select the business ad account</p>
+                      </div>
+                    </div>
+                    <Select value={formData.selectedAdAccountId} onValueChange={(v) => updateField('selectedAdAccountId', v)}>
+                      <SelectTrigger className="bg-white/5 border-indigo-500/20 text-white">
+                        <SelectValue placeholder="Select an Ad Account" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-slate-800 border-white/10">
+                        {MOCK_AD_ACCOUNTS.map((account) => (
+                          <SelectItem key={account.id} value={account.id} className="text-white hover:bg-white/10">
+                            <div>
+                              <div className="font-medium">{account.name}</div>
+                              <div className="text-xs text-white/50">
+                                {account.id} • {account.currency} • Spend Cap: ₦{(account.spend_cap / 1000).toFixed(0)}K
+                              </div>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {formData.selectedAdAccountId && (
+                      <div className="flex items-center gap-2 p-2 rounded-lg bg-green-500/10 border border-green-500/30">
+                        <CheckCircle className="h-4 w-4 text-green-400" />
+                        <span className="text-xs text-green-300">
+                          Account: {MOCK_AD_ACCOUNTS.find(a => a.id === formData.selectedAdAccountId)?.name}
+                        </span>
+                      </div>
+                    )}
                   </div>
                   
                   <div className="space-y-2">
