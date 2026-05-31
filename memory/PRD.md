@@ -20,6 +20,11 @@ Create a polished, conversion-focused, responsive marketplace website and cross-
 
 ## Current Status (December 2025)
 
+### Meta App Review (In Progress)
+- Temporary changes applied to hide simulated data for Meta review screencast
+- See `/app/META_REVIEW_REVERT_GUIDE.md` for revert instructions
+- Budget currency changed from USD to Naira (NGN) - PERMANENT
+
 ### Completed Features ✅
 - Full web platform with public/authenticated pages
 - Admin Panel with drag-and-drop order prioritization

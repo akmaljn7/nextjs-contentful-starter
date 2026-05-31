@@ -514,7 +514,7 @@ export default function MetaAdsGlobePage() {
                     </Select>
                   </div>
 
-                  {/* Post Up Feature - Influencer Amplification */}
+                  {/* TEMPORARILY HIDDEN FOR META REVIEW - Post Up Feature
                   <div className="space-y-3 p-4 rounded-xl bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20">
                     <div className="flex items-center gap-2">
                       <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
@@ -525,101 +525,9 @@ export default function MetaAdsGlobePage() {
                         <p className="text-xs text-purple-200/60">Send content to influencers to repost</p>
                       </div>
                     </div>
-                    
-                    {/* Influencer Multi-Select */}
-                    <div className="space-y-2">
-                      <Label className="text-white/70 text-xs">Select Influencers</Label>
-                      {loadingInfluencers ? (
-                        <div className="flex items-center gap-2 p-3 rounded-lg bg-white/5 text-white/50 text-sm">
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Loading influencers...
-                        </div>
-                      ) : influencers.length === 0 ? (
-                        <div className="p-3 rounded-lg bg-white/5 text-white/50 text-sm">
-                          No influencers available
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                          <div className="max-h-40 overflow-y-auto rounded-lg bg-white/5 border border-white/10 p-2 space-y-1">
-                            {influencers.map((influencer) => {
-                              const id = influencer._id || influencer.id;
-                              const isSelected = formData.postUpInfluencers.includes(id);
-                              return (
-                                <div
-                                  key={id}
-                                  onClick={() => toggleInfluencer(id)}
-                                  className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-all ${
-                                    isSelected 
-                                      ? 'bg-purple-500/20 border border-purple-500/40' 
-                                      : 'hover:bg-white/5 border border-transparent'
-                                  }`}
-                                >
-                                  <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
-                                    isSelected 
-                                      ? 'bg-purple-500 border-purple-500' 
-                                      : 'border-white/30'
-                                  }`}>
-                                    {isSelected && <CheckCircle className="h-3 w-3 text-white" />}
-                                  </div>
-                                  <img 
-                                    src={influencer.profile_picture || influencer.profilePicture || `https://ui-avatars.com/api/?name=${encodeURIComponent(influencer.name)}&background=6366f1&color=fff`}
-                                    alt={influencer.name}
-                                    className="w-8 h-8 rounded-full object-cover border border-white/20"
-                                  />
-                                  <div className="flex-1 min-w-0">
-                                    <div className="text-sm text-white font-medium truncate">{influencer.name}</div>
-                                    <div className="text-xs text-white/50 truncate">
-                                      {influencer.platform} • @{influencer.handle || influencer.username}
-                                    </div>
-                                  </div>
-                                  <div className="text-xs text-purple-300 font-medium">
-                                    {influencer.followers ? `${(influencer.followers / 1000).toFixed(1)}K` : ''}
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                          
-                          {formData.postUpInfluencers.length > 0 && (
-                            <div className="flex flex-wrap gap-1.5">
-                              {getSelectedInfluencerNames().map((name, idx) => (
-                                <span key={idx} className="px-2 py-1 rounded-full bg-purple-500/20 text-purple-200 text-xs font-medium">
-                                  {name}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Content URL Input */}
-                    <div className="space-y-2">
-                      <Label className="text-white/70 text-xs">Content URL to Repost</Label>
-                      <div className="relative">
-                        <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-purple-300/50" />
-                        <Input
-                          type="url"
-                          placeholder="https://instagram.com/p/..."
-                          value={formData.postUpContentUrl}
-                          onChange={(e) => updateField('postUpContentUrl', e.target.value)}
-                          className="pl-9 bg-white/5 border-purple-500/20 text-white placeholder:text-white/30 focus:border-purple-500 focus:ring-purple-500/20"
-                        />
-                      </div>
-                      <p className="text-xs text-purple-200/50">
-                        Paste the Instagram/Facebook post URL for influencers to share
-                      </p>
-                    </div>
-
-                    {formData.postUpInfluencers.length > 0 && formData.postUpContentUrl && (
-                      <div className="flex items-center gap-2 p-2 rounded-lg bg-green-500/10 border border-green-500/30">
-                        <CheckCircle className="h-4 w-4 text-green-400" />
-                        <span className="text-xs text-green-300">
-                          {formData.postUpInfluencers.length} influencer{formData.postUpInfluencers.length > 1 ? 's' : ''} will receive this content
-                        </span>
-                      </div>
-                    )}
+                    ... Post Up content hidden for Meta review ...
                   </div>
+                  END TEMPORARILY HIDDEN */}
 
                   <div className="space-y-2">
                     <Label className="text-white/80 text-sm">Special Ad Category</Label>
@@ -776,14 +684,14 @@ export default function MetaAdsGlobePage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-white/80 text-sm">Budget Amount (USD) *</Label>
+                    <Label className="text-white/80 text-sm">Budget Amount (NGN) *</Label>
                     <div className="relative">
-                      <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 font-medium text-sm">₦</span>
                       <Input
                         type="number"
                         min="1"
-                        step="0.01"
-                        placeholder="50.00"
+                        step="1"
+                        placeholder="50000"
                         value={formData.budgetAmount}
                         onChange={(e) => updateField('budgetAmount', e.target.value)}
                         className="pl-9 bg-white/5 border-white/10 text-white placeholder:text-white/30"
@@ -1009,7 +917,7 @@ export default function MetaAdsGlobePage() {
                       <div className="flex justify-between">
                         <span className="text-white/60">Budget:</span>
                         <span className="font-medium">
-                          ${(formData.budgetType === 'daily' ? submittedData?.adSet?.daily_budget : submittedData?.adSet?.lifetime_budget) / 100}
+                          ₦{(formData.budgetType === 'daily' ? submittedData?.adSet?.daily_budget : submittedData?.adSet?.lifetime_budget) / 100}
                           {formData.budgetType === 'daily' ? '/day' : ' total'}
                         </span>
                       </div>
@@ -1025,7 +933,7 @@ export default function MetaAdsGlobePage() {
                   </Card>
                 </div>
 
-                {/* Post Up Summary */}
+                {/* TEMPORARILY HIDDEN FOR META REVIEW - Post Up Summary
                 {submittedData?.postUp?.enabled && (
                   <div>
                     <h3 className="font-semibold text-sm text-purple-400 uppercase tracking-wide mb-2 flex items-center gap-2">
@@ -1060,6 +968,7 @@ export default function MetaAdsGlobePage() {
                     </Card>
                   </div>
                 )}
+                END TEMPORARILY HIDDEN */}
 
                 <div>
                   <h3 className="font-semibold text-sm text-white/60 uppercase tracking-wide mb-2">API Payload</h3>
