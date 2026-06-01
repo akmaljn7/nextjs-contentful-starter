@@ -289,6 +289,8 @@ export default function MetaAdsGlobePage() {
     try {
       // Use Facebook Login for Business with config_id
       window.FB.login(function(response) {
+        console.log('FB Login Response:', response);
+        
         if (response.authResponse) {
           // Successfully logged in - get user info
           window.FB.api('/me', { fields: 'name,email,picture.width(100)' }, function(userInfo) {
@@ -329,9 +331,7 @@ export default function MetaAdsGlobePage() {
           }
         }
       }, { 
-        config_id: configId,
-        response_type: 'code',
-        override_default_response_type: true
+        config_id: configId
       });
     } catch (error) {
       console.error('Facebook login error:', error);
