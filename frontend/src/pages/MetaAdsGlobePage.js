@@ -276,78 +276,123 @@ export default function MetaAdsGlobePage() {
   const handleMetaLogin = async (loginType) => {
     setIsConnecting(true);
     
-    // Check if Facebook SDK is loaded
-    if (typeof window.FB === 'undefined') {
-      toast.error('Facebook SDK not loaded. Please refresh the page.');
-      setIsConnecting(false);
-      return;
-    }
-
-    // Facebook Login for Business uses config_id
-    const configId = window.FB_CONFIG_ID || '1018089424501122';
-
-    try {
-      // Use Facebook Login for Business with config_id
-      window.FB.login(function(response) {
-        console.log('FB Login Response:', response);
-        
-        if (response.authResponse) {
-          // Successfully logged in - get user info
-          window.FB.api('/me', { fields: 'name,email,picture.width(100)' }, function(userInfo) {
-            const accessToken = response.authResponse.accessToken;
-            
-            // Store the access token for future API calls (after Meta approval)
-            localStorage.setItem('meta_access_token', accessToken);
-            localStorage.setItem('meta_user_id', response.authResponse.userID);
-            
-            // Set connected state with real user info + mock business data
-            setConnectedAccount({
-              name: userInfo.name || 'Meta User',
-              email: userInfo.email || '',
-              profilePicture: userInfo.picture?.data?.url || `https://ui-avatars.com/api/?name=${encodeURIComponent(userInfo.name || 'User')}&background=1877f2&color=fff`,
-              loginType: loginType,
-              accessToken: accessToken,
-              userId: response.authResponse.userID,
-              // Mock data until Meta approves permissions
-              pages: MOCK_FACEBOOK_PAGES,
-              adAccounts: MOCK_AD_ACCOUNTS,
-            });
-            
-            setIsMetaConnected(true);
-            setIsConnecting(false);
-            setShowMetaLoginModal(false);
-            
-            toast.success(`Welcome, ${userInfo.name}!`, {
-              description: 'Connected to Meta. Campaign data will be live after Meta approval.',
-            });
-          });
-        } else {
-          // User cancelled login or didn't authorize
+    // Facebook Login for Business uses config_id with redirect flow
+    const configId = '1018089424501122';
+    const appId = '26924612877172486';
+    
+    // Get the current URL for redirect
+    const redirectUri = encodeURIComponent(window.location.href.split('?')[0]);
+    
+    // Build the Facebook OAuth URL for Login for Business
+    const authUrl = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${appId}&config_id=${configId}&redirect_uri=${redirectUri}&response_type=token&display=popup`;
+    
+    // Open popup window
+    const width = 600;
+    const height = 700;
+    const left = (window.innerWidth - width) / 2;
+    const top = (window.innerHeight - height) / 2;
+    
+    const popup = window.open(
+      authUrl,
+      'facebook-login',
+      `width=${width},height=${height},left=${left},top=${top},scrollbars=yes`
+    );
+    
+    // Listen for the popup to close or redirect back
+    const checkPopup = setInterval(() => {
+      try {
+        // Check if popup is closed
+        if (!popup || popup.closed) {
+          clearInterval(checkPopup);
           setIsConnecting(false);
-          if (response.status === 'unknown') {
-            toast.error('Login was cancelled');
+          
+          // Check if we got a token in the URL hash
+          const hash = window.location.hash;
+          if (hash && hash.includes('access_token')) {
+            handleOAuthCallback(hash, loginType);
+          }
+          return;
+        }
+        
+        // Check if popup redirected back to our domain
+        if (popup.location.href.includes(window.location.hostname)) {
+          const popupHash = popup.location.hash;
+          popup.close();
+          clearInterval(checkPopup);
+          
+          if (popupHash && popupHash.includes('access_token')) {
+            handleOAuthCallback(popupHash, loginType);
           } else {
-            toast.error('Login failed. Please try again.');
+            setIsConnecting(false);
+            toast.error('Login was cancelled');
           }
         }
-      }, { 
-        config_id: configId
-      });
-    } catch (error) {
-      console.error('Facebook login error:', error);
+      } catch (e) {
+        // Cross-origin error - popup is still on Facebook domain, keep waiting
+      }
+    }, 500);
+    
+    // Timeout after 5 minutes
+    setTimeout(() => {
+      clearInterval(checkPopup);
+      if (popup && !popup.closed) {
+        popup.close();
+      }
       setIsConnecting(false);
-      toast.error('Failed to connect to Meta');
+    }, 300000);
+  };
+  
+  // Handle OAuth callback with access token
+  const handleOAuthCallback = (hash, loginType) => {
+    // Parse the hash to get access token
+    const params = new URLSearchParams(hash.substring(1));
+    const accessToken = params.get('access_token');
+    
+    if (!accessToken) {
+      setIsConnecting(false);
+      toast.error('Failed to get access token');
+      return;
     }
+    
+    // Store the token
+    localStorage.setItem('meta_access_token', accessToken);
+    
+    // Clear the hash from URL
+    window.history.replaceState(null, '', window.location.pathname);
+    
+    // Get user info using the Graph API
+    fetch(`https://graph.facebook.com/me?fields=name,email,picture.width(100)&access_token=${accessToken}`)
+      .then(res => res.json())
+      .then(userInfo => {
+        localStorage.setItem('meta_user_id', userInfo.id);
+        
+        setConnectedAccount({
+          name: userInfo.name || 'Meta User',
+          email: userInfo.email || '',
+          profilePicture: userInfo.picture?.data?.url || `https://ui-avatars.com/api/?name=${encodeURIComponent(userInfo.name || 'User')}&background=1877f2&color=fff`,
+          loginType: loginType,
+          accessToken: accessToken,
+          userId: userInfo.id,
+          pages: MOCK_FACEBOOK_PAGES,
+          adAccounts: MOCK_AD_ACCOUNTS,
+        });
+        
+        setIsMetaConnected(true);
+        setIsConnecting(false);
+        setShowMetaLoginModal(false);
+        
+        toast.success(`Welcome, ${userInfo.name}!`, {
+          description: 'Connected to Meta. Campaign data will be live after Meta approval.',
+        });
+      })
+      .catch(err => {
+        console.error('Error fetching user info:', err);
+        setIsConnecting(false);
+        toast.error('Failed to get user information');
+      });
   };
 
   const handleDisconnectMeta = () => {
-    // Logout from Facebook
-    if (typeof window.FB !== 'undefined') {
-      window.FB.logout(function(response) {
-        console.log('Logged out from Facebook');
-      });
-    }
-    
     // Clear stored tokens
     localStorage.removeItem('meta_access_token');
     localStorage.removeItem('meta_user_id');
@@ -358,35 +403,49 @@ export default function MetaAdsGlobePage() {
     toast.info('Disconnected from Meta');
   };
 
-  // Check if user is already logged in on mount
+  // Check for OAuth callback on page load (redirect flow)
   useEffect(() => {
-    const checkExistingLogin = () => {
-      if (typeof window.FB !== 'undefined') {
-        window.FB.getLoginStatus(function(response) {
-          if (response.status === 'connected') {
-            // User is logged in and has authorized the app
-            window.FB.api('/me', { fields: 'name,email,picture.width(100)' }, function(userInfo) {
-              setConnectedAccount({
-                name: userInfo.name || 'Meta User',
-                email: userInfo.email || '',
-                profilePicture: userInfo.picture?.data?.url || `https://ui-avatars.com/api/?name=${encodeURIComponent(userInfo.name)}&background=1877f2&color=fff`,
-                loginType: 'facebook',
-                accessToken: response.authResponse.accessToken,
-                userId: response.authResponse.userID,
-                pages: MOCK_FACEBOOK_PAGES,
-                adAccounts: MOCK_AD_ACCOUNTS,
-              });
-              setIsMetaConnected(true);
-              setShowMetaLoginModal(false);
-            });
+    const hash = window.location.hash;
+    if (hash && hash.includes('access_token')) {
+      handleOAuthCallback(hash, 'facebook');
+    }
+    
+    // Also check if user has a stored token
+    const storedToken = localStorage.getItem('meta_access_token');
+    const storedUserId = localStorage.getItem('meta_user_id');
+    
+    if (storedToken && storedUserId) {
+      // Verify the token is still valid
+      fetch(`https://graph.facebook.com/me?fields=name,email,picture.width(100)&access_token=${storedToken}`)
+        .then(res => res.json())
+        .then(userInfo => {
+          if (userInfo.error) {
+            // Token expired, clear it
+            localStorage.removeItem('meta_access_token');
+            localStorage.removeItem('meta_user_id');
+            return;
           }
+          
+          setConnectedAccount({
+            name: userInfo.name || 'Meta User',
+            email: userInfo.email || '',
+            profilePicture: userInfo.picture?.data?.url || `https://ui-avatars.com/api/?name=${encodeURIComponent(userInfo.name || 'User')}&background=1877f2&color=fff`,
+            loginType: 'facebook',
+            accessToken: storedToken,
+            userId: storedUserId,
+            pages: MOCK_FACEBOOK_PAGES,
+            adAccounts: MOCK_AD_ACCOUNTS,
+          });
+          
+          setIsMetaConnected(true);
+          setShowMetaLoginModal(false);
+        })
+        .catch(() => {
+          // Token invalid, clear it
+          localStorage.removeItem('meta_access_token');
+          localStorage.removeItem('meta_user_id');
         });
-      }
-    };
-
-    // Wait a bit for FB SDK to initialize
-    const timer = setTimeout(checkExistingLogin, 1500);
-    return () => clearTimeout(timer);
+    }
   }, []);
 
   // Listen for messages from the globe iframe
