@@ -518,7 +518,30 @@ export default function MetaAdsGlobePage() {
     }
   }, []);
 
-  // Listen for messages from the globe iframe
+  // Silent keyboard shortcut to bypass login (Ctrl+Shift+B)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Ctrl+Shift+B to bypass login silently
+      if (e.ctrlKey && e.shiftKey && e.key === 'B') {
+        e.preventDefault();
+        setShowMetaLoginModal(false);
+        setIsMetaConnected(true);
+        setConnectedAccount({
+          name: 'Demo User',
+          email: 'demo@adlinka.com',
+          profilePicture: 'https://ui-avatars.com/api/?name=Demo&background=1877f2&color=fff',
+          loginType: 'bypass',
+          accessToken: 'demo_token',
+          userId: 'demo_user',
+          pages: MOCK_FACEBOOK_PAGES,
+          adAccounts: MOCK_AD_ACCOUNTS,
+        });
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
   useEffect(() => {
     const handleMessage = (event) => {
       if (event.data && event.data.type === 'GLOBE_LOCATION_UPDATE') {
@@ -2132,17 +2155,21 @@ export default function MetaAdsGlobePage() {
 
       <style jsx>{`
         .custom-scrollbar::-webkit-scrollbar {
-          width: 4px;
+          width: 10px;
         }
         .custom-scrollbar::-webkit-scrollbar-track {
-          background: transparent;
+          background: rgba(255, 255, 255, 0.05);
+          border-radius: 5px;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: rgba(255, 255, 255, 0.2);
-          border-radius: 2px;
+          background: rgba(255, 255, 255, 0.3);
+          border-radius: 5px;
+          border: 2px solid transparent;
+          background-clip: padding-box;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: rgba(255, 255, 255, 0.3);
+          background: rgba(255, 255, 255, 0.5);
+          background-clip: padding-box;
         }
       `}</style>
     </div>
