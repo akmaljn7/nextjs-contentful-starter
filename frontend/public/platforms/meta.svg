@@ -1,0 +1,5 @@
+<svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M24 4C12.954 4 4 12.954 4 24s8.954 20 20 20 20-8.954 20-20S35.046 4 24 4z" fill="#0668E1"/>
+  <path d="M30.668 13.5c-3.504 0-5.502 2.496-6.668 4.5-1.166-2.004-3.164-4.5-6.668-4.5C13.164 13.5 10 17.164 10 21.5c0 7.5 14 15 14 15s14-7.5 14-15c0-4.336-3.164-8-7.332-8z" fill="white" fill-opacity="0"/>
+  <text x="24" y="30" font-family="Arial Black, Arial" font-size="16" font-weight="900" fill="white" text-anchor="middle">M</text>
+</svg>
