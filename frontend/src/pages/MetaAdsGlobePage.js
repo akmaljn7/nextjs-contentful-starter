@@ -780,6 +780,76 @@ export default function MetaAdsGlobePage() {
         </button>
       )}
 
+      {/* Floating Platform Selector */}
+      {sidebarOpen && showPlatformBar && (
+        <div className="absolute right-0 top-[70px] w-1/2 z-30 px-4">
+          <div className="bg-slate-800/95 backdrop-blur-lg rounded-2xl border border-white/10 shadow-2xl overflow-hidden">
+            {/* Collapse Handle */}
+            <button 
+              onClick={() => setShowPlatformBar(false)}
+              className="w-full flex justify-center py-2 hover:bg-white/5 transition-colors"
+            >
+              <ChevronUp className="h-5 w-5 text-white/40" />
+            </button>
+            
+            {/* Header */}
+            <div className="text-center pb-3 px-4">
+              <h2 className="text-white font-bold text-base">PUBLISH ACROSS PLATFORMS</h2>
+              <p className="text-white/50 text-xs mt-1">Deploy your campaign to multiple platforms</p>
+            </div>
+            
+            {/* Platform Icons */}
+            <div className="flex justify-center gap-4 px-6 pb-5">
+              {AD_PLATFORMS.map((platform) => {
+                const isActive = activePlatform === platform.id;
+                const isEnabled = platformSettings[platform.id]?.enabled;
+                const isConnected = platform.id === 'meta' ? isMetaConnected : platformSettings[platform.id]?.connected;
+                
+                return (
+                  <button
+                    key={platform.id}
+                    onClick={() => {
+                      if (isEnabled) {
+                        setActivePlatform(platform.id);
+                      } else {
+                        toast.info(`Enable ${platform.name} in Settings to use it`);
+                      }
+                    }}
+                    className={`flex flex-col items-center gap-2 p-3 rounded-2xl transition-all ${
+                      isActive 
+                        ? 'bg-white/10 ring-2 ring-white/30 scale-105'
+                        : isEnabled
+                          ? 'hover:bg-white/5'
+                          : 'opacity-30'
+                    }`}
+                  >
+                    <div className="relative">
+                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center overflow-hidden ${
+                        isActive ? 'ring-2 ring-white/40' : ''
+                      }`} style={{ backgroundColor: platform.id === 'meta' ? '#0668E1' : platform.id === 'tiktok' ? '#000' : platform.id === 'snapchat' ? '#FFFC00' : platform.id === 'youtube' ? '#FF0000' : '#fff' }}>
+                        <img 
+                          src={platform.icon} 
+                          alt={platform.name}
+                          className="w-10 h-10"
+                        />
+                      </div>
+                      {isConnected && (
+                        <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-slate-800 flex items-center justify-center">
+                          <CheckCircle className="h-2.5 w-2.5 text-white" />
+                        </div>
+                      )}
+                    </div>
+                    <span className={`text-xs font-medium ${isActive ? 'text-white' : 'text-white/60'}`}>
+                      {platform.name}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Sidebar - Right Side (Fixed 50% width) */}
       {sidebarOpen && (
         <div 
@@ -792,106 +862,49 @@ export default function MetaAdsGlobePage() {
           
           {/* Content */}
           <div className="relative flex flex-col h-full">
-            {/* Platform Selector Bar */}
-            <div className="px-4 py-3 border-b border-white/10 bg-gradient-to-r from-slate-800/90 to-slate-900/90">
-              <div className="flex items-center justify-between mb-2">
-                <button
-                  onClick={() => setShowPlatformBar(!showPlatformBar)}
-                  className="flex items-center gap-2 text-xs text-white/60 hover:text-white transition-colors"
-                >
-                  <span className="uppercase tracking-wider font-semibold">Publish Across Platforms</span>
-                  <span className="px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 text-xs">
-                    {getActivePlatformsCount()} Active
-                  </span>
-                  {showPlatformBar ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-                </button>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  onClick={() => navigate('/admin')}
-                  className="h-7 w-7 text-white/50 hover:text-white hover:bg-white/10"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                </Button>
-              </div>
-              
-              {showPlatformBar && (
-                <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
-                  {AD_PLATFORMS.map((platform) => {
-                    const isActive = activePlatform === platform.id;
-                    const isEnabled = platformSettings[platform.id]?.enabled;
-                    const isConnected = platform.id === 'meta' ? isMetaConnected : platformSettings[platform.id]?.connected;
-                    
-                    return (
-                      <button
-                        key={platform.id}
-                        onClick={() => {
-                          if (isEnabled) {
-                            setActivePlatform(platform.id);
-                          } else {
-                            toast.info(`Enable ${platform.name} in Settings to use it`);
-                          }
-                        }}
-                        className={`relative flex flex-col items-center gap-1 p-2 rounded-xl transition-all min-w-[70px] ${
-                          isActive 
-                            ? `bg-gradient-to-br ${platform.bgColor} ${platform.borderColor} border-2 shadow-lg`
-                            : isEnabled
-                              ? 'bg-white/5 border border-white/10 hover:bg-white/10'
-                              : 'bg-white/5 border border-white/5 opacity-40'
-                        }`}
-                      >
-                        <div className="relative">
-                          <img 
-                            src={platform.icon} 
-                            alt={platform.name}
-                            className="w-8 h-8 rounded-lg"
-                          />
-                          {isConnected && (
-                            <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-slate-900" />
-                          )}
-                        </div>
-                        <span className={`text-[10px] font-medium ${isActive ? 'text-white' : 'text-white/60'}`}>
-                          {platform.name}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
             {/* Header */}
             <div className="px-5 py-3 border-b border-white/10 bg-gradient-to-r from-blue-600/10 to-purple-600/10">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div>
-                    <h1 className="text-lg font-bold text-white flex items-center gap-2">
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    onClick={() => navigate('/admin')}
+                    className="h-8 w-8 text-white/70 hover:text-white hover:bg-white/10"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                  </Button>
+                  <div className="flex items-center gap-3">
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center`} style={{ backgroundColor: AD_PLATFORMS.find(p => p.id === activePlatform)?.color }}>
                       <img 
                         src={AD_PLATFORMS.find(p => p.id === activePlatform)?.icon}
                         alt={activePlatform}
-                        className="w-7 h-7 rounded-lg"
+                        className="w-6 h-6"
                       />
-                      {getPlatformName(activePlatform)} Campaign
-                    </h1>
-                    <p className="text-xs text-blue-200/60">
-                      {AD_PLATFORMS.find(p => p.id === activePlatform)?.description}
-                    </p>
+                    </div>
+                    <div>
+                      <h1 className="text-base font-bold text-white">
+                        {getPlatformName(activePlatform)} Campaign
+                      </h1>
+                      <p className="text-xs text-white/50">
+                        {AD_PLATFORMS.find(p => p.id === activePlatform)?.description}
+                      </p>
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   {/* Connected Account Indicator */}
                   {activePlatform === 'meta' && isMetaConnected && connectedAccount && (
-                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-green-500/10 border border-green-500/30">
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/10">
                       <img 
                         src={connectedAccount.profilePicture} 
                         alt={connectedAccount.name}
-                        className="w-5 h-5 rounded-full border border-green-500/50"
+                        className="w-5 h-5 rounded-full"
                       />
-                      <span className="text-xs text-green-300 font-medium max-w-[100px] truncate">{connectedAccount.name}</span>
-                      <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                      <span className="text-xs text-white/80 font-medium max-w-[100px] truncate">{connectedAccount.name}</span>
                       <button
                         onClick={handleDisconnectMeta}
-                        className="ml-1 p-1 rounded hover:bg-white/10 text-white/50 hover:text-white"
+                        className="p-0.5 rounded-full hover:bg-white/10 text-white/50 hover:text-white"
                         title="Disconnect"
                       >
                         <X className="h-3 w-3" />
@@ -908,6 +921,17 @@ export default function MetaAdsGlobePage() {
                   </Button>
                 </div>
               </div>
+              
+              {/* Platform Bar Toggle */}
+              {!showPlatformBar && (
+                <button 
+                  onClick={() => setShowPlatformBar(true)}
+                  className="mt-2 w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-white/60 hover:text-white"
+                >
+                  <span className="text-xs font-medium">Show Platforms</span>
+                  <ChevronDown className="h-3 w-3" />
+                </button>
+              )}
             </div>
 
             {/* Section Navigation */}
