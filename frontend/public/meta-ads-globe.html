@@ -295,6 +295,7 @@
     <div class="sec">Quick Search</div>
     <div class="chips">
       <div class="chip" onclick="searchQuick('Nigeria')">🇳🇬 Nigeria</div>
+      <div class="chip" onclick="searchQuick('Federal Capital Territory Nigeria')">Abuja/FCT</div>
       <div class="chip" onclick="searchQuick('Kano State Nigeria')">Kano State</div>
       <div class="chip" onclick="searchQuick('Tarauni Kano Nigeria')">Tarauni</div>
       <div class="chip" onclick="searchQuick('Nassarawa Kano Nigeria')">Nassarawa</div>
@@ -2232,8 +2233,47 @@ async function bootstrap(){
 
   /* ════ Main Search Function ════ */
   async function searchLocation(queryOverride) {
-    const query = (queryOverride || $('search').value || '').trim();
+    let query = (queryOverride || $('search').value || '').trim();
     if (!query) { setStatus('Type a location first.'); return; }
+
+    // Normalize the query for Nigerian states and FCT
+    const queryLower = query.toLowerCase();
+    
+    // Handle FCT/Abuja specially
+    if (queryLower === 'fct' || queryLower === 'abuja' || queryLower === 'federal capital territory') {
+      query = 'Federal Capital Territory Nigeria';
+    }
+    // If it's just a state name without "state" or "nigeria", add them
+    else if (!queryLower.includes('nigeria')) {
+      const nigerianStates = [
+        'abia', 'adamawa', 'akwa ibom', 'anambra', 'bauchi', 'bayelsa', 'benue', 'borno',
+        'cross river', 'delta', 'ebonyi', 'edo', 'ekiti', 'enugu', 'gombe', 'imo',
+        'jigawa', 'kaduna', 'kano', 'katsina', 'kebbi', 'kogi', 'kwara', 'lagos',
+        'nasarawa', 'niger', 'ogun', 'ondo', 'osun', 'oyo', 'plateau', 'rivers',
+        'sokoto', 'taraba', 'yobe', 'zamfara'
+      ];
+      
+      // Check if query matches a state name
+      const matchedState = nigerianStates.find(state => 
+        queryLower === state || 
+        queryLower === state + ' state' ||
+        queryLower.startsWith(state + ' ')
+      );
+      
+      if (matchedState) {
+        // If just state name, add "State Nigeria"
+        if (queryLower === matchedState) {
+          query = matchedState.charAt(0).toUpperCase() + matchedState.slice(1) + ' State Nigeria';
+        } else if (!queryLower.includes('state')) {
+          query = query + ' Nigeria';
+        } else {
+          query = query + ' Nigeria';
+        }
+      } else {
+        // For LGAs or other locations, just add Nigeria
+        query = query + ' Nigeria';
+      }
+    }
 
     setStatus(`Searching for "${query}"...`);
     clearAll();
