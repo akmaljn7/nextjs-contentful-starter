@@ -17,6 +17,9 @@ export const InfluencerCard: React.FC<InfluencerCardProps> = ({
   influencer,
   onPress,
 }) => {
+  // Check if influencer is busy
+  const isBusy = influencer.is_busy === true;
+
   // Get display price - from packages or price_per_post
   const getDisplayPrice = () => {
     if (influencer.packages && influencer.packages.length > 0) {
@@ -28,49 +31,79 @@ export const InfluencerCard: React.FC<InfluencerCardProps> = ({
   // Use profile_image_url or image_url
   const imageUrl = influencer.profile_image_url || influencer.image_url;
 
+  const handlePress = () => {
+    if (isBusy) {
+      Alert.alert(
+        'Influencer Unavailable',
+        `${influencer.name} is currently busy and not accepting new orders.`,
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+    onPress();
+  };
+
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.9}>
-      <Card variant="elevated" padding="none" style={styles.card}>
+    <TouchableOpacity onPress={handlePress} activeOpacity={isBusy ? 1 : 0.9}>
+      <Card variant="elevated" padding="none" style={[styles.card, isBusy && styles.cardBusy]}>
         {/* Image */}
         <View style={styles.imageContainer}>
           {imageUrl ? (
-            <Image source={{ uri: imageUrl }} style={styles.image} />
+            <Image 
+              source={{ uri: imageUrl }} 
+              style={[styles.image, isBusy && styles.imageBusy]} 
+              blurRadius={isBusy ? 4 : 0}
+            />
           ) : (
-            <View style={styles.imagePlaceholder}>
+            <View style={[styles.imagePlaceholder, isBusy && styles.imageBusy]}>
               <Ionicons name="person-outline" size={40} color={Colors.gray[400]} />
             </View>
           )}
-          {influencer.verified && (
+          
+          {/* Busy Overlay */}
+          {isBusy && (
+            <View style={styles.busyOverlay}>
+              <View style={styles.busyBadge}>
+                <Ionicons name="time" size={20} color={Colors.white} />
+                <Text style={styles.busyText}>BUSY</Text>
+              </View>
+              <Text style={styles.busySubtext}>Currently unavailable</Text>
+            </View>
+          )}
+
+          {influencer.verified && !isBusy && (
             <View style={styles.verifiedBadge}>
               <Ionicons name="checkmark-circle" size={20} color={Colors.info} />
             </View>
           )}
-          <TouchableOpacity 
-            style={styles.platformBadge}
-            onPress={(e) => {
-              e.stopPropagation();
-              if (influencer.profile_link) {
-                Linking.openURL(influencer.profile_link).catch(() => {
-                  Alert.alert('Error', 'Could not open the profile link');
-                });
-              }
-            }}
-            disabled={!influencer.profile_link}
-            activeOpacity={influencer.profile_link ? 0.7 : 1}
-          >
-            <Ionicons
-              name={getPlatformIcon(influencer.platform) as any}
-              size={16}
-              color={Colors.white}
-            />
-            {influencer.profile_link && (
-              <Ionicons name="open-outline" size={10} color={Colors.white} style={{ marginLeft: 2 }} />
-            )}
-          </TouchableOpacity>
+          {!isBusy && (
+            <TouchableOpacity 
+              style={styles.platformBadge}
+              onPress={(e) => {
+                e.stopPropagation();
+                if (influencer.profile_link) {
+                  Linking.openURL(influencer.profile_link).catch(() => {
+                    Alert.alert('Error', 'Could not open the profile link');
+                  });
+                }
+              }}
+              disabled={!influencer.profile_link}
+              activeOpacity={influencer.profile_link ? 0.7 : 1}
+            >
+              <Ionicons
+                name={getPlatformIcon(influencer.platform) as any}
+                size={16}
+                color={Colors.white}
+              />
+              {influencer.profile_link && (
+                <Ionicons name="open-outline" size={10} color={Colors.white} style={{ marginLeft: 2 }} />
+              )}
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Content */}
-        <View style={styles.content}>
+        <View style={[styles.content, isBusy && styles.contentBusy]}>
           <Text style={styles.name} numberOfLines={1}>{influencer.name}</Text>
           <Text style={styles.handle} numberOfLines={1}>@{influencer.handle}</Text>
           
@@ -103,6 +136,9 @@ const styles = StyleSheet.create({
   card: {
     marginBottom: 16,
   },
+  cardBusy: {
+    opacity: 0.9,
+  },
   imageContainer: {
     height: 180,
     position: 'relative',
@@ -113,6 +149,9 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
   },
+  imageBusy: {
+    opacity: 0.6,
+  },
   imagePlaceholder: {
     width: '100%',
     height: '100%',
@@ -121,6 +160,38 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
+  },
+  busyOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  busyBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F97316',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 6,
+  },
+  busyText: {
+    color: Colors.white,
+    fontSize: Fonts.size.lg,
+    fontWeight: Fonts.weight.bold,
+  },
+  busySubtext: {
+    color: Colors.white,
+    fontSize: Fonts.size.sm,
+    marginTop: 8,
+    fontWeight: Fonts.weight.medium,
   },
   verifiedBadge: {
     position: 'absolute',
@@ -140,6 +211,9 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
+  },
+  contentBusy: {
+    opacity: 0.6,
   },
   name: {
     fontSize: Fonts.size.lg,

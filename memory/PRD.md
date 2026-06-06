@@ -20,14 +20,13 @@ Create a polished, conversion-focused, responsive marketplace website and cross-
 
 ## Current Status (December 2025)
 
-### Meta App Review (In Progress)
-- Temporary changes applied to hide simulated data for Meta review screencast
-- See `/app/META_REVIEW_REVERT_GUIDE.md` for revert instructions
+### Meta App Review
 - Budget currency changed from USD to Naira (NGN) - PERMANENT
 - Added 3 new features for Meta permissions:
   1. "My Campaigns" tab (ads_read)
   2. Facebook Page selector (pages_show_list)
   3. Ad Account selector (business_management)
+- Real Facebook Business Login SDK with redirect-based OAuth (config_id: 1018089424501122)
 
 ### Completed Features ✅
 - Full web platform with public/authenticated pages
@@ -39,11 +38,17 @@ Create a polished, conversion-focused, responsive marketplace website and cross-
 - Mobile app with Google/Apple Sign-In
 - Push notifications (Expo)
 - Fixed mobile auth bug (WWW redirect stripping headers)
+- **Multi-Platform Ad Publishing UI** (Meta, TikTok, Google, Snapchat, YouTube) with SVG icons
+- **Influencer "Busy" Feature**: Admin toggle, web blur overlay, mobile app blur overlay
+- AdGlobe improvements: Age/Gender/Languages targeting, Buying Type, smart Nigeria search
+- Silent Meta login bypass shortcut: `Ctrl+Shift+B`
 
 ### Mobile App Config (v1.1.7)
 - iOS: bundleIdentifier `com.adlinka.ads`, buildNumber `15`
 - Android: package `com.adlinka.app`, versionCode `13`
 - EAS projectId: `166884d9-115c-4d83-a792-43664e6b47f3`
+- **Dependencies**: expo-blur@15.0.8, expo-font@14.0.12 (SDK 54 compatible)
+- **TypeScript**: All checks passing (18/18 expo-doctor checks pass)
 
 ### In Progress 🟡
 None currently
@@ -61,6 +66,7 @@ None currently
 ## Key DB Schema
 - `orders`: `{ ..., admin_priority: int }`
 - `users`: `{ ..., registration_ip: string }`
+- `influencers`: `{ ..., is_busy: bool }` - Added for influencer availability toggle
 
 ## Critical Notes
 - **Mobile API URL**: Use `https://adlinka.com/api` (NOT www. - causes 308 redirect that strips auth headers)

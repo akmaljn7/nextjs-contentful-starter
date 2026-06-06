@@ -56,6 +56,7 @@ export interface Influencer {
   completion_rate?: number;
   status: string;
   packages?: Package[];
+  is_busy?: boolean;
   created_at: string;
 }
 
