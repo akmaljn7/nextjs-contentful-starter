@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, Search, Star, MapPin } from 'lucide-react';
+import { CheckCircle, Search, Star, MapPin, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 
 export const InfluencersPage = () => {
@@ -102,66 +102,86 @@ export const InfluencersPage = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredInfluencers.map((influencer) => (
-              <Link to={`/influencers/${influencer.id}`} key={influencer.id}>
-                <Card
-                  className="group hover:shadow-lg hover:-translate-y-1 h-full border-2"
-                  data-testid={`influencer-card-${influencer.id}`}
-                >
-                  <CardContent className="p-0">
-                    <div className="relative h-48 overflow-hidden rounded-t-lg bg-gradient-to-br from-blue-100 to-purple-100">
-                      {influencer.image_url && (
-                        <img
-                          src={influencer.image_url}
-                          alt={influencer.name}
-                          className="w-full h-full object-cover object-top"
-                        />
-                      )}
-                      {influencer.verified && (
-                        <Badge className="absolute top-3 right-3 bg-white/90 text-primary border-0">
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          {t('common.verified', language)}
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="p-4 space-y-3">
-                      <div>
-                        <h3 className="text-lg font-bold text-foreground">{influencer.name}</h3>
-                        <p className="text-sm text-muted-foreground">@{influencer.handle}</p>
+            {filteredInfluencers.map((influencer) => {
+              const isBusy = influencer.is_busy;
+              const CardWrapper = isBusy ? 'div' : Link;
+              const cardProps = isBusy 
+                ? { className: 'cursor-not-allowed' }
+                : { to: `/influencers/${influencer.id}` };
+              
+              return (
+                <CardWrapper {...cardProps} key={influencer.id}>
+                  <Card
+                    className={`group h-full border-2 ${isBusy ? 'opacity-80' : 'hover:shadow-lg hover:-translate-y-1'}`}
+                    data-testid={`influencer-card-${influencer.id}`}
+                  >
+                    <CardContent className="p-0">
+                      <div className="relative h-48 overflow-hidden rounded-t-lg bg-gradient-to-br from-blue-100 to-purple-100">
+                        {influencer.image_url && (
+                          <img
+                            src={influencer.image_url}
+                            alt={influencer.name}
+                            className={`w-full h-full object-cover object-top ${isBusy ? 'blur-sm grayscale' : ''}`}
+                          />
+                        )}
+                        {/* Busy Overlay */}
+                        {isBusy && (
+                          <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center">
+                            <div className="bg-orange-500 text-white px-4 py-2 rounded-lg shadow-lg">
+                              <div className="flex items-center gap-2">
+                                <Clock className="h-5 w-5" />
+                                <span className="font-bold text-lg">BUSY</span>
+                              </div>
+                            </div>
+                            <p className="text-white text-sm mt-2 font-medium">Currently unavailable</p>
+                          </div>
+                        )}
+                        {influencer.verified && !isBusy && (
+                          <Badge className="absolute top-3 right-3 bg-white/90 text-primary border-0">
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            {t('common.verified', language)}
+                          </Badge>
+                        )}
                       </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <div className="flex items-center space-x-1">
-                          <MapPin className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-muted-foreground">{influencer.location}</span>
-                        </div>
-                        <Badge variant="outline" className="text-xs">
-                          {influencer.platform}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center justify-between">
+                      <div className={`p-4 space-y-3 ${isBusy ? 'opacity-60' : ''}`}>
                         <div>
-                          <p className="text-xs text-muted-foreground">Followers</p>
-                          <p className="text-sm font-semibold">{formatNumber(influencer.followers)}</p>
+                          <h3 className="text-lg font-bold text-foreground">{influencer.name}</h3>
+                          <p className="text-sm text-muted-foreground">@{influencer.handle}</p>
                         </div>
-                        <div className="text-right">
-                          <p className="text-xs text-muted-foreground">{t('common.starting', language)}</p>
-                          <p className="text-lg font-bold text-primary">{formatPrice(influencer.price_per_post)}</p>
+                        <div className="flex items-center justify-between text-sm">
+                          <div className="flex items-center space-x-1">
+                            <MapPin className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-muted-foreground">{influencer.location}</span>
+                          </div>
+                          <Badge variant="outline" className="text-xs">
+                            {influencer.platform}
+                          </Badge>
                         </div>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-xs text-muted-foreground">Followers</p>
+                            <p className="text-sm font-semibold">{formatNumber(influencer.followers)}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xs text-muted-foreground">{t('common.starting', language)}</p>
+                            <p className="text-lg font-bold text-primary">{formatPrice(influencer.price_per_post)}</p>
+                          </div>
+                        </div>
+                        {influencer.rating > 0 && (
+                          <div className="flex items-center space-x-1 pt-2 border-t">
+                            <Star className="h-4 w-4 fill-amber-500 text-amber-500" />
+                            <span className="text-sm font-medium">{influencer.rating}</span>
+                            <span className="text-xs text-muted-foreground">
+                              ({influencer.total_reviews} {t('common.reviews', language)})
+                            </span>
+                          </div>
+                        )}
                       </div>
-                      {influencer.rating > 0 && (
-                        <div className="flex items-center space-x-1 pt-2 border-t">
-                          <Star className="h-4 w-4 fill-amber-500 text-amber-500" />
-                          <span className="text-sm font-medium">{influencer.rating}</span>
-                          <span className="text-xs text-muted-foreground">
-                            ({influencer.total_reviews} {t('common.reviews', language)})
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
+                    </CardContent>
+                  </Card>
+                </CardWrapper>
+              );
+            })}
           </div>
         )}
       </div>

@@ -199,6 +199,7 @@ class Influencer(BaseModel):
     response_time: str = "Within 24 hours"
     completion_rate: float = 100.0
     status: str = "pending"  # pending, approved, rejected
+    is_busy: bool = False  # When true, influencer is shown as unavailable
     packages: Optional[List[dict]] = []
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -1861,6 +1862,31 @@ async def get_influencer(influencer_id: str):
         raise HTTPException(status_code=404, detail="Influencer not found")
     
     return influencer
+
+@api_router.post("/admin/influencers/{influencer_id}/toggle-busy")
+async def toggle_influencer_busy(influencer_id: str, current_user: User = Depends(get_current_user)):
+    """Toggle the busy status of an influencer (Admin only)"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    influencer = await db.influencers.find_one({"id": influencer_id})
+    if not influencer:
+        raise HTTPException(status_code=404, detail="Influencer not found")
+    
+    # Toggle the is_busy status
+    new_busy_status = not influencer.get("is_busy", False)
+    
+    await db.influencers.update_one(
+        {"id": influencer_id},
+        {"$set": {"is_busy": new_busy_status}}
+    )
+    
+    return {
+        "success": True,
+        "influencer_id": influencer_id,
+        "is_busy": new_busy_status,
+        "message": f"Influencer marked as {'busy' if new_busy_status else 'available'}"
+    }
 
 # Billboard Routes
 @api_router.post("/billboards", response_model=Billboard)

@@ -55,6 +55,7 @@ import {
   Eye,
   EyeOff,
   User,
+  UserCheck,
   Monitor,
   Film,
   MapPin,
@@ -102,7 +103,7 @@ const AdminSearchBar = ({ value, onChange, placeholder, resultCount, totalCount 
 );
 
 // Sortable Row Component for Influencers
-const SortableInfluencerRow = ({ item, formatPrice, getStatusBadge, toggleVisibility, openEditModal, confirmDelete }) => {
+const SortableInfluencerRow = ({ item, formatPrice, getStatusBadge, toggleVisibility, toggleBusy, openEditModal, confirmDelete }) => {
   const {
     attributes,
     listeners,
@@ -123,7 +124,7 @@ const SortableInfluencerRow = ({ item, formatPrice, getStatusBadge, toggleVisibi
     <tr
       ref={setNodeRef}
       style={style}
-      className={`border-b hover:bg-muted/30 ${item.visible === false ? 'opacity-50 bg-muted/20' : ''}`}
+      className={`border-b hover:bg-muted/30 ${item.visible === false ? 'opacity-50 bg-muted/20' : ''} ${item.is_busy ? 'bg-orange-500/10' : ''}`}
     >
       <td className="py-3 px-2">
         <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded">
@@ -133,7 +134,14 @@ const SortableInfluencerRow = ({ item, formatPrice, getStatusBadge, toggleVisibi
       <td className="py-3 px-2">
         <div className="flex items-center gap-2">
           {item.image_url && (
-            <img src={item.image_url} alt="" className="w-8 h-8 rounded-full object-cover" />
+            <div className="relative">
+              <img src={item.image_url} alt="" className={`w-8 h-8 rounded-full object-cover ${item.is_busy ? 'opacity-50 grayscale' : ''}`} />
+              {item.is_busy && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-[6px] font-bold text-orange-500 bg-white/90 px-1 rounded">BUSY</span>
+                </div>
+              )}
+            </div>
           )}
           <div>
             <p className="font-medium text-sm">{item.name}</p>
@@ -146,7 +154,7 @@ const SortableInfluencerRow = ({ item, formatPrice, getStatusBadge, toggleVisibi
       <td className="py-3 px-2 text-sm font-semibold">{formatPrice(item.price_per_post)}</td>
       <td className="py-3 px-2">{getStatusBadge(item.status)}</td>
       <td className="py-3 px-2">
-        <div className="flex items-center justify-center">
+        <div className="flex items-center justify-center gap-1">
           <Button 
             variant="ghost" 
             size="sm" 
@@ -157,6 +165,19 @@ const SortableInfluencerRow = ({ item, formatPrice, getStatusBadge, toggleVisibi
               <EyeOff className="h-4 w-4 text-muted-foreground" />
             ) : (
               <Eye className="h-4 w-4 text-green-600" />
+            )}
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => toggleBusy(item)}
+            title={item.is_busy ? "Mark as available" : "Mark as busy"}
+            className={item.is_busy ? 'text-orange-500' : ''}
+          >
+            {item.is_busy ? (
+              <Clock className="h-4 w-4" />
+            ) : (
+              <UserCheck className="h-4 w-4 text-muted-foreground" />
             )}
           </Button>
         </div>
@@ -2105,6 +2126,24 @@ export const AdminPanelPage = () => {
     }
   };
 
+  // Toggle busy status for influencers
+  const toggleBusy = async (item) => {
+    try {
+      const response = await api.post(`/admin/influencers/${item.id}/toggle-busy`);
+      
+      if (response.data.success) {
+        // Update local state
+        setInfluencers(prev => prev.map(inf => 
+          inf.id === item.id ? { ...inf, is_busy: response.data.is_busy } : inf
+        ));
+        toast.success(response.data.message);
+      }
+    } catch (error) {
+      toast.error('Failed to toggle busy status');
+      console.error('Toggle busy error:', error);
+    }
+  };
+
   // View order details
   const viewOrderDetails = (order) => {
     setSelectedOrder(order);
@@ -2582,6 +2621,7 @@ export const AdminPanelPage = () => {
                                   formatPrice={formatPrice}
                                   getStatusBadge={getStatusBadge}
                                   toggleVisibility={toggleVisibility}
+                                  toggleBusy={toggleBusy}
                                   openEditModal={openEditModal}
                                   confirmDelete={confirmDelete}
                                 />
