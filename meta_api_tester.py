@@ -30,8 +30,8 @@ from datetime import datetime
 # CONFIGURATION - FILL THESE IN
 # ============================================
 
-ACCESS_TOKEN = "YOUR_ACCESS_TOKEN_HERE"  # Get from Graph API Explorer
-AD_ACCOUNT_ID = "YOUR_AD_ACCOUNT_ID"     # Numeric ID only (e.g., "123456789")
+ACCESS_TOKEN = "EAFZBnyvJCPwYBRkVHwehZCwsdvo64DXxci1kzPywRzPx411DqSPWYCHa4ZAtYUHHZB92MKhi9YdtBbZBUM2UrW1USroVCWJBtwwaKnWBoaVwI9XxozJ6BwZAg7xpI6e3owbgfbjs5nYkbgwpkhZC8wIKMAX6UxE0hJBkAfo5ThUDh1sBWUB8Tc1DhX36reIiwZAS0j4rlyCI0522F5mRgQs8foufSFCYDjyKz6ZAfFOcyHxeZA7U7NdJ4D1ScGKK4BSv1WDrgoNuHjbBNZBKhZArOZCnC7Qc9D5uZAzyCS2wZDZD"
+AD_ACCOUNT_ID = "342828819640091"
 
 # ============================================
 # SETTINGS
