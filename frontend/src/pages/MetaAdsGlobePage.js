@@ -272,6 +272,9 @@ export default function MetaAdsGlobePage() {
   });
   const [showPlatformBar, setShowPlatformBar] = useState(false);  // Hidden for Meta App Review
   
+  // Feature flags for Meta App Review
+  const SHOW_POST_UP_FEATURE = false;  // Hidden for Meta App Review
+  
   // Influencers for Post Up feature
   const [influencers, setInfluencers] = useState([]);
   const [loadingInfluencers, setLoadingInfluencers] = useState(true);
@@ -890,14 +893,7 @@ export default function MetaAdsGlobePage() {
             <div className="px-5 py-3 border-b border-white/10 bg-gradient-to-r from-blue-600/10 to-purple-600/10">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    onClick={() => navigate('/admin')}
-                    className="h-8 w-8 text-white/70 hover:text-white hover:bg-white/10"
-                  >
-                    <ArrowLeft className="h-4 w-4" />
-                  </Button>
+                  {/* Back arrow hidden for Meta App Review */}
                   <div className="flex items-center gap-3">
                     <div className={`w-9 h-9 rounded-xl flex items-center justify-center`} style={{ backgroundColor: '#0668E1' }}>
                       <img 
@@ -1236,7 +1232,8 @@ export default function MetaAdsGlobePage() {
                     <p className="text-xs text-white/40">Auction is recommended for most campaigns</p>
                   </div>
 
-                  {/* Post Up Feature - Influencer Amplification */}
+                  {/* Post Up Feature - Conditionally hidden for Meta App Review */}
+                  {SHOW_POST_UP_FEATURE && (
                   <div className="space-y-3 p-4 rounded-xl bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20">
                     <div className="flex items-center gap-2">
                       <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
@@ -1248,7 +1245,6 @@ export default function MetaAdsGlobePage() {
                       </div>
                     </div>
                     
-                    {/* Influencer Multi-Select */}
                     <div className="space-y-2">
                       <Label className="text-white/70 text-xs">Select Influencers</Label>
                       {loadingInfluencers ? (
@@ -1315,7 +1311,6 @@ export default function MetaAdsGlobePage() {
                       )}
                     </div>
 
-                    {/* Content URL Input */}
                     <div className="space-y-2">
                       <Label className="text-white/70 text-xs">Content URL to Repost</Label>
                       <div className="relative">
@@ -1342,6 +1337,7 @@ export default function MetaAdsGlobePage() {
                       </div>
                     )}
                   </div>
+                  )}
 
                   <div className="space-y-2">
                     <Label className="text-white/80 text-sm">Special Ad Category</Label>
@@ -2097,8 +2093,8 @@ export default function MetaAdsGlobePage() {
                   </Card>
                 </div>
 
-                {/* Post Up Summary */}
-                {submittedData?.postUp?.enabled && (
+                {/* Post Up Summary - Conditionally hidden for Meta App Review */}
+                {SHOW_POST_UP_FEATURE && submittedData?.postUp?.enabled && (
                   <div>
                     <h3 className="font-semibold text-sm text-purple-400 uppercase tracking-wide mb-2 flex items-center gap-2">
                       <Share2 className="h-4 w-4" />
