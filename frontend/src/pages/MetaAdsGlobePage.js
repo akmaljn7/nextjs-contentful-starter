@@ -112,11 +112,10 @@ const CAMPAIGN_OBJECTIVES = [
 
 // Special Ad Categories
 const SPECIAL_AD_CATEGORIES = [
-  { value: 'NONE', label: 'None' },
-  { value: 'HOUSING', label: 'Housing', description: 'Real estate, rentals, mortgages' },
-  { value: 'EMPLOYMENT', label: 'Employment', description: 'Job opportunities, career services' },
-  { value: 'CREDIT', label: 'Credit', description: 'Credit cards, loans, financial services' },
-  { value: 'ISSUES_ELECTIONS_POLITICS', label: 'Social Issues/Politics', description: 'Political ads, social issues' },
+  { value: 'NONE', label: 'None', requiresVerification: false },
+  { value: 'HOUSING', label: 'Housing', description: 'Real estate, rentals, mortgages', requiresVerification: true },
+  { value: 'EMPLOYMENT', label: 'Employment', description: 'Job opportunities, career services', requiresVerification: true },
+  { value: 'ISSUES_ELECTIONS_POLITICS', label: 'Social Issues/Politics', description: 'Political ads, social issues', requiresVerification: true, requiresDisclaimer: true },
 ];
 
 // Call-to-Action Types
@@ -297,6 +296,11 @@ export default function MetaAdsGlobePage() {
   const [isLoadingAdAccounts, setIsLoadingAdAccounts] = useState(false);
   const [isLoadingCampaigns, setIsLoadingCampaigns] = useState(false);
   const [metaApiError, setMetaApiError] = useState(null);
+  
+  // Special Ad Category Verification State
+  const [identityVerificationStatus, setIdentityVerificationStatus] = useState(null); // 'verified', 'pending', 'not_verified'
+  const [disclaimerStatus, setDisclaimerStatus] = useState(null); // 'active', 'pending', 'none'
+  const [isCheckingVerification, setIsCheckingVerification] = useState(false);
 
   // Fetch influencers on mount
   useEffect(() => {
@@ -459,6 +463,103 @@ export default function MetaAdsGlobePage() {
     }
     
     return { pages, accounts };
+  };
+
+  // Check identity verification status for Special Ad Categories
+  const checkIdentityVerification = async (accessToken, adAccountId) => {
+    if (!accessToken || !adAccountId) return null;
+    
+    setIsCheckingVerification(true);
+    try {
+      // Check ad account for any restrictions related to identity verification
+      const response = await fetch(
+        `https://graph.facebook.com/v19.0/${adAccountId}?fields=account_status,disable_reason,funding_source_details,is_personal&access_token=${accessToken}`
+      );
+      const data = await response.json();
+      
+      if (data.error) {
+        console.error('Error checking verification:', data.error);
+        return null;
+      }
+      
+      // Account status 1 = ACTIVE, 2 = DISABLED, 3 = UNSETTLED, etc.
+      // For Special Ad Categories, we need to check if the account is in good standing
+      const isAccountActive = data.account_status === 1;
+      
+      // Check Page verification status for political ads
+      // This requires checking the Page's verification status
+      setIdentityVerificationStatus(isAccountActive ? 'verified' : 'not_verified');
+      
+      return {
+        accountStatus: data.account_status,
+        isActive: isAccountActive,
+        disableReason: data.disable_reason,
+        isPersonal: data.is_personal
+      };
+    } catch (error) {
+      console.error('Failed to check verification status:', error);
+      return null;
+    } finally {
+      setIsCheckingVerification(false);
+    }
+  };
+
+  // Check disclaimer status for political/social issue ads
+  const checkDisclaimerStatus = async (accessToken, pageId) => {
+    if (!accessToken || !pageId) return null;
+    
+    try {
+      // Check if Page has authorization for political ads
+      const response = await fetch(
+        `https://graph.facebook.com/v19.0/${pageId}?fields=id,name,verification_status,is_published&access_token=${accessToken}`
+      );
+      const data = await response.json();
+      
+      if (data.error) {
+        console.error('Error checking disclaimer status:', data.error);
+        setDisclaimerStatus('none');
+        return null;
+      }
+      
+      // For political ads, Page must be verified and authorized
+      // This is a simplified check - full implementation would check ads_management page settings
+      const hasVerification = data.verification_status === 'verified';
+      setDisclaimerStatus(hasVerification ? 'active' : 'none');
+      
+      return {
+        pageVerified: hasVerification,
+        isPublished: data.is_published
+      };
+    } catch (error) {
+      console.error('Failed to check disclaimer status:', error);
+      setDisclaimerStatus('none');
+      return null;
+    }
+  };
+
+  // Handle Special Ad Category selection
+  const handleSpecialAdCategoryChange = async (value) => {
+    updateField('specialAdCategory', value);
+    
+    const category = SPECIAL_AD_CATEGORIES.find(c => c.value === value);
+    
+    if (category?.requiresVerification) {
+      const token = connectedAccount?.accessToken || localStorage.getItem('meta_access_token');
+      const adAccountId = formData.selectedAdAccountId || adAccounts[0]?.id;
+      
+      if (token && adAccountId) {
+        await checkIdentityVerification(token, adAccountId);
+      }
+      
+      // If political ads, also check disclaimer
+      if (category?.requiresDisclaimer && formData.selectedPageId) {
+        await checkDisclaimerStatus(token, formData.selectedPageId);
+      }
+    } else {
+      // Reset verification states for non-special categories
+      setIdentityVerificationStatus(null);
+      setDisclaimerStatus(null);
+    }
   };
 
   // Simulated Meta Login (will be replaced with real OAuth after Meta approval)
@@ -1680,19 +1781,121 @@ export default function MetaAdsGlobePage() {
 
                   <div className="space-y-2">
                     <Label className="text-white/80 text-sm">Special Ad Category</Label>
-                    <Select value={formData.specialAdCategory} onValueChange={(v) => updateField('specialAdCategory', v)}>
+                    <Select value={formData.specialAdCategory} onValueChange={handleSpecialAdCategoryChange}>
                       <SelectTrigger className="bg-white/5 border-white/10 text-white">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="bg-slate-800 border-white/10">
                         {SPECIAL_AD_CATEGORIES.map((cat) => (
                           <SelectItem key={cat.value} value={cat.value} className="text-white hover:bg-white/10">
-                            {cat.label}
+                            <div>
+                              <div className="font-medium">{cat.label}</div>
+                              {cat.description && (
+                                <div className="text-xs text-white/50">{cat.description}</div>
+                              )}
+                            </div>
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                    <p className="text-xs text-white/40">Required for housing, employment, credit, or politics</p>
+                    <p className="text-xs text-white/40">Required for housing, employment, or political ads</p>
+                    
+                    {/* Verification Status for Special Ad Categories */}
+                    {formData.specialAdCategory && formData.specialAdCategory !== 'NONE' && (
+                      <div className="mt-3 space-y-2">
+                        {isCheckingVerification ? (
+                          <div className="flex items-center gap-2 p-3 rounded-lg bg-white/5 border border-white/10">
+                            <Loader2 className="h-4 w-4 animate-spin text-blue-400" />
+                            <span className="text-xs text-white/60">Checking verification status...</span>
+                          </div>
+                        ) : (
+                          <>
+                            {/* Identity Verification Status */}
+                            {identityVerificationStatus === 'verified' ? (
+                              <div className="flex items-center gap-2 p-3 rounded-lg bg-green-500/10 border border-green-500/30">
+                                <CheckCircle className="h-4 w-4 text-green-400" />
+                                <div>
+                                  <span className="text-xs text-green-300 font-medium">Identity Verified</span>
+                                  <p className="text-xs text-green-200/60">Your ad account is authorized for Special Ad Categories</p>
+                                </div>
+                              </div>
+                            ) : identityVerificationStatus === 'not_verified' ? (
+                              <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <AlertTriangle className="h-4 w-4 text-red-400" />
+                                  <span className="text-xs text-red-300 font-medium">Identity Verification Required</span>
+                                </div>
+                                <p className="text-xs text-red-200/60 mb-2">
+                                  To run {SPECIAL_AD_CATEGORIES.find(c => c.value === formData.specialAdCategory)?.label} ads, you must verify your identity.
+                                </p>
+                                <a 
+                                  href="https://www.facebook.com/id" 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300"
+                                >
+                                  <span>Verify Your Identity</span>
+                                  <ExternalLink className="h-3 w-3" />
+                                </a>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/30">
+                                <AlertTriangle className="h-4 w-4 text-yellow-400" />
+                                <div>
+                                  <span className="text-xs text-yellow-300 font-medium">Verification Check Required</span>
+                                  <p className="text-xs text-yellow-200/60">Select an Ad Account to check verification status</p>
+                                </div>
+                              </div>
+                            )}
+                            
+                            {/* Disclaimer Status for Political Ads */}
+                            {formData.specialAdCategory === 'ISSUES_ELECTIONS_POLITICS' && (
+                              <div className="mt-2">
+                                {disclaimerStatus === 'active' ? (
+                                  <div className="flex items-center gap-2 p-3 rounded-lg bg-green-500/10 border border-green-500/30">
+                                    <CheckCircle className="h-4 w-4 text-green-400" />
+                                    <div>
+                                      <span className="text-xs text-green-300 font-medium">Disclaimer Active</span>
+                                      <p className="text-xs text-green-200/60">Your Page is authorized for political ads</p>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="p-3 rounded-lg bg-orange-500/10 border border-orange-500/30">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <AlertTriangle className="h-4 w-4 text-orange-400" />
+                                      <span className="text-xs text-orange-300 font-medium">Disclaimer Required</span>
+                                    </div>
+                                    <p className="text-xs text-orange-200/60 mb-2">
+                                      Political ads require a "Paid for by" disclaimer. You must authorize your Page and create a disclaimer.
+                                    </p>
+                                    <div className="flex flex-wrap gap-2">
+                                      <a 
+                                        href="https://www.facebook.com/id" 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300"
+                                      >
+                                        <span>Confirm Identity</span>
+                                        <ExternalLink className="h-3 w-3" />
+                                      </a>
+                                      <a 
+                                        href="https://www.facebook.com/ads/manage/disclaimer" 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300"
+                                      >
+                                        <span>Create Disclaimer</span>
+                                        <ExternalLink className="h-3 w-3" />
+                                      </a>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {formData.objective && (
