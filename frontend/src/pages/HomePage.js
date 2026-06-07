@@ -139,7 +139,7 @@ export const HomePage = () => {
               <p className="text-sm text-muted-foreground">Download our mobile app</p>
               <div className="flex flex-row items-center justify-center gap-4">
                 <a 
-                  href="https://apps.apple.com/app/adlinka" 
+                  href="https://apps.apple.com/us/app/adlinka/id6761537846" 
                   target="_blank" 
                   rel="noopener noreferrer"
                   data-testid="app-store-link"
