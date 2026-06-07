@@ -27,6 +27,9 @@ Create a polished, conversion-focused, responsive marketplace website and cross-
   2. Facebook Page selector (pages_show_list)
   3. Ad Account selector (business_management)
 - Real Facebook Business Login SDK with redirect-based OAuth (config_id: 1018089424501122)
+- **TEMPORARY FOR REVIEW**: Multi-platform UI hidden (TikTok, Google, Snapchat, YouTube)
+- **TEMPORARY FOR REVIEW**: Header/Footer hidden on AdGlobe page
+- **TEMPORARY FOR REVIEW**: Login-first flow (shows login modal immediately)
 
 ### Completed Features ✅
 - Full web platform with public/authenticated pages
@@ -38,10 +41,11 @@ Create a polished, conversion-focused, responsive marketplace website and cross-
 - Mobile app with Google/Apple Sign-In
 - Push notifications (Expo)
 - Fixed mobile auth bug (WWW redirect stripping headers)
-- **Multi-Platform Ad Publishing UI** (Meta, TikTok, Google, Snapchat, YouTube) with SVG icons
+- **Multi-Platform Ad Publishing UI** (Meta, TikTok, Google, Snapchat, YouTube) - HIDDEN FOR REVIEW
 - **Influencer "Busy" Feature**: Admin toggle, web blur overlay, mobile app blur overlay
 - AdGlobe improvements: Age/Gender/Languages targeting, Buying Type, smart Nigeria search
 - Silent Meta login bypass shortcut: `Ctrl+Shift+B`
+- iOS App Store link updated: https://apps.apple.com/us/app/adlinka/id6761537846
 
 ### Mobile App Config (v1.1.7)
 - iOS: bundleIdentifier `com.adlinka.ads`, buildNumber `15`

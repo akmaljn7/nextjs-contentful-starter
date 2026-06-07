@@ -1,10 +1,32 @@
 import '@/App.css';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { ScrollToTop } from '@/components/ScrollToTop';
+
+// Conditional Header wrapper - hides header on specific routes
+const ConditionalHeader = () => {
+  const location = useLocation();
+  const hideHeaderRoutes = ['/admin/meta-ads-globe'];
+  
+  if (hideHeaderRoutes.includes(location.pathname)) {
+    return null;
+  }
+  return <Header />;
+};
+
+// Conditional Footer wrapper
+const ConditionalFooter = () => {
+  const location = useLocation();
+  const hideFooterRoutes = ['/admin/meta-ads-globe'];
+  
+  if (hideFooterRoutes.includes(location.pathname)) {
+    return null;
+  }
+  return <Footer />;
+};
 
 // Pages
 import { HomePage } from '@/pages/HomePage';
@@ -43,7 +65,7 @@ function App() {
       <div className="App min-h-screen flex flex-col">
         <BrowserRouter>
           <ScrollToTop />
-          <Header />
+          <ConditionalHeader />
           <main className="flex-grow">
             <Routes>
               <Route path="/" element={<HomePage />} />
@@ -85,7 +107,7 @@ function App() {
               <Route path="*" element={<PlaceholderPage title="Page Not Found" />} />
             </Routes>
           </main>
-          <Footer />
+          <ConditionalFooter />
         </BrowserRouter>
         <Toaster position="top-right" richColors />
       </div>

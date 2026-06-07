@@ -270,7 +270,7 @@ export default function MetaAdsGlobePage() {
     snapchat: { enabled: false, connected: false, accountName: '' },
     youtube: { enabled: false, connected: false, accountName: '' },
   });
-  const [showPlatformBar, setShowPlatformBar] = useState(true);
+  const [showPlatformBar, setShowPlatformBar] = useState(false);  // Hidden for Meta App Review
   
   // Influencers for Post Up feature
   const [influencers, setInfluencers] = useState([]);
@@ -321,7 +321,7 @@ export default function MetaAdsGlobePage() {
   const [activeSection, setActiveSection] = useState('campaigns');
   
   // Meta Login State
-  const [showMetaLoginModal, setShowMetaLoginModal] = useState(false);
+  const [showMetaLoginModal, setShowMetaLoginModal] = useState(true);  // Show login immediately
   const [isMetaConnected, setIsMetaConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectedAccount, setConnectedAccount] = useState(null);
@@ -744,7 +744,8 @@ export default function MetaAdsGlobePage() {
     { id: 'targeting', label: 'Target Audience', icon: Users, color: 'from-green-500 to-green-600' },
     { id: 'budget', label: 'Budget', icon: DollarSign, color: 'from-amber-500 to-amber-600' },
     { id: 'creative', label: 'Creative', icon: ImageIcon, color: 'from-purple-500 to-purple-600' },
-    { id: 'settings', label: 'Settings', icon: Settings, color: 'from-gray-500 to-gray-600' },
+    // Settings tab hidden for Meta App Review (contains multi-platform toggle)
+    // { id: 'settings', label: 'Settings', icon: Settings, color: 'from-gray-500 to-gray-600' },
   ];
 
   // Toggle platform enabled state
@@ -898,19 +899,19 @@ export default function MetaAdsGlobePage() {
                     <ArrowLeft className="h-4 w-4" />
                   </Button>
                   <div className="flex items-center gap-3">
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center`} style={{ backgroundColor: AD_PLATFORMS.find(p => p.id === activePlatform)?.color }}>
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center`} style={{ backgroundColor: '#0668E1' }}>
                       <img 
-                        src={AD_PLATFORMS.find(p => p.id === activePlatform)?.icon}
-                        alt={activePlatform}
+                        src="/platforms/meta.svg"
+                        alt="Meta Ads"
                         className="w-6 h-6"
                       />
                     </div>
                     <div>
                       <h1 className="text-base font-bold text-white">
-                        {getPlatformName(activePlatform)} Campaign
+                        Meta Ads Campaign
                       </h1>
                       <p className="text-xs text-white/50">
-                        {AD_PLATFORMS.find(p => p.id === activePlatform)?.description}
+                        Facebook & Instagram
                       </p>
                     </div>
                   </div>
@@ -945,8 +946,8 @@ export default function MetaAdsGlobePage() {
                 </div>
               </div>
               
-              {/* Platform Bar Toggle */}
-              {!showPlatformBar && (
+              {/* Platform Bar Toggle - Hidden for Meta App Review */}
+              {/* {!showPlatformBar && (
                 <button 
                   onClick={() => setShowPlatformBar(true)}
                   className="mt-2 w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-white/60 hover:text-white"
@@ -954,7 +955,7 @@ export default function MetaAdsGlobePage() {
                   <span className="text-xs font-medium">Show Platforms</span>
                   <ChevronDown className="h-3 w-3" />
                 </button>
-              )}
+              )} */}
             </div>
 
             {/* Section Navigation */}
