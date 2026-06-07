@@ -300,7 +300,10 @@ export default function MetaAdsGlobePage() {
   // Special Ad Category Verification State
   const [identityVerificationStatus, setIdentityVerificationStatus] = useState(null); // 'verified', 'pending', 'not_verified'
   const [disclaimerStatus, setDisclaimerStatus] = useState(null); // 'active', 'pending', 'none'
+  const [disclaimers, setDisclaimers] = useState([]); // List of user's disclaimers
+  const [selectedDisclaimer, setSelectedDisclaimer] = useState(null); // Selected disclaimer for the campaign
   const [isCheckingVerification, setIsCheckingVerification] = useState(false);
+  const [isLoadingDisclaimers, setIsLoadingDisclaimers] = useState(false);
 
   // Fetch influencers on mount
   useEffect(() => {
@@ -504,36 +507,94 @@ export default function MetaAdsGlobePage() {
     }
   };
 
-  // Check disclaimer status for political/social issue ads
-  const checkDisclaimerStatus = async (accessToken, pageId) => {
-    if (!accessToken || !pageId) return null;
-    
-    try {
-      // Check if Page has authorization for political ads
-      const response = await fetch(
-        `https://graph.facebook.com/v19.0/${pageId}?fields=id,name,verification_status,is_published&access_token=${accessToken}`
-      );
-      const data = await response.json();
-      
-      if (data.error) {
-        console.error('Error checking disclaimer status:', data.error);
-        setDisclaimerStatus('none');
-        return null;
-      }
-      
-      // For political ads, Page must be verified and authorized
-      // This is a simplified check - full implementation would check ads_management page settings
-      const hasVerification = data.verification_status === 'verified';
-      setDisclaimerStatus(hasVerification ? 'active' : 'none');
-      
-      return {
-        pageVerified: hasVerification,
-        isPublished: data.is_published
-      };
-    } catch (error) {
-      console.error('Failed to check disclaimer status:', error);
+  // Fetch disclaimers for political/social issue ads
+  const fetchDisclaimers = async (accessToken, pageId) => {
+    if (!accessToken || !pageId) {
+      setDisclaimers([]);
       setDisclaimerStatus('none');
       return null;
+    }
+    
+    setIsLoadingDisclaimers(true);
+    try {
+      // Fetch Page's ad disclaimers using the page_backed_instagram_accounts and ad authorization
+      // First, get the Page's authorization status and any linked disclaimers
+      const pageResponse = await fetch(
+        `https://graph.facebook.com/v19.0/${pageId}?fields=id,name,ad_campaign,is_eligible_for_branded_content&access_token=${accessToken}`
+      );
+      const pageData = await pageResponse.json();
+      
+      // Try to fetch disclaimers from the ad account's perspective
+      // The endpoint for disclaimers is typically through the business or funding_source
+      const adAccountId = formData.selectedAdAccountId || adAccounts[0]?.id;
+      
+      if (adAccountId) {
+        // Try to get funding source details which may contain disclaimer info
+        const fundingResponse = await fetch(
+          `https://graph.facebook.com/v19.0/${adAccountId}?fields=funding_source_details,name&access_token=${accessToken}`
+        );
+        const fundingData = await fundingResponse.json();
+        
+        // Also try to get ad disclaimers directly
+        const disclaimerResponse = await fetch(
+          `https://graph.facebook.com/v19.0/${adAccountId}/ad_creatives?fields=ad_disclaimer&limit=10&access_token=${accessToken}`
+        );
+        const disclaimerData = await disclaimerResponse.json();
+        
+        // Extract any disclaimers found
+        const foundDisclaimers = [];
+        
+        // Check funding source for disclaimer info
+        if (fundingData.funding_source_details) {
+          const details = fundingData.funding_source_details;
+          if (details.disclaimer || details.display_string) {
+            foundDisclaimers.push({
+              id: 'funding_disclaimer',
+              name: details.display_string || details.disclaimer || 'Ad Account Disclaimer',
+              type: 'funding_source',
+              status: 'active'
+            });
+          }
+        }
+        
+        // Check ad creatives for disclaimers
+        if (disclaimerData.data) {
+          disclaimerData.data.forEach((creative, idx) => {
+            if (creative.ad_disclaimer) {
+              foundDisclaimers.push({
+                id: creative.id || `disclaimer_${idx}`,
+                name: creative.ad_disclaimer.content || creative.ad_disclaimer,
+                type: 'ad_creative',
+                status: 'active'
+              });
+            }
+          });
+        }
+        
+        // If we found disclaimers, set them
+        if (foundDisclaimers.length > 0) {
+          // Remove duplicates
+          const uniqueDisclaimers = foundDisclaimers.filter((d, i, arr) => 
+            arr.findIndex(x => x.name === d.name) === i
+          );
+          setDisclaimers(uniqueDisclaimers);
+          setDisclaimerStatus('active');
+          return uniqueDisclaimers;
+        }
+      }
+      
+      // No disclaimers found
+      setDisclaimers([]);
+      setDisclaimerStatus('none');
+      return [];
+      
+    } catch (error) {
+      console.error('Failed to fetch disclaimers:', error);
+      setDisclaimers([]);
+      setDisclaimerStatus('none');
+      return [];
+    } finally {
+      setIsLoadingDisclaimers(false);
     }
   };
 
@@ -551,14 +612,19 @@ export default function MetaAdsGlobePage() {
         await checkIdentityVerification(token, adAccountId);
       }
       
-      // If political ads, also check disclaimer
-      if (category?.requiresDisclaimer && formData.selectedPageId) {
-        await checkDisclaimerStatus(token, formData.selectedPageId);
+      // If political ads, also fetch disclaimers
+      if (category?.requiresDisclaimer) {
+        const pageId = formData.selectedPageId || facebookPages[0]?.id;
+        if (token && pageId) {
+          await fetchDisclaimers(token, pageId);
+        }
       }
     } else {
       // Reset verification states for non-special categories
       setIdentityVerificationStatus(null);
       setDisclaimerStatus(null);
+      setDisclaimers([]);
+      setSelectedDisclaimer(null);
     }
   };
 
@@ -1851,12 +1917,62 @@ export default function MetaAdsGlobePage() {
                             {/* Disclaimer Status for Political Ads */}
                             {formData.specialAdCategory === 'ISSUES_ELECTIONS_POLITICS' && (
                               <div className="mt-2">
-                                {disclaimerStatus === 'active' ? (
-                                  <div className="flex items-center gap-2 p-3 rounded-lg bg-green-500/10 border border-green-500/30">
-                                    <CheckCircle className="h-4 w-4 text-green-400" />
-                                    <div>
-                                      <span className="text-xs text-green-300 font-medium">Disclaimer Active</span>
-                                      <p className="text-xs text-green-200/60">Your Page is authorized for political ads</p>
+                                {isLoadingDisclaimers ? (
+                                  <div className="flex items-center gap-2 p-3 rounded-lg bg-white/5 border border-white/10">
+                                    <Loader2 className="h-4 w-4 animate-spin text-blue-400" />
+                                    <span className="text-xs text-white/60">Loading your disclaimers...</span>
+                                  </div>
+                                ) : disclaimers.length > 0 ? (
+                                  <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/30">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <CheckCircle className="h-4 w-4 text-green-400" />
+                                      <span className="text-xs text-green-300 font-medium">Disclaimers Available</span>
+                                    </div>
+                                    <p className="text-xs text-green-200/60 mb-3">
+                                      You have {disclaimers.length} disclaimer{disclaimers.length > 1 ? 's' : ''} available. Select one to link to this campaign.
+                                    </p>
+                                    
+                                    {/* Disclaimer Selection Dropdown */}
+                                    <div className="space-y-2">
+                                      <Label className="text-white/70 text-xs">Link Disclaimer</Label>
+                                      <Select value={selectedDisclaimer?.id || ''} onValueChange={(v) => {
+                                        const disc = disclaimers.find(d => d.id === v);
+                                        setSelectedDisclaimer(disc);
+                                      }}>
+                                        <SelectTrigger className="bg-white/5 border-green-500/30 text-white text-xs">
+                                          <SelectValue placeholder="Select a disclaimer" />
+                                        </SelectTrigger>
+                                        <SelectContent className="bg-slate-800 border-white/10">
+                                          {disclaimers.map((disc) => (
+                                            <SelectItem key={disc.id} value={disc.id} className="text-white hover:bg-white/10">
+                                              <div className="flex items-center gap-2">
+                                                <CheckCircle className="h-3 w-3 text-green-400" />
+                                                <span className="text-xs">{disc.name}</span>
+                                              </div>
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                      
+                                      {selectedDisclaimer && (
+                                        <div className="flex items-center gap-2 p-2 rounded-lg bg-green-500/20 border border-green-500/40">
+                                          <CheckCircle className="h-3 w-3 text-green-400" />
+                                          <span className="text-xs text-green-300">Linked: {selectedDisclaimer.name}</span>
+                                        </div>
+                                      )}
+                                    </div>
+                                    
+                                    {/* Option to create new disclaimer */}
+                                    <div className="mt-3 pt-3 border-t border-green-500/20">
+                                      <a 
+                                        href="https://www.facebook.com/ads/manage/disclaimer" 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300"
+                                      >
+                                        <span>+ Create New Disclaimer</span>
+                                        <ExternalLink className="h-3 w-3" />
+                                      </a>
                                     </div>
                                   </div>
                                 ) : (
@@ -1866,27 +1982,30 @@ export default function MetaAdsGlobePage() {
                                       <span className="text-xs text-orange-300 font-medium">Disclaimer Required</span>
                                     </div>
                                     <p className="text-xs text-orange-200/60 mb-2">
-                                      Political ads require a "Paid for by" disclaimer. You must authorize your Page and create a disclaimer.
+                                      Political ads require a "Paid for by" disclaimer. Create one to continue.
                                     </p>
                                     <div className="flex flex-wrap gap-2">
-                                      <a 
-                                        href="https://www.facebook.com/id" 
-                                        target="_blank" 
-                                        rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300"
-                                      >
-                                        <span>Confirm Identity</span>
-                                        <ExternalLink className="h-3 w-3" />
-                                      </a>
                                       <a 
                                         href="https://www.facebook.com/ads/manage/disclaimer" 
                                         target="_blank" 
                                         rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300"
+                                        className="inline-flex items-center gap-1 text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg"
                                       >
                                         <span>Create Disclaimer</span>
                                         <ExternalLink className="h-3 w-3" />
                                       </a>
+                                      <Button 
+                                        size="sm" 
+                                        variant="outline" 
+                                        className="text-xs border-orange-500/30 text-orange-300 hover:bg-orange-500/10 h-7"
+                                        onClick={() => {
+                                          const token = connectedAccount?.accessToken || localStorage.getItem('meta_access_token');
+                                          const pageId = formData.selectedPageId || facebookPages[0]?.id;
+                                          if (token && pageId) fetchDisclaimers(token, pageId);
+                                        }}
+                                      >
+                                        <RefreshCw className="h-3 w-3 mr-1" /> Refresh
+                                      </Button>
                                     </div>
                                   </div>
                                 )}
