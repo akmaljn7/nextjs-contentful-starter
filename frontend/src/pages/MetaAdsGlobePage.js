@@ -40,7 +40,8 @@ import {
   ChevronUp,
   Unlink,
   RefreshCw,
-  AlertTriangle
+  AlertTriangle,
+  ExternalLink
 } from 'lucide-react';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -1134,6 +1135,76 @@ export default function MetaAdsGlobePage() {
                 </div>
               )}
               
+              {/* Setup Required Warning - Show if user has no Pages or Ad Accounts */}
+              {isMetaConnected && !isLoadingPages && !isLoadingAdAccounts && (facebookPages.length === 0 || adAccounts.length === 0) && (
+                <div className="p-4 rounded-xl bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border border-yellow-500/30">
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-yellow-500/20 flex items-center justify-center flex-shrink-0">
+                      <AlertTriangle className="h-4 w-4 text-yellow-400" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-yellow-300 text-sm">Setup Required</h3>
+                      <p className="text-xs text-yellow-200/70 mt-1 mb-3">
+                        To create ad campaigns, you need both a Facebook Page and an Ad Account.
+                      </p>
+                      <div className="space-y-2">
+                        {facebookPages.length === 0 && (
+                          <div className="flex items-center gap-2">
+                            <X className="h-3 w-3 text-red-400" />
+                            <span className="text-xs text-white/70">No Facebook Page found</span>
+                            <a 
+                              href="https://www.facebook.com/pages/create" 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1"
+                            >
+                              Create Page <ExternalLink className="h-3 w-3" />
+                            </a>
+                          </div>
+                        )}
+                        {facebookPages.length > 0 && (
+                          <div className="flex items-center gap-2">
+                            <CheckCircle className="h-3 w-3 text-green-400" />
+                            <span className="text-xs text-white/70">Facebook Page connected</span>
+                          </div>
+                        )}
+                        {adAccounts.length === 0 && (
+                          <div className="flex items-center gap-2">
+                            <X className="h-3 w-3 text-red-400" />
+                            <span className="text-xs text-white/70">No Ad Account found</span>
+                            <a 
+                              href="https://business.facebook.com/settings/ad-accounts" 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1"
+                            >
+                              Create Account <ExternalLink className="h-3 w-3" />
+                            </a>
+                          </div>
+                        )}
+                        {adAccounts.length > 0 && (
+                          <div className="flex items-center gap-2">
+                            <CheckCircle className="h-3 w-3 text-green-400" />
+                            <span className="text-xs text-white/70">Ad Account connected</span>
+                          </div>
+                        )}
+                      </div>
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        className="mt-3 text-xs border-yellow-500/30 text-yellow-300 hover:bg-yellow-500/10"
+                        onClick={() => {
+                          const token = connectedAccount?.accessToken || localStorage.getItem('meta_access_token');
+                          if (token) fetchAllMetaData(token);
+                        }}
+                      >
+                        <RefreshCw className="h-3 w-3 mr-1" /> Refresh Data
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               {/* Campaigns List Section - for ads_read permission */}
               {activeSection === 'campaigns' && (
                 <div className="space-y-4">
@@ -1183,8 +1254,8 @@ export default function MetaAdsGlobePage() {
                     <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500/10 to-indigo-500/10 border border-blue-500/20">
                       <div className="text-2xl font-bold text-blue-400">
                         {campaigns.length > 0 
-                          ? <><span>&#8358;</span>{(campaigns.reduce((sum, c) => sum + (c.spent || 0), 0) / 1000).toFixed(0)}K</>
-                          : <><span>&#8358;</span>0</>
+                          ? `NGN ${(campaigns.reduce((sum, c) => sum + (c.spent || 0), 0) / 1000).toFixed(0)}K`
+                          : 'NGN 0'
                         }
                       </div>
                       <div className="text-xs text-blue-300/70">Total Spent</div>
@@ -1328,8 +1399,23 @@ export default function MetaAdsGlobePage() {
                             Loading your Pages...
                           </div>
                         ) : facebookPages.length === 0 ? (
-                          <div className="p-4 text-center text-white/60">
-                            No Facebook Pages found. Make sure you have admin access to at least one Page.
+                          <div className="p-4 text-white/70">
+                            <div className="flex items-center gap-2 mb-2">
+                              <AlertTriangle className="h-4 w-4 text-yellow-400" />
+                              <span className="font-medium text-yellow-300">No Facebook Pages Found</span>
+                            </div>
+                            <p className="text-xs text-white/50 mb-3">
+                              To run ads, you need admin access to at least one Facebook Page.
+                            </p>
+                            <a 
+                              href="https://www.facebook.com/pages/create" 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300"
+                            >
+                              <span>Create a Facebook Page</span>
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
                           </div>
                         ) : facebookPages.map((page) => (
                           <SelectItem key={page.id} value={page.id} className="text-white hover:bg-white/10">
@@ -1386,8 +1472,28 @@ export default function MetaAdsGlobePage() {
                             Loading your Ad Accounts...
                           </div>
                         ) : adAccounts.length === 0 ? (
-                          <div className="p-4 text-center text-white/60">
-                            No Ad Accounts found. Make sure you have access to a Meta Business Ad Account.
+                          <div className="p-4 text-white/70">
+                            <div className="flex items-center gap-2 mb-2">
+                              <AlertTriangle className="h-4 w-4 text-yellow-400" />
+                              <span className="font-medium text-yellow-300">No Ad Accounts Found</span>
+                            </div>
+                            <p className="text-xs text-white/50 mb-3">
+                              To create campaigns, you need access to a Meta Business Ad Account.
+                            </p>
+                            <div className="space-y-2">
+                              <a 
+                                href="https://business.facebook.com/settings/ad-accounts" 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300"
+                              >
+                                <span>Create Ad Account in Business Settings</span>
+                                <ExternalLink className="h-3 w-3" />
+                              </a>
+                              <p className="text-xs text-white/40">
+                                Or ask your Business Manager admin to grant you access.
+                              </p>
+                            </div>
                           </div>
                         ) : adAccounts.map((account) => (
                           <SelectItem key={account.id} value={account.id} className="text-white hover:bg-white/10">
