@@ -115,6 +115,7 @@ const SPECIAL_AD_CATEGORIES = [
   { value: 'NONE', label: 'None', requiresVerification: false },
   { value: 'HOUSING', label: 'Housing', description: 'Ads for property listings, home insurance, mortgages or other related opportunities', requiresVerification: true },
   { value: 'EMPLOYMENT', label: 'Employment', description: 'Ads for job opportunities, internships, professional certification or other related opportunities', requiresVerification: true },
+  { value: 'FINANCIAL_PRODUCTS_SERVICES', label: 'Financial Products & Services', description: 'Ads for credit cards, long-term financing, current and savings accounts, investment services, insurance services or other related financial opportunities', requiresVerification: true },
   { value: 'ISSUES_ELECTIONS_POLITICS', label: 'Social Issues/Politics', description: 'Ads about social issues, elections, politics or related topics', requiresVerification: true, requiresDisclaimer: true },
 ];
 
