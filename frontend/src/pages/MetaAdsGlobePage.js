@@ -38,7 +38,9 @@ import {
   Settings,
   ChevronDown,
   ChevronUp,
-  Unlink
+  Unlink,
+  RefreshCw,
+  AlertTriangle
 } from 'lucide-react';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -164,59 +166,16 @@ const OPTIMIZATION_GOALS = {
 
 // Mock Facebook Pages (for pages_show_list permission demo)
 const MOCK_FACEBOOK_PAGES = [
-  { id: 'page_001', name: 'Adlinka Official', category: 'Advertising Agency', followers: 45200, picture: 'https://ui-avatars.com/api/?name=Adlinka&background=1877f2&color=fff' },
-  { id: 'page_002', name: 'LightBan Media', category: 'Media Company', followers: 23800, picture: 'https://ui-avatars.com/api/?name=LB&background=1877f2&color=fff' },
-  { id: 'page_003', name: 'Kano Digital Hub', category: 'Business Service', followers: 12500, picture: 'https://ui-avatars.com/api/?name=KDH&background=1877f2&color=fff' },
+  { id: 'page_001', name: 'Loading...', category: 'Page', followers: 0, picture: 'https://ui-avatars.com/api/?name=Loading&background=1877f2&color=fff' },
 ];
 
-// Mock Ad Accounts (for business_management permission demo)
+// Mock Ad Accounts (fallback only)
 const MOCK_AD_ACCOUNTS = [
-  { id: 'act_123456789', name: 'Adlinka Main Account', currency: 'NGN', status: 'ACTIVE', spend_cap: 5000000 },
-  { id: 'act_987654321', name: 'LightBan Campaigns', currency: 'NGN', status: 'ACTIVE', spend_cap: 2000000 },
+  { id: 'act_loading', name: 'Loading...', currency: 'NGN', status: 'LOADING', spend_cap: 0 },
 ];
 
-// Mock Existing Campaigns (for ads_read permission demo)
-const MOCK_CAMPAIGNS = [
-  { 
-    id: 'camp_001', 
-    name: 'Kano State Awareness Q4', 
-    status: 'ACTIVE', 
-    objective: 'OUTCOME_AWARENESS',
-    daily_budget: 50000,
-    spent: 127500,
-    impressions: 458200,
-    reach: 312400,
-    clicks: 8920,
-    ctr: 1.95,
-    created_at: '2025-11-15',
-  },
-  { 
-    id: 'camp_002', 
-    name: 'Lagos Traffic Campaign', 
-    status: 'PAUSED', 
-    objective: 'OUTCOME_TRAFFIC',
-    daily_budget: 75000,
-    spent: 89000,
-    impressions: 234500,
-    reach: 156300,
-    clicks: 12450,
-    ctr: 5.31,
-    created_at: '2025-11-28',
-  },
-  { 
-    id: 'camp_003', 
-    name: 'Abuja Lead Generation', 
-    status: 'ACTIVE', 
-    objective: 'OUTCOME_LEADS',
-    daily_budget: 100000,
-    spent: 245000,
-    impressions: 567800,
-    reach: 423100,
-    clicks: 15670,
-    ctr: 2.76,
-    created_at: '2025-12-01',
-  },
-];
+// Empty campaigns (will be populated with real data)
+const EMPTY_CAMPAIGNS = [];
 
 // Age options (13-65+)
 const AGE_OPTIONS = [
@@ -328,6 +287,15 @@ export default function MetaAdsGlobePage() {
   const [isMetaConnected, setIsMetaConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectedAccount, setConnectedAccount] = useState(null);
+  
+  // Real Meta Data State
+  const [facebookPages, setFacebookPages] = useState([]);
+  const [adAccounts, setAdAccounts] = useState([]);
+  const [campaigns, setCampaigns] = useState([]);
+  const [isLoadingPages, setIsLoadingPages] = useState(false);
+  const [isLoadingAdAccounts, setIsLoadingAdAccounts] = useState(false);
+  const [isLoadingCampaigns, setIsLoadingCampaigns] = useState(false);
+  const [metaApiError, setMetaApiError] = useState(null);
 
   // Fetch influencers on mount
   useEffect(() => {
@@ -344,6 +312,153 @@ export default function MetaAdsGlobePage() {
     };
     fetchInfluencers();
   }, []);
+
+  // Fetch Facebook Pages using Graph API
+  const fetchFacebookPages = async (accessToken) => {
+    setIsLoadingPages(true);
+    try {
+      const response = await fetch(
+        `https://graph.facebook.com/v19.0/me/accounts?fields=id,name,category,fan_count,picture.width(100)&access_token=${accessToken}`
+      );
+      const data = await response.json();
+      
+      if (data.error) {
+        console.error('Error fetching pages:', data.error);
+        setMetaApiError(`Pages: ${data.error.message}`);
+        setFacebookPages([]);
+        return [];
+      }
+      
+      const pages = (data.data || []).map(page => ({
+        id: page.id,
+        name: page.name,
+        category: page.category || 'Page',
+        followers: page.fan_count || 0,
+        picture: page.picture?.data?.url || `https://ui-avatars.com/api/?name=${encodeURIComponent(page.name)}&background=1877f2&color=fff`
+      }));
+      
+      setFacebookPages(pages);
+      return pages;
+    } catch (error) {
+      console.error('Failed to fetch Facebook pages:', error);
+      setMetaApiError('Failed to fetch Facebook pages');
+      setFacebookPages([]);
+      return [];
+    } finally {
+      setIsLoadingPages(false);
+    }
+  };
+
+  // Fetch Ad Accounts using Graph API
+  const fetchAdAccounts = async (accessToken) => {
+    setIsLoadingAdAccounts(true);
+    try {
+      const response = await fetch(
+        `https://graph.facebook.com/v19.0/me/adaccounts?fields=id,name,account_status,currency,amount_spent,spend_cap,business_name&access_token=${accessToken}`
+      );
+      const data = await response.json();
+      
+      if (data.error) {
+        console.error('Error fetching ad accounts:', data.error);
+        setMetaApiError(`Ad Accounts: ${data.error.message}`);
+        setAdAccounts([]);
+        return [];
+      }
+      
+      const accounts = (data.data || []).map(account => ({
+        id: account.id,
+        name: account.name || account.business_name || `Account ${account.id}`,
+        currency: account.currency || 'NGN',
+        status: account.account_status === 1 ? 'ACTIVE' : account.account_status === 2 ? 'DISABLED' : 'PENDING',
+        spend_cap: account.spend_cap ? parseInt(account.spend_cap) / 100 : 0,
+        amount_spent: account.amount_spent ? parseInt(account.amount_spent) / 100 : 0
+      }));
+      
+      setAdAccounts(accounts);
+      return accounts;
+    } catch (error) {
+      console.error('Failed to fetch ad accounts:', error);
+      setMetaApiError('Failed to fetch ad accounts');
+      setAdAccounts([]);
+      return [];
+    } finally {
+      setIsLoadingAdAccounts(false);
+    }
+  };
+
+  // Fetch Campaigns for a specific Ad Account
+  const fetchCampaigns = async (accessToken, adAccountId) => {
+    if (!adAccountId) return [];
+    
+    setIsLoadingCampaigns(true);
+    try {
+      // Fetch campaigns with insights
+      const response = await fetch(
+        `https://graph.facebook.com/v19.0/${adAccountId}/campaigns?fields=id,name,status,objective,daily_budget,lifetime_budget,created_time,insights.date_preset(last_30d){impressions,reach,clicks,spend,ctr}&limit=50&access_token=${accessToken}`
+      );
+      const data = await response.json();
+      
+      if (data.error) {
+        console.error('Error fetching campaigns:', data.error);
+        setMetaApiError(`Campaigns: ${data.error.message}`);
+        setCampaigns([]);
+        return [];
+      }
+      
+      const campaignList = (data.data || []).map(campaign => {
+        const insights = campaign.insights?.data?.[0] || {};
+        return {
+          id: campaign.id,
+          name: campaign.name,
+          status: campaign.status,
+          objective: campaign.objective,
+          daily_budget: campaign.daily_budget ? parseInt(campaign.daily_budget) / 100 : 0,
+          lifetime_budget: campaign.lifetime_budget ? parseInt(campaign.lifetime_budget) / 100 : 0,
+          spent: insights.spend ? parseFloat(insights.spend) : 0,
+          impressions: insights.impressions ? parseInt(insights.impressions) : 0,
+          reach: insights.reach ? parseInt(insights.reach) : 0,
+          clicks: insights.clicks ? parseInt(insights.clicks) : 0,
+          ctr: insights.ctr ? parseFloat(insights.ctr) : 0,
+          created_at: campaign.created_time ? campaign.created_time.split('T')[0] : ''
+        };
+      });
+      
+      setCampaigns(campaignList);
+      return campaignList;
+    } catch (error) {
+      console.error('Failed to fetch campaigns:', error);
+      setMetaApiError('Failed to fetch campaigns');
+      setCampaigns([]);
+      return [];
+    } finally {
+      setIsLoadingCampaigns(false);
+    }
+  };
+
+  // Fetch all Meta data after successful login
+  const fetchAllMetaData = async (accessToken) => {
+    setMetaApiError(null);
+    
+    // Fetch pages and ad accounts in parallel
+    const [pages, accounts] = await Promise.all([
+      fetchFacebookPages(accessToken),
+      fetchAdAccounts(accessToken)
+    ]);
+    
+    // If we have ad accounts, fetch campaigns for the first one
+    if (accounts.length > 0) {
+      await fetchCampaigns(accessToken, accounts[0].id);
+      // Auto-select the first ad account
+      updateField('selectedAdAccountId', accounts[0].id);
+    }
+    
+    // Auto-select the first page if available
+    if (pages.length > 0) {
+      updateField('selectedPageId', pages[0].id);
+    }
+    
+    return { pages, accounts };
+  };
 
   // Simulated Meta Login (will be replaced with real OAuth after Meta approval)
   const handleMetaLogin = async (loginType) => {
@@ -416,7 +531,7 @@ export default function MetaAdsGlobePage() {
   };
   
   // Handle OAuth callback with access token
-  const handleOAuthCallback = (hash, loginType) => {
+  const handleOAuthCallback = async (hash, loginType) => {
     // Parse the hash to get access token
     const params = new URLSearchParams(hash.substring(1));
     const accessToken = params.get('access_token');
@@ -433,42 +548,56 @@ export default function MetaAdsGlobePage() {
     // Clear the hash from URL
     window.history.replaceState(null, '', window.location.pathname);
     
-    // Get user info using the Graph API
-    fetch(`https://graph.facebook.com/me?fields=name,email,picture.width(100)&access_token=${accessToken}`)
-      .then(res => res.json())
-      .then(userInfo => {
-        localStorage.setItem('meta_user_id', userInfo.id);
-        
-        setConnectedAccount({
-          name: userInfo.name || 'Meta User',
-          email: userInfo.email || '',
-          profilePicture: userInfo.picture?.data?.url || `https://ui-avatars.com/api/?name=${encodeURIComponent(userInfo.name || 'User')}&background=1877f2&color=fff`,
-          loginType: loginType,
-          accessToken: accessToken,
-          userId: userInfo.id,
-          pages: MOCK_FACEBOOK_PAGES,
-          adAccounts: MOCK_AD_ACCOUNTS,
-        });
-        
-        setIsMetaConnected(true);
-        setIsConnecting(false);
-        setShowMetaLoginModal(false);
-        
-        toast.success(`Welcome, ${userInfo.name}!`, {
-          description: 'Connected to Meta. Campaign data will be live after Meta approval.',
-        });
-      })
-      .catch(err => {
-        console.error('Error fetching user info:', err);
-        setIsConnecting(false);
-        toast.error('Failed to get user information');
+    try {
+      // Get user info using the Graph API
+      const userResponse = await fetch(`https://graph.facebook.com/me?fields=name,email,picture.width(100)&access_token=${accessToken}`);
+      const userInfo = await userResponse.json();
+      
+      if (userInfo.error) {
+        throw new Error(userInfo.error.message);
+      }
+      
+      localStorage.setItem('meta_user_id', userInfo.id);
+      
+      setConnectedAccount({
+        name: userInfo.name || 'Meta User',
+        email: userInfo.email || '',
+        profilePicture: userInfo.picture?.data?.url || `https://ui-avatars.com/api/?name=${encodeURIComponent(userInfo.name || 'User')}&background=1877f2&color=fff`,
+        loginType: loginType,
+        accessToken: accessToken,
+        userId: userInfo.id,
       });
+      
+      setIsMetaConnected(true);
+      setIsConnecting(false);
+      setShowMetaLoginModal(false);
+      
+      toast.success(`Welcome, ${userInfo.name}!`, {
+        description: 'Fetching your Pages, Ad Accounts, and Campaigns...',
+      });
+      
+      // Fetch all Meta data (pages, ad accounts, campaigns)
+      await fetchAllMetaData(accessToken);
+      
+      toast.success('Meta data loaded successfully!');
+      
+    } catch (err) {
+      console.error('Error during OAuth callback:', err);
+      setIsConnecting(false);
+      toast.error('Failed to connect: ' + err.message);
+    }
   };
 
   const handleDisconnectMeta = () => {
     // Clear stored tokens
     localStorage.removeItem('meta_access_token');
     localStorage.removeItem('meta_user_id');
+    
+    // Clear all Meta data
+    setFacebookPages([]);
+    setAdAccounts([]);
+    setCampaigns([]);
+    setMetaApiError(null);
     
     setIsMetaConnected(false);
     setConnectedAccount(null);
@@ -481,6 +610,7 @@ export default function MetaAdsGlobePage() {
     const hash = window.location.hash;
     if (hash && hash.includes('access_token')) {
       handleOAuthCallback(hash, 'facebook');
+      return; // Don't check stored token if we have a new one
     }
     
     // Also check if user has a stored token
@@ -491,7 +621,7 @@ export default function MetaAdsGlobePage() {
       // Verify the token is still valid
       fetch(`https://graph.facebook.com/me?fields=name,email,picture.width(100)&access_token=${storedToken}`)
         .then(res => res.json())
-        .then(userInfo => {
+        .then(async (userInfo) => {
           if (userInfo.error) {
             // Token expired, clear it
             localStorage.removeItem('meta_access_token');
@@ -506,12 +636,13 @@ export default function MetaAdsGlobePage() {
             loginType: 'facebook',
             accessToken: storedToken,
             userId: storedUserId,
-            pages: MOCK_FACEBOOK_PAGES,
-            adAccounts: MOCK_AD_ACCOUNTS,
           });
           
           setIsMetaConnected(true);
           setShowMetaLoginModal(false);
+          
+          // Fetch all Meta data with stored token
+          await fetchAllMetaData(storedToken);
         })
         .catch(() => {
           // Token invalid, clear it
@@ -521,7 +652,7 @@ export default function MetaAdsGlobePage() {
     }
   }, []);
 
-  // Silent keyboard shortcut to bypass login (Ctrl+Shift+B)
+  // Silent keyboard shortcut to bypass login (Ctrl+Shift+B) - Uses demo data for testing
   useEffect(() => {
     const handleKeyDown = (e) => {
       // Ctrl+Shift+B to bypass login silently
@@ -536,9 +667,15 @@ export default function MetaAdsGlobePage() {
           loginType: 'bypass',
           accessToken: 'demo_token',
           userId: 'demo_user',
-          pages: MOCK_FACEBOOK_PAGES,
-          adAccounts: MOCK_AD_ACCOUNTS,
         });
+        // Set demo data for testing purposes
+        setFacebookPages([
+          { id: 'demo_page_1', name: 'Demo Page', category: 'Business', followers: 1000, picture: 'https://ui-avatars.com/api/?name=Demo&background=1877f2&color=fff' }
+        ]);
+        setAdAccounts([
+          { id: 'act_demo', name: 'Demo Ad Account', currency: 'NGN', status: 'ACTIVE', spend_cap: 100000 }
+        ]);
+        setCampaigns([]);
       }
     };
 
@@ -975,6 +1112,28 @@ export default function MetaAdsGlobePage() {
             {/* Form Content */}
             <div className="flex-1 overflow-y-auto p-5 space-y-5 custom-scrollbar">
               
+              {/* API Error Display */}
+              {metaApiError && (
+                <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30">
+                  <div className="flex items-center gap-2 text-red-400">
+                    <AlertTriangle className="h-4 w-4" />
+                    <span className="text-sm font-medium">API Error</span>
+                  </div>
+                  <p className="text-xs text-red-300/70 mt-1">{metaApiError}</p>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    className="mt-2 text-xs border-red-500/30 text-red-300 hover:bg-red-500/10"
+                    onClick={() => {
+                      const token = connectedAccount?.accessToken || localStorage.getItem('meta_access_token');
+                      if (token) fetchAllMetaData(token);
+                    }}
+                  >
+                    <RefreshCw className="h-3 w-3 mr-1" /> Retry
+                  </Button>
+                </div>
+              )}
+              
               {/* Campaigns List Section - for ads_read permission */}
               {activeSection === 'campaigns' && (
                 <div className="space-y-4">
@@ -988,34 +1147,80 @@ export default function MetaAdsGlobePage() {
                         <p className="text-xs text-white/50">View and manage your ad campaigns</p>
                       </div>
                     </div>
-                    <Button
-                      size="sm"
-                      onClick={() => setActiveSection('campaign')}
-                      className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs"
-                    >
-                      + New Campaign
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={async () => {
+                          const token = connectedAccount?.accessToken || localStorage.getItem('meta_access_token');
+                          const adAccountId = formData.selectedAdAccountId || adAccounts[0]?.id;
+                          if (token && adAccountId) {
+                            await fetchCampaigns(token, adAccountId);
+                            toast.success('Campaigns refreshed');
+                          }
+                        }}
+                        className="border-white/20 text-white/70 hover:text-white hover:bg-white/10 text-xs"
+                        disabled={isLoadingCampaigns}
+                      >
+                        <RefreshCw className={`h-3 w-3 mr-1 ${isLoadingCampaigns ? 'animate-spin' : ''}`} /> Refresh
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => setActiveSection('campaign')}
+                        className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs"
+                      >
+                        + New Campaign
+                      </Button>
+                    </div>
                   </div>
 
                   {/* Campaign Stats Summary */}
                   <div className="grid grid-cols-3 gap-3">
                     <div className="p-3 rounded-xl bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-500/20">
-                      <div className="text-2xl font-bold text-green-400">{MOCK_CAMPAIGNS.filter(c => c.status === 'ACTIVE').length}</div>
+                      <div className="text-2xl font-bold text-green-400">{campaigns.filter(c => c.status === 'ACTIVE').length}</div>
                       <div className="text-xs text-green-300/70">Active Campaigns</div>
                     </div>
                     <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500/10 to-indigo-500/10 border border-blue-500/20">
-                      <div className="text-2xl font-bold text-blue-400">₦{(MOCK_CAMPAIGNS.reduce((sum, c) => sum + c.spent, 0) / 1000).toFixed(0)}K</div>
+                      <div className="text-2xl font-bold text-blue-400">
+                        {campaigns.length > 0 
+                          ? <><span>&#8358;</span>{(campaigns.reduce((sum, c) => sum + (c.spent || 0), 0) / 1000).toFixed(0)}K</>
+                          : <><span>&#8358;</span>0</>
+                        }
+                      </div>
                       <div className="text-xs text-blue-300/70">Total Spent</div>
                     </div>
                     <div className="p-3 rounded-xl bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/20">
-                      <div className="text-2xl font-bold text-purple-400">{(MOCK_CAMPAIGNS.reduce((sum, c) => sum + c.reach, 0) / 1000000).toFixed(2)}M</div>
+                      <div className="text-2xl font-bold text-purple-400">
+                        {campaigns.length > 0
+                          ? `${(campaigns.reduce((sum, c) => sum + (c.reach || 0), 0) / 1000000).toFixed(2)}M`
+                          : '0'
+                        }
+                      </div>
                       <div className="text-xs text-purple-300/70">Total Reach</div>
                     </div>
                   </div>
 
                   {/* Campaign List */}
                   <div className="space-y-3">
-                    {MOCK_CAMPAIGNS.map((campaign) => (
+                    {isLoadingCampaigns ? (
+                      <div className="flex items-center justify-center p-8">
+                        <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
+                        <span className="ml-3 text-white/60">Loading campaigns...</span>
+                      </div>
+                    ) : campaigns.length === 0 ? (
+                      <div className="p-8 text-center rounded-xl bg-white/5 border border-white/10">
+                        <BarChart3 className="h-12 w-12 mx-auto text-white/30 mb-3" />
+                        <p className="text-white/60 font-medium">No campaigns found</p>
+                        <p className="text-white/40 text-sm mt-1">Create your first campaign to get started</p>
+                        <Button
+                          size="sm"
+                          onClick={() => setActiveSection('campaign')}
+                          className="mt-4 bg-gradient-to-r from-blue-600 to-indigo-600"
+                        >
+                          + Create Campaign
+                        </Button>
+                      </div>
+                    ) : campaigns.map((campaign) => (
                       <div 
                         key={campaign.id}
                         className="p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/8 transition-all"
@@ -1114,10 +1319,19 @@ export default function MetaAdsGlobePage() {
                     </div>
                     <Select value={formData.selectedPageId} onValueChange={(v) => updateField('selectedPageId', v)}>
                       <SelectTrigger className="bg-white/5 border-blue-500/20 text-white">
-                        <SelectValue placeholder="Select a Facebook Page" />
+                        <SelectValue placeholder={isLoadingPages ? "Loading pages..." : "Select a Facebook Page"} />
                       </SelectTrigger>
                       <SelectContent className="bg-slate-800 border-white/10">
-                        {MOCK_FACEBOOK_PAGES.map((page) => (
+                        {isLoadingPages ? (
+                          <div className="p-4 text-center text-white/60">
+                            <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2" />
+                            Loading your Pages...
+                          </div>
+                        ) : facebookPages.length === 0 ? (
+                          <div className="p-4 text-center text-white/60">
+                            No Facebook Pages found. Make sure you have admin access to at least one Page.
+                          </div>
+                        ) : facebookPages.map((page) => (
                           <SelectItem key={page.id} value={page.id} className="text-white hover:bg-white/10">
                             <div className="flex items-center gap-3">
                               <img src={page.picture} alt={page.name} className="w-8 h-8 rounded-full" />
@@ -1134,7 +1348,7 @@ export default function MetaAdsGlobePage() {
                       <div className="flex items-center gap-2 p-2 rounded-lg bg-green-500/10 border border-green-500/30">
                         <CheckCircle className="h-4 w-4 text-green-400" />
                         <span className="text-xs text-green-300">
-                          Page selected: {MOCK_FACEBOOK_PAGES.find(p => p.id === formData.selectedPageId)?.name}
+                          Page selected: {facebookPages.find(p => p.id === formData.selectedPageId)?.name}
                         </span>
                       </div>
                     )}
@@ -1151,17 +1365,36 @@ export default function MetaAdsGlobePage() {
                         <p className="text-xs text-indigo-200/60">Select the business ad account</p>
                       </div>
                     </div>
-                    <Select value={formData.selectedAdAccountId} onValueChange={(v) => updateField('selectedAdAccountId', v)}>
+                    <Select 
+                      value={formData.selectedAdAccountId} 
+                      onValueChange={async (v) => {
+                        updateField('selectedAdAccountId', v);
+                        // Fetch campaigns for this ad account
+                        const token = connectedAccount?.accessToken || localStorage.getItem('meta_access_token');
+                        if (token && v) {
+                          await fetchCampaigns(token, v);
+                        }
+                      }}
+                    >
                       <SelectTrigger className="bg-white/5 border-indigo-500/20 text-white">
-                        <SelectValue placeholder="Select an Ad Account" />
+                        <SelectValue placeholder={isLoadingAdAccounts ? "Loading accounts..." : "Select an Ad Account"} />
                       </SelectTrigger>
                       <SelectContent className="bg-slate-800 border-white/10">
-                        {MOCK_AD_ACCOUNTS.map((account) => (
+                        {isLoadingAdAccounts ? (
+                          <div className="p-4 text-center text-white/60">
+                            <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2" />
+                            Loading your Ad Accounts...
+                          </div>
+                        ) : adAccounts.length === 0 ? (
+                          <div className="p-4 text-center text-white/60">
+                            No Ad Accounts found. Make sure you have access to a Meta Business Ad Account.
+                          </div>
+                        ) : adAccounts.map((account) => (
                           <SelectItem key={account.id} value={account.id} className="text-white hover:bg-white/10">
                             <div>
                               <div className="font-medium">{account.name}</div>
                               <div className="text-xs text-white/50">
-                                {account.id} • {account.currency} • Spend Cap: ₦{(account.spend_cap / 1000).toFixed(0)}K
+                                {account.id} • {account.currency} • {account.status}
                               </div>
                             </div>
                           </SelectItem>
@@ -1172,7 +1405,7 @@ export default function MetaAdsGlobePage() {
                       <div className="flex items-center gap-2 p-2 rounded-lg bg-green-500/10 border border-green-500/30">
                         <CheckCircle className="h-4 w-4 text-green-400" />
                         <span className="text-xs text-green-300">
-                          Account: {MOCK_AD_ACCOUNTS.find(a => a.id === formData.selectedAdAccountId)?.name}
+                          Account: {adAccounts.find(a => a.id === formData.selectedAdAccountId)?.name}
                         </span>
                       </div>
                     )}
