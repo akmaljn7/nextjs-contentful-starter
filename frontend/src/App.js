@@ -1,5 +1,5 @@
 import '@/App.css';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { Header } from '@/components/Header';
@@ -37,55 +37,70 @@ import { ForgotPasswordPage } from '@/pages/ForgotPasswordPage';
 import { ResetPasswordPage } from '@/pages/ResetPasswordPage';
 import MetaAdsGlobePage from '@/pages/MetaAdsGlobePage';
 
+// Layout wrapper that conditionally shows Header/Footer
+function AppLayout() {
+  const location = useLocation();
+  
+  // Hide Header/Footer for Meta Review Mode route
+  const isMetaReviewRoute = location.pathname === '/admin/meta-ads-globe';
+  
+  return (
+    <>
+      <ScrollToTop />
+      {!isMetaReviewRoute && <Header />}
+      <main className={isMetaReviewRoute ? '' : 'flex-grow'}>
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/influencers" element={<InfluencersPage />} />
+          <Route path="/influencers/:id" element={<InfluencerDetailPage />} />
+          <Route path="/billboards" element={<BillboardsPage />} />
+          <Route path="/digital-ads" element={<DigitalAdsPage />} />
+          <Route path="/digital-ads/:id" element={<DigitalAdDetailPage />} />
+          <Route path="/kannywood" element={<KannywoodPage />} />
+          <Route path="/kannywood/:id" element={<KannywoodDetailPage />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/about" element={<AboutPage />} />
+          <Route path="/pricing" element={<PricingPage />} />
+          <Route path="/contact" element={<ContactPage />} />
+          <Route path="/faq" element={<FAQPage />} />
+          <Route path="/terms" element={<TermsPage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
+          <Route path="/cart" element={<CartPage />} />
+          <Route path="/place-order" element={<PlaceOrderPage />} />
+          <Route path="/payment/callback" element={<PaymentCallbackPage />} />
+          <Route path="/consultation" element={<ConsultationPage />} />
+          <Route path="/admin" element={<AdminPanelPage />} />
+          <Route path="/admin/meta-ads-globe" element={<MetaAdsGlobePage metaReviewMode={true} />} />
+          <Route path="/admin/platforms-ads-globe" element={<MetaAdsGlobePage metaReviewMode={false} />} />
+          <Route path="/search" element={<SearchResultsPage />} />
+          <Route path="/messages" element={<MessagingCenterPage />} />
+          <Route path="/orders/:orderId/tracking" element={<OrderTrackingPage />} />
+          
+          {/* Billboard detail route */}
+          <Route path="/billboards/:id" element={<BillboardDetailPage />} />
+          
+          {/* Placeholder routes */}
+          <Route path="/campaign-builder" element={<PlaceholderPage title="Campaign Builder" />} />
+          <Route path="/cookies" element={<PlaceholderPage title="Cookie Policy" />} />
+          <Route path="/refund-policy" element={<PlaceholderPage title="Refund Policy" />} />
+          <Route path="*" element={<PlaceholderPage title="Page Not Found" />} />
+        </Routes>
+      </main>
+      {!isMetaReviewRoute && <Footer />}
+    </>
+  );
+}
+
 function App() {
   return (
     <ThemeProvider>
       <div className="App min-h-screen flex flex-col">
         <BrowserRouter>
-          <ScrollToTop />
-          <Header />
-          <main className="flex-grow">
-            <Routes>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/register" element={<RegisterPage />} />
-              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-              <Route path="/reset-password" element={<ResetPasswordPage />} />
-              <Route path="/influencers" element={<InfluencersPage />} />
-              <Route path="/influencers/:id" element={<InfluencerDetailPage />} />
-              <Route path="/billboards" element={<BillboardsPage />} />
-              <Route path="/digital-ads" element={<DigitalAdsPage />} />
-              <Route path="/digital-ads/:id" element={<DigitalAdDetailPage />} />
-              <Route path="/kannywood" element={<KannywoodPage />} />
-              <Route path="/kannywood/:id" element={<KannywoodDetailPage />} />
-              <Route path="/dashboard" element={<DashboardPage />} />
-              <Route path="/about" element={<AboutPage />} />
-              <Route path="/pricing" element={<PricingPage />} />
-              <Route path="/contact" element={<ContactPage />} />
-              <Route path="/faq" element={<FAQPage />} />
-              <Route path="/terms" element={<TermsPage />} />
-              <Route path="/privacy" element={<PrivacyPage />} />
-              <Route path="/cart" element={<CartPage />} />
-              <Route path="/place-order" element={<PlaceOrderPage />} />
-              <Route path="/payment/callback" element={<PaymentCallbackPage />} />
-              <Route path="/consultation" element={<ConsultationPage />} />
-              <Route path="/admin" element={<AdminPanelPage />} />
-              <Route path="/admin/meta-ads-globe" element={<MetaAdsGlobePage />} />
-              <Route path="/search" element={<SearchResultsPage />} />
-              <Route path="/messages" element={<MessagingCenterPage />} />
-              <Route path="/orders/:orderId/tracking" element={<OrderTrackingPage />} />
-              
-              {/* Billboard detail route */}
-              <Route path="/billboards/:id" element={<BillboardDetailPage />} />
-              
-              {/* Placeholder routes */}
-              <Route path="/campaign-builder" element={<PlaceholderPage title="Campaign Builder" />} />
-              <Route path="/cookies" element={<PlaceholderPage title="Cookie Policy" />} />
-              <Route path="/refund-policy" element={<PlaceholderPage title="Refund Policy" />} />
-              <Route path="*" element={<PlaceholderPage title="Page Not Found" />} />
-            </Routes>
-          </main>
-          <Footer />
+          <AppLayout />
         </BrowserRouter>
         <Toaster position="top-right" richColors />
       </div>

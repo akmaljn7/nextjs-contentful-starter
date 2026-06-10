@@ -213,7 +213,7 @@ const LANGUAGE_OPTIONS = [
   { value: 'fr', label: 'French' },
 ];
 
-export default function MetaAdsGlobePage() {
+export default function MetaAdsGlobePage({ metaReviewMode = false }) {
   const navigate = useNavigate();
   const iframeRef = useRef(null);
   const sidebarRef = useRef(null);
@@ -230,10 +230,11 @@ export default function MetaAdsGlobePage() {
     snapchat: { enabled: false, connected: false, accountName: '' },
     youtube: { enabled: false, connected: false, accountName: '' },
   });
-  const [showPlatformBar, setShowPlatformBar] = useState(true);  // Restored after Meta App Review
+  // Hide platform bar in review mode
+  const [showPlatformBar, setShowPlatformBar] = useState(!metaReviewMode);
   
-  // Feature flags for Meta App Review
-  const SHOW_POST_UP_FEATURE = true;  // Restored after Meta App Review
+  // Feature flags - disabled for Meta App Review mode
+  const SHOW_POST_UP_FEATURE = !metaReviewMode;
   
   // Influencers for Post Up feature
   const [influencers, setInfluencers] = useState([]);
@@ -898,6 +899,19 @@ export default function MetaAdsGlobePage() {
     }
   }, []);
 
+  // Auto-trigger Meta Login Modal in review mode if not connected
+  useEffect(() => {
+    if (metaReviewMode && !isMetaConnected) {
+      // Small delay to allow any stored token check to complete
+      const timer = setTimeout(() => {
+        if (!isMetaConnected) {
+          setShowMetaLoginModal(true);
+        }
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [metaReviewMode, isMetaConnected]);
+
   // Silent keyboard shortcut to bypass login (Ctrl+Shift+B) - Uses demo data for testing
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -1124,7 +1138,8 @@ export default function MetaAdsGlobePage() {
     setSubmittedData(null);
   };
 
-  const sections = [
+  // Sections - exclude settings in review mode
+  const allSections = [
     { id: 'campaigns', label: 'Campaigns', icon: BarChart3, color: 'from-cyan-500 to-cyan-600' },
     { id: 'campaign', label: 'New Campaign', icon: Target, color: 'from-blue-500 to-blue-600' },
     { id: 'targeting', label: 'Target Audience', icon: Users, color: 'from-green-500 to-green-600' },
@@ -1132,6 +1147,11 @@ export default function MetaAdsGlobePage() {
     { id: 'creative', label: 'Creative', icon: ImageIcon, color: 'from-purple-500 to-purple-600' },
     { id: 'settings', label: 'Settings', icon: Settings, color: 'from-gray-500 to-gray-600' },
   ];
+  
+  // Filter out settings in review mode
+  const sections = metaReviewMode 
+    ? allSections.filter(s => s.id !== 'settings')
+    : allSections;
 
   // Toggle platform enabled state
   const togglePlatformEnabled = (platformId) => {
@@ -1172,7 +1192,7 @@ export default function MetaAdsGlobePage() {
       <div className="absolute inset-0">
         <iframe
           ref={iframeRef}
-          src="/meta-ads-globe.html"
+          src={`/meta-ads-globe.html${metaReviewMode ? '?reviewMode=true' : ''}`}
           className="w-full h-full border-0"
           title="AdGlobe 3D"
         />
@@ -1275,14 +1295,17 @@ export default function MetaAdsGlobePage() {
             <div className="px-5 py-3 border-b border-white/10 bg-gradient-to-r from-blue-600/10 to-purple-600/10">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    onClick={() => navigate('/admin')}
-                    className="h-8 w-8 text-white/70 hover:text-white hover:bg-white/10"
-                  >
-                    <ArrowLeft className="h-4 w-4" />
-                  </Button>
+                  {/* Back Arrow - Hidden in review mode */}
+                  {!metaReviewMode && (
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={() => navigate('/admin')}
+                      className="h-8 w-8 text-white/70 hover:text-white hover:bg-white/10"
+                    >
+                      <ArrowLeft className="h-4 w-4" />
+                    </Button>
+                  )}
                   <div className="flex items-center gap-3">
                     <div className={`w-9 h-9 rounded-xl flex items-center justify-center`} style={{ backgroundColor: AD_PLATFORMS.find(p => p.id === activePlatform)?.color }}>
                       <img 

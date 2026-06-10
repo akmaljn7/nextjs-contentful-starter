@@ -2803,7 +2803,7 @@ export const AdminPanelPage = () => {
                     <CardTitle>Manage Digital Ad Platforms ({filteredDigitalAds.length})</CardTitle>
                     <div className="flex items-center gap-2">
                       <Button 
-                        onClick={() => window.location.href = '/admin/meta-ads-globe'} 
+                        onClick={() => window.location.href = '/admin/platforms-ads-globe'} 
                         className="bg-blue-600 hover:bg-blue-700"
                       >
                         <Globe className="h-4 w-4 mr-2" /> AdGlobe

@@ -382,6 +382,20 @@
    - Auto-fit camera to boundaries
 ══════════════════════════════════════════════════════════════ */
 
+/* ════ Review Mode Detection ════ */
+const urlParams = new URLSearchParams(window.location.search);
+const isReviewMode = urlParams.get('reviewMode') === 'true';
+
+// Hide stats panel in review mode
+if (isReviewMode) {
+  document.addEventListener('DOMContentLoaded', () => {
+    const statsPanel = document.getElementById('stats');
+    if (statsPanel) {
+      statsPanel.style.display = 'none';
+    }
+  });
+}
+
 Cesium.Ion.defaultAccessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIzZmJkNDhiNC1kNjY5LTRkMzItYTYyOC0wZDIyODczMWU1ZGEiLCJpZCI6NDI1NTU0LCJpYXQiOjE3Nzc1MTE2MzV9.ib_KWkXbIERkpQ2wBs8XylsDnY_CWtjMChtjXdhg4Vw";
 
 const $ = id => document.getElementById(id);
@@ -2199,7 +2213,10 @@ async function bootstrap(){
       $('weatherCond').textContent = 'Estimated';
     }
     
-    $('stats').classList.add('visible');
+    // Don't show stats panel in review mode
+    if (!isReviewMode) {
+      $('stats').classList.add('visible');
+    }
     updateUI();
     
     // Start live time update interval
