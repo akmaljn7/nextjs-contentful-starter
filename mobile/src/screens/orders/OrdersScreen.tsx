@@ -199,6 +199,7 @@ export const OrdersScreen: React.FC = () => {
         <OrderCard
           order={item.data as Order}
           onPress={() => navigation.navigate('OrderDetail', { id: item.id })}
+          onMediaUpdate={loadAll}
         />
       );
     } else {

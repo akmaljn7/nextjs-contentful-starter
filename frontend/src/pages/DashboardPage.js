@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/lib/store';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import api from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatPrice, formatDate } from '@/lib/utils';
+import { OrderMediaUpload } from '@/components/OrderMediaUpload';
 import { 
   ShoppingBag, 
   TrendingUp, 
@@ -27,19 +28,36 @@ import {
   FileText,
   RefreshCw,
   Eye,
-  MessageSquare
+  MessageSquare,
+  Upload
 } from 'lucide-react';
 import { toast } from 'sonner';
 
 export const DashboardPage = () => {
   const { user } = useAuthStore();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [stats, setStats] = useState(null);
   const [orders, setOrders] = useState([]);
   const [consultations, setConsultations] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
+  const [expandedOrders, setExpandedOrders] = useState(new Set());
+
+  // Handle URL params for tab switching and upload prompt
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    const uploadMedia = searchParams.get('uploadMedia');
+    
+    if (tab === 'orders') {
+      setActiveTab('orders');
+    }
+    
+    if (uploadMedia === 'true') {
+      toast.info('Upload your ad content (photos/videos/links) for your orders below', { duration: 6000 });
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (!user) {
@@ -71,6 +89,18 @@ export const DashboardPage = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const toggleOrderExpanded = (orderId) => {
+    setExpandedOrders(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(orderId)) {
+        newSet.delete(orderId);
+      } else {
+        newSet.add(orderId);
+      }
+      return newSet;
+    });
   };
 
   if (!user) return null;
@@ -424,94 +454,91 @@ export const DashboardPage = () => {
                         </Button>
                       </div>
                     ) : (
-                      <div className="overflow-x-auto">
-                        <table className="w-full">
-                          <thead>
-                            <tr className="border-b">
-                              <th className="text-left py-3 px-2 sm:px-4 text-xs sm:text-sm font-semibold text-muted-foreground">Type</th>
-                              <th className="text-left py-3 px-2 sm:px-4 text-xs sm:text-sm font-semibold text-muted-foreground">Order</th>
-                              <th className="text-left py-3 px-2 sm:px-4 text-xs sm:text-sm font-semibold text-muted-foreground hidden sm:table-cell">Date</th>
-                              <th className="text-left py-3 px-2 sm:px-4 text-xs sm:text-sm font-semibold text-muted-foreground">Status</th>
-                              <th className="text-left py-3 px-2 sm:px-4 text-xs sm:text-sm font-semibold text-muted-foreground hidden md:table-cell">Payment</th>
-                              <th className="text-right py-3 px-2 sm:px-4 text-xs sm:text-sm font-semibold text-muted-foreground">Amount</th>
-                              <th className="text-right py-3 px-2 sm:px-4 text-xs sm:text-sm font-semibold text-muted-foreground">Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {/* Combine and sort orders + consultations by date */}
-                            {[
-                              ...orders.map(o => ({ ...o, orderType: 'service' })),
-                              ...consultations.map(c => ({ 
-                                ...c, 
-                                orderType: 'consultation',
-                                order_status: c.status,
-                                total_amount: c.price,
-                                package_details: { packageTitle: c.package_title }
-                              }))
-                            ]
-                              .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-                              .map((item) => (
-                              <tr key={item.id} className="border-b hover:bg-muted/30 transition-colors">
-                                <td className="py-3 px-2 sm:px-4">
+                      <div className="space-y-4">
+                        {/* Combine and sort orders + consultations by date */}
+                        {[
+                          ...orders.map(o => ({ ...o, orderType: 'service' })),
+                          ...consultations.map(c => ({ 
+                            ...c, 
+                            orderType: 'consultation',
+                            order_status: c.status,
+                            total_amount: c.price,
+                            package_details: { packageTitle: c.package_title }
+                          }))
+                        ]
+                          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+                          .map((item) => (
+                          <div 
+                            key={item.id} 
+                            className="p-4 rounded-lg border border-border bg-card hover:shadow-md transition-shadow"
+                          >
+                            {/* Order Header */}
+                            <div className="flex items-start justify-between gap-3 mb-3">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
                                   <Badge 
                                     className={`text-xs ${item.orderType === 'consultation' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'} border-0`}
                                   >
                                     {item.orderType === 'consultation' ? 'Consultation' : 'Service'}
                                   </Badge>
-                                </td>
-                                <td className="py-3 px-2 sm:px-4">
-                                  <div>
-                                    <p className="font-medium text-foreground text-xs sm:text-sm truncate max-w-[120px] sm:max-w-none">
-                                      {item.package_details?.packageTitle || item.listing_type?.replace('_', ' ') || 'Order'}
-                                    </p>
-                                    {item.orderType === 'consultation' && item.business_name && (
-                                      <p className="text-xs text-muted-foreground">{item.business_name}</p>
-                                    )}
-                                    <p className="text-xs text-muted-foreground sm:hidden">
-                                      {formatDate(item.created_at)}
-                                    </p>
-                                  </div>
-                                </td>
-                                <td className="py-3 px-2 sm:px-4 text-xs sm:text-sm text-muted-foreground hidden sm:table-cell">
-                                  {formatDate(item.created_at)}
-                                </td>
-                                <td className="py-3 px-2 sm:px-4">
-                                  {getStatusBadge(item.order_status)}
-                                </td>
-                                <td className="py-3 px-2 sm:px-4 hidden md:table-cell">
-                                  {getPaymentStatusBadge(item.payment_status)}
-                                </td>
-                                <td className="py-3 px-2 sm:px-4 text-right">
-                                  <span className="font-bold text-foreground text-xs sm:text-sm">
-                                    {formatPrice(item.total_amount)}
+                                  <span className="text-xs text-muted-foreground">
+                                    {formatDate(item.created_at)}
                                   </span>
-                                </td>
-                                <td className="py-3 px-2 sm:px-4 text-right">
-                                  <div className="flex items-center justify-end gap-1">
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => navigate(`/orders/${item.id}/tracking`)}
-                                      className="h-8 px-2 text-xs"
-                                      data-testid={`track-order-${item.id}`}
-                                    >
-                                      <Eye className="h-3 w-3 mr-1" />
-                                      Track
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => navigate(`/messages?id=${item.id}`)}
-                                      className="h-8 px-2 text-xs"
-                                    >
-                                      <MessageSquare className="h-3 w-3" />
-                                    </Button>
-                                  </div>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                                </div>
+                                <p className="font-semibold text-foreground text-sm sm:text-base truncate">
+                                  {item.package_details?.packageTitle || item.listing_type?.replace('_', ' ') || 'Order'}
+                                </p>
+                                {item.orderType === 'consultation' && item.business_name && (
+                                  <p className="text-xs text-muted-foreground">{item.business_name}</p>
+                                )}
+                              </div>
+                              <div className="text-right">
+                                <p className="font-bold text-foreground text-sm sm:text-base">
+                                  {formatPrice(item.total_amount)}
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Status Row */}
+                            <div className="flex items-center justify-between gap-2 mb-3">
+                              <div className="flex items-center gap-2">
+                                {getStatusBadge(item.order_status)}
+                                {getPaymentStatusBadge(item.payment_status)}
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => navigate(`/orders/${item.id}/tracking`)}
+                                  className="h-8 px-2 text-xs"
+                                  data-testid={`track-order-${item.id}`}
+                                >
+                                  <Eye className="h-3 w-3 mr-1" />
+                                  Track
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => navigate(`/messages?id=${item.id}`)}
+                                  className="h-8 px-2 text-xs"
+                                >
+                                  <MessageSquare className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </div>
+
+                            {/* Media Upload Section - Only for service orders, not consultations */}
+                            {item.orderType === 'service' && (
+                              <OrderMediaUpload
+                                orderId={item.id}
+                                existingMedia={item.ad_media || []}
+                                onMediaUpdate={fetchDashboardData}
+                                isCompact={true}
+                                readOnly={item.order_status === 'completed' || item.order_status === 'cancelled'}
+                              />
+                            )}
+                          </div>
+                        ))}
                       </div>
                     )}
                   </CardContent>

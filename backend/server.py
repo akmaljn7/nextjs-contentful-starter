@@ -422,6 +422,7 @@ class Order(BaseModel):
     brief_url: Optional[str] = None
     proof_url: Optional[str] = None
     completion_proof: Optional[List[dict]] = None  # List of {type: 'image'|'video', url: string}
+    ad_media: Optional[List[dict]] = None  # List of {type: 'image'|'video'|'link', url: string, filename?: string, uploaded_at: datetime}
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -431,6 +432,7 @@ class OrderUpdate(BaseModel):
     brief_url: Optional[str] = None
     proof_url: Optional[str] = None
     completion_proof: Optional[List[dict]] = None
+    ad_media: Optional[List[dict]] = None
 
 # Review Models
 class ReviewCreate(BaseModel):
@@ -2705,6 +2707,150 @@ async def update_order_status(order_id: str, data: OrderStatusUpdate, current_us
             logger.error(f"Failed to queue order email: {str(e)}")
     
     return {"status": "success", "message": "Order status updated", "order_id": order_id}
+
+# Order Media Upload Models
+class OrderMediaLink(BaseModel):
+    url: str
+    title: Optional[str] = None
+
+# Order Media Upload Endpoints
+@api_router.post("/orders/{order_id}/media")
+async def upload_order_media(
+    order_id: str,
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user)
+):
+    """Upload media (image/video) for an order - the content user wants advertised"""
+    order = await db.orders.find_one({"id": order_id}, {"_id": 0})
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    
+    # Only allow the order owner to upload media
+    if order["advertiser_id"] != current_user.id and current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Not authorized to upload media for this order")
+    
+    # Check file type
+    allowed_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.mp4', '.mov', '.avi', '.mkv'}
+    file_ext = Path(file.filename).suffix.lower() if file.filename else ''
+    if file_ext not in allowed_extensions:
+        raise HTTPException(status_code=400, detail=f"File type not allowed. Allowed: {', '.join(allowed_extensions)}")
+    
+    # Determine media type
+    image_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
+    media_type = 'image' if file_ext in image_extensions else 'video'
+    
+    # Create upload directory for order media
+    order_media_dir = UPLOAD_DIR / "order_media" / order_id
+    order_media_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Generate unique filename
+    unique_filename = f"{uuid.uuid4()}{file_ext}"
+    file_path = order_media_dir / unique_filename
+    
+    # Save file
+    try:
+        content = await file.read()
+        with open(file_path, "wb") as f:
+            f.write(content)
+    except Exception as e:
+        logger.error(f"Failed to save order media: {e}")
+        raise HTTPException(status_code=500, detail="Failed to save file")
+    
+    # Create media entry
+    media_entry = {
+        "type": media_type,
+        "url": f"/api/uploads/order_media/{order_id}/{unique_filename}",
+        "filename": file.filename,
+        "uploaded_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    # Update order with new media
+    existing_media = order.get("ad_media") or []
+    existing_media.append(media_entry)
+    
+    await db.orders.update_one(
+        {"id": order_id},
+        {"$set": {"ad_media": existing_media, "updated_at": datetime.now(timezone.utc)}}
+    )
+    
+    return {"status": "success", "media": media_entry}
+
+@api_router.post("/orders/{order_id}/media/link")
+async def add_order_media_link(
+    order_id: str,
+    data: OrderMediaLink,
+    current_user: User = Depends(get_current_user)
+):
+    """Add a link (URL) as media for an order"""
+    order = await db.orders.find_one({"id": order_id}, {"_id": 0})
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    
+    # Only allow the order owner to add links
+    if order["advertiser_id"] != current_user.id and current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Not authorized to add media for this order")
+    
+    # Create link entry
+    link_entry = {
+        "type": "link",
+        "url": data.url,
+        "title": data.title or data.url,
+        "uploaded_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    # Update order with new link
+    existing_media = order.get("ad_media") or []
+    existing_media.append(link_entry)
+    
+    await db.orders.update_one(
+        {"id": order_id},
+        {"$set": {"ad_media": existing_media, "updated_at": datetime.now(timezone.utc)}}
+    )
+    
+    return {"status": "success", "media": link_entry}
+
+@api_router.delete("/orders/{order_id}/media/{media_index}")
+async def delete_order_media(
+    order_id: str,
+    media_index: int,
+    current_user: User = Depends(get_current_user)
+):
+    """Delete media from an order by index"""
+    order = await db.orders.find_one({"id": order_id}, {"_id": 0})
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    
+    # Only allow the order owner or admin to delete media
+    if order["advertiser_id"] != current_user.id and current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Not authorized to delete media from this order")
+    
+    existing_media = order.get("ad_media") or []
+    if media_index < 0 or media_index >= len(existing_media):
+        raise HTTPException(status_code=404, detail="Media not found")
+    
+    # Get the media to delete
+    media_to_delete = existing_media[media_index]
+    
+    # If it's a file (not a link), delete from filesystem
+    if media_to_delete.get("type") != "link":
+        file_url = media_to_delete.get("url", "")
+        if file_url.startswith("/api/uploads/"):
+            file_path = UPLOAD_DIR / file_url.replace("/api/uploads/", "")
+            if file_path.exists():
+                try:
+                    file_path.unlink()
+                except Exception as e:
+                    logger.error(f"Failed to delete file {file_path}: {e}")
+    
+    # Remove from list
+    existing_media.pop(media_index)
+    
+    await db.orders.update_one(
+        {"id": order_id},
+        {"$set": {"ad_media": existing_media, "updated_at": datetime.now(timezone.utc)}}
+    )
+    
+    return {"status": "success", "message": "Media deleted"}
 
 # Paystack Payment Models
 class PaymentInitialize(BaseModel):

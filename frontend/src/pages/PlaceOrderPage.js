@@ -163,9 +163,9 @@ export const PlaceOrderPage = () => {
       }
       
       clearCart();
-      toast.success('Order confirmed! Check your email for details. Please visit our office to complete payment.');
+      toast.success('Order placed! Please upload your ad media and visit our office to complete payment.', { duration: 5000 });
       setShowCashConfirmModal(false);
-      navigate('/dashboard');
+      navigate('/dashboard?tab=orders&uploadMedia=true');
     } catch (error) {
       toast.error('Failed to confirm order. Please try again.');
     }
@@ -431,8 +431,11 @@ export const PlaceOrderPage = () => {
                 data-testid="confirm-cash-payment"
               >
                 <CheckCircle className="h-4 w-4 mr-2" />
-                Confirm Order
+                Confirm & Upload Media
               </Button>
+              <p className="text-xs text-center text-muted-foreground">
+                You'll be able to upload your ad content (photos/videos/links) after confirming
+              </p>
               <Button
                 onClick={() => {
                   setShowCashConfirmModal(false);

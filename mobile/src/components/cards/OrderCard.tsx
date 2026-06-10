@@ -7,15 +7,18 @@ import { Card } from '../common/Card';
 import { Badge } from '../common/Badge';
 import { Order } from '../../types/api';
 import { formatPrice, formatDate } from '../../utils/formatters';
+import { OrderMediaUpload } from '../media/OrderMediaUpload';
 
 interface OrderCardProps {
   order: Order;
   onPress: () => void;
+  onMediaUpdate?: () => void;
 }
 
 export const OrderCard: React.FC<OrderCardProps> = ({
   order,
   onPress,
+  onMediaUpdate,
 }) => {
   // Get order title from package_details
   const getOrderTitle = () => {
@@ -94,6 +97,16 @@ export const OrderCard: React.FC<OrderCardProps> = ({
             </View>
           </View>
         </View>
+
+        {/* Ad Media Upload Section */}
+        {onMediaUpdate && (
+          <OrderMediaUpload
+            order={order}
+            onMediaUpdate={onMediaUpdate}
+            compact={true}
+            readOnly={order.order_status === 'completed' || order.order_status === 'cancelled'}
+          />
+        )}
 
         <View style={styles.arrowContainer}>
           <Ionicons name="chevron-forward" size={20} color={Colors.textMuted} />

@@ -86,4 +86,48 @@ export const ordersApi = {
     const response = await apiClient.get('/payments/config');
     return response.data;
   },
+
+  // Upload media for order (ad content to be advertised)
+  async uploadMedia(orderId: string, formData: FormData): Promise<{
+    status: string;
+    media: {
+      type: string;
+      url: string;
+      filename?: string;
+      uploaded_at: string;
+    };
+  }> {
+    const response = await apiClient.post(`/orders/${orderId}/media`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  // Add a link as media for order
+  async addMediaLink(orderId: string, data: {
+    url: string;
+    title?: string;
+  }): Promise<{
+    status: string;
+    media: {
+      type: string;
+      url: string;
+      title?: string;
+      uploaded_at: string;
+    };
+  }> {
+    const response = await apiClient.post(`/orders/${orderId}/media/link`, data);
+    return response.data;
+  },
+
+  // Delete media from order
+  async deleteMedia(orderId: string, mediaIndex: number): Promise<{
+    status: string;
+    message: string;
+  }> {
+    const response = await apiClient.delete(`/orders/${orderId}/media/${mediaIndex}`);
+    return response.data;
+  },
 };

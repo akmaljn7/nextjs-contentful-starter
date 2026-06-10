@@ -4625,6 +4625,54 @@ export const AdminPanelPage = () => {
                 </div>
               </div>
 
+              {/* User's Ad Media Content - What they want advertised */}
+              {selectedOrder.order_type !== 'consultation' && (
+                <div className="border-2 border-accent/20 rounded-lg p-4 mt-4 bg-accent/5">
+                  <p className="text-sm font-semibold mb-3 flex items-center gap-2">
+                    <Image className="h-4 w-4 text-accent" />
+                    User's Ad Content ({selectedOrder.ad_media?.length || 0} items)
+                  </p>
+                  {selectedOrder.ad_media && selectedOrder.ad_media.length > 0 ? (
+                    <div className="grid grid-cols-3 gap-2">
+                      {selectedOrder.ad_media.map((media, idx) => (
+                        <div key={idx} className="relative aspect-square rounded overflow-hidden bg-muted group">
+                          {media.type === 'video' ? (
+                            <video 
+                              src={media.url.startsWith('http') ? media.url : `${process.env.REACT_APP_BACKEND_URL}${media.url}`} 
+                              controls 
+                              className="w-full h-full object-cover" 
+                            />
+                          ) : media.type === 'link' ? (
+                            <a 
+                              href={media.url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="w-full h-full flex flex-col items-center justify-center bg-blue-50 hover:bg-blue-100 p-2"
+                            >
+                              <Lightbulb className="h-6 w-6 text-blue-600 mb-1" />
+                              <span className="text-xs text-blue-600 text-center line-clamp-2">
+                                {media.title || 'Link'}
+                              </span>
+                            </a>
+                          ) : (
+                            <img 
+                              src={media.url.startsWith('http') ? media.url : `${process.env.REACT_APP_BACKEND_URL}${media.url}`} 
+                              alt={`Ad content ${idx + 1}`} 
+                              className="w-full h-full object-cover" 
+                            />
+                          )}
+                          <div className="absolute bottom-1 left-1 bg-black/60 text-white text-xs px-1.5 py-0.5 rounded">
+                            {media.type}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">User hasn't uploaded any ad content yet</p>
+                  )}
+                </div>
+              )}
+
               {/* Completion Proof Section */}
               {selectedOrder.order_status === 'completed' && (
                 <div className="border rounded-lg p-4 mt-4">

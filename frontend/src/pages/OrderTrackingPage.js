@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { OrderMediaUpload } from '@/components/OrderMediaUpload';
 import {
   ArrowLeft,
   Loader2,
@@ -25,7 +26,8 @@ import {
   Phone,
   Mail,
   ExternalLink,
-  ChevronRight
+  ChevronRight,
+  Upload
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -531,6 +533,29 @@ export const OrderTrackingPage = () => {
                   );
                 })}
               </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Ad Media Upload - User's content to be advertised */}
+        {!isConsultation && (
+          <Card className="mb-6 border-2 border-accent/20">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Upload className="h-5 w-5 text-accent" />
+                Your Ad Content
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Upload the photos, videos, or links you want us to advertise
+              </p>
+            </CardHeader>
+            <CardContent>
+              <OrderMediaUpload
+                orderId={orderId}
+                existingMedia={order?.ad_media || []}
+                onMediaUpdate={fetchTracking}
+                readOnly={order?.order_status === 'completed' || order?.order_status === 'cancelled'}
+              />
             </CardContent>
           </Card>
         )}

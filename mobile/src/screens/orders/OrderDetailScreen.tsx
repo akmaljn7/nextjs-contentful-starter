@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 import { Card, LoadingSpinner, ErrorMessage, Badge, Button } from '../../components/common';
+import { OrderMediaUpload } from '../../components/media/OrderMediaUpload';
 import { ordersApi } from '../../api';
 import { Order } from '../../types/api';
 import { formatPrice, formatDate, formatDateTime } from '../../utils/formatters';
@@ -120,6 +121,19 @@ export const OrderDetailScreen: React.FC = () => {
         </Card>
       </View>
 
+      {/* Ad Media Upload Section */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Your Ad Content</Text>
+        <Text style={styles.sectionSubtitle}>
+          Upload the photos, videos, or links you want us to advertise
+        </Text>
+        <OrderMediaUpload
+          order={order}
+          onMediaUpdate={loadOrder}
+          readOnly={order.order_status === 'completed' || order.order_status === 'cancelled'}
+        />
+      </View>
+
       {/* Order Summary */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Order Summary</Text>
@@ -220,6 +234,12 @@ const styles = StyleSheet.create({
     fontWeight: Fonts.weight.semibold,
     color: Colors.textPrimary,
     marginBottom: 12,
+  },
+  sectionSubtitle: {
+    fontSize: Fonts.size.sm,
+    color: Colors.textSecondary,
+    marginBottom: 12,
+    marginTop: -8,
   },
   itemCard: {
     marginBottom: 12,

@@ -257,6 +257,17 @@ export interface Order {
   brief_url?: string;
   proof_url?: string;
   payment_reference?: string;
+  ad_media?: Array<{
+    type: 'image' | 'video' | 'link';
+    url: string;
+    filename?: string;
+    title?: string;
+    uploaded_at?: string;
+  }>;
+  completion_proof?: Array<{
+    type: 'image' | 'video';
+    url: string;
+  }>;
   created_at: string;
   updated_at: string;
 }

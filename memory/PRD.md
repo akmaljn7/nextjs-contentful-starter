@@ -20,7 +20,31 @@ Create a polished, conversion-focused, responsive marketplace website and cross-
 
 ## Current Status (December 2025)
 
-### Dual-Mode AdGlobe Implementation ✅ (Just Completed)
+### Order Media Upload Feature ✅ (Just Completed - Dec 10, 2025)
+Users can now upload ad content (photos/videos/links) for their orders:
+
+**Web Implementation:**
+- `OrderMediaUpload.jsx` component created with compact & full views
+- Dashboard orders now show "Ad Media (X)" section with upload buttons
+- OrderTrackingPage has dedicated "Your Ad Content" section
+- Admin Panel order modal displays all uploaded media
+- PlaceOrderPage updated: "Confirm & Upload Media" button text
+- After cash payment confirmation, redirects to dashboard with upload prompt
+
+**Mobile Implementation (iOS/Android):**
+- `OrderMediaUpload.tsx` component with ImagePicker integration
+- OrderCard shows media count and upload buttons
+- OrderDetailScreen has full media upload section
+- API methods added: `uploadMedia`, `addMediaLink`, `deleteMedia`
+
+**Backend:**
+- `ad_media` field added to Order model
+- `POST /api/orders/{order_id}/media` - Upload image/video
+- `POST /api/orders/{order_id}/media/link` - Add link
+- `DELETE /api/orders/{order_id}/media/{index}` - Delete media
+- Files stored in `/app/backend/uploads/order_media/{order_id}/`
+
+### Dual-Mode AdGlobe Implementation ✅ (Dec 10, 2025)
 Two separate AdGlobe routes created to satisfy both Meta App Review requirements and client presentation needs:
 
 **Meta Review Mode** (`/admin/meta-ads-globe`) - For Meta App Reviewers:
