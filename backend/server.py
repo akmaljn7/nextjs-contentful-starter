@@ -5424,6 +5424,82 @@ async def simple_upload(
         "url": f"/api/uploads/{final_filename}"
     }
 
+@api_router.get("/uploads/order_media/{order_id}/{filename}")
+async def get_order_media_file(order_id: str, filename: str, request: Request):
+    """Serve order media files (user uploaded ad content)"""
+    file_path = UPLOAD_DIR / "order_media" / order_id / filename
+    
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File not found")
+    
+    # Security: Ensure the path is within UPLOAD_DIR
+    try:
+        file_path.resolve().relative_to(UPLOAD_DIR.resolve())
+    except ValueError:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Determine content type based on extension
+    ext = file_path.suffix.lower()
+    content_types = {
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.png': 'image/png',
+        '.gif': 'image/gif',
+        '.webp': 'image/webp',
+        '.mp4': 'video/mp4',
+        '.mov': 'video/quicktime',
+        '.avi': 'video/x-msvideo',
+        '.mkv': 'video/x-matroska',
+    }
+    
+    media_type = content_types.get(ext, 'application/octet-stream')
+    file_size = file_path.stat().st_size
+    
+    # Check for Range header (required for video streaming)
+    range_header = request.headers.get('range')
+    
+    if range_header and ext in {'.mp4', '.mov', '.avi', '.mkv'}:
+        # Parse range header
+        range_match = range_header.replace('bytes=', '').split('-')
+        start = int(range_match[0]) if range_match[0] else 0
+        end = int(range_match[1]) if range_match[1] else file_size - 1
+        
+        if start >= file_size:
+            raise HTTPException(status_code=416, detail="Range not satisfiable")
+        
+        end = min(end, file_size - 1)
+        content_length = end - start + 1
+        
+        with open(file_path, 'rb') as f:
+            f.seek(start)
+            data = f.read(content_length)
+        
+        headers = {
+            "Content-Range": f"bytes {start}-{end}/{file_size}",
+            "Accept-Ranges": "bytes",
+            "Content-Length": str(content_length),
+            "Cache-Control": "public, max-age=31536000",
+            "Access-Control-Allow-Origin": "*",
+        }
+        
+        return Response(
+            content=data,
+            status_code=206,
+            media_type=media_type,
+            headers=headers
+        )
+    
+    # Regular file response
+    return FileResponse(
+        file_path,
+        media_type=media_type,
+        headers={
+            "Accept-Ranges": "bytes",
+            "Cache-Control": "public, max-age=31536000",
+            "Access-Control-Allow-Origin": "*"
+        }
+    )
+
 @api_router.get("/uploads/{filename}")
 async def get_uploaded_file(filename: str, request: Request):
     """Serve uploaded files with proper content-type and range support for video streaming"""
