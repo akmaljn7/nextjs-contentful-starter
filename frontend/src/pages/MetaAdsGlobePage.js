@@ -1354,8 +1354,8 @@ export default function MetaAdsGlobePage({ metaReviewMode = false }) {
                 </div>
               </div>
               
-              {/* Platform Bar Toggle */}
-              {!showPlatformBar && (
+              {/* Platform Bar Toggle - Hidden in review mode */}
+              {!showPlatformBar && !metaReviewMode && (
                 <button 
                   onClick={() => setShowPlatformBar(true)}
                   className="mt-2 w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-white/60 hover:text-white"
