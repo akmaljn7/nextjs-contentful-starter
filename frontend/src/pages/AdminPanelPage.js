@@ -66,7 +66,8 @@ import {
   X,
   Image,
   Lightbulb,
-  Globe
+  Globe,
+  ExternalLink
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -4634,38 +4635,47 @@ export const AdminPanelPage = () => {
                   </p>
                   {selectedOrder.ad_media && selectedOrder.ad_media.length > 0 ? (
                     <div className="grid grid-cols-3 gap-2">
-                      {selectedOrder.ad_media.map((media, idx) => (
-                        <div key={idx} className="relative aspect-square rounded overflow-hidden bg-muted group">
-                          {media.type === 'video' ? (
-                            <video 
-                              src={media.url.startsWith('http') ? media.url : `${process.env.REACT_APP_BACKEND_URL}${media.url}`} 
-                              controls 
-                              className="w-full h-full object-cover" 
-                            />
-                          ) : media.type === 'link' ? (
-                            <a 
-                              href={media.url} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="w-full h-full flex flex-col items-center justify-center bg-blue-50 hover:bg-blue-100 p-2"
-                            >
-                              <Lightbulb className="h-6 w-6 text-blue-600 mb-1" />
-                              <span className="text-xs text-blue-600 text-center line-clamp-2">
-                                {media.title || 'Link'}
-                              </span>
-                            </a>
-                          ) : (
-                            <img 
-                              src={media.url.startsWith('http') ? media.url : `${process.env.REACT_APP_BACKEND_URL}${media.url}`} 
-                              alt={`Ad content ${idx + 1}`} 
-                              className="w-full h-full object-cover" 
-                            />
-                          )}
-                          <div className="absolute bottom-1 left-1 bg-black/60 text-white text-xs px-1.5 py-0.5 rounded">
-                            {media.type}
+                      {selectedOrder.ad_media.map((media, idx) => {
+                        const mediaUrl = media?.url || '';
+                        const isExternalUrl = mediaUrl.startsWith('http://') || mediaUrl.startsWith('https://');
+                        const fullUrl = isExternalUrl ? mediaUrl : `${process.env.REACT_APP_BACKEND_URL}${mediaUrl}`;
+                        
+                        return (
+                          <div key={idx} className="relative aspect-square rounded overflow-hidden bg-muted group">
+                            {media?.type === 'video' ? (
+                              <video 
+                                src={fullUrl} 
+                                controls 
+                                className="w-full h-full object-cover" 
+                              />
+                            ) : media?.type === 'link' ? (
+                              <a 
+                                href={mediaUrl} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="w-full h-full flex flex-col items-center justify-center bg-blue-50 hover:bg-blue-100 p-2"
+                              >
+                                <ExternalLink className="h-6 w-6 text-blue-600 mb-1" />
+                                <span className="text-xs text-blue-600 text-center line-clamp-2">
+                                  {media?.title || 'Link'}
+                                </span>
+                              </a>
+                            ) : (
+                              <img 
+                                src={fullUrl} 
+                                alt={`Ad content ${idx + 1}`} 
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  e.target.style.display = 'none';
+                                }}
+                              />
+                            )}
+                            <div className="absolute bottom-1 left-1 bg-black/60 text-white text-xs px-1.5 py-0.5 rounded">
+                              {media?.type || 'file'}
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   ) : (
                     <p className="text-sm text-muted-foreground">User hasn't uploaded any ad content yet</p>
