@@ -9,6 +9,7 @@ import {
   Image,
   Platform,
   StatusBar,
+  Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -179,11 +180,19 @@ export const HomeScreen: React.FC = () => {
                   key={influencer.id}
                   style={[styles.influencerCard, { backgroundColor: isDark ? colors.surface : Colors.primary }]}
                   onPress={() => {
-                    navigation.navigate('ExploreTab', { 
-                      screen: 'InfluencerDetail', 
-                      params: { id: influencer.id },
-                      initial: false,
-                    });
+                    if (influencer.is_busy) {
+                      Alert.alert(
+                        'Influencer Busy',
+                        'This influencer is currently busy and not accepting new orders. Please check back later or explore other influencers.',
+                        [{ text: 'OK', style: 'default' }]
+                      );
+                    } else {
+                      navigation.navigate('ExploreTab', { 
+                        screen: 'InfluencerDetail', 
+                        params: { id: influencer.id },
+                        initial: false,
+                      });
+                    }
                   }}
                 >
                   <View style={styles.influencerImageContainer}>
@@ -192,6 +201,13 @@ export const HomeScreen: React.FC = () => {
                     ) : (
                       <View style={[styles.influencerImagePlaceholder, { backgroundColor: colors.gray[200] }]}>
                         <Ionicons name="person" size={32} color={colors.gray[400]} />
+                      </View>
+                    )}
+                    {/* Busy Badge */}
+                    {influencer.is_busy && (
+                      <View style={styles.busyBadge}>
+                        <Ionicons name="time" size={10} color={Colors.white} />
+                        <Text style={styles.busyBadgeText}>Busy</Text>
                       </View>
                     )}
                   </View>
@@ -422,6 +438,23 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.gray[200],
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  busyBadge: {
+    position: 'absolute',
+    bottom: -4,
+    right: -4,
+    backgroundColor: '#f97316',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  busyBadgeText: {
+    fontSize: 9,
+    color: Colors.white,
+    fontWeight: Fonts.weight.bold,
   },
   influencerName: {
     fontSize: Fonts.size.sm,
