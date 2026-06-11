@@ -67,7 +67,8 @@ import {
   Image,
   Lightbulb,
   Globe,
-  ExternalLink
+  ExternalLink,
+  Download
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -1812,6 +1813,10 @@ export const AdminPanelPage = () => {
   const [selectedOrders, setSelectedOrders] = useState([]);
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  
+  // Messages states
+  const [allConversations, setAllConversations] = useState([]);
+  const [messagesLoading, setMessagesLoading] = useState(false);
 
   // Drag and drop sensors
   const sensors = useSensors(
@@ -2009,6 +2014,14 @@ export const AdminPanelPage = () => {
       // Filter packages that have billboard_type_id (independent type packages)
       const allPackages = independentPackagesRes.data || [];
       setIndependentPackages(allPackages.filter(p => p.billboard_type_id));
+      
+      // Fetch conversations for Messages tab
+      try {
+        const conversationsRes = await api.get('/conversations');
+        setAllConversations(conversationsRes.data || []);
+      } catch (err) {
+        console.error('Failed to fetch conversations:', err);
+      }
     } catch (error) {
       console.error('Error fetching data:', error);
       toast.error('Failed to load admin data');
@@ -2488,6 +2501,7 @@ export const AdminPanelPage = () => {
                 <TabsTrigger value="digitalads" className="data-[state=active]:bg-white text-xs sm:text-sm">Digital Ads</TabsTrigger>
                 <TabsTrigger value="consultations" className="data-[state=active]:bg-white text-xs sm:text-sm">Consultations</TabsTrigger>
                 <TabsTrigger value="orders" className="data-[state=active]:bg-white text-xs sm:text-sm">Orders</TabsTrigger>
+                <TabsTrigger value="messages" className="data-[state=active]:bg-white text-xs sm:text-sm">Messages</TabsTrigger>
                 <TabsTrigger value="users" className="data-[state=active]:bg-white text-xs sm:text-sm">Users</TabsTrigger>
                 <TabsTrigger value="settings" className="data-[state=active]:bg-white text-xs sm:text-sm">Settings</TabsTrigger>
                 <TabsTrigger value="branding" className="data-[state=active]:bg-white text-xs sm:text-sm">Branding</TabsTrigger>
@@ -3019,6 +3033,93 @@ export const AdminPanelPage = () => {
                         </table>
                       </DndContext>
                     </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* Messages Tab */}
+              <TabsContent value="messages">
+                <Card className="border-2">
+                  <CardHeader className="flex flex-row items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      <MessageSquare className="h-5 w-5 text-accent" />
+                      Customer Messages ({allConversations.length})
+                    </CardTitle>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => navigate('/messages')}
+                    >
+                      Open Full Messaging Center
+                    </Button>
+                  </CardHeader>
+                  <CardContent>
+                    {allConversations.length === 0 ? (
+                      <div className="text-center py-12">
+                        <MessageSquare className="h-16 w-16 mx-auto text-muted-foreground/30 mb-4" />
+                        <p className="text-muted-foreground">No messages yet</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2 max-h-[600px] overflow-y-auto">
+                        {allConversations.map((conv) => (
+                          <div 
+                            key={conv.id}
+                            className="p-4 rounded-lg border border-border hover:border-accent/50 hover:bg-muted/30 cursor-pointer transition-colors"
+                            onClick={() => navigate(`/messages?id=${conv.id}`)}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div className={`h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                                  conv.type === 'support' ? 'bg-green-100' :
+                                  conv.type === 'order' ? 'bg-primary/10' : 'bg-accent/10'
+                                }`}>
+                                  {conv.type === 'support' ? (
+                                    <MessageSquare className="h-5 w-5 text-green-600" />
+                                  ) : conv.type === 'order' ? (
+                                    <Package className="h-5 w-5 text-primary" />
+                                  ) : (
+                                    <User className="h-5 w-5 text-accent" />
+                                  )}
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <h4 className="font-semibold text-foreground text-sm truncate">
+                                      {conv.title}
+                                    </h4>
+                                    {conv.unread_count > 0 && (
+                                      <Badge className="bg-red-500 text-white text-xs px-1.5 py-0.5">
+                                        {conv.unread_count}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-muted-foreground truncate">
+                                    {conv.subtitle}
+                                  </p>
+                                  {conv.last_message && (
+                                    <p className="text-xs text-muted-foreground truncate mt-1">
+                                      {conv.last_message}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="text-right flex-shrink-0">
+                                <p className="text-xs text-muted-foreground">
+                                  {conv.last_message_time ? new Date(conv.last_message_time).toLocaleDateString() : ''}
+                                </p>
+                                <Badge className={`text-xs mt-1 ${
+                                  conv.status === 'completed' ? 'bg-green-100 text-green-700' :
+                                  conv.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                                  conv.status === 'in_progress' ? 'bg-blue-100 text-blue-700' :
+                                  'bg-gray-100 text-gray-700'
+                                }`}>
+                                  {conv.status?.replace(/_/g, ' ') || conv.type}
+                                </Badge>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -4634,44 +4735,77 @@ export const AdminPanelPage = () => {
                     User's Ad Content ({selectedOrder.ad_media?.length || 0} items)
                   </p>
                   {selectedOrder.ad_media && selectedOrder.ad_media.length > 0 ? (
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                       {selectedOrder.ad_media.map((media, idx) => {
                         const mediaUrl = media?.url || '';
                         const isExternalUrl = mediaUrl.startsWith('http://') || mediaUrl.startsWith('https://');
                         const fullUrl = isExternalUrl ? mediaUrl : `${process.env.REACT_APP_BACKEND_URL}${mediaUrl}`;
                         
+                        const handleDownload = async () => {
+                          try {
+                            const response = await fetch(fullUrl);
+                            const blob = await response.blob();
+                            const url = window.URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = media?.filename || `ad-content-${idx + 1}.${media?.type === 'video' ? 'mp4' : 'png'}`;
+                            document.body.appendChild(a);
+                            a.click();
+                            window.URL.revokeObjectURL(url);
+                            document.body.removeChild(a);
+                            toast.success('Download started');
+                          } catch (error) {
+                            toast.error('Failed to download file');
+                          }
+                        };
+                        
                         return (
-                          <div key={idx} className="relative aspect-square rounded overflow-hidden bg-muted group">
-                            {media?.type === 'video' ? (
-                              <video 
-                                src={fullUrl} 
-                                controls 
-                                className="w-full h-full object-cover" 
-                              />
-                            ) : media?.type === 'link' ? (
-                              <a 
-                                href={mediaUrl} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="w-full h-full flex flex-col items-center justify-center bg-blue-50 hover:bg-blue-100 p-2"
-                              >
-                                <ExternalLink className="h-6 w-6 text-blue-600 mb-1" />
-                                <span className="text-xs text-blue-600 text-center line-clamp-2">
-                                  {media?.title || 'Link'}
-                                </span>
-                              </a>
-                            ) : (
-                              <img 
-                                src={fullUrl} 
-                                alt={`Ad content ${idx + 1}`} 
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                  e.target.style.display = 'none';
-                                }}
-                              />
-                            )}
-                            <div className="absolute bottom-1 left-1 bg-black/60 text-white text-xs px-1.5 py-0.5 rounded">
-                              {media?.type || 'file'}
+                          <div key={idx} className="relative rounded-lg overflow-hidden bg-muted group border border-border">
+                            <div className="aspect-square">
+                              {media?.type === 'video' ? (
+                                <video 
+                                  src={fullUrl} 
+                                  controls 
+                                  className="w-full h-full object-cover" 
+                                />
+                              ) : media?.type === 'link' ? (
+                                <a 
+                                  href={mediaUrl} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="w-full h-full flex flex-col items-center justify-center bg-blue-50 hover:bg-blue-100 p-2"
+                                >
+                                  <ExternalLink className="h-6 w-6 text-blue-600 mb-1" />
+                                  <span className="text-xs text-blue-600 text-center line-clamp-2">
+                                    {media?.title || 'Link'}
+                                  </span>
+                                </a>
+                              ) : (
+                                <img 
+                                  src={fullUrl} 
+                                  alt={`Ad content ${idx + 1}`} 
+                                  className="w-full h-full object-cover cursor-pointer"
+                                  onClick={() => window.open(fullUrl, '_blank')}
+                                  onError={(e) => {
+                                    e.target.style.display = 'none';
+                                  }}
+                                />
+                              )}
+                            </div>
+                            {/* Type badge and download button */}
+                            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2 flex items-center justify-between">
+                              <span className="text-white text-xs font-medium">
+                                {media?.type || 'file'}
+                              </span>
+                              {media?.type !== 'link' && (
+                                <button
+                                  onClick={handleDownload}
+                                  className="bg-white/20 hover:bg-white/40 text-white p-1.5 rounded-full transition-colors"
+                                  title="Download"
+                                >
+                                  <Download className="h-4 w-4" />
+                                </button>
+                              )}
                             </div>
                           </div>
                         );
@@ -4680,6 +4814,23 @@ export const AdminPanelPage = () => {
                   ) : (
                     <p className="text-sm text-muted-foreground">User hasn't uploaded any ad content yet</p>
                   )}
+                </div>
+              )}
+
+              {/* Chat Button */}
+              {selectedOrder.order_type !== 'consultation' && (
+                <div className="mt-4">
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => {
+                      setShowOrderDetail(false);
+                      navigate(`/messages?id=${selectedOrder.id}`);
+                    }}
+                  >
+                    <MessageSquare className="h-4 w-4 mr-2" />
+                    View Chat with Customer
+                  </Button>
                 </div>
               )}
 

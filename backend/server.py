@@ -457,6 +457,7 @@ class Review(BaseModel):
 class MessageCreate(BaseModel):
     order_id: str
     message: str
+    media: Optional[List[dict]] = None  # List of {type: 'image'|'video', url: string}
 
 class Message(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -465,6 +466,7 @@ class Message(BaseModel):
     sender_id: str
     sender_role: str
     message: str
+    media: Optional[List[dict]] = None  # List of {type: 'image'|'video', url: string}
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 # ============= UTILITIES =============
@@ -3247,7 +3249,8 @@ async def create_message(data: MessageCreate, current_user: User = Depends(get_c
         order_id=data.order_id,
         sender_id=current_user.id,
         sender_role=current_user.role,
-        message=data.message
+        message=data.message,
+        media=data.media
     )
     
     doc = message.model_dump()
@@ -3333,6 +3336,85 @@ async def get_messages(order_id: str, current_user: User = Depends(get_current_u
             msg['created_at'] = datetime.fromisoformat(msg['created_at'])
     
     return messages
+
+# Upload media for a message
+@api_router.post("/messages/{order_id}/media")
+async def upload_message_media(
+    order_id: str,
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user)
+):
+    """Upload media (image/video) for a message conversation"""
+    # Check file type
+    allowed_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.mp4', '.mov', '.avi'}
+    file_ext = Path(file.filename).suffix.lower() if file.filename else ''
+    if file_ext not in allowed_extensions:
+        raise HTTPException(status_code=400, detail=f"File type not allowed. Allowed: {', '.join(allowed_extensions)}")
+    
+    # Determine media type
+    image_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
+    media_type = 'image' if file_ext in image_extensions else 'video'
+    
+    # Create upload directory for message media
+    message_media_dir = UPLOAD_DIR / "message_media" / order_id
+    message_media_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Generate unique filename
+    unique_filename = f"{uuid.uuid4()}{file_ext}"
+    file_path = message_media_dir / unique_filename
+    
+    # Save file
+    try:
+        content = await file.read()
+        with open(file_path, "wb") as f:
+            f.write(content)
+    except Exception as e:
+        logger.error(f"Failed to save message media: {e}")
+        raise HTTPException(status_code=500, detail="Failed to save file")
+    
+    return {
+        "status": "success",
+        "media": {
+            "type": media_type,
+            "url": f"/api/uploads/message_media/{order_id}/{unique_filename}",
+            "filename": file.filename
+        }
+    }
+
+# Serve message media files
+@api_router.get("/uploads/message_media/{order_id}/{filename}")
+async def get_message_media_file(order_id: str, filename: str, request: Request):
+    """Serve message media files"""
+    file_path = UPLOAD_DIR / "message_media" / order_id / filename
+    
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File not found")
+    
+    # Security check
+    try:
+        file_path.resolve().relative_to(UPLOAD_DIR.resolve())
+    except ValueError:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Determine content type
+    ext = file_path.suffix.lower()
+    content_types = {
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.png': 'image/png',
+        '.gif': 'image/gif',
+        '.webp': 'image/webp',
+        '.mp4': 'video/mp4',
+        '.mov': 'video/quicktime',
+        '.avi': 'video/x-msvideo',
+    }
+    media_type = content_types.get(ext, 'application/octet-stream')
+    
+    return FileResponse(
+        file_path,
+        media_type=media_type,
+        headers={"Cache-Control": "public, max-age=31536000"}
+    )
 
 # Get all conversations for user (messaging center)
 @api_router.get("/conversations")

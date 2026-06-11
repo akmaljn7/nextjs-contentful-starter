@@ -23,7 +23,11 @@ import {
   Calendar,
   ChevronRight,
   Inbox,
-  RefreshCw
+  RefreshCw,
+  Paperclip,
+  Image as ImageIcon,
+  X,
+  Download
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -45,8 +49,56 @@ export const MessagingCenterPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [showNewMessage, setShowNewMessage] = useState(false);
+  const [pendingMedia, setPendingMedia] = useState([]);
+  const [uploading, setUploading] = useState(false);
   const messagesEndRef = useRef(null);
   const refreshIntervalRef = useRef(null);
+  const fileInputRef = useRef(null);
+
+  const API_URL = process.env.REACT_APP_BACKEND_URL || '';
+
+  const getAbsoluteMediaUrl = (url) => {
+    if (!url) return '';
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url;
+    }
+    return `${API_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+  };
+
+  const handleFileSelect = async (e) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    
+    setUploading(true);
+    const orderId = selectedId === SUPPORT_CONVERSATION_ID ? 'support' : selectedId;
+    
+    try {
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        const response = await api.post(`/messages/${orderId}/media`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        
+        if (response.data.status === 'success') {
+          setPendingMedia(prev => [...prev, response.data.media]);
+        }
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast.error(error.response?.data?.detail || 'Failed to upload media');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const removePendingMedia = (index) => {
+    setPendingMedia(prev => prev.filter((_, i) => i !== index));
+  };
 
   useEffect(() => {
     if (!user) {
@@ -164,7 +216,7 @@ export const MessagingCenterPage = () => {
 
   const sendMessage = async (e) => {
     e.preventDefault();
-    if (!newMessage.trim() || !selectedId) return;
+    if ((!newMessage.trim() && pendingMedia.length === 0) || !selectedId) return;
 
     setSending(true);
     try {
@@ -173,10 +225,12 @@ export const MessagingCenterPage = () => {
       
       const response = await api.post('/messages', {
         order_id: orderId,
-        message: newMessage.trim()
+        message: newMessage.trim() || (pendingMedia.length > 0 ? '📎 Media attached' : ''),
+        media: pendingMedia.length > 0 ? pendingMedia : null
       });
       setMessages(prev => [...prev, response.data]);
       setNewMessage('');
+      setPendingMedia([]);
       
       // If this was a new support message, add it to conversations and select it
       if (selectedId === SUPPORT_CONVERSATION_ID) {
@@ -186,7 +240,7 @@ export const MessagingCenterPage = () => {
           title: 'Support',
           subtitle: 'General Inquiry',
           status: 'active',
-          last_message: newMessage.trim(),
+          last_message: newMessage.trim() || '📎 Media attached',
           last_message_time: new Date().toISOString(),
           unread_count: 0,
           created_at: new Date().toISOString()
@@ -198,7 +252,7 @@ export const MessagingCenterPage = () => {
         // Update conversation preview
         setConversations(prev => 
           prev.map(c => c.id === selectedId 
-            ? { ...c, last_message: newMessage.trim(), last_message_time: new Date().toISOString() }
+            ? { ...c, last_message: newMessage.trim() || '📎 Media attached', last_message_time: new Date().toISOString() }
             : c
           ).sort((a, b) => new Date(b.last_message_time || b.created_at) - new Date(a.last_message_time || a.created_at))
         );
@@ -597,6 +651,31 @@ export const MessagingCenterPage = () => {
                                     {isOwn ? 'You' : (message.sender_role === 'admin' ? 'Support' : (isAdmin ? 'Customer' : 'Seller'))}
                                   </span>
                                 </div>
+                                
+                                {/* Media attachments */}
+                                {message.media && message.media.length > 0 && (
+                                  <div className="mb-2 space-y-2">
+                                    {message.media.map((media, idx) => (
+                                      <div key={idx} className="relative">
+                                        {media.type === 'video' ? (
+                                          <video 
+                                            src={getAbsoluteMediaUrl(media.url)} 
+                                            controls 
+                                            className="max-w-full rounded-lg max-h-48"
+                                          />
+                                        ) : (
+                                          <img 
+                                            src={getAbsoluteMediaUrl(media.url)} 
+                                            alt="Attachment" 
+                                            className="max-w-full rounded-lg max-h-48 cursor-pointer"
+                                            onClick={() => window.open(getAbsoluteMediaUrl(media.url), '_blank')}
+                                          />
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                                
                                 <p className={`text-sm ${isOwn ? 'text-white' : 'text-foreground'}`}>
                                   {message.message}
                                 </p>
@@ -630,7 +709,61 @@ export const MessagingCenterPage = () => {
 
                 {/* Message Input - Fixed at bottom on mobile */}
                 <div className="p-3 sm:p-4 border-t flex-shrink-0 bg-background">
+                  {/* Pending Media Preview */}
+                  {pendingMedia.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-3 p-2 bg-muted/50 rounded-lg">
+                      {pendingMedia.map((media, idx) => (
+                        <div key={idx} className="relative group">
+                          {media.type === 'video' ? (
+                            <div className="w-16 h-16 bg-slate-800 rounded-lg flex items-center justify-center">
+                              <ImageIcon className="h-6 w-6 text-white" />
+                            </div>
+                          ) : (
+                            <img 
+                              src={getAbsoluteMediaUrl(media.url)} 
+                              alt="Pending" 
+                              className="w-16 h-16 object-cover rounded-lg"
+                            />
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => removePendingMedia(idx)}
+                            className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full p-0.5"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
                   <form onSubmit={sendMessage} className="flex gap-2">
+                    {/* Hidden file input */}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*,video/*"
+                      multiple
+                      onChange={handleFileSelect}
+                      className="hidden"
+                    />
+                    
+                    {/* Media upload button */}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploading}
+                      className="flex-shrink-0"
+                    >
+                      {uploading ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Paperclip className="h-4 w-4" />
+                      )}
+                    </Button>
+                    
                     <Input
                       placeholder="Type a message..."
                       value={newMessage}
@@ -641,7 +774,7 @@ export const MessagingCenterPage = () => {
                     />
                     <Button
                       type="submit"
-                      disabled={!newMessage.trim() || sending}
+                      disabled={(!newMessage.trim() && pendingMedia.length === 0) || sending}
                       className="bg-accent hover:bg-accent/90"
                       data-testid="send-message-btn"
                     >
