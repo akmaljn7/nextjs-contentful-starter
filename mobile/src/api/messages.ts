@@ -18,8 +18,26 @@ export const messagesApi = {
   async send(data: {
     order_id: string;
     message: string;
+    media?: Array<{type: string; url: string; filename?: string}>;
   }): Promise<Message> {
     const response = await apiClient.post<Message>('/messages', data);
+    return response.data;
+  },
+
+  // Upload media for a message
+  async uploadMedia(orderId: string, formData: FormData): Promise<{
+    status: string;
+    media: {
+      type: string;
+      url: string;
+      filename?: string;
+    };
+  }> {
+    const response = await apiClient.post(`/messages/${orderId}/media`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
     return response.data;
   },
 

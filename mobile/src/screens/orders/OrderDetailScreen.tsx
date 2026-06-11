@@ -131,6 +131,7 @@ export const OrderDetailScreen: React.FC = () => {
           order={order}
           onMediaUpdate={loadOrder}
           readOnly={order.order_status === 'completed' || order.order_status === 'cancelled'}
+          showHeader={false}
         />
       </View>
 

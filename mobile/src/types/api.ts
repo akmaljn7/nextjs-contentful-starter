@@ -309,6 +309,11 @@ export interface Message {
   sender_id: string;
   sender_role: string;
   message: string;
+  media?: Array<{
+    type: 'image' | 'video';
+    url: string;
+    filename?: string;
+  }>;
   read?: boolean;
   created_at: string;
 }

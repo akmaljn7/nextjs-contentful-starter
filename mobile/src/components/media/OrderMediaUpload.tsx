@@ -25,6 +25,7 @@ interface OrderMediaUploadProps {
   onMediaUpdate: () => void;
   readOnly?: boolean;
   compact?: boolean;
+  showHeader?: boolean;  // Whether to show the header in full view
 }
 
 interface MediaItem {
@@ -40,6 +41,7 @@ export const OrderMediaUpload: React.FC<OrderMediaUploadProps> = ({
   onMediaUpdate,
   readOnly = false,
   compact = false,
+  showHeader = true,
 }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [showLinkModal, setShowLinkModal] = useState(false);
@@ -335,37 +337,66 @@ export const OrderMediaUpload: React.FC<OrderMediaUploadProps> = ({
   // Full view for order details
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Ionicons name="cloud-upload" size={20} color={Colors.accent} />
-          <Text style={styles.title}>Your Ad Content</Text>
-        </View>
-        {!readOnly && (
-          <View style={styles.headerActions}>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={pickMedia}
-              disabled={isUploading}
-            >
-              {isUploading ? (
-                <ActivityIndicator size="small" color={Colors.white} />
-              ) : (
-                <>
-                  <Ionicons name="cloud-upload" size={16} color={Colors.white} />
-                  <Text style={styles.actionButtonText}>Upload</Text>
-                </>
-              )}
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.actionButton, styles.linkActionButton]}
-              onPress={() => setShowLinkModal(true)}
-            >
-              <Ionicons name="link" size={16} color={Colors.accent} />
-              <Text style={styles.linkActionButtonText}>Add Link</Text>
-            </TouchableOpacity>
+      {showHeader && (
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
+            <Ionicons name="cloud-upload" size={20} color={Colors.accent} />
+            <Text style={styles.title}>Your Ad Content</Text>
           </View>
-        )}
-      </View>
+          {!readOnly && (
+            <View style={styles.headerActions}>
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={pickMedia}
+                disabled={isUploading}
+              >
+                {isUploading ? (
+                  <ActivityIndicator size="small" color={Colors.white} />
+                ) : (
+                  <>
+                    <Ionicons name="cloud-upload" size={16} color={Colors.white} />
+                    <Text style={styles.actionButtonText}>Upload</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.actionButton, styles.linkActionButton]}
+                onPress={() => setShowLinkModal(true)}
+              >
+                <Ionicons name="link" size={16} color={Colors.accent} />
+                <Text style={styles.linkActionButtonText}>Add Link</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      )}
+      
+      {/* Action buttons when header is hidden */}
+      {!showHeader && !readOnly && (
+        <View style={styles.inlineActions}>
+          <TouchableOpacity
+            style={styles.inlineActionButton}
+            onPress={pickMedia}
+            disabled={isUploading}
+          >
+            {isUploading ? (
+              <ActivityIndicator size="small" color={Colors.white} />
+            ) : (
+              <>
+                <Ionicons name="cloud-upload" size={18} color={Colors.white} />
+                <Text style={styles.inlineActionButtonText}>Upload</Text>
+              </>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.inlineActionButtonOutline}
+            onPress={() => setShowLinkModal(true)}
+          >
+            <Ionicons name="link" size={18} color={Colors.accent} />
+            <Text style={styles.inlineActionButtonOutlineText}>Add Link</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {existingMedia.length > 0 ? (
         <View style={styles.mediaGrid}>
@@ -475,8 +506,8 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 16,
-    fontFamily: Fonts.semiBold,
-    color: Colors.text,
+    fontWeight: Fonts.weight.semibold,
+    color: Colors.textPrimary,
   },
   headerActions: {
     flexDirection: 'row',
@@ -494,7 +525,7 @@ const styles = StyleSheet.create({
   actionButtonText: {
     color: Colors.white,
     fontSize: 13,
-    fontFamily: Fonts.medium,
+    fontWeight: Fonts.weight.medium,
   },
   linkActionButton: {
     backgroundColor: Colors.white,
@@ -504,7 +535,44 @@ const styles = StyleSheet.create({
   linkActionButtonText: {
     color: Colors.accent,
     fontSize: 13,
-    fontFamily: Fonts.medium,
+    fontWeight: Fonts.weight.medium,
+  },
+  inlineActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
+  inlineActionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: Colors.accent,
+    paddingVertical: 14,
+    borderRadius: 10,
+  },
+  inlineActionButtonText: {
+    color: Colors.white,
+    fontSize: 15,
+    fontWeight: Fonts.weight.semibold,
+  },
+  inlineActionButtonOutline: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: Colors.white,
+    paddingVertical: 14,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: Colors.accent,
+  },
+  inlineActionButtonOutlineText: {
+    color: Colors.accent,
+    fontSize: 15,
+    fontWeight: Fonts.weight.semibold,
   },
   mediaGrid: {
     flexDirection: 'row',
@@ -523,7 +591,7 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   videoPlaceholder: {
-    backgroundColor: Colors.text,
+    backgroundColor: Colors.textPrimary,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -550,7 +618,7 @@ const styles = StyleSheet.create({
   typeBadgeText: {
     color: Colors.white,
     fontSize: 9,
-    fontFamily: Fonts.medium,
+    fontWeight: Fonts.weight.medium,
   },
   deleteButton: {
     position: 'absolute',
@@ -569,8 +637,8 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 15,
-    fontFamily: Fonts.medium,
-    color: Colors.text,
+    fontWeight: Fonts.weight.medium,
+    color: Colors.textPrimary,
     marginTop: 12,
   },
   emptySubtitle: {
@@ -592,7 +660,7 @@ const styles = StyleSheet.create({
   emptyUploadButtonText: {
     color: Colors.white,
     fontSize: 14,
-    fontFamily: Fonts.medium,
+    fontWeight: Fonts.weight.medium,
   },
   // Compact styles
   compactContainer: {
@@ -614,7 +682,7 @@ const styles = StyleSheet.create({
   },
   compactLabel: {
     fontSize: 12,
-    fontFamily: Fonts.medium,
+    fontWeight: Fonts.weight.medium,
     color: Colors.textSecondary,
   },
   compactActions: {
@@ -646,7 +714,7 @@ const styles = StyleSheet.create({
   },
   compactUploadText: {
     fontSize: 12,
-    fontFamily: Fonts.medium,
+    fontWeight: Fonts.weight.medium,
     color: Colors.accent,
   },
   emptyText: {
@@ -672,8 +740,8 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 18,
-    fontFamily: Fonts.semiBold,
-    color: Colors.text,
+    fontWeight: Fonts.weight.semibold,
+    color: Colors.textPrimary,
     marginBottom: 16,
   },
   input: {
@@ -682,8 +750,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 12,
     fontSize: 14,
-    fontFamily: Fonts.regular,
-    color: Colors.text,
+    fontWeight: Fonts.weight.regular,
+    color: Colors.textPrimary,
     marginBottom: 12,
   },
   modalButtons: {
@@ -701,7 +769,7 @@ const styles = StyleSheet.create({
   },
   cancelButtonText: {
     fontSize: 14,
-    fontFamily: Fonts.medium,
+    fontWeight: Fonts.weight.medium,
     color: Colors.textSecondary,
   },
   addButton: {
@@ -713,7 +781,7 @@ const styles = StyleSheet.create({
   },
   addButtonText: {
     fontSize: 14,
-    fontFamily: Fonts.medium,
+    fontWeight: Fonts.weight.medium,
     color: Colors.white,
   },
 });

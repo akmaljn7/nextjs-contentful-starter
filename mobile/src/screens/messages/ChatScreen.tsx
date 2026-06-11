@@ -9,11 +9,16 @@ import {
   KeyboardAvoidingView,
   Platform,
   RefreshControl,
+  Image,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
+import { API_URL } from '../../constants/config';
 import { LoadingSpinner, ErrorMessage } from '../../components/common';
 import { messagesApi } from '../../api';
 import { useAuthStore } from '../../store';
@@ -31,7 +36,19 @@ export const ChatScreen: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [pendingMedia, setPendingMedia] = useState<Array<{type: string; url: string; filename?: string}>>([]);
   const [error, setError] = useState<string | null>(null);
+
+  // Helper to get absolute media URL
+  const baseUrl = API_URL.replace('/api', '');
+  const getAbsoluteMediaUrl = (url: string) => {
+    if (!url) return '';
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url;
+    }
+    return `${baseUrl}${url.startsWith('/') ? '' : '/'}${url}`;
+  };
 
   // Auto-refresh interval (every 5 seconds)
   useEffect(() => {
@@ -86,17 +103,66 @@ export const ChatScreen: React.FC = () => {
     loadMessages();
   };
 
+  const pickMedia = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Please allow access to your media library');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images', 'videos'],
+      allowsMultipleSelection: true,
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets.length > 0) {
+      setIsUploading(true);
+      
+      try {
+        for (const asset of result.assets) {
+          const formData = new FormData();
+          const fileUri = asset.uri;
+          const fileType = asset.mimeType || (asset.type === 'video' ? 'video/mp4' : 'image/jpeg');
+          const fileName = asset.fileName || `upload_${Date.now()}.${fileType.split('/')[1]}`;
+          
+          formData.append('file', {
+            uri: fileUri,
+            type: fileType,
+            name: fileName,
+          } as any);
+
+          const response = await messagesApi.uploadMedia(orderId, formData);
+          if (response.status === 'success') {
+            setPendingMedia(prev => [...prev, response.media]);
+          }
+        }
+      } catch (err: any) {
+        console.error('Upload error:', err);
+        Alert.alert('Upload Failed', err.message || 'Failed to upload media');
+      } finally {
+        setIsUploading(false);
+      }
+    }
+  };
+
+  const removePendingMedia = (index: number) => {
+    setPendingMedia(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleSend = async () => {
-    if (!newMessage.trim() || isSending) return;
+    if ((!newMessage.trim() && pendingMedia.length === 0) || isSending) return;
 
     setIsSending(true);
     try {
       const message = await messagesApi.send({
         order_id: orderId,
-        message: newMessage.trim(),
+        message: newMessage.trim() || (pendingMedia.length > 0 ? '📎 Media attached' : ''),
+        media: pendingMedia.length > 0 ? pendingMedia : undefined,
       });
       setMessages(prev => [...prev, message]);
       setNewMessage('');
+      setPendingMedia([]);
       // Scroll to bottom
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
@@ -127,6 +193,28 @@ export const ChatScreen: React.FC = () => {
           {!isOwn && (
             <Text style={styles.senderName}>{item.sender_role === 'admin' ? 'Adlinka Support' : item.sender_role}</Text>
           )}
+          
+          {/* Media attachments */}
+          {item.media && item.media.length > 0 && (
+            <View style={styles.mediaContainer}>
+              {item.media.map((media, idx) => (
+                <View key={idx} style={styles.mediaItem}>
+                  {media.type === 'video' ? (
+                    <View style={styles.videoPlaceholder}>
+                      <Ionicons name="play-circle" size={32} color={Colors.white} />
+                    </View>
+                  ) : (
+                    <Image 
+                      source={{ uri: getAbsoluteMediaUrl(media.url) }}
+                      style={styles.mediaImage}
+                      resizeMode="cover"
+                    />
+                  )}
+                </View>
+              ))}
+            </View>
+          )}
+          
           <Text style={[styles.messageText, isOwn ? styles.ownMessageText : styles.otherMessageText]}>
             {item.message}
           </Text>
@@ -169,7 +257,45 @@ export const ChatScreen: React.FC = () => {
         }
       />
 
+      {/* Pending Media Preview */}
+      {pendingMedia.length > 0 && (
+        <View style={styles.pendingMediaContainer}>
+          {pendingMedia.map((media, idx) => (
+            <View key={idx} style={styles.pendingMediaItem}>
+              {media.type === 'video' ? (
+                <View style={styles.pendingVideoPlaceholder}>
+                  <Ionicons name="videocam" size={20} color={Colors.white} />
+                </View>
+              ) : (
+                <Image 
+                  source={{ uri: getAbsoluteMediaUrl(media.url) }}
+                  style={styles.pendingMediaImage}
+                />
+              )}
+              <TouchableOpacity 
+                style={styles.removePendingMedia}
+                onPress={() => removePendingMedia(idx)}
+              >
+                <Ionicons name="close" size={14} color={Colors.white} />
+              </TouchableOpacity>
+            </View>
+          ))}
+        </View>
+      )}
+
       <View style={styles.inputContainer}>
+        <TouchableOpacity 
+          style={styles.attachButton}
+          onPress={pickMedia}
+          disabled={isUploading}
+        >
+          {isUploading ? (
+            <ActivityIndicator size="small" color={Colors.accent} />
+          ) : (
+            <Ionicons name="attach" size={24} color={Colors.accent} />
+          )}
+        </TouchableOpacity>
+        
         <TextInput
           style={styles.input}
           placeholder="Type a message..."
@@ -180,9 +306,9 @@ export const ChatScreen: React.FC = () => {
           maxLength={1000}
         />
         <TouchableOpacity
-          style={[styles.sendButton, (!newMessage.trim() || isSending) && styles.sendButtonDisabled]}
+          style={[styles.sendButton, ((!newMessage.trim() && pendingMedia.length === 0) || isSending) && styles.sendButtonDisabled]}
           onPress={handleSend}
-          disabled={!newMessage.trim() || isSending}
+          disabled={(!newMessage.trim() && pendingMedia.length === 0) || isSending}
         >
           <Ionicons 
             name={isSending ? 'time-outline' : 'send'} 
@@ -274,6 +400,72 @@ const styles = StyleSheet.create({
   },
   sendButtonDisabled: {
     backgroundColor: Colors.gray[400],
+  },
+  attachButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 4,
+  },
+  mediaContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 8,
+  },
+  mediaItem: {
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  mediaImage: {
+    width: 150,
+    height: 150,
+    borderRadius: 8,
+  },
+  videoPlaceholder: {
+    width: 150,
+    height: 150,
+    backgroundColor: Colors.gray[700],
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pendingMediaContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    gap: 8,
+    backgroundColor: Colors.white,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+  },
+  pendingMediaItem: {
+    position: 'relative',
+  },
+  pendingMediaImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+  },
+  pendingVideoPlaceholder: {
+    width: 60,
+    height: 60,
+    backgroundColor: Colors.gray[700],
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  removePendingMedia: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: Colors.error,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   emptyContainer: {
     flex: 1,
