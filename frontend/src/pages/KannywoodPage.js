@@ -101,7 +101,7 @@ export const KannywoodPage = () => {
             {filteredPlacements.map((placement) => (
               <Link to={`/kannywood/${placement.id}`} key={placement.id}>
                 <Card
-                  className="group hover:shadow-lg hover:-translate-y-1 h-full border-2 cursor-pointer transition-all"
+                  className={`group hover:shadow-lg hover:-translate-y-1 h-full border-2 cursor-pointer transition-all ${placement.is_fully_booked ? 'opacity-75' : ''}`}
                   data-testid={`kannywood-card-${placement.id}`}
                 >
                   <CardContent className="p-0">
@@ -110,13 +110,23 @@ export const KannywoodPage = () => {
                         <img
                           src={placement.image_url}
                           alt={placement.production_name}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ${placement.is_fully_booked ? 'grayscale' : ''}`}
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
                           <Film className="h-16 w-16 text-muted-foreground" />
                         </div>
                       )}
+                      
+                      {/* Fully Booked Overlay */}
+                      {placement.is_fully_booked && (
+                        <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] flex items-center justify-center">
+                          <div className="bg-red-600 text-white px-6 py-3 rounded-lg shadow-lg transform -rotate-12">
+                            <span className="text-xl font-bold tracking-wider">FULLY BOOKED</span>
+                          </div>
+                        </div>
+                      )}
+                      
                       {placement.verified && (
                         <Badge className="absolute top-3 right-3 bg-white/90 text-primary border-0">
                           <CheckCircle className="h-3 w-3 mr-1" />
@@ -131,9 +141,16 @@ export const KannywoodPage = () => {
                     <div className="p-4 space-y-3">
                       <div>
                         <h3 className="text-lg font-bold text-foreground">{placement.production_name}</h3>
-                        <Badge variant="outline" className="text-xs mt-1">
-                          {placement.placement_type}
-                        </Badge>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Badge variant="outline" className="text-xs">
+                            {placement.placement_type}
+                          </Badge>
+                          {placement.is_fully_booked && (
+                            <Badge className="bg-red-100 text-red-700 text-xs border-0">
+                              Fully Booked
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                       <p className="text-sm text-muted-foreground line-clamp-2">{placement.description}</p>
                       <div className="flex items-center justify-between pt-2 border-t">
@@ -153,11 +170,12 @@ export const KannywoodPage = () => {
                         </div>
                       )}
                       <Button 
-                        className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold mt-2"
+                        className={`w-full font-semibold mt-2 ${placement.is_fully_booked ? 'bg-gray-400 hover:bg-gray-400 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700'} text-white`}
                         data-testid={`view-packages-${placement.id}`}
+                        disabled={placement.is_fully_booked}
                       >
-                        View Packages
-                        <ArrowRight className="h-4 w-4 ml-2" />
+                        {placement.is_fully_booked ? 'Fully Booked' : 'View Packages'}
+                        {!placement.is_fully_booked && <ArrowRight className="h-4 w-4 ml-2" />}
                       </Button>
                     </div>
                   </CardContent>

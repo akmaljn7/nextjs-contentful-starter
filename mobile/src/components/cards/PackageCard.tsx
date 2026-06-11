@@ -13,6 +13,7 @@ interface PackageCardProps {
   onSelect: () => void;
   isSelected?: boolean;
   isInCart?: boolean;
+  disabled?: boolean;
 }
 
 export const PackageCard: React.FC<PackageCardProps> = ({
@@ -20,9 +21,12 @@ export const PackageCard: React.FC<PackageCardProps> = ({
   onSelect,
   isSelected = false,
   isInCart = false,
+  disabled = false,
 }) => {
   const cardStyle = isSelected 
     ? [styles.card, styles.cardSelected] 
+    : disabled
+    ? [styles.card, styles.cardDisabled]
     : styles.card;
 
   return (
@@ -65,17 +69,17 @@ export const PackageCard: React.FC<PackageCardProps> = ({
       )}
 
       <Button
-        title={isInCart ? 'In Cart' : 'Add to Cart'}
+        title={disabled ? 'Unavailable' : isInCart ? 'In Cart' : 'Add to Cart'}
         onPress={onSelect}
-        variant={isInCart ? 'secondary' : 'primary'}
+        variant={disabled ? 'secondary' : isInCart ? 'secondary' : 'primary'}
         size="md"
         fullWidth
-        disabled={isInCart}
+        disabled={disabled || isInCart}
         icon={
           <Ionicons
-            name={isInCart ? 'checkmark-circle' : 'cart-outline'}
+            name={disabled ? 'close-circle' : isInCart ? 'checkmark-circle' : 'cart-outline'}
             size={18}
-            color={Colors.white}
+            color={disabled ? Colors.gray[400] : Colors.white}
           />
         }
         style={styles.button}
@@ -91,6 +95,9 @@ const styles = StyleSheet.create({
   cardSelected: {
     borderColor: Colors.accent,
     borderWidth: 2,
+  },
+  cardDisabled: {
+    opacity: 0.6,
   },
   header: {
     flexDirection: 'row',

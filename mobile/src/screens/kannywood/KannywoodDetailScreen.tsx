@@ -91,6 +91,14 @@ export const KannywoodDetailScreen: React.FC = () => {
             <Ionicons name="film" size={64} color={Colors.gray[400]} />
           </View>
         )}
+        {/* Fully Booked Overlay */}
+        {production.is_fully_booked && (
+          <View style={styles.fullyBookedOverlay}>
+            <View style={styles.fullyBookedBadge}>
+              <Text style={styles.fullyBookedText}>FULLY BOOKED</Text>
+            </View>
+          </View>
+        )}
         {production.genre && (
           <View style={styles.genreBadge}>
             <Text style={styles.genreText}>{production.genre}</Text>
@@ -102,12 +110,19 @@ export const KannywoodDetailScreen: React.FC = () => {
       <View style={styles.content}>
         <Text style={styles.title}>{production.title}</Text>
         
-        {production.placement_type && (
-          <Badge 
-            text={production.placement_type.replace(/_/g, ' ')} 
-            variant="default" 
-          />
-        )}
+        <View style={styles.badgeRow}>
+          {production.placement_type && (
+            <Badge 
+              text={production.placement_type.replace(/_/g, ' ')} 
+              variant="default" 
+            />
+          )}
+          {production.is_fully_booked && (
+            <View style={styles.fullyBookedTag}>
+              <Text style={styles.fullyBookedTagText}>Fully Booked</Text>
+            </View>
+          )}
+        </View>
 
         {/* Meta Info */}
         <View style={styles.metaContainer}>
@@ -180,12 +195,21 @@ export const KannywoodDetailScreen: React.FC = () => {
         {production.packages && production.packages.length > 0 && (
           <View style={styles.packagesSection}>
             <Text style={styles.sectionTitle}>Available Packages</Text>
+            {production.is_fully_booked && (
+              <View style={styles.fullyBookedNotice}>
+                <Ionicons name="information-circle" size={18} color="#dc2626" />
+                <Text style={styles.fullyBookedNoticeText}>
+                  This production is currently fully booked. Packages are unavailable for booking.
+                </Text>
+              </View>
+            )}
             {production.packages.map((pkg) => (
               <PackageCard
                 key={pkg.id}
                 package_={pkg}
                 onSelect={() => handleAddToCart(pkg)}
                 isInCart={isInCart(pkg.id)}
+                disabled={production.is_fully_booked}
               />
             ))}
           </View>
@@ -322,6 +346,61 @@ const styles = StyleSheet.create({
   },
   packagesSection: {
     marginBottom: 24,
+  },
+  fullyBookedOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullyBookedBadge: {
+    backgroundColor: '#ef4444',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    transform: [{ rotate: '-15deg' }],
+  },
+  fullyBookedText: {
+    color: Colors.white,
+    fontSize: Fonts.size.xl,
+    fontWeight: Fonts.weight.bold,
+    textTransform: 'uppercase',
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 8,
+  },
+  fullyBookedTag: {
+    backgroundColor: '#fef2f2',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#fecaca',
+  },
+  fullyBookedTagText: {
+    fontSize: Fonts.size.sm,
+    color: '#dc2626',
+    fontWeight: Fonts.weight.semibold,
+  },
+  fullyBookedNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fef2f2',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#fecaca',
+  },
+  fullyBookedNoticeText: {
+    flex: 1,
+    fontSize: Fonts.size.sm,
+    color: '#dc2626',
+    lineHeight: 20,
   },
   bottomSpacing: {
     height: 40,

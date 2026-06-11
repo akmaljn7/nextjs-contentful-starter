@@ -175,6 +175,7 @@ export interface KannywoodProduction {
   verified?: boolean;
   status?: string;
   packages?: Package[];
+  is_fully_booked?: boolean;
   created_at?: string;
 }
 

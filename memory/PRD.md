@@ -20,7 +20,26 @@ Create a polished, conversion-focused, responsive marketplace website and cross-
 
 ## Current Status (December 2025)
 
-### Order Media Upload Feature ✅ (Just Completed - Dec 10, 2025)
+### Kannywood "Fully Booked" Feature ✅ (Just Completed - Dec 29, 2025)
+Similar to the influencer "Busy" feature, Kannywood productions can now be marked as fully booked:
+
+**Backend:**
+- Added `is_fully_booked` field to `KannywoodPlacement` model
+- `PATCH /api/admin/kannywood/{kannywood_id}/fully-booked` - Admin toggle endpoint
+- GET `/api/kannywood` now returns `is_fully_booked` in response
+
+**Web Implementation:**
+- Admin Panel: Toggle button in Kannywood tab to mark productions as fully booked
+- `KannywoodPage.js`: Red "FULLY BOOKED" diagonal overlay on production cards + disabled button
+- `KannywoodDetailPage.js`: Status badge and disabled package selection
+
+**Mobile Implementation (iOS/Android):**
+- `KannywoodScreen.tsx`: Fully booked overlay on cards with grayed-out button
+- `KannywoodDetailScreen.tsx`: Overlay, status tag, and notice when fully booked
+- `PackageCard.tsx`: Added `disabled` prop to prevent cart additions
+- `api.ts`: Added `is_fully_booked` to `KannywoodProduction` type
+
+### Order Media Upload Feature ✅ (Completed - Dec 10, 2025)
 Users can now upload ad content (photos/videos/links) for their orders:
 
 **Web Implementation:**
@@ -117,9 +136,10 @@ None currently
 - Refactor `meta-ads-globe.html` (>2300 lines)
 
 ## Key DB Schema
-- `orders`: `{ ..., admin_priority: int }`
+- `orders`: `{ ..., admin_priority: int, ad_media: [{ type, url, thumbnail_url, name }] }`
 - `users`: `{ ..., registration_ip: string }`
 - `influencers`: `{ ..., is_busy: bool }` - Added for influencer availability toggle
+- `kannywood_placements`: `{ ..., is_fully_booked: bool }` - Added for production availability
 
 ## Critical Notes
 - **Mobile API URL**: Use `https://adlinka.com/api` (NOT www. - causes 308 redirect that strips auth headers)

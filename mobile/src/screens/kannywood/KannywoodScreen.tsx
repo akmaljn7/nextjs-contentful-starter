@@ -72,6 +72,14 @@ export const KannywoodScreen: React.FC = () => {
               <Ionicons name="film" size={48} color={Colors.gray[400]} />
             </View>
           )}
+          {/* Fully Booked Overlay */}
+          {item.is_fully_booked && (
+            <View style={styles.fullyBookedOverlay}>
+              <View style={styles.fullyBookedBadge}>
+                <Text style={styles.fullyBookedText}>FULLY BOOKED</Text>
+              </View>
+            </View>
+          )}
           {item.genre && (
             <View style={styles.genreBadge}>
               <Text style={styles.genreText}>{item.genre}</Text>
@@ -83,18 +91,25 @@ export const KannywoodScreen: React.FC = () => {
         <View style={styles.content}>
           <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
           
-          {item.placement_type && (
-            <View style={styles.placementRow}>
-              <Ionicons 
-                name={getPlacementIcon(item.placement_type) as any} 
-                size={16} 
-                color={Colors.textSecondary} 
-              />
-              <Text style={styles.placementType}>
-                {item.placement_type.replace(/_/g, ' ')}
-              </Text>
-            </View>
-          )}
+          <View style={styles.placementRow}>
+            {item.placement_type && (
+              <>
+                <Ionicons 
+                  name={getPlacementIcon(item.placement_type) as any} 
+                  size={16} 
+                  color={Colors.textSecondary} 
+                />
+                <Text style={styles.placementType}>
+                  {item.placement_type.replace(/_/g, ' ')}
+                </Text>
+              </>
+            )}
+            {item.is_fully_booked && (
+              <View style={styles.fullyBookedTag}>
+                <Text style={styles.fullyBookedTagText}>Fully Booked</Text>
+              </View>
+            )}
+          </View>
           
           <Text style={styles.description} numberOfLines={2}>{item.description}</Text>
           
@@ -138,13 +153,19 @@ export const KannywoodScreen: React.FC = () => {
               <Text style={styles.priceLabel}>Starting from</Text>
               <Text style={styles.priceValue}>{formatPrice(item.price)}</Text>
             </View>
-            <TouchableOpacity 
-              style={styles.viewButton}
-              onPress={() => navigation.navigate('KannywoodDetail', { id: item.id })}
-            >
-              <Text style={styles.viewButtonText}>View Details</Text>
-              <Ionicons name="chevron-forward" size={16} color={Colors.white} />
-            </TouchableOpacity>
+            {item.is_fully_booked ? (
+              <View style={styles.fullyBookedButton}>
+                <Text style={styles.fullyBookedButtonText}>Fully Booked</Text>
+              </View>
+            ) : (
+              <TouchableOpacity 
+                style={styles.viewButton}
+                onPress={() => navigation.navigate('KannywoodDetail', { id: item.id })}
+              >
+                <Text style={styles.viewButtonText}>View Details</Text>
+                <Ionicons name="chevron-forward" size={16} color={Colors.white} />
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </Card>
@@ -343,6 +364,50 @@ const styles = StyleSheet.create({
   },
   viewButtonText: {
     color: Colors.white,
+    fontSize: Fonts.size.sm,
+    fontWeight: Fonts.weight.semibold,
+  },
+  fullyBookedOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullyBookedBadge: {
+    backgroundColor: '#ef4444',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+    transform: [{ rotate: '-15deg' }],
+  },
+  fullyBookedText: {
+    color: Colors.white,
+    fontSize: Fonts.size.lg,
+    fontWeight: Fonts.weight.bold,
+    textTransform: 'uppercase',
+  },
+  fullyBookedTag: {
+    backgroundColor: '#fef2f2',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginLeft: 8,
+    borderWidth: 1,
+    borderColor: '#fecaca',
+  },
+  fullyBookedTagText: {
+    fontSize: Fonts.size.xs,
+    color: '#dc2626',
+    fontWeight: Fonts.weight.medium,
+  },
+  fullyBookedButton: {
+    backgroundColor: Colors.gray[300],
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  fullyBookedButtonText: {
+    color: Colors.gray[600],
     fontSize: Fonts.size.sm,
     fontWeight: Fonts.weight.semibold,
   },

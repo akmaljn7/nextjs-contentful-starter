@@ -284,6 +284,7 @@ class KannywoodPlacement(BaseModel):
     genre: Optional[str] = None
     est_reach: Optional[str] = None
     image_url: Optional[str] = None
+    is_fully_booked: bool = False  # When true, shown as "Fully Booked"
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 # Billboard Location Models (States, Roads, Sizes, Packages)
@@ -2497,7 +2498,8 @@ async def get_kannywood_placements(status: str = "approved"):
             "verified": p.get("verified", False),
             "status": p.get("status", "approved"),
             "packages": p.get("packages", []),
-            "created_at": p.get("created_at")
+            "created_at": p.get("created_at"),
+            "is_fully_booked": p.get("is_fully_booked", False)
         })
     
     return normalized
@@ -4856,6 +4858,41 @@ async def admin_toggle_kannywood_visibility(
     )
     
     return {"status": "success", "visible": new_visibility, "message": f"Kannywood production is now {'visible' if new_visibility else 'hidden'}"}
+
+@api_router.patch("/admin/kannywood/{kannywood_id}/fully-booked")
+async def admin_toggle_kannywood_fully_booked(
+    kannywood_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Toggle the fully booked status of a Kannywood production"""
+    await check_admin(current_user)
+    
+    # Check both collections for the item
+    existing = await db.kannywood.find_one({"id": kannywood_id})
+    collection = db.kannywood
+    
+    if not existing:
+        # Check legacy collection
+        existing = await db.kannywood_placements.find_one({"id": kannywood_id})
+        collection = db.kannywood_placements
+    
+    if not existing:
+        raise HTTPException(status_code=404, detail="Kannywood production not found")
+    
+    # Toggle the is_fully_booked status
+    new_status = not existing.get("is_fully_booked", False)
+    
+    await collection.update_one(
+        {"id": kannywood_id},
+        {"$set": {"is_fully_booked": new_status, "updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    
+    return {
+        "success": True,
+        "kannywood_id": kannywood_id,
+        "is_fully_booked": new_status,
+        "message": f"Kannywood production marked as {'fully booked' if new_status else 'available'}"
+    }
 
 # ========== USER MANAGEMENT ==========
 

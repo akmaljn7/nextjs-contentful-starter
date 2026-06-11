@@ -2158,6 +2158,23 @@ export const AdminPanelPage = () => {
     }
   };
 
+  const toggleKannywoodFullyBooked = async (item) => {
+    try {
+      const response = await api.patch(`/admin/kannywood/${item.id}/fully-booked`);
+      
+      if (response.data.success) {
+        // Update local state
+        setKannywood(prev => prev.map(k => 
+          k.id === item.id ? { ...k, is_fully_booked: response.data.is_fully_booked } : k
+        ));
+        toast.success(response.data.message);
+      }
+    } catch (error) {
+      toast.error('Failed to toggle fully booked status');
+      console.error('Toggle fully booked error:', error);
+    }
+  };
+
   // View order details
   const viewOrderDetails = (order) => {
     setSelectedOrder(order);
@@ -2765,6 +2782,7 @@ export const AdminPanelPage = () => {
                             <th className="text-left py-3 px-2 text-sm font-semibold">Price</th>
                             <th className="text-left py-3 px-2 text-sm font-semibold">Status</th>
                             <th className="text-center py-3 px-2 text-sm font-semibold">Visible</th>
+                            <th className="text-center py-3 px-2 text-sm font-semibold">Booking</th>
                             <th className="text-center py-3 px-2 text-sm font-semibold">Actions</th>
                           </tr>
                         </thead>
@@ -2788,6 +2806,23 @@ export const AdminPanelPage = () => {
                                       <EyeOff className="h-4 w-4 text-muted-foreground" />
                                     ) : (
                                       <Eye className="h-4 w-4 text-green-600" />
+                                    )}
+                                  </Button>
+                                </div>
+                              </td>
+                              <td className="py-3 px-2">
+                                <div className="flex items-center justify-center">
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    onClick={() => toggleKannywoodFullyBooked(item)}
+                                    title={item.is_fully_booked ? "Mark as available" : "Mark as fully booked"}
+                                    className={item.is_fully_booked ? "text-red-600" : "text-green-600"}
+                                  >
+                                    {item.is_fully_booked ? (
+                                      <Badge className="bg-red-100 text-red-700 text-xs">Fully Booked</Badge>
+                                    ) : (
+                                      <Badge className="bg-green-100 text-green-700 text-xs">Available</Badge>
                                     )}
                                   </Button>
                                 </div>
