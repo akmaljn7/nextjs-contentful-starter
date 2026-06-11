@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, Search, Film, ArrowRight } from 'lucide-react';
+import { CheckCircle, Search, Film, ArrowRight, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 
 export const KannywoodPage = () => {
@@ -98,90 +98,107 @@ export const KannywoodPage = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredPlacements.map((placement) => (
-              <Link to={`/kannywood/${placement.id}`} key={placement.id}>
-                <Card
-                  className={`group hover:shadow-lg hover:-translate-y-1 h-full border-2 cursor-pointer transition-all ${placement.is_fully_booked ? 'opacity-75' : ''}`}
-                  data-testid={`kannywood-card-${placement.id}`}
-                >
-                  <CardContent className="p-0">
-                    <div className="relative h-64 overflow-hidden rounded-t-lg bg-gradient-to-br from-purple-100 to-pink-100">
-                      {placement.image_url ? (
-                        <img
-                          src={placement.image_url}
-                          alt={placement.production_name}
-                          className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ${placement.is_fully_booked ? 'grayscale' : ''}`}
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <Film className="h-16 w-16 text-muted-foreground" />
-                        </div>
-                      )}
-                      
-                      {/* Fully Booked Overlay */}
-                      {placement.is_fully_booked && (
-                        <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] flex items-center justify-center">
-                          <div className="bg-red-600 text-white px-6 py-3 rounded-lg shadow-lg transform -rotate-12">
-                            <span className="text-xl font-bold tracking-wider">FULLY BOOKED</span>
+            {filteredPlacements.map((placement) => {
+              const isFullyBooked = placement.is_fully_booked;
+              const CardWrapper = isFullyBooked ? 'div' : Link;
+              const cardProps = isFullyBooked 
+                ? { 
+                    className: 'cursor-not-allowed',
+                    onClick: () => toast.info('This production is currently fully booked. Please check back later or explore other Kannywood opportunities.')
+                  }
+                : { to: `/kannywood/${placement.id}` };
+              
+              return (
+                <CardWrapper {...cardProps} key={placement.id}>
+                  <Card
+                    className={`group h-full border-2 ${isFullyBooked ? 'opacity-80' : 'hover:shadow-lg hover:-translate-y-1'} cursor-pointer transition-all`}
+                    data-testid={`kannywood-card-${placement.id}`}
+                  >
+                    <CardContent className="p-0">
+                      <div className="relative h-64 overflow-hidden rounded-t-lg bg-gradient-to-br from-purple-100 to-pink-100">
+                        {placement.image_url ? (
+                          <img
+                            src={placement.image_url}
+                            alt={placement.production_name}
+                            className={`w-full h-full object-cover ${isFullyBooked ? 'blur-sm grayscale' : 'group-hover:scale-105'} transition-transform duration-300`}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Film className="h-16 w-16 text-muted-foreground" />
+                          </div>
+                        )}
+                        
+                        {/* Fully Booked Overlay */}
+                        {isFullyBooked && (
+                          <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center">
+                            <div className="bg-red-600 text-white px-4 py-2 rounded-lg shadow-lg">
+                              <div className="flex items-center gap-2">
+                                <Clock className="h-5 w-5" />
+                                <span className="font-bold text-lg">FULLY BOOKED</span>
+                              </div>
+                            </div>
+                            <p className="text-white text-sm mt-2 font-medium">Currently unavailable</p>
+                          </div>
+                        )}
+                        
+                        {placement.verified && (
+                          <Badge className="absolute top-3 right-3 bg-white/90 text-primary border-0">
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            {t('common.verified', language)}
+                          </Badge>
+                        )}
+                        <Badge className="absolute top-3 left-3 bg-purple-600 text-white border-0">
+                          <Film className="h-3 w-3 mr-1" />
+                          Kannywood
+                        </Badge>
+                      </div>
+                      <div className="p-4 space-y-3">
+                        <div>
+                          <h3 className="text-lg font-bold text-foreground">{placement.production_name}</h3>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Badge variant="outline" className="text-xs">
+                              {placement.placement_type}
+                            </Badge>
+                            {isFullyBooked && (
+                              <Badge className="bg-red-100 text-red-700 text-xs border-0">
+                                Fully Booked
+                              </Badge>
+                            )}
                           </div>
                         </div>
-                      )}
-                      
-                      {placement.verified && (
-                        <Badge className="absolute top-3 right-3 bg-white/90 text-primary border-0">
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          {t('common.verified', language)}
-                        </Badge>
-                      )}
-                      <Badge className="absolute top-3 left-3 bg-purple-600 text-white border-0">
-                        <Film className="h-3 w-3 mr-1" />
-                        Kannywood
-                      </Badge>
-                    </div>
-                    <div className="p-4 space-y-3">
-                      <div>
-                        <h3 className="text-lg font-bold text-foreground">{placement.production_name}</h3>
-                        <div className="flex items-center gap-2 mt-1">
-                          <Badge variant="outline" className="text-xs">
-                            {placement.placement_type}
-                          </Badge>
-                          {placement.is_fully_booked && (
-                            <Badge className="bg-red-100 text-red-700 text-xs border-0">
-                              Fully Booked
-                            </Badge>
+                        <p className="text-sm text-muted-foreground line-clamp-2">{placement.description}</p>
+                        <div className="flex items-center justify-between pt-2 border-t">
+                          <div>
+                            <p className="text-xs text-muted-foreground">Estimated Reach</p>
+                            <p className="text-sm font-semibold">{formatNumber(placement.estimated_reach)}</p>
+                          </div>
+                          {!isFullyBooked && (
+                            <div className="text-right">
+                              <p className="text-xs text-muted-foreground">Starting from</p>
+                              <p className="text-lg font-bold text-primary">{formatPrice(placement.price)}</p>
+                            </div>
                           )}
                         </div>
+                        {placement.release_date && (
+                          <div className="pt-2 border-t">
+                            <p className="text-xs text-muted-foreground">Release Date</p>
+                            <p className="text-sm font-medium">{placement.release_date}</p>
+                          </div>
+                        )}
+                        <Button 
+                          className={`w-full font-semibold mt-2 ${isFullyBooked ? 'bg-gray-400 hover:bg-gray-400 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700'} text-white`}
+                          data-testid={`view-packages-${placement.id}`}
+                          disabled={isFullyBooked}
+                        >
+                          {isFullyBooked ? 'Fully Booked' : 'View Packages'}
+                          {!isFullyBooked && <ArrowRight className="h-4 w-4 ml-2" />}
+                        </Button>
                       </div>
-                      <p className="text-sm text-muted-foreground line-clamp-2">{placement.description}</p>
-                      <div className="flex items-center justify-between pt-2 border-t">
-                        <div>
-                          <p className="text-xs text-muted-foreground">Estimated Reach</p>
-                          <p className="text-sm font-semibold">{formatNumber(placement.estimated_reach)}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-xs text-muted-foreground">Starting from</p>
-                          <p className="text-lg font-bold text-primary">{formatPrice(placement.price)}</p>
-                        </div>
-                      </div>
-                      {placement.release_date && (
-                        <div className="pt-2 border-t">
-                          <p className="text-xs text-muted-foreground">Release Date</p>
-                          <p className="text-sm font-medium">{placement.release_date}</p>
-                        </div>
-                      )}
-                      <Button 
-                        className={`w-full font-semibold mt-2 ${placement.is_fully_booked ? 'bg-gray-400 hover:bg-gray-400 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700'} text-white`}
-                        data-testid={`view-packages-${placement.id}`}
-                        disabled={placement.is_fully_booked}
-                      >
-                        {placement.is_fully_booked ? 'Fully Booked' : 'View Packages'}
-                        {!placement.is_fully_booked && <ArrowRight className="h-4 w-4 ml-2" />}
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
+                    </CardContent>
+                  </Card>
+                </CardWrapper>
+              );
+            })}
           </div>
         )}
       </div>

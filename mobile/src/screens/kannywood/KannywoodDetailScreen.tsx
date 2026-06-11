@@ -165,10 +165,12 @@ export const KannywoodDetailScreen: React.FC = () => {
               <Text style={styles.statLabel}>Estimated Reach</Text>
             </View>
           )}
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{formatPrice(production.price)}</Text>
-            <Text style={styles.statLabel}>Starting Price</Text>
-          </View>
+          {!production.is_fully_booked && (
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>{formatPrice(production.price)}</Text>
+              <Text style={styles.statLabel}>Starting Price</Text>
+            </View>
+          )}
         </View>
 
         {/* Cast */}

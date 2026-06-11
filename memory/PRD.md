@@ -30,12 +30,12 @@ Similar to the influencer "Busy" feature, Kannywood productions can now be marke
 
 **Web Implementation:**
 - Admin Panel: Toggle button in Kannywood tab to mark productions as fully booked
-- `KannywoodPage.js`: Red "FULLY BOOKED" diagonal overlay on production cards + disabled button
+- `KannywoodPage.js`: Blurry/grayscale image with "FULLY BOOKED" + clock icon overlay, non-clickable (shows toast message), price hidden
 - `KannywoodDetailPage.js`: Status badge and disabled package selection
 
 **Mobile Implementation (iOS/Android):**
-- `KannywoodScreen.tsx`: Fully booked overlay on cards with grayed-out button
-- `KannywoodDetailScreen.tsx`: Overlay, status tag, and notice when fully booked
+- `KannywoodScreen.tsx`: Blurry image (blurRadius), overlay with clock icon, Alert on tap instead of navigation, price hidden
+- `KannywoodDetailScreen.tsx`: Overlay, status tag, notice, and disabled packages with price hidden
 - `PackageCard.tsx`: Added `disabled` prop to prevent cart additions
 - `api.ts`: Added `is_fully_booked` to `KannywoodProduction` type
 

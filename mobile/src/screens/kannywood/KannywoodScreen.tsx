@@ -7,9 +7,11 @@ import {
   TouchableOpacity,
   Image,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
 import { Colors } from '../../constants/colors';
 import { Fonts } from '../../constants/fonts';
 import { Card, LoadingSpinner, ErrorMessage, EmptyState, Badge } from '../../components/common';
@@ -57,16 +59,32 @@ export const KannywoodScreen: React.FC = () => {
     return icons[type?.toLowerCase()] || 'film-outline';
   };
 
+  const handleCardPress = (item: KannywoodProduction) => {
+    if (item.is_fully_booked) {
+      Alert.alert(
+        'Fully Booked',
+        'This production is currently fully booked. Please check back later or explore other Kannywood opportunities.',
+        [{ text: 'OK', style: 'default' }]
+      );
+    } else {
+      navigation.navigate('KannywoodDetail', { id: item.id });
+    }
+  };
+
   const renderProductionCard = ({ item }: { item: KannywoodProduction }) => (
     <TouchableOpacity
       activeOpacity={0.9}
-      onPress={() => navigation.navigate('KannywoodDetail', { id: item.id })}
+      onPress={() => handleCardPress(item)}
     >
-      <Card variant="elevated" padding="none" style={styles.productionCard}>
+      <Card variant="elevated" padding="none" style={[styles.productionCard, item.is_fully_booked && styles.productionCardDisabled]}>
         {/* Image */}
         <View style={styles.imageContainer}>
           {item.image_url ? (
-            <Image source={{ uri: item.image_url }} style={styles.image} />
+            <Image 
+              source={{ uri: item.image_url }} 
+              style={styles.image}
+              blurRadius={item.is_fully_booked ? 3 : 0}
+            />
           ) : (
             <View style={styles.imagePlaceholder}>
               <Ionicons name="film" size={48} color={Colors.gray[400]} />
@@ -76,11 +94,13 @@ export const KannywoodScreen: React.FC = () => {
           {item.is_fully_booked && (
             <View style={styles.fullyBookedOverlay}>
               <View style={styles.fullyBookedBadge}>
+                <Ionicons name="time" size={20} color={Colors.white} style={{ marginRight: 6 }} />
                 <Text style={styles.fullyBookedText}>FULLY BOOKED</Text>
               </View>
+              <Text style={styles.fullyBookedSubtext}>Currently unavailable</Text>
             </View>
           )}
-          {item.genre && (
+          {item.genre && !item.is_fully_booked && (
             <View style={styles.genreBadge}>
               <Text style={styles.genreText}>{item.genre}</Text>
             </View>
@@ -139,7 +159,7 @@ export const KannywoodScreen: React.FC = () => {
                 <Text style={styles.statLabel}>Est. Reach</Text>
               </View>
             )}
-            {item.packages && item.packages.length > 0 && (
+            {item.packages && item.packages.length > 0 && !item.is_fully_booked && (
               <View style={styles.statItem}>
                 <Text style={styles.statValue}>{item.packages.length}</Text>
                 <Text style={styles.statLabel}>Packages</Text>
@@ -149,10 +169,12 @@ export const KannywoodScreen: React.FC = () => {
           
           {/* Footer */}
           <View style={styles.footer}>
-            <View>
-              <Text style={styles.priceLabel}>Starting from</Text>
-              <Text style={styles.priceValue}>{formatPrice(item.price)}</Text>
-            </View>
+            {!item.is_fully_booked && (
+              <View>
+                <Text style={styles.priceLabel}>Starting from</Text>
+                <Text style={styles.priceValue}>{formatPrice(item.price)}</Text>
+              </View>
+            )}
             {item.is_fully_booked ? (
               <View style={styles.fullyBookedButton}>
                 <Text style={styles.fullyBookedButtonText}>Fully Booked</Text>
@@ -242,6 +264,9 @@ const styles = StyleSheet.create({
   productionCard: {
     marginBottom: 20,
     overflow: 'hidden',
+  },
+  productionCardDisabled: {
+    opacity: 0.85,
   },
   imageContainer: {
     height: 180,
@@ -374,17 +399,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   fullyBookedBadge: {
-    backgroundColor: '#ef4444',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+    backgroundColor: '#dc2626',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     borderRadius: 8,
-    transform: [{ rotate: '-15deg' }],
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   fullyBookedText: {
     color: Colors.white,
     fontSize: Fonts.size.lg,
     fontWeight: Fonts.weight.bold,
     textTransform: 'uppercase',
+  },
+  fullyBookedSubtext: {
+    color: Colors.white,
+    fontSize: Fonts.size.sm,
+    marginTop: 8,
+    fontWeight: Fonts.weight.medium,
   },
   fullyBookedTag: {
     backgroundColor: '#fef2f2',
