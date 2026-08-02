@@ -1,0 +1,115 @@
+{
+  "project_name": "Geofence Attendance Console",
+  "theme_archetype": "The Performance Pro / Technical Dashboard",
+  "typography": {
+    "primary": "Inter",
+    "secondary": "IBM Plex Mono",
+    "rules": {
+      "headings": "Inter, Tracking tight. Use font-medium to font-semibold. Never center align dashboards.",
+      "body": "Inter, text-sm to text-base, text-gray-300 for readability.",
+      "quantitative_data": "IBM Plex Mono. MANDATORY for timers, coordinates, monetary values, system IDs, event logs.",
+      "labels": "Uppercase, text-xs, tracking-[0.2em] with IBM Plex Mono for technical feel."
+    },
+    "scale": {
+      "h1": "text-3xl font-semibold tracking-tight",
+      "h2": "text-2xl font-medium tracking-tight",
+      "h3": "text-lg font-medium",
+      "body": "text-sm",
+      "mono_stats": "text-2xl sm:text-4xl font-mono tracking-tight"
+    }
+  },
+  "colors": {
+    "backgrounds": {
+      "base": "#0A0A0A",
+      "surface": "#121212",
+      "surface_elevated": "#1A1A1A"
+    },
+    "text": {
+      "primary": "#F9FAFB",
+      "secondary": "#9CA3AF",
+      "muted": "#6B7280"
+    },
+    "status_semantics": {
+      "active": {
+        "label": "green",
+        "hex": "#10B981",
+        "bg": "bg-green-500/10",
+        "border": "border-green-500/20",
+        "text": "text-green-400"
+      },
+      "paused": {
+        "label": "amber",
+        "hex": "#F59E0B",
+        "bg": "bg-amber-500/10",
+        "border": "border-amber-500/20",
+        "text": "text-amber-400"
+      },
+      "completed": {
+        "label": "blue",
+        "hex": "#3B82F6",
+        "bg": "bg-blue-500/10",
+        "border": "border-blue-500/20",
+        "text": "text-blue-400"
+      },
+      "expired_denied": {
+        "label": "red",
+        "hex": "#EF4444",
+        "bg": "bg-red-500/10",
+        "border": "border-red-500/20",
+        "text": "text-red-400"
+      }
+    },
+    "borders": {
+      "default": "border-white/10",
+      "focus": "border-white/30"
+    }
+  },
+  "visual_enhancers": {
+    "surfaces": "Grid Borders ('Technical' Look). Expose the skeleton, 1px subtle borders on dark surfaces. Minimal shadow, prioritize stark contrast.",
+    "glassmorphism": "Use ONLY for sticky headers or floating navs (bg-black/60 backdrop-blur-xl border-b border-white/10). DO NOT use for data cards.",
+    "map_tiles": "Esri World Imagery (Satellite). Must feel like a mission-control tactical display."
+  },
+  "components": {
+    "cards": "Flat background (bg-[#121212]), sharp or 4px radius max (rounded-sm), 1px solid border (border-white/10). No soft shadows.",
+    "tables": "Dense, compact rows. Use IBM Plex Mono for data cells (time, coords, IDs). border-collapse style with border-b border-white/5.",
+    "buttons": "Sharp edges or 4px radius. Primary: bg-white text-black hover:bg-gray-200. Secondary: bg-transparent border border-white/10 text-white hover:bg-white/5. Avoid generic Vercel look.",
+    "status_chips": "Small, rectangular (rounded-sm). Use status_semantics colors. Must include a 1px border and 10% opacity background.",
+    "timers": "Large IBM Plex Mono digits. Use tabular-nums class to prevent shifting during countdowns."
+  },
+  "grids_and_layouts": {
+    "admin_dashboard": "High Density Grid. grid-cols-1 md:grid-cols-4 lg:grid-cols-12 gap-4 or gap-6. Use Bento layout for stats and map.",
+    "employee_mobile": "Mobile-first portrait optimized. Bottom drawer/sheet for session actions over a full-bleed satellite map.",
+    "forms": "Use Shadcn customized inputs. bg-[#0A0A0A] border-white/10 focus:border-white/30 rounded-sm.",
+    "spacing": "Dense for data (p-4), generous for layout gaps (gap-6, p-8 on containers)."
+  },
+  "motion": {
+    "map_pins": "Pulsing animations for live employees. Use a base dot with a ::after element animating scale(0.8 to 2.5) and opacity(0.5 to 0) infinitely.",
+    "interactions": "Crisp, fast micro-interactions. hover:-translate-y-[1px] on interactive cards. duration-150 ease-out.",
+    "page_transitions": "Staggered fade-in (opacity 0 to 1, translate-y 4px to 0) for table rows and list items."
+  },
+  "accessibility": {
+    "contrast": "Strict APCA/WCAG AA compliance for text. Status colors must be legible against dark gray/black.",
+    "testing": "MANDATORY: All interactive and key informational elements MUST include a data-testid attribute in kebab-case."
+  },
+  "media": {
+    "icons": "Use lucide-react. Keep stroke-width to 1.5 or 2 for crispness.",
+    "maps": "react-leaflet or mapbox-gl. Tile URL for Esri: https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+  },
+  "instructions_to_main_agent": {
+    "file_extensions": "Use .js and .jsx ONLY. Do NOT use .tsx or .ts files.",
+    "shadcn_customization": "Heavily customize Shadcn components to remove the 'Vercel-look'. Force dark mode. Strip radiuses to rounded-sm. Strip box-shadows.",
+    "transparency_rule": "CRITICAL: DO NOT use complete transparent background in header, overlays, or any surface with content underneath. Always use bg-black/80 or solid.",
+    "testing_attributes": "Add data-testid='...' to all buttons, links, inputs, and major data containers.",
+    "routing": "Setup React Router for Login, Admin Dashboard, Office Setup, Employee Dashboard (Mobile View), History, Reports, Audit Log, Settings, Profile.",
+    "pwa": "Implement PWA manifest and service worker for installability and offline caching support."
+  },
+  "UNIVERSAL_GUIDELINES_FOR_MAIN_AGENT": [
+    "You tend to converge toward generic outputs. Avoid this: make creative, distinctive frontends.",
+    "Never apply universal transition (transition: all). Use specific transitions (transition-colors, transition-transform).",
+    "Never center align the app container (.App { text-align: center; }). Keep layouts strictly grid/flex based and left-aligned for data.",
+    "Every interaction needs micro-animations - hover states, selection states.",
+    "Use sonner for toast notifications (dark themed).",
+    "Missing components? Build them using Shadcn UI base but styled to the tactical ops-console spec.",
+    "All monetary/quantitative readouts stay in IBM Plex Mono to keep the technical instrument feel."
+  ]
+}
