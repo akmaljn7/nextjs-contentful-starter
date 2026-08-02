@@ -1,7 +1,8 @@
 """Pydantic models."""
 from datetime import datetime, timezone
 from typing import Optional, List, Literal, Dict
-from pydantic import BaseModel, EmailStr, Field, ConfigDict
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+from pydantic import BaseModel, EmailStr, Field, ConfigDict, field_validator, model_validator
 
 
 def utcnow_iso() -> str:
@@ -26,6 +27,29 @@ class EmployeeSchedule(BaseModel):
     min_hours_per_day: Optional[int] = Field(default=None, ge=1, le=24)
     weekly_schedule: Optional[Dict[str, Optional[DayHours]]] = None
     timezone: Optional[str] = "UTC"
+
+    @field_validator("timezone")
+    @classmethod
+    def _tz_valid(cls, v):
+        if v is None:
+            return "UTC"
+        try:
+            ZoneInfo(v)
+        except ZoneInfoNotFoundError as exc:
+            raise ValueError(f"Unknown IANA timezone: {v!r}") from exc
+        return v
+
+    @model_validator(mode="after")
+    def _mode_requires(self):
+        if self.mode == "fixed_hours" and self.min_hours_per_day is None:
+            raise ValueError("fixed_hours mode requires min_hours_per_day")
+        if self.mode == "weekly_calendar":
+            if not self.weekly_schedule:
+                raise ValueError("weekly_calendar mode requires weekly_schedule")
+            # weekly_schedule must contain at least one working day
+            if not any(v is not None for v in self.weekly_schedule.values()):
+                raise ValueError("weekly_calendar mode requires at least one working day")
+        return self
 
 
 # ---------- Auth ----------
