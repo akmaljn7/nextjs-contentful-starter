@@ -32,6 +32,8 @@ async def save_session_photo(session_id: str, org_id: str, user_id: str, data_ur
         return False
     if len(raw) < 512:  # under 512B is almost certainly bogus
         return False
+    if len(raw) > 5 * 1024 * 1024:  # reject > 5MB decoded (defense-in-depth)
+        return False
     db = get_db()
     await db.session_photos.update_one(
         {"session_id": session_id},
