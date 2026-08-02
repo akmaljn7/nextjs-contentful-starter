@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useMemo } from "react";
 import { MapContainer, TileLayer, Marker, Circle, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 
@@ -13,6 +13,16 @@ function makeDivIcon(status = "completed", size = 14) {
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
   });
+}
+
+/** Re-center the leaflet map when the `center` prop changes (react-leaflet doesn't do this by default). */
+function RecenterOn({ center, zoom, animate = true }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!center || typeof center.lat !== "number" || typeof center.lng !== "number") return;
+    map.setView([center.lat, center.lng], zoom ?? map.getZoom(), { animate });
+  }, [center?.lat, center?.lng, zoom, animate, map]);
+  return null;
 }
 
 function FitBounds({ points }) {
@@ -39,8 +49,12 @@ export function MapView({
   onMapClick,
   showZoom = true,
   fitAll = false,
+  followCenter = true,
 }) {
-  const mapCenter = center || (offices[0] ? { lat: offices[0].lat, lng: offices[0].lng } : { lat: 40.758, lng: -73.9855 });
+  // World-safe default (Africa-centered) when nothing else is available — no hardcoded NYC.
+  const mapCenter = center || (offices[0] ? { lat: offices[0].lat, lng: offices[0].lng } : { lat: 9.0820, lng: 8.6753 });
+  const initialZoom = center ? zoom : (offices[0] ? zoom : 3);
+
   const fitPoints = useMemo(() => {
     if (!fitAll) return null;
     const pts = [];
@@ -53,7 +67,7 @@ export function MapView({
     <div style={{ height, width: "100%", position: "relative" }}>
       <MapContainer
         center={[mapCenter.lat, mapCenter.lng]}
-        zoom={zoom}
+        zoom={initialZoom}
         style={{ height: "100%", width: "100%" }}
         zoomControl={showZoom}
         attributionControl={false}
@@ -63,6 +77,7 @@ export function MapView({
         <TileLayer url={ESRI_URL} attribution={ESRI_ATTR} />
         {onMapClick && <ClickHandler onClick={onMapClick} />}
         {fitPoints && <FitBounds points={fitPoints} />}
+        {!fitPoints && followCenter && center && <RecenterOn center={center} zoom={zoom} />}
         {offices.map((o) => (
           <React.Fragment key={o.id}>
             <Circle

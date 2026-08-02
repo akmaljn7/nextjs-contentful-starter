@@ -1,0 +1,31 @@
+{
+  "summary": "Regression testing after removal of hardcoded 'HQ — Times Square' seeded office. 24/24 pytest tests pass. Verified: (1) seed cleanup removed the stale Times Square office and no office exists at NYC coords for the seeded owner; (2) sample employee still seeded and starts unassigned (office_id null) until reassigned; (3) owner login + /auth/me returns org_name='Emergent Operations', role='org_owner'; (4) full offices CRUD works with Nigerian coords (Lagos 6.5244,3.3792 r=200m); (5) employee reassignment via PATCH /api/employees/{id} sets office_id correctly; (6) full session lifecycle with the newly-created Nigerian office — start returns status='active' with remaining_ms=3600000 and center.radius_m=200, ping keeps active, reset writes an attendance record with record_hash+prev_record_hash; (7) start outside radius returns 403 with 'Signing denied'; (8) hash chain across two consecutive resets — recs[0].prev_record_hash == recs[1].record_hash; (9) CSV export returns text/csv with attachment disposition and non-empty body; PDF export returns application/pdf starting with %PDF and >500 bytes; (10) access token now includes iat+jti — two /auth/refresh calls in immediate succession produce distinct access_token strings; (11) POST /api/auth/forgot-password returns exactly {\"ok\": true} for both known and unknown emails (no `sent` field leak).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_backend.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "seed.py cleanup logic is correctly scoped — only deletes an office named exactly 'HQ — Times Square' with coordinates [-73.9855, 40.7580] AND only when it has zero attendance_records. Detaches employees before deletion. Safe & idempotent.",
+    "security.py access token now embeds iat (datetime) + jti (8-byte hex) — refresh always produces a byte-distinct token string. Verified with two back-to-back refresh calls.",
+    "routes/auth.py forgot-password now returns exactly {\"ok\": true} — the previous `sent` boolean that leaked user existence is gone. No user enumeration surface.",
+    "Employee reassignment (PATCH /api/employees/{id} with office_id) validates the target office belongs to the caller's org — tenant isolation preserved.",
+    "Nigerian office creation with lat=6.5244, lng=3.3792, radius=200 works end-to-end: create → assign employee → start session inside radius → ping → reset → attendance record with hash chain.",
+    "One observation (informational only): seed.py deletes ts_office if it has no attendance_records but does NOT clean up related security_events or audit_logs referencing that office_id. Since the office is deleted anyway, orphaned events referencing a gone office_id remain in the collections. Not a bug — audit records are append-only by design — but worth being aware of when reviewing old security_events."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_backend.py"
+  ],
+  "success_rate": {"backend": "100% (24/24)", "frontend": "N/A (backend-only run per request)"},
+  "test_credentials": "Owner: akmaljn7@gmail.com / GeofenceAdmin123!. Employee: employee@example.com / Employee123! (office_id=null after seed; tests attach them to a Nigerian Lagos office during the fixture).",
+  "seed_data_creation": "Session-scoped nigerian_office fixture creates a Lagos office (lat=6.5244, lng=3.3792, r=200m) and assigns the sample employee to it. Cleaned up (office deleted, employee detached implicitly by the offices.delete route) at session end. TEST_-prefixed orgs/offices are created for isolation and lockout scenarios.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "test_backend.py was fully rewritten for iteration 2. Uses Nigerian coords (Lagos 6.5244,3.3792). The `nigerian_office` session-scoped fixture creates the office & assigns the seeded employee — every session/attendance test depends on this fixture. If the seeded employee's office_id is left non-null between iterations, tests still pass (the reassign test restores it, and start/reset tolerate whatever office is currently assigned since the office existed for the duration of the fixture). Note: because seed.py runs on backend restart, any test that creates an office literally named 'HQ — Times Square' at [-73.9855, 40.7580] would be silently deleted by the seed cleanup on next restart (only if it has no attendance records). Tests here avoid that name/coord combo. The `test_refresh_same_second_produces_distinct_access_tokens` test relies on iat + jti claims in the access token. pytest.ini uses -n 2 --dist loadscope; do not modify.",
+  "rca of the issue": "N/A — original user bug (map showing Times Square instead of Nigeria) fixed at the data layer (seed no longer creates NYC office + one-time cleanup removes stale office) and confirmed by regression: GET /api/offices for a fresh seed no longer contains any NYC-coord or Times-Square-named office."
+}

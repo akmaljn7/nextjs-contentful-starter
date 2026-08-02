@@ -1,14 +1,39 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, toApiError } from "@/lib/api";
 import { AppShell } from "@/components/AppShell";
 import { MapView } from "@/components/MapView";
 import { fmtCoord } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, Trash2, MapPin, Edit3, X } from "lucide-react";
+import { Plus, Trash2, MapPin, Edit3, X, Crosshair } from "lucide-react";
 
 function OfficeForm({ initial, onCancel, onSaved }) {
-  const [form, setForm] = useState(initial || { name: "", lat: 40.758, lng: -73.9855, radius_meters: 150 });
+  const [form, setForm] = useState(initial || { name: "", lat: "", lng: "", radius_meters: 150 });
+  const [locating, setLocating] = useState(false);
+
+  // Auto-fill new-office form with the browser's current location once (no NYC default).
+  useEffect(() => {
+    if (initial || form.lat !== "" || !("geolocation" in navigator)) return;
+    navigator.geolocation.getCurrentPosition(
+      (p) => setForm((f) => (f.lat === "" ? { ...f, lat: p.coords.latitude, lng: p.coords.longitude } : f)),
+      () => { /* silently ignore — admin can tap map or click the button */ },
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 },
+    );
+  }, [initial, form.lat]);
+
+  const useMyLocation = () => {
+    if (!("geolocation" in navigator)) { toast.error("Geolocation not supported in this browser"); return; }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (p) => {
+        setForm((f) => ({ ...f, lat: p.coords.latitude, lng: p.coords.longitude }));
+        setLocating(false);
+        toast.success(`Locked ${p.coords.latitude.toFixed(5)}, ${p.coords.longitude.toFixed(5)}`);
+      },
+      (e) => { setLocating(false); toast.error(e.message || "Location denied"); },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 },
+    );
+  };
 
   const save = useMutation({
     mutationFn: async () => {
@@ -21,13 +46,15 @@ function OfficeForm({ initial, onCancel, onSaved }) {
   });
 
   const pickCenter = (latlng) => setForm({ ...form, lat: latlng.lat, lng: latlng.lng });
+  const centerObj = form.lat !== "" && form.lng !== "" && !Number.isNaN(Number(form.lat)) && !Number.isNaN(Number(form.lng))
+    ? { lat: Number(form.lat), lng: Number(form.lng) } : null;
 
   return (
     <div className="surface p-5" data-testid="office-form">
       <div className="flex items-center justify-between mb-4">
         <div>
           <div className="label-uppercase">{initial ? "EDIT OFFICE" : "NEW OFFICE"}</div>
-          <div className="text-sm text-gray-400 mt-0.5">Click the map to place center</div>
+          <div className="text-sm text-gray-400 mt-0.5">Click the map, or tap &ldquo;Use my current location&rdquo;, to place the geofence center.</div>
         </div>
         <button onClick={onCancel} className="text-gray-500 hover:text-white transition-colors" data-testid="close-form"><X size={16} /></button>
       </div>
@@ -39,17 +66,29 @@ function OfficeForm({ initial, onCancel, onSaved }) {
               data-testid="office-name"
               className="w-full bg-[#0a0a0a] border border-white/10 focus:border-white/30 focus:outline-none px-3 py-2 text-sm mono" />
           </div>
+          <button
+            type="button"
+            onClick={useMyLocation}
+            disabled={locating}
+            data-testid="use-my-location"
+            className="w-full border border-green-500/40 hover:bg-green-500/10 text-green-400 px-3 py-2 text-xs mono uppercase tracking-widest inline-flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+          >
+            <Crosshair size={13} strokeWidth={1.75} />
+            {locating ? "Locating…" : "Use my current location"}
+          </button>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label-uppercase block mb-1.5">Latitude</label>
               <input value={form.lat} onChange={(e) => setForm({ ...form, lat: e.target.value })}
                 data-testid="office-lat"
+                placeholder="e.g. 6.5244"
                 className="w-full bg-[#0a0a0a] border border-white/10 focus:border-white/30 focus:outline-none px-3 py-2 text-sm mono" />
             </div>
             <div>
               <label className="label-uppercase block mb-1.5">Longitude</label>
               <input value={form.lng} onChange={(e) => setForm({ ...form, lng: e.target.value })}
                 data-testid="office-lng"
+                placeholder="e.g. 3.3792"
                 className="w-full bg-[#0a0a0a] border border-white/10 focus:border-white/30 focus:outline-none px-3 py-2 text-sm mono" />
             </div>
           </div>
@@ -61,7 +100,7 @@ function OfficeForm({ initial, onCancel, onSaved }) {
               className="w-full bg-[#0a0a0a] border border-white/10 focus:border-white/30 focus:outline-none px-3 py-2 text-sm mono" />
           </div>
           <div className="flex gap-2 pt-2">
-            <button onClick={() => save.mutate()} disabled={save.isPending || !form.name}
+            <button onClick={() => save.mutate()} disabled={save.isPending || !form.name || form.lat === "" || form.lng === ""}
               data-testid="office-save"
               className="bg-white text-black hover:bg-gray-200 disabled:opacity-50 font-medium px-4 py-2 text-sm transition-colors">
               {save.isPending ? "Saving…" : (initial ? "Save changes" : "Create office")}
@@ -72,12 +111,14 @@ function OfficeForm({ initial, onCancel, onSaved }) {
         <div className="min-h-[280px]">
           <MapView
             height={320}
-            center={{ lat: Number(form.lat) || 40.758, lng: Number(form.lng) || -73.9855 }}
+            center={centerObj}
             zoom={16}
-            geofence={{ lat: Number(form.lat) || 40.758, lng: Number(form.lng) || -73.9855, radius_m: Number(form.radius_meters) || 150, color: "#10b981" }}
+            geofence={centerObj ? { lat: centerObj.lat, lng: centerObj.lng, radius_m: Number(form.radius_meters) || 150, color: "#10b981" } : null}
             onMapClick={pickCenter}
           />
-          <div className="text-[10px] mono uppercase tracking-widest text-gray-600 mt-2">TAP MAP TO ADJUST CENTER</div>
+          <div className="text-[10px] mono uppercase tracking-widest text-gray-600 mt-2">
+            {centerObj ? "TAP MAP TO ADJUST CENTER" : "TAP \"USE MY CURRENT LOCATION\" OR CLICK THE MAP"}
+          </div>
         </div>
       </div>
     </div>
