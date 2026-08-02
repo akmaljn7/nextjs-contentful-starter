@@ -1,11 +1,31 @@
 """Pydantic models."""
 from datetime import datetime, timezone
-from typing import Optional, List, Literal
+from typing import Optional, List, Literal, Dict
 from pydantic import BaseModel, EmailStr, Field, ConfigDict
 
 
 def utcnow_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+# ---------- Work Schedule ----------
+class DayHours(BaseModel):
+    open: str = Field(pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+    close: str = Field(pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+
+
+class EmployeeSchedule(BaseModel):
+    """Per-employee work schedule.
+
+    mode:
+        - "any": no restriction (session uses org default duration)
+        - "fixed_hours": min_hours_per_day is the session duration (e.g., 6h shift)
+        - "weekly_calendar": weekly_schedule dictates open/close for each weekday
+    """
+    mode: Literal["any", "fixed_hours", "weekly_calendar"] = "any"
+    min_hours_per_day: Optional[int] = Field(default=None, ge=1, le=24)
+    weekly_schedule: Optional[Dict[str, Optional[DayHours]]] = None
+    timezone: Optional[str] = "UTC"
 
 
 # ---------- Auth ----------
@@ -73,11 +93,13 @@ class EmployeeCreate(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)
     office_id: str
+    schedule: Optional[EmployeeSchedule] = None
 
 
 class EmployeeUpdate(BaseModel):
     name: Optional[str] = None
     office_id: Optional[str] = None
+    schedule: Optional[EmployeeSchedule] = None
 
 
 # ---------- Sessions ----------

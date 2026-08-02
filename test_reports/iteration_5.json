@@ -1,0 +1,37 @@
+{
+  "summary": "Iteration 5 — Added 13 new backend tests in /app/backend/tests/test_schedule.py (single TestSchedule class → single xdist worker) covering the new EmployeeSchedule feature: (a) PATCH schedule={mode:fixed_hours,min_hours_per_day:6} → response.schedule persisted, subsequent /api/sessions/start returns remaining_ms=21600000; (b) PATCH mode:any → remaining_ms=3600000 (org default 60min); (c) PATCH mode:weekly_calendar w/ today=null → 403 'You are not scheduled to work today.' AND security_events row with type='schedule_denied' inserted (verified via GET /api/security-events); (d) PATCH weekly window 00:00-23:59 covering today (day_key computed dynamically via datetime.now(ZoneInfo('UTC')).weekday()) → 200 and remaining_ms == ms-until-23:59 within ±3s; (e) PATCH weekly window 00:00-00:01 already-closed → 403 detail contains 'shift ended'; (f) POST /api/employees with schedule field persists and shows in list; (g) validation: bad HH:MM regex '25:99' → 422, min_hours_per_day=0 → 422, =25 → 422; (h) REGRESSION: photo + fixed_hours=6 coexist (remaining_ms=21600000 AND has_photo=true), geofence(403)+accuracy(400) NOT bypassed with mode=any, /api/sessions/live shows schedule-derived remaining_ms. Combined regression: 59/59 pass in serial (-n 0). Under pytest.ini's enforced -n 2 --dist loadscope, the same pre-existing cross-worker race on the shared seeded employee (documented in iteration_4.json) causes 3-5 intermittent failures — all in tests that assert stable session state (WS has_photo, /sessions/live has_photo, malformed-base64), not schedule-specific. Every schedule behavior verified green.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "N/A (test harness)", "issue": "Same xdist race as iteration_4: three files (test_backend, test_photos, test_schedule) share the single seeded employee@example.com and run cross-worker under pytest.ini's -n 2 --dist loadscope. Serial (-n 0) → 59/59 pass. Parallel → 3-5 intermittent failures in state-sensitive tests. Recommend per-file dedicated employee (create in module-scoped fixture) or a filelock around the nigerian_setup fixture."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_schedule.py",
+    "/app/test_reports/pytest/pytest_schedule.xml",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "(Low) Same as iteration_4: consider per-file dedicated test employees or a filelock in nigerian_office/nigerian_setup to make -n 2 --dist loadscope fully deterministic across all four session-touching test files (now also test_schedule.py).",
+    "(Info) Small routes/audit.py naming inconsistency: router prefix is /api (not /api/audit) so the exposed URL is /api/security-events. Tests were updated accordingly; consider standardising to /api/audit/security-events for clarity — not blocking."
+  ],
+  "critical_code_review_comments": [
+    "routes/sessions.py::_compute_schedule_duration_ms: `close_dt <= open_dt` returns 'Invalid schedule' — but this prevents overnight shifts (e.g., 22:00→06:00). If overnight shifts are a future requirement, this needs rework. Not blocking for current spec.",
+    "routes/sessions.py::_compute_schedule_duration_ms: weekly_calendar timezone default fallback catches ZoneInfoNotFoundError but silently downgrades to UTC — consider surfacing a 400 with a clear message so admins notice a typo'd IANA name.",
+    "routes/employees.py update_employee: `payload.schedule.model_dump(exclude_none=True)` drops None fields — but for mode='any' this is fine; however if an admin PATCHes {'mode':'weekly_calendar', 'timezone':'UTC'} without weekly_schedule, we persist a partial doc and later _compute_schedule_duration_ms treats it as off-day for every day. Consider server-side validation that weekly_calendar mode requires non-empty weekly_schedule.",
+    "routes/employees.py create_employee: same partial-schedule risk on POST. Add pydantic model_validator on EmployeeSchedule enforcing mode-specific required fields (fixed_hours→min_hours_per_day required; weekly_calendar→weekly_schedule required & non-empty).",
+    "routes/sessions.py: schedule_denied security event severity is 'low' — arguable, but geofence_denied is also 'low' so it's internally consistent. OK.",
+    "models.py::EmployeeSchedule: `timezone: Optional[str] = 'UTC'` — no validator that it's a real IANA name. A typo silently falls back to UTC in sessions.py; better to validate here with `ZoneInfo(v)` in a field_validator so bad tz's 422 at the API boundary."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_schedule.py (NEW — 13 tests, single TestSchedule class for xdist loadscope pinning; module-scoped nigerian_setup fixture w/ schedule reset in teardown; dynamic day_key via ZoneInfo('UTC').weekday())"
+  ],
+  "success_rate": {"backend": "100% serial (13/13 new schedule; 59/59 combined). Parallel (-n 2 loadscope): 54-56/59 due to pre-existing cross-file employee race — same as iteration_4.", "frontend": "not tested (backend only per request)"},
+  "test_credentials": "Owner akmaljn7@gmail.com / GeofenceAdmin123!, Employee employee@example.com / Employee123!",
+  "seed_data_creation": "TEST_SchLagos_* office (Lagos 6.5244,3.3792 radius 300m), reassigns sample employee, TEST_sched_*@example.com employee for create-with-schedule test (deleted in-test). Teardown resets employee schedule to {mode:'any'} and deletes office.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "New file: /app/backend/tests/test_schedule.py — 13 tests, all in one TestSchedule class so pytest-xdist loadscope pins them to one worker. IMPORTANT gotcha found & fixed: security events endpoint is /api/security-events (audit router prefix is just /api, not /api/audit). For day_key in weekly_calendar tests, ALWAYS compute dynamically: `DAY_KEYS[datetime.now(ZoneInfo('UTC')).weekday()]` — never hardcode. Between mode changes always call POST /api/sessions/reset. For past-close test, skip if now < 00:02 UTC to avoid false negative. The parallel-xdist race with the shared employee still exists across test_backend/test_photos/test_schedule — run serially for a clean sweep.",
+  "rca of the issue": "N/A — every behavior in the review request verified green. Only observed flake is the pre-existing cross-file xdist race documented in iteration_4.json; scoping test_schedule.py to a single TestSchedule class prevents intra-file races but not inter-file races on the shared seeded employee. Backend feature works end-to-end: schedule persists on POST + PATCH, /api/sessions/start correctly returns 21600000 ms for fixed_hours=6, 3600000 for any, dynamic ms-until-close for weekly_calendar open windows, 403 with proper detail strings for off-day + past-close, security_events row with type=schedule_denied is inserted, and photo/geofence/accuracy checks remain intact."
+}

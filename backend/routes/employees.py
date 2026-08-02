@@ -20,6 +20,7 @@ def _shape(doc: dict) -> dict:
         "name": doc["name"],
         "role": doc["role"],
         "office_id": doc.get("office_id"),
+        "schedule": doc.get("schedule") or {"mode": "any"},
         "created_at": doc.get("created_at"),
         "last_login_at": doc.get("last_login_at"),
     }
@@ -52,6 +53,7 @@ async def create_employee(payload: EmployeeCreate, request: Request, user: dict 
         "name": payload.name,
         "role": "employee",
         "office_id": payload.office_id,
+        "schedule": payload.schedule.model_dump(exclude_none=True) if payload.schedule else {"mode": "any"},
         "failed_login_count": 0,
         "locked_until": None,
         "last_login_at": None,
@@ -89,6 +91,8 @@ async def update_employee(employee_id: str, payload: EmployeeUpdate, request: Re
         if not office:
             raise HTTPException(status_code=400, detail="Invalid office")
         update["office_id"] = payload.office_id
+    if payload.schedule is not None:
+        update["schedule"] = payload.schedule.model_dump(exclude_none=True)
     if update:
         await db.users.update_one({"_id": eid}, {"$set": update})
     new_doc = await db.users.find_one({"_id": eid})

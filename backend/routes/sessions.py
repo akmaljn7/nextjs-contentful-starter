@@ -5,6 +5,7 @@ Server-authoritative — all state transitions decided here from GPS pings.
 import hashlib
 import json
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from fastapi import APIRouter, HTTPException, Depends, Request
 from bson import ObjectId
 
@@ -19,6 +20,52 @@ from services.photos import save_session_photo, has_photo
 import os
 
 router = APIRouter(prefix="/api/sessions", tags=["sessions"])
+
+DAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
+
+
+def _compute_schedule_duration_ms(user_doc: dict, org_settings: dict) -> tuple[int, str | None]:
+    """Given the employee's schedule + org defaults, return (remaining_ms, error_or_None).
+
+    Returns:
+        (duration_ms, None) — allowed, use duration_ms for session
+        (0, "reason") — deny session start with reason
+    """
+    schedule = user_doc.get("schedule") or {"mode": "any"}
+    mode = schedule.get("mode", "any")
+
+    if mode == "fixed_hours":
+        hours = int(schedule.get("min_hours_per_day") or 6)
+        return hours * 3600 * 1000, None
+
+    if mode == "weekly_calendar":
+        try:
+            tz = ZoneInfo(schedule.get("timezone") or "UTC")
+        except ZoneInfoNotFoundError:
+            tz = ZoneInfo("UTC")
+        now = datetime.now(tz)
+        day_key = DAY_KEYS[now.weekday()]
+        weekly = schedule.get("weekly_schedule") or {}
+        day = weekly.get(day_key)
+        if not day:
+            return 0, "You are not scheduled to work today."
+        try:
+            oh, om = map(int, day["open"].split(":"))
+            ch, cm = map(int, day["close"].split(":"))
+        except Exception:
+            return 0, "Invalid weekly schedule format."
+        open_dt = now.replace(hour=oh, minute=om, second=0, microsecond=0)
+        close_dt = now.replace(hour=ch, minute=cm, second=0, microsecond=0)
+        if close_dt <= open_dt:
+            return 0, "Invalid schedule: close time is before open time."
+        if now < open_dt:
+            return 0, f"Your shift starts at {day['open']} ({schedule.get('timezone') or 'UTC'})."
+        if now >= close_dt:
+            return 0, f"Your shift ended at {day['close']} ({schedule.get('timezone') or 'UTC'})."
+        return int((close_dt - now).total_seconds() * 1000), None
+
+    session_min = int(org_settings.get("session_duration_minutes", 60))
+    return session_min * 60 * 1000, None
 
 
 def _now_iso() -> str:
@@ -122,7 +169,16 @@ async def start_session(payload: SessionStart, request: Request, user: dict = De
 
     settings = await _get_org_settings(db, user["org_id"])
     accuracy_tol = settings.get("accuracy_tolerance_meters", 50)
-    session_min = settings.get("session_duration_minutes", 60)
+
+    # Compute session duration from employee schedule (fallback: org default).
+    session_duration_ms, schedule_err = _compute_schedule_duration_ms(user, settings)
+    if schedule_err:
+        await log_security_event(
+            "schedule_denied", "low", client_ip(request),
+            {"reason": schedule_err, "schedule_mode": (user.get("schedule") or {}).get("mode", "any")},
+            org_id=user["org_id"], user_id=user["id"],
+        )
+        raise HTTPException(status_code=403, detail=schedule_err)
 
     # Anti-spoof: accuracy check
     if payload.accuracy > accuracy_tol:
@@ -159,7 +215,7 @@ async def start_session(payload: SessionStart, request: Request, user: dict = De
         "center": center,
         "start_time": _now_iso(),
         "start_time_ms": now_ms,
-        "remaining_ms": session_min * 60 * 1000,
+        "remaining_ms": session_duration_ms,
         "current_bout_start_ms": now_ms,
         "status": "active",
         "paused_at": None,
