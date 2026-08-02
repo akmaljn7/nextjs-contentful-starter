@@ -26,13 +26,16 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 
 def create_access_token(user_id: str, email: str, org_id: str, role: str) -> str:
+    now = datetime.now(timezone.utc)
     payload = {
         "sub": user_id,
         "email": email,
         "org_id": org_id,
         "role": role,
         "type": "access",
-        "exp": datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_MINUTES),
+        "iat": now,
+        "jti": os.urandom(8).hex(),
+        "exp": now + timedelta(minutes=ACCESS_TOKEN_MINUTES),
     }
     return jwt.encode(payload, get_jwt_secret(), algorithm=JWT_ALGORITHM)
 

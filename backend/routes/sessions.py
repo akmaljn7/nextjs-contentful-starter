@@ -200,8 +200,10 @@ async def ping_session(payload: SessionPing, request: Request, user: dict = Depe
     if analysis["flags"]:
         flagged = True
 
-    # Update remaining time: subtract inside-time since last fix if we were active
-    if last.get("ts_ms") and status == "active":
+    # Only count time as "inside" when the previous state was active AND the
+    # current ping is still inside the geofence. Otherwise we'd bill outside-time
+    # as work time on the interval where the employee actually crossed the boundary.
+    if last.get("ts_ms") and status == "active" and (ignore_spatial or inside):
         dt = now_ms - last["ts_ms"]
         if dt > 0:
             remaining = max(0, remaining - dt)

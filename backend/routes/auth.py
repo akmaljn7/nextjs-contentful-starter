@@ -244,9 +244,8 @@ async def forgot_password(payload: ForgotPasswordRequest, request: Request):
         frontend = os.environ.get("FRONTEND_URL", "").rstrip("/")
         reset_url = f"{frontend}/reset-password?token={token}"
         html = render_reset_email(reset_url, user.get("name", "there"))
-        sent = await send_email(email, "Reset your Geofence Console password", html)
-        return {"ok": True, "sent": sent}
-    return {"ok": True, "sent": False}
+        await send_email(email, "Reset your Geofence Console password", html)
+    return {"ok": True}
 
 
 @router.post("/reset-password")
