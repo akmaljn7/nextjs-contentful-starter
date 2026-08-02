@@ -10,7 +10,7 @@ import { useAuth } from "@/context/AuthContext";
 import { fmtCoord, fmtDateTime, fmtDist, fmtMinutes, STATUS_LABEL } from "@/lib/format";
 import { computeIdleRemainingMs, todayShiftInfo } from "@/lib/schedule";
 import { toast } from "sonner";
-import { Play, RotateCcw, Radar, CalendarClock } from "lucide-react";
+import { Play, RotateCcw, Radar, CalendarClock, CalendarOff } from "lucide-react";
 
 function useGeolocation() {
   const [fix, setFix] = useState(null);
@@ -47,6 +47,12 @@ export default function EmployeeConsole() {
     queryKey: ["my-session"],
     queryFn: async () => (await api.get("/sessions/me")).data,
     refetchInterval: 4000,
+  });
+
+  const { data: todayOff } = useQuery({
+    queryKey: ["time-off-today"],
+    queryFn: async () => (await api.get("/time-off/today")).data,
+    refetchInterval: 30000,
   });
 
   useEffect(() => { geo.start(); return () => geo.stop(); }, []);
@@ -156,8 +162,24 @@ export default function EmployeeConsole() {
               {session ? `bout ${session.bout_count} · inside ${fmtMinutes(session.total_inside_ms)}` : "Ready to sign in"}
             </div>
 
-            {/* Shift info under the countdown (visible when not in a session) */}
-            {!session && shiftInfo.headline && (
+            {/* Approved time-off banner overrides shift info */}
+            {!session && todayOff && (
+              <div
+                className="mt-3 border border-blue-500/40 bg-blue-500/10 px-3 py-2 flex items-start gap-2"
+                data-testid="time-off-today"
+              >
+                <CalendarOff size={14} className="text-blue-400 mt-0.5 flex-none" />
+                <div className="min-w-0">
+                  <div className="mono text-xs text-blue-300 truncate">Approved time off today</div>
+                  <div className="mono text-[10px] uppercase tracking-widest text-blue-400 mt-0.5 truncate">
+                    {todayOff.reason || "no reason"} · until {todayOff.end_date}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Shift info under the countdown (visible when not in a session and no approved time-off) */}
+            {!session && !todayOff && shiftInfo.headline && (
               <div
                 className="mt-3 border border-white/10 bg-white/[0.03] px-3 py-2 flex items-start gap-2"
                 data-testid="shift-info"

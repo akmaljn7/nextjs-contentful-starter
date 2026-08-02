@@ -149,6 +149,23 @@ class TimeOffCreate(BaseModel):
     end_date: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
     reason: str = Field(min_length=1, max_length=500)
 
+    @field_validator("start_date", "end_date")
+    @classmethod
+    def _real_date(cls, v):
+        from datetime import date as _date
+        try:
+            _date.fromisoformat(v)
+        except ValueError as exc:
+            raise ValueError(f"Not a real calendar date: {v!r}") from exc
+        return v
+
+    @field_validator("reason")
+    @classmethod
+    def _no_whitespace_only(cls, v):
+        if not (v or "").strip():
+            raise ValueError("Reason cannot be blank")
+        return v
+
 
 class TimeOffDecision(BaseModel):
     notes: Optional[str] = Field(default=None, max_length=500)
