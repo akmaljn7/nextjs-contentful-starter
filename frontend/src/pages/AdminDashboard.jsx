@@ -5,7 +5,8 @@ import { AppShell } from "@/components/AppShell";
 import { MapView } from "@/components/MapView";
 import { StatusChip } from "@/components/StatusChip";
 import { fmtCoord, fmtDateTime, fmtMinutes, STATUS_LABEL } from "@/lib/format";
-import { Building2, Users, Activity, PauseCircle, Database, ShieldAlert } from "lucide-react";
+import { useLiveSessions } from "@/hooks/useLiveSessions";
+import { Building2, Users, Activity, PauseCircle, Database, ShieldAlert, Wifi } from "lucide-react";
 
 const Stat = ({ label, value, sub, icon: Icon, testId }) => (
   <div className="surface p-4" data-testid={testId}>
@@ -19,6 +20,9 @@ const Stat = ({ label, value, sub, icon: Icon, testId }) => (
 );
 
 export default function AdminDashboard() {
+  // Open the live WebSocket — pushes into the ["live"] cache in real time.
+  useLiveSessions(true);
+
   const { data: offices = [] } = useQuery({
     queryKey: ["offices"],
     queryFn: async () => (await api.get("/offices")).data,
@@ -27,13 +31,13 @@ export default function AdminDashboard() {
   const { data: live = [] } = useQuery({
     queryKey: ["live"],
     queryFn: async () => (await api.get("/sessions/live")).data,
-    refetchInterval: 3000,
+    refetchInterval: 8000, // slower polling as safety-net; WS is primary
   });
 
   const { data: summary = {} } = useQuery({
     queryKey: ["summary"],
     queryFn: async () => (await api.get("/attendance/summary")).data,
-    refetchInterval: 10000,
+    refetchInterval: 15000,
   });
 
   const pins = useMemo(() => live.map((s) => ({
@@ -41,11 +45,25 @@ export default function AdminDashboard() {
     status: s.status, label: s.employee_name,
   })).filter((p) => p.lat != null && p.lng != null), [live]);
 
+  // Focus the fit only on the current subject: live pins if any exist,
+  // otherwise the offices. This prevents the map from zooming out to the
+  // whole globe when offices are on different continents.
+  const focusPoints = useMemo(() => {
+    if (pins.length > 0) return pins.map((p) => ({ ...p, zoom: 17 }));
+    if (offices.length > 0) return offices.map((o) => ({ lat: o.lat, lng: o.lng, zoom: 15 }));
+    return null;
+  }, [pins, offices]);
+
   return (
     <AppShell>
-      <div className="mb-6">
-        <div className="label-uppercase">CONSOLE</div>
-        <h1 className="text-3xl font-semibold tracking-tight mt-1">Operations overview</h1>
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <div className="label-uppercase">CONSOLE</div>
+          <h1 className="text-3xl font-semibold tracking-tight mt-1">Operations overview</h1>
+        </div>
+        <div className="mono text-[10px] uppercase tracking-widest text-gray-500 inline-flex items-center gap-1.5" data-testid="ws-indicator">
+          <Wifi size={12} className="text-green-400" /> LIVE · WEBSOCKET
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
@@ -62,12 +80,21 @@ export default function AdminDashboard() {
           <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
             <div>
               <div className="label-uppercase">LIVE MAP</div>
-              <div className="text-sm text-gray-400 mt-0.5">Real-time employee positions</div>
+              <div className="text-sm text-gray-400 mt-0.5">
+                {pins.length > 0 ? `Tracking ${pins.length} employee${pins.length === 1 ? "" : "s"} in real time` : "Real-time employee positions"}
+              </div>
             </div>
-            <div className="mono text-[10px] uppercase tracking-widest text-gray-500">refresh · 3s</div>
+            <div className="mono text-[10px] uppercase tracking-widest text-gray-500">
+              {pins.length > 0 ? "FOCUSED · LIVE" : offices.length > 0 ? "FIT · OFFICES" : "STANDBY"}
+            </div>
           </div>
           <div className="p-2">
-            <MapView height={480} offices={offices} pins={pins} fitAll={pins.length > 0 || offices.length > 0} />
+            <MapView
+              height={480}
+              offices={offices}
+              pins={pins}
+              focusPoints={focusPoints}
+            />
           </div>
         </div>
 

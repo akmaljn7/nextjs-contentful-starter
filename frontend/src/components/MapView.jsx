@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import { MapContainer, TileLayer, Marker, Circle, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 
@@ -15,7 +15,7 @@ function makeDivIcon(status = "completed", size = 14) {
   });
 }
 
-/** Re-center the leaflet map when the `center` prop changes (react-leaflet doesn't do this by default). */
+/** Re-center the map whenever the `center` prop changes (react-leaflet doesn't do this by default). */
 function RecenterOn({ center, zoom, animate = true }) {
   const map = useMap();
   useEffect(() => {
@@ -25,16 +25,35 @@ function RecenterOn({ center, zoom, animate = true }) {
   return null;
 }
 
-function FitBounds({ points }) {
+/**
+ * Focus the viewport on a specific set of points (independent of what markers
+ * are drawn). If there is exactly one point, hard-center at its zoom. If there
+ * are multiple, fitBounds with generous padding and clamped maxZoom.
+ *
+ * We intentionally memoize by the point-set identity (not by every latlng
+ * change) so a moving pin doesn't cause continuous fitBounds jitter — small
+ * movements are handled by RecenterOn's smooth setView.
+ */
+function FocusOn({ points }) {
   const map = useMap();
+  const lastKey = useRef("");
   useEffect(() => {
     if (!points || points.length === 0) return;
-    if (points.length === 1) {
-      map.setView([points[0].lat, points[0].lng], points[0].zoom || 17, { animate: true });
+    const key = points.map((p) => `${p.id || ""}:${p.lat?.toFixed(3)},${p.lng?.toFixed(3)}`).join("|") + `#n=${points.length}`;
+    if (key === lastKey.current) {
+      // Just smoothly follow the single moving pin
+      if (points.length === 1) {
+        map.panTo([points[0].lat, points[0].lng], { animate: true, duration: 0.6 });
+      }
       return;
     }
-    const b = L.latLngBounds(points.map((p) => [p.lat, p.lng]));
-    map.fitBounds(b, { padding: [40, 40], maxZoom: 18 });
+    lastKey.current = key;
+    if (points.length === 1) {
+      map.setView([points[0].lat, points[0].lng], points[0].zoom || 17, { animate: true });
+    } else {
+      const b = L.latLngBounds(points.map((p) => [p.lat, p.lng]));
+      map.fitBounds(b, { padding: [60, 60], maxZoom: 17, animate: true });
+    }
   }, [points, map]);
   return null;
 }
@@ -48,20 +67,13 @@ export function MapView({
   geofence = null,
   onMapClick,
   showZoom = true,
-  fitAll = false,
   followCenter = true,
+  focusPoints = null,
 }) {
-  // World-safe default (Africa-centered) when nothing else is available — no hardcoded NYC.
   const mapCenter = center || (offices[0] ? { lat: offices[0].lat, lng: offices[0].lng } : { lat: 9.0820, lng: 8.6753 });
   const initialZoom = center ? zoom : (offices[0] ? zoom : 3);
 
-  const fitPoints = useMemo(() => {
-    if (!fitAll) return null;
-    const pts = [];
-    offices.forEach((o) => pts.push({ lat: o.lat, lng: o.lng }));
-    pins.forEach((p) => pts.push({ lat: p.lat, lng: p.lng }));
-    return pts.length ? pts : null;
-  }, [fitAll, offices, pins]);
+  const memoFocus = useMemo(() => (focusPoints && focusPoints.length ? focusPoints : null), [focusPoints]);
 
   return (
     <div style={{ height, width: "100%", position: "relative" }}>
@@ -76,8 +88,8 @@ export function MapView({
       >
         <TileLayer url={ESRI_URL} attribution={ESRI_ATTR} />
         {onMapClick && <ClickHandler onClick={onMapClick} />}
-        {fitPoints && <FitBounds points={fitPoints} />}
-        {!fitPoints && followCenter && center && <RecenterOn center={center} zoom={zoom} />}
+        {memoFocus && <FocusOn points={memoFocus} />}
+        {!memoFocus && followCenter && center && <RecenterOn center={center} zoom={zoom} />}
         {offices.map((o) => (
           <React.Fragment key={o.id}>
             <Circle

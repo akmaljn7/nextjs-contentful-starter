@@ -14,6 +14,7 @@ from deps import get_current_user, require_admin, client_ip
 from services.geo import haversine_meters, analyze_ping
 from services.audit import log_security_event
 from services.email import send_email, render_alert_email
+from services.ws_manager import manager as ws_manager
 import os
 
 router = APIRouter(prefix="/api/sessions", tags=["sessions"])
@@ -50,6 +51,26 @@ def _sanitize_session(s: dict) -> dict:
         "log": s.get("log", [])[-100:],
         "flagged": s.get("flagged", False),
     }
+
+
+async def _broadcast_session(db, session: dict, ended: bool = False, outcome: str | None = None):
+    """Publish a session state change to admins connected via WebSocket."""
+    emp = None
+    try:
+        emp = await db.users.find_one({"_id": ObjectId(session["user_id"])})
+    except Exception:
+        emp = None
+    payload = {
+        "type": "session.end" if ended else "session.update",
+        "session": {
+            **_sanitize_session(session),
+            "employee_name": (emp or {}).get("name", ""),
+            "employee_email": (emp or {}).get("email", ""),
+        },
+    }
+    if outcome:
+        payload["outcome"] = outcome
+    await ws_manager.broadcast(session["org_id"], payload)
 
 
 async def _write_attendance_record(db, session: dict, outcome: str, ended_at_ms: int):
@@ -158,6 +179,7 @@ async def start_session(payload: SessionStart, request: Request, user: dict = De
         "ts": datetime.now(timezone.utc), "lat": payload.lat, "lng": payload.lng,
         "accuracy": payload.accuracy, "speed": None, "flagged": False,
     })
+    await _broadcast_session(db, doc)
     return _sanitize_session(doc)
 
 
@@ -290,10 +312,13 @@ async def ping_session(payload: SessionPing, request: Request, user: dict = Depe
         final = {**s, **update}
         await _write_attendance_record(db, final, outcome, now_ms)
         await db.active_sessions.delete_one({"_id": s["_id"]})
+        await _broadcast_session(db, final, ended=True, outcome=outcome)
         return {**_sanitize_session({**s, **update}), "ended": True, "outcome": outcome}
 
     await db.active_sessions.update_one({"_id": s["_id"]}, {"$set": update})
-    return _sanitize_session({**s, **update})
+    merged = {**s, **update}
+    await _broadcast_session(db, merged)
+    return _sanitize_session(merged)
 
 
 @router.post("/reset")
@@ -304,6 +329,7 @@ async def reset_session(user: dict = Depends(get_current_user)):
         return {"ok": True}
     await _write_attendance_record(db, s, "reset", _now_ms())
     await db.active_sessions.delete_one({"_id": s["_id"]})
+    await _broadcast_session(db, s, ended=True, outcome="reset")
     return {"ok": True}
 
 
@@ -340,6 +366,7 @@ async def force_expire(user_id: str, request: Request, user: dict = Depends(requ
         raise HTTPException(status_code=404, detail="No active session")
     await _write_attendance_record(db, s, "force_expired", _now_ms())
     await db.active_sessions.delete_one({"_id": s["_id"]})
+    await _broadcast_session(db, s, ended=True, outcome="force_expired")
     from services.audit import log_admin_action
     await log_admin_action(
         user["org_id"], user["id"], "session.force_expire", "session", str(s["_id"]),
