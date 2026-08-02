@@ -5,6 +5,7 @@ import { AppShell } from "@/components/AppShell";
 import { MapView } from "@/components/MapView";
 import { StatusChip } from "@/components/StatusChip";
 import { CountdownTimer } from "@/components/CountdownTimer";
+import { CameraCapture } from "@/components/CameraCapture";
 import { useAuth } from "@/context/AuthContext";
 import { fmtCoord, fmtDateTime, fmtDist, fmtMinutes, STATUS_LABEL } from "@/lib/format";
 import { toast } from "sonner";
@@ -32,8 +33,8 @@ export default function EmployeeConsole() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const geo = useGeolocation();
-  const [pingActive, setPingActive] = useState(false);
   const pingTimer = useRef(null);
+  const [captureOpen, setCaptureOpen] = useState(false);
 
   const { data: offices = [] } = useQuery({
     queryKey: ["offices"],
@@ -50,9 +51,11 @@ export default function EmployeeConsole() {
   useEffect(() => { geo.start(); return () => geo.stop(); }, []);
 
   const start = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (facePhoto) => {
       if (!geo.fix) throw new Error("No GPS fix yet");
-      return (await api.post("/sessions/start", { lat: geo.fix.lat, lng: geo.fix.lng, accuracy: geo.fix.accuracy })).data;
+      const body = { lat: geo.fix.lat, lng: geo.fix.lng, accuracy: geo.fix.accuracy };
+      if (facePhoto) body.face_photo = facePhoto;
+      return (await api.post("/sessions/start", body)).data;
     },
     onSuccess: (data) => { toast.success("Session started"); qc.setQueryData(["my-session"], data); },
     onError: (e) => toast.error(toApiError(e)),
@@ -66,9 +69,8 @@ export default function EmployeeConsole() {
 
   // Auto-ping every 8s while session active or paused
   useEffect(() => {
-    if (!session || !geo.fix) { setPingActive(false); if (pingTimer.current) { clearInterval(pingTimer.current); pingTimer.current = null; } return; }
+    if (!session || !geo.fix) { if (pingTimer.current) { clearInterval(pingTimer.current); pingTimer.current = null; } return; }
     if (session.status !== "active" && session.status !== "paused") return;
-    setPingActive(true);
     const sendPing = async () => {
       if (!geo.fix) return;
       try {
@@ -84,8 +86,24 @@ export default function EmployeeConsole() {
 
   const canStart = geo.fix && office && !session;
 
+  const onStartClick = () => {
+    if (!canStart) return;
+    setCaptureOpen(true);
+  };
+
+  const onCaptured = (dataUrl) => {
+    setCaptureOpen(false);
+    start.mutate(dataUrl);
+  };
+
   return (
     <AppShell>
+      <CameraCapture
+        open={captureOpen}
+        onCancel={() => setCaptureOpen(false)}
+        onCapture={onCaptured}
+        subtitle={office ? `${office.name} · ${office.radius_meters}m` : ""}
+      />
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-6">
         <div className="surface" data-testid="employee-map">
           <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
@@ -103,7 +121,7 @@ export default function EmployeeConsole() {
               height={480}
               offices={office ? [office] : []}
               geofence={session ? { lat: session.center.lat, lng: session.center.lng, radius_m: session.center.radius_m, color: "#f59e0b" } : null}
-              pins={geo.fix ? [{ lat: geo.fix.lat, lng: geo.fix.lng, status: session?.status || "active", label: "You" }] : []}
+              pins={geo.fix ? [{ id: "me", lat: geo.fix.lat, lng: geo.fix.lng, status: session?.status || "active", label: user?.name || "You" }] : []}
               center={geo.fix || (office ? { lat: office.lat, lng: office.lng } : null)}
               zoom={17}
             />
@@ -129,7 +147,7 @@ export default function EmployeeConsole() {
             <div className="mt-5 grid grid-cols-2 gap-2">
               {!session && (
                 <button
-                  onClick={() => start.mutate()}
+                  onClick={onStartClick}
                   disabled={!canStart || start.isPending}
                   data-testid="start-session-btn"
                   className="col-span-2 bg-green-500 text-black hover:bg-green-400 disabled:opacity-40 disabled:cursor-not-allowed font-medium py-3 text-sm inline-flex items-center justify-center gap-2 transition-colors"

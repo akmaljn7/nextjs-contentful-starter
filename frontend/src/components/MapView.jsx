@@ -1,21 +1,71 @@
 import React, { useEffect, useMemo, useRef } from "react";
 import { MapContainer, TileLayer, Marker, Circle, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
+import { BACKEND } from "@/lib/api";
 
 const ESRI_URL = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
 const ESRI_ATTR = "Esri World Imagery";
 
-function makeDivIcon(status = "completed", size = 14) {
-  const cls = `pin-${status}`;
+const STATUS_COLOR = {
+  active: "#10b981",
+  paused: "#f59e0b",
+  completed: "#3b82f6",
+  expired: "#ef4444",
+};
+
+function initials(name) {
+  if (!name) return "??";
+  const parts = String(name).trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "??";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function escapeHtml(s) {
+  return String(s || "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[c]));
+}
+
+/** Colored circle + label (used when there is no photo). */
+function makeDotIcon(status = "active", label = "", size = 14) {
+  const color = STATUS_COLOR[status] || STATUS_COLOR.completed;
   return L.divIcon({
     className: "",
-    html: `<div class="live-pin ${cls}" style="width:${size}px;height:${size}px"></div>`,
+    html: `
+      <div class="employee-pin" data-status="${status}">
+        ${label ? `<div class="employee-pin-label">${escapeHtml(label)}</div>` : ""}
+        <div class="employee-pin-dot" style="background:${color};box-shadow:0 0 12px ${color}88"></div>
+      </div>
+    `,
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
   });
 }
 
-/** Re-center the map whenever the `center` prop changes (react-leaflet doesn't do this by default). */
+/** Circular photo pin with name label above and a status-colored ring. */
+function makePhotoIcon(status = "active", label = "", photoUrl = "", size = 40) {
+  const color = STATUS_COLOR[status] || STATUS_COLOR.completed;
+  const inits = initials(label);
+  const inner = photoUrl
+    ? `<img class="employee-pin-avatar-img" src="${photoUrl}" alt="" onerror="this.style.display='none';this.parentNode.querySelector('.employee-pin-initials').style.display='grid'"/>
+       <div class="employee-pin-initials" style="display:none">${inits}</div>`
+    : `<div class="employee-pin-initials" style="display:grid">${inits}</div>`;
+  return L.divIcon({
+    className: "",
+    html: `
+      <div class="employee-pin employee-pin-photo" data-status="${status}">
+        ${label ? `<div class="employee-pin-label">${escapeHtml(label)}</div>` : ""}
+        <div class="employee-pin-avatar" style="border-color:${color};box-shadow:0 0 16px ${color}66">
+          ${inner}
+        </div>
+        <div class="employee-pin-pulse" style="border-color:${color}"></div>
+      </div>
+    `,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2 + 6],
+  });
+}
+
+/** Re-center the map when `center` changes. */
 function RecenterOn({ center, zoom, animate = true }) {
   const map = useMap();
   useEffect(() => {
@@ -25,15 +75,7 @@ function RecenterOn({ center, zoom, animate = true }) {
   return null;
 }
 
-/**
- * Focus the viewport on a specific set of points (independent of what markers
- * are drawn). If there is exactly one point, hard-center at its zoom. If there
- * are multiple, fitBounds with generous padding and clamped maxZoom.
- *
- * We intentionally memoize by the point-set identity (not by every latlng
- * change) so a moving pin doesn't cause continuous fitBounds jitter — small
- * movements are handled by RecenterOn's smooth setView.
- */
+/** Fit the map on a specific point set (independent of the drawn markers). */
 function FocusOn({ points }) {
   const map = useMap();
   const lastKey = useRef("");
@@ -41,10 +83,7 @@ function FocusOn({ points }) {
     if (!points || points.length === 0) return;
     const key = points.map((p) => `${p.id || ""}:${p.lat?.toFixed(3)},${p.lng?.toFixed(3)}`).join("|") + `#n=${points.length}`;
     if (key === lastKey.current) {
-      // Just smoothly follow the single moving pin
-      if (points.length === 1) {
-        map.panTo([points[0].lat, points[0].lng], { animate: true, duration: 0.6 });
-      }
+      if (points.length === 1) map.panTo([points[0].lat, points[0].lng], { animate: true, duration: 0.6 });
       return;
     }
     lastKey.current = key;
@@ -72,7 +111,6 @@ export function MapView({
 }) {
   const mapCenter = center || (offices[0] ? { lat: offices[0].lat, lng: offices[0].lng } : { lat: 9.0820, lng: 8.6753 });
   const initialZoom = center ? zoom : (offices[0] ? zoom : 3);
-
   const memoFocus = useMemo(() => (focusPoints && focusPoints.length ? focusPoints : null), [focusPoints]);
 
   return (
@@ -97,7 +135,7 @@ export function MapView({
               radius={o.radius_meters}
               pathOptions={{ color: "#10b981", weight: 1.5, fillColor: "#10b981", fillOpacity: 0.08 }}
             />
-            <Marker position={[o.lat, o.lng]} icon={makeDivIcon("completed", 12)}>
+            <Marker position={[o.lat, o.lng]} icon={makeDotIcon("completed", "", 12)}>
               <Popup>
                 <div style={{ fontFamily: "IBM Plex Mono, monospace", fontSize: 12 }}>
                   <div style={{ fontWeight: 600 }}>{o.name}</div>
@@ -121,17 +159,24 @@ export function MapView({
             }}
           />
         )}
-        {pins.map((p, i) => (
-          <Marker key={p.id || i} position={[p.lat, p.lng]} icon={makeDivIcon(p.status || "active", 14)}>
-            <Popup>
-              <div style={{ fontFamily: "IBM Plex Mono, monospace", fontSize: 12 }}>
-                <div style={{ fontWeight: 600 }}>{p.label || "employee"}</div>
-                {p.status && <div>status: {p.status}</div>}
-                <div>{p.lat.toFixed(5)}, {p.lng.toFixed(5)}</div>
-              </div>
-            </Popup>
-          </Marker>
-        ))}
+        {pins.map((p, i) => {
+          const photoUrl = p.photo_url || (p.has_photo && p.id ? `${BACKEND}/api/photos/session/${p.id}` : "");
+          const usePhoto = Boolean(p.has_photo || p.photo_url) && p.id !== "me";
+          const icon = usePhoto
+            ? makePhotoIcon(p.status || "active", p.label || "", photoUrl, 40)
+            : makeDotIcon(p.status || "active", p.label || "", 14);
+          return (
+            <Marker key={p.id || i} position={[p.lat, p.lng]} icon={icon}>
+              <Popup>
+                <div style={{ fontFamily: "IBM Plex Mono, monospace", fontSize: 12 }}>
+                  <div style={{ fontWeight: 600 }}>{p.label || "employee"}</div>
+                  {p.status && <div>status: {p.status}</div>}
+                  <div>{p.lat.toFixed(5)}, {p.lng.toFixed(5)}</div>
+                </div>
+              </Popup>
+            </Marker>
+          );
+        })}
       </MapContainer>
     </div>
   );

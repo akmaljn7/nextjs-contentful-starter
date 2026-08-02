@@ -144,6 +144,83 @@ body {
 .pin-completed { background: var(--status-completed); box-shadow: 0 0 12px rgba(59,130,246,0.6); }
 .pin-expired { background: var(--status-expired); box-shadow: 0 0 12px rgba(239,68,68,0.6); }
 
+/* Employee map pins (name label above avatar/dot) */
+.employee-pin {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform: translateY(-8px);
+  pointer-events: auto;
+}
+.employee-pin-label {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  line-height: 1;
+  color: #f9fafb;
+  background: rgba(10,10,10,0.85);
+  border: 1px solid rgba(255,255,255,0.14);
+  padding: 3px 6px;
+  margin-bottom: 4px;
+  border-radius: 2px;
+  white-space: nowrap;
+  letter-spacing: 0.04em;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.employee-pin-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid #0a0a0a;
+}
+.employee-pin-avatar {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid;
+  background: #0a0a0a;
+  overflow: hidden;
+  display: block;
+}
+.employee-pin-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.employee-pin-initials {
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: #f9fafb;
+  background: #262626;
+  letter-spacing: 0.04em;
+}
+.employee-pin-pulse {
+  position: absolute;
+  bottom: -2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid;
+  opacity: 0.5;
+  animation: pulse-out 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  pointer-events: none;
+}
+.employee-pin[data-status="paused"] .employee-pin-pulse,
+.employee-pin[data-status="completed"] .employee-pin-pulse,
+.employee-pin[data-status="expired"] .employee-pin-pulse {
+  animation-duration: 3s;
+}
+
 /* Table styles */
 .data-table th {
   font-family: "IBM Plex Mono", monospace;

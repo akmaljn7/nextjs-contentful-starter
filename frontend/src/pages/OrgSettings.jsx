@@ -36,14 +36,6 @@ export default function OrgSettings() {
     onError: (e) => toast.error(toApiError(e)),
   });
 
-  const Field = ({ label, hint, children }) => (
-    <div>
-      <label className="label-uppercase block mb-1.5">{label}</label>
-      {children}
-      {hint && <div className="text-[10px] text-gray-500 mono mt-1">{hint}</div>}
-    </div>
-  );
-
   return (
     <AppShell>
       <div className="mb-6">

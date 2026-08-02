@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { api, BACKEND } from "@/lib/api";
 import { AppShell } from "@/components/AppShell";
 import { MapView } from "@/components/MapView";
 import { StatusChip } from "@/components/StatusChip";
@@ -42,7 +42,7 @@ export default function AdminDashboard() {
 
   const pins = useMemo(() => live.map((s) => ({
     id: s.id, lat: s.last_fix?.lat, lng: s.last_fix?.lng,
-    status: s.status, label: s.employee_name,
+    status: s.status, label: s.employee_name, has_photo: s.has_photo,
   })).filter((p) => p.lat != null && p.lng != null), [live]);
 
   // Focus the fit only on the current subject: live pins if any exist,
@@ -109,11 +109,28 @@ export default function AdminDashboard() {
             )}
             {live.map((s, i) => (
               <div key={s.id} className="p-4 border-b border-white/5 stagger" style={{ animationDelay: `${i * 40}ms` }} data-testid={`live-row-${s.id}`}>
-                <div className="flex items-center justify-between mb-2">
-                  <div className="font-medium">{s.employee_name}</div>
+                <div className="flex items-start justify-between mb-2 gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    {s.has_photo ? (
+                      <img
+                        src={`${BACKEND}/api/photos/session/${s.id}`}
+                        alt=""
+                        className="w-10 h-10 rounded-sm object-cover border border-white/10 flex-none"
+                        data-testid={`live-photo-${s.id}`}
+                        onError={(e) => { e.currentTarget.style.display = "none"; }}
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-sm flex-none grid place-items-center bg-[#262626] mono text-xs text-white" data-testid={`live-initials-${s.id}`}>
+                        {(s.employee_name || "??").split(/\s+/).filter(Boolean).map((p) => p[0]).slice(0, 2).join("").toUpperCase()}
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <div className="font-medium truncate">{s.employee_name}</div>
+                      <div className="text-xs text-gray-500 mono truncate">{s.employee_email}</div>
+                    </div>
+                  </div>
                   <StatusChip status={s.status} label={STATUS_LABEL[s.status]} testId={`chip-${s.id}`} />
                 </div>
-                <div className="text-xs text-gray-500 mono">{s.employee_email}</div>
                 <div className="grid grid-cols-2 gap-2 mt-3 text-xs mono">
                   <div>
                     <div className="text-gray-500">REMAINING</div>

@@ -86,6 +86,7 @@ class SessionStart(BaseModel):
     lng: float
     accuracy: float = Field(ge=0)
     device_fingerprint: Optional[str] = None
+    face_photo: Optional[str] = Field(default=None, max_length=6_000_000)  # data URL or raw base64 (max ~4MB image)
 
 
 class SessionPing(BaseModel):

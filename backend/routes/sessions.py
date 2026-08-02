@@ -15,6 +15,7 @@ from services.geo import haversine_meters, analyze_ping
 from services.audit import log_security_event
 from services.email import send_email, render_alert_email
 from services.ws_manager import manager as ws_manager
+from services.photos import save_session_photo, has_photo
 import os
 
 router = APIRouter(prefix="/api/sessions", tags=["sessions"])
@@ -50,6 +51,7 @@ def _sanitize_session(s: dict) -> dict:
         "total_inside_ms": s.get("total_inside_ms", 0),
         "log": s.get("log", [])[-100:],
         "flagged": s.get("flagged", False),
+        "has_photo": bool(s.get("has_photo", False)),
     }
 
 
@@ -173,6 +175,14 @@ async def start_session(payload: SessionStart, request: Request, user: dict = De
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Cannot start session: {e}")
     doc["_id"] = res.inserted_id
+    # Persist the check-in face photo (best-effort — a decode failure isn't fatal)
+    photo_ok = False
+    if payload.face_photo:
+        photo_ok = await save_session_photo(str(res.inserted_id), user["org_id"], user["id"], payload.face_photo)
+        if photo_ok:
+            doc["has_photo"] = True
+            await db.active_sessions.update_one({"_id": res.inserted_id}, {"$set": {"has_photo": True}})
+
     # Store the ping
     await db.gps_pings.insert_one({
         "org_id": user["org_id"], "user_id": user["id"], "session_id": str(res.inserted_id),
