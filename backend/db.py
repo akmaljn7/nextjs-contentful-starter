@@ -45,3 +45,5 @@ async def ensure_indexes():
     await db.login_attempts.create_index("identifier")
     await db.refresh_tokens.create_index("jti", unique=True)
     await db.refresh_tokens.create_index("expires_at", expireAfterSeconds=0)
+    await db.time_off_requests.create_index([("org_id", 1), ("user_id", 1), ("status", 1)])
+    await db.time_off_requests.create_index([("org_id", 1), ("start_date", 1), ("end_date", 1)])

@@ -19,6 +19,7 @@ import AuditLog from "@/pages/AuditLog";
 import SecurityEvents from "@/pages/SecurityEvents";
 import OrgSettings from "@/pages/OrgSettings";
 import EmployeeProfile from "@/pages/EmployeeProfile";
+import TimeOff from "@/pages/TimeOff";
 
 function RootRedirect() {
   const { user } = useAuth();
@@ -49,10 +50,12 @@ function App() {
             <Route path="/admin/audit" element={<ProtectedRoute roles={["org_owner", "admin"]}><AuditLog /></ProtectedRoute>} />
             <Route path="/admin/security" element={<ProtectedRoute roles={["org_owner", "admin"]}><SecurityEvents /></ProtectedRoute>} />
             <Route path="/admin/settings" element={<ProtectedRoute roles={["org_owner", "admin"]}><OrgSettings /></ProtectedRoute>} />
+            <Route path="/admin/time-off" element={<ProtectedRoute roles={["org_owner", "admin"]}><TimeOff /></ProtectedRoute>} />
 
             {/* Employee */}
             <Route path="/employee" element={<ProtectedRoute roles={["employee"]}><EmployeeConsole /></ProtectedRoute>} />
             <Route path="/employee/history" element={<ProtectedRoute roles={["employee"]}><AttendanceHistory /></ProtectedRoute>} />
+            <Route path="/employee/time-off" element={<ProtectedRoute roles={["employee"]}><TimeOff /></ProtectedRoute>} />
             <Route path="/employee/profile" element={<ProtectedRoute roles={["employee"]}><EmployeeProfile /></ProtectedRoute>} />
 
             <Route path="*" element={<Navigate to="/" replace />} />

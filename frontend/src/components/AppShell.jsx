@@ -1,12 +1,13 @@
 import React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { LogOut, Radar, Building2, Users, ClipboardList, ShieldAlert, FileBarChart, Settings, User } from "lucide-react";
+import { LogOut, Radar, Building2, Users, ClipboardList, ShieldAlert, FileBarChart, Settings, User, CalendarOff } from "lucide-react";
 
 const ADMIN_NAV = [
   { to: "/admin", label: "Console", icon: Radar, testid: "nav-console" },
   { to: "/admin/offices", label: "Offices", icon: Building2, testid: "nav-offices" },
   { to: "/admin/employees", label: "Employees", icon: Users, testid: "nav-employees" },
+  { to: "/admin/time-off", label: "Time Off", icon: CalendarOff, testid: "nav-time-off" },
   { to: "/admin/attendance", label: "Attendance", icon: ClipboardList, testid: "nav-attendance" },
   { to: "/admin/reports", label: "Reports", icon: FileBarChart, testid: "nav-reports" },
   { to: "/admin/audit", label: "Audit Log", icon: ClipboardList, testid: "nav-audit" },
@@ -17,6 +18,7 @@ const ADMIN_NAV = [
 const EMPLOYEE_NAV = [
   { to: "/employee", label: "Session", icon: Radar, testid: "nav-session" },
   { to: "/employee/history", label: "History", icon: ClipboardList, testid: "nav-history" },
+  { to: "/employee/time-off", label: "Time Off", icon: CalendarOff, testid: "nav-time-off" },
   { to: "/employee/profile", label: "Profile", icon: User, testid: "nav-profile" },
 ];
 

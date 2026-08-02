@@ -143,6 +143,17 @@ class SessionPing(BaseModel):
     speed: Optional[float] = None
 
 
+# ---------- Time Off ----------
+class TimeOffCreate(BaseModel):
+    start_date: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")  # YYYY-MM-DD
+    end_date: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+    reason: str = Field(min_length=1, max_length=500)
+
+
+class TimeOffDecision(BaseModel):
+    notes: Optional[str] = Field(default=None, max_length=500)
+
+
 # ---------- Org Settings ----------
 class OrgSettingsUpdate(BaseModel):
     session_duration_minutes: Optional[int] = Field(default=None, ge=1, le=1440)

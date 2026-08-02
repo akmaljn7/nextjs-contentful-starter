@@ -1,0 +1,36 @@
+{
+  "summary": "Iteration 7 — Time-Off Self-Service. Added /app/backend/tests/test_time_off.py with 17 tests inside a single TestTimeOff class (xdist loadscope-pinned). All 17 new tests pass and full backend suite (84/84) is green including all iteration 3/4/5/6 regressions. Covered: valid create (200 pending, full response shape), end<start (400 'End date is before start date'), past start (400 'Cannot request time off in the past'), overlap (400 'You already have a request covering those dates'), owner-cannot-create (403), employee /me listing, admin list + ?status=pending filter, cross-org tenant isolation via fresh register-org owner (foreign list is empty), approve flow + double-approve 400 'Request is already approved' + audit-log row action='time_off.approved', deny flow + audit 'time_off.denied' + double-deny 400, SCHEDULE OVERRIDE: pending time-off does NOT block /sessions/start (200), APPROVED time-off blocks with 403 detail 'Approved time off today (<reason>). Enjoy your day.' including exact reason substring 'sick day' and 'Enjoy your day', stacking: weekly_calendar OPEN NOW + approved time-off → 403 reason contains time-off reason ('wedding') and not 'shift', GET /time-off/today returns null when pending or none, returns approved doc when covering today, employee DELETE own PENDING → 200, DELETE own APPROVED → 400 'Only pending requests can be cancelled', DELETE another employee's request → 403 'Not your request', 404 on non-existent id for approve/deny/delete. Teardown deletes ALL time_off_requests rows via admin GET+DELETE, resets employee schedule to {mode:'any'}, deletes test office, and resets any active session.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/time-off/today", "issue": "When there is no approved time-off, endpoint returns HTTP 200 with a null JSON body. Spec allows this ('null or 200 with null body'), but some HTTP clients treat body=null as empty; consider returning {} or explicit {status:'none'} for consumer ergonomics."},
+      {"endpoint": "GET /api/time-off (admin)", "issue": "No pagination — a busy org could get an unbounded list. Consider ?limit/skip once volume grows."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_time_off.py",
+    "/app/test_reports/pytest/pytest_time_off.xml",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "routes/time_off.py::_decide uses f-string in detail 'Request is already {status}' which matches the spec exactly, good. But the double-approve message hard-codes 'approved' even if the record was DENIED then someone calls approve — currently it says 'Request is already denied', which is correct wording but potentially confusing UX (client expected 400 'already approved'). Consider distinguishing 'Cannot approve a denied request'.",
+    "routes/time_off.py overlap check uses status $in ['pending','approved'] — good — but does not consider a denied request; if an employee gets denied they can immediately re-submit an identical window. Product may want a small cool-down or explicit re-request semantics.",
+    "routes/time_off.py::cancel_request lets admins delete APPROVED time-off, which is destructive and skips audit logging. Recommend: log_admin_action for admin deletes of time-off, and require an 'admin_override' flag when deleting an approved doc (to avoid silent revocation of already-taken leave).",
+    "routes/sessions.py::_compute_schedule_duration_ms — time-off UTC-date comparison uses `datetime.now(timezone.utc).date().isoformat()`, but the employee schedule uses per-employee `timezone`. An approved time-off spanning today UTC may not cover 'today' in employee's local TZ near midnight boundaries. Consider using the schedule.timezone for the today lookup to keep semantics consistent with the weekly_calendar path.",
+    "models.py::TimeOffCreate has regex date pattern but no calendar-date validation (e.g. '2025-13-40' passes regex). Add a field_validator that parses via date.fromisoformat to reject malformed real dates.",
+    "TimeOffCreate.reason min_length=1 allows a single space (Pydantic min_length checks raw length before strip). Add validator to reject whitespace-only reasons.",
+    "Carried from prior iterations: (a) overnight shifts still return 'Invalid schedule: close time is before open time.', (b) EmployeeSchedule allows a fully-null weekly_schedule map (mode+timezone but no days), (c) bad IANA tz silently downgrades to UTC in sessions.py despite model validation — mismatch."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_time_off.py (NEW — 17 tests, single TestTimeOff class for xdist loadscope pinning; module-scoped nigerian_office fixture with full time-off + schedule + session teardown)"
+  ],
+  "success_rate": {"backend": "100% — 17/17 new time-off tests + 84/84 full suite serial. Parallel -n 2 loadscope also green because all new tests are pinned to a single worker via class scoping.", "frontend": "not tested (backend only per request)"},
+  "test_credentials": "Owner akmaljn7@gmail.com / GeofenceAdmin123!, Employee employee@example.com / Employee123!",
+  "seed_data_creation": "Per test-module: TEST_ToLagos_* office (6.5244,3.3792 r=300), assigned to sample employee. Ephemeral TEST_other_* employee for the not-your-request test. Ephemeral TEST_ForeignOrg_*/TEST_foreign_* org+owner for tenant-isolation test. Teardown: deletes every time_off_requests row, resets sample employee schedule to {mode:'any'}, resets any active session, deletes ephemeral employees/office. Foreign org+owner are not deleted (no delete-org endpoint) — they are inert and cannot affect future runs since they have empty state and different org_id.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All time-off logic verified end-to-end. If iteration 8 touches sessions again, remember: (1) approved time-off ALWAYS blocks even in 'any' mode + all schedule modes, (2) /time-off/today returns null for pending — only approved shows, (3) admin audit endpoint is GET /api/audit-log (not /admin/audit-log). Teardown pattern: GET admin /time-off then DELETE each id, then PATCH employee back to schedule=any, then reset session — the ORDER matters because leaving an approved-today doc will make subsequent session-start regressions return 403 with 'Approved time off today'. Note the timezone-edge-case in RCA comment: today comparison uses UTC in sessions.py but weekly_calendar uses employee TZ, so a request covering today-UTC may not be 'today' from the employee's local perspective near midnight.",
+  "rca of the issue": "N/A — feature implemented per spec. All acceptance criteria pass with exact detail strings: 'End date is before start date', 'Cannot request time off in the past', 'You already have a request covering those dates', 'Request is already approved', 'Only pending requests can be cancelled', 'Not your request', and the override reason string 'Approved time off today (<reason>). Enjoy your day.' matches character-for-character."
+}

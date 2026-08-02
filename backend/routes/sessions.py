@@ -24,13 +24,29 @@ router = APIRouter(prefix="/api/sessions", tags=["sessions"])
 DAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 
 
-def _compute_schedule_duration_ms(user_doc: dict, org_settings: dict) -> tuple[int, str | None]:
+async def _compute_schedule_duration_ms(db, user_doc: dict, org_settings: dict) -> tuple[int, str | None]:
     """Given the employee's schedule + org defaults, return (remaining_ms, error_or_None).
+
+    Also checks for approved time-off covering today (UTC) — if found, denies with
+    a specific reason. Time-off overrides all schedule modes.
 
     Returns:
         (duration_ms, None) — allowed, use duration_ms for session
         (0, "reason") — deny session start with reason
     """
+    # Approved time-off overrides schedule (UTC date comparison).
+    user_id = user_doc.get("id") or str(user_doc.get("_id", ""))
+    today = datetime.now(timezone.utc).date().isoformat()
+    off = await db.time_off_requests.find_one({
+        "org_id": user_doc["org_id"],
+        "user_id": user_id,
+        "status": "approved",
+        "start_date": {"$lte": today},
+        "end_date": {"$gte": today},
+    })
+    if off:
+        return 0, f"Approved time off today ({off.get('reason', 'no reason')}). Enjoy your day."
+
     schedule = user_doc.get("schedule") or {"mode": "any"}
     mode = schedule.get("mode", "any")
 
@@ -171,7 +187,7 @@ async def start_session(payload: SessionStart, request: Request, user: dict = De
     accuracy_tol = settings.get("accuracy_tolerance_meters", 50)
 
     # Compute session duration from employee schedule (fallback: org default).
-    session_duration_ms, schedule_err = _compute_schedule_duration_ms(user, settings)
+    session_duration_ms, schedule_err = await _compute_schedule_duration_ms(db, user, settings)
     if schedule_err:
         await log_security_event(
             "schedule_denied", "low", client_ip(request),
