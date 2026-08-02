@@ -83,6 +83,7 @@ class UserPublic(BaseModel):
     role: Literal["super_admin", "org_owner", "admin", "employee"]
     office_id: Optional[str] = None
     org_name: Optional[str] = None
+    schedule: Optional[Dict] = None
     created_at: Optional[str] = None
 
 

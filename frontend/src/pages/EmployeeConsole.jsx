@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, toApiError } from "@/lib/api";
 import { AppShell } from "@/components/AppShell";
@@ -8,8 +8,9 @@ import { CountdownTimer } from "@/components/CountdownTimer";
 import { CameraCapture } from "@/components/CameraCapture";
 import { useAuth } from "@/context/AuthContext";
 import { fmtCoord, fmtDateTime, fmtDist, fmtMinutes, STATUS_LABEL } from "@/lib/format";
+import { computeIdleRemainingMs, todayShiftInfo } from "@/lib/schedule";
 import { toast } from "sonner";
-import { Play, RotateCcw, Radar } from "lucide-react";
+import { Play, RotateCcw, Radar, CalendarClock } from "lucide-react";
 
 function useGeolocation() {
   const [fix, setFix] = useState(null);
@@ -86,6 +87,17 @@ export default function EmployeeConsole() {
 
   const canStart = geo.fix && office && !session;
 
+  // Compute the idle countdown & today's shift info from the employee's schedule
+  const shiftInfo = useMemo(() => todayShiftInfo(user?.schedule), [user?.schedule]);
+  // Recompute every 30s so the "starts at" / "ended at" state stays fresh
+  const [idleTick, setIdleTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setIdleTick((n) => n + 1), 30_000);
+    return () => clearInterval(id);
+  }, []);
+  const idleRemaining = useMemo(() => computeIdleRemainingMs(user?.schedule, 60), [user?.schedule, idleTick]);
+  const displayRemaining = session ? session.remaining_ms : idleRemaining;
+
   const onStartClick = () => {
     if (!canStart) return;
     setCaptureOpen(true);
@@ -136,13 +148,33 @@ export default function EmployeeConsole() {
               {session ? <StatusChip status={session.status} label={STATUS_LABEL[session.status]} testId="session-status-chip" /> : <StatusChip status="reset" label="IDLE" />}
             </div>
             <CountdownTimer
-              remainingMs={session?.remaining_ms ?? 60 * 60 * 1000}
+              remainingMs={displayRemaining}
               active={session?.status === "active"}
               testId="countdown"
             />
             <div className="mt-2 text-xs text-gray-500 mono">
               {session ? `bout ${session.bout_count} · inside ${fmtMinutes(session.total_inside_ms)}` : "Ready to sign in"}
             </div>
+
+            {/* Shift info under the countdown (visible when not in a session) */}
+            {!session && shiftInfo.headline && (
+              <div
+                className="mt-3 border border-white/10 bg-white/[0.03] px-3 py-2 flex items-start gap-2"
+                data-testid="shift-info"
+              >
+                <CalendarClock size={14} className="text-gray-400 mt-0.5 flex-none" />
+                <div className="min-w-0">
+                  <div className="mono text-xs text-white truncate" data-testid="shift-headline">{shiftInfo.headline}</div>
+                  {shiftInfo.subline && (
+                    <div className={`mono text-[10px] uppercase tracking-widest mt-0.5 ${
+                      shiftInfo.state === "open" ? "text-green-400" :
+                      shiftInfo.state === "after" || shiftInfo.state === "off" ? "text-red-400" :
+                      "text-gray-500"
+                    }`} data-testid="shift-subline">{shiftInfo.subline}</div>
+                  )}
+                </div>
+              </div>
+            )}
 
             <div className="mt-5 grid grid-cols-2 gap-2">
               {!session && (

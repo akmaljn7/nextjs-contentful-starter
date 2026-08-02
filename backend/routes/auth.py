@@ -66,6 +66,7 @@ def _shape_user(user: dict, org: dict | None = None) -> dict:
         "role": user["role"],
         "office_id": user.get("office_id"),
         "org_name": (org or {}).get("name"),
+        "schedule": user.get("schedule"),
         "created_at": user.get("created_at"),
     }
 
@@ -222,6 +223,7 @@ async def me(user: dict = Depends(get_current_user)):
         "role": user["role"],
         "office_id": user.get("office_id"),
         "org_name": (org or {}).get("name"),
+        "schedule": user.get("schedule"),
         "created_at": user.get("created_at"),
     }
 

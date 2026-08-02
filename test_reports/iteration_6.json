@@ -1,0 +1,35 @@
+{
+  "summary": "Iteration 6 — Added /app/backend/tests/test_me_schedule.py with 8 new tests in a single TestMeSchedule class (xdist loadscope-pinned) verifying that /api/auth/me now includes the employee `schedule` field. All 8 new tests pass. Full backend suite (67/67) passes serially — no iteration-5 regression. Verified: (1) org_owner /me → schedule is None; (2) employee /me with weekly_calendar 06:40→09:00 for all 7 days returns exact structure {mode, timezone, weekly_schedule with all 7 day keys, each {open:06:40, close:09:00}}; (3) employee /me with fixed_hours=6 returns exact schedule; (4) PATCH from any → fixed_hours=8 + fresh employee login → next /me reflects new value (no stale caching); (5) REGRESSION: sessions/start inside a wide open window covering NOW returns 200 with remaining_ms ≈ ms-until-close (±5s); (6) sessions/start before shift → 403 with 'shift starts at HH:MM'; (7) after shift → 403 'shift ended at HH:MM'; (8) off-day → 403 'not scheduled to work today'. Teardown resets employee schedule to {mode:'any'} and deletes the TEST_MeSchLagos_* office.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "N/A (test harness)", "issue": "Same pre-existing cross-file xdist race documented in iteration_4/5 still exists across test_backend/test_photos/test_schedule/test_me_schedule sharing the single seeded employee@example.com. Serial (-n 0) → 67/67 green. Not blocking; consider per-file dedicated employees or a filelock."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_me_schedule.py",
+    "/app/test_reports/pytest/pytest_me_schedule.xml",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "(Low) Optional: server-side invalidation of any cached user snapshot on schedule PATCH — currently /me hits Mongo each call which is fine, so this is only future-proofing if a cache is introduced.",
+    "(Low, carried over from iter-5) Consider per-file dedicated test employees to make -n 2 --dist loadscope fully deterministic across the four session-touching test files."
+  ],
+  "critical_code_review_comments": [
+    "routes/auth.py::/me duplicates the response dict inline instead of reusing _shape_user(user_doc, org). Minor DRY nit — both paths agree today but future field additions (like `schedule`) must be updated in two places (which is exactly what this iteration required). Suggest: fetch the full user doc via db.users.find_one and delegate to _shape_user for a single source of truth.",
+    "models.py::UserPublic.schedule is typed as Optional[Dict] — a loose dict. Consider re-using the EmployeeSchedule Pydantic model for stronger client-side contracts (would auto-validate/normalize on serialization).",
+    "The `get_current_user` dependency (deps.py) likely re-reads the user from DB each request — good, so /me is always fresh. Confirmed empirically by test_me_reflects_new_schedule_after_patch_and_relogin. Just document this invariant so future perf work doesn't accidentally cache a stale user snapshot at token-decode time.",
+    "Carried from iter-5 (still valid): (a) _compute_schedule_duration_ms disallows overnight shifts (close_dt <= open_dt → 'Invalid schedule'), (b) EmployeeSchedule allows partial weekly_calendar (mode+timezone but no weekly_schedule) which _compute treats as universal off-day — add stricter validator, (c) bad IANA tz silently downgrades to UTC — should 422 at model boundary."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_me_schedule.py (NEW — 8 tests, single TestMeSchedule class for xdist loadscope pinning; module-scoped nigerian_office fixture w/ schedule reset in teardown)"
+  ],
+  "success_rate": {"backend": "100% serial: 8/8 new /me-schedule tests + 67/67 combined suite. Parallel (-n 2 loadscope): pre-existing race on shared employee (documented iter-4/5) can cause intermittent state-sensitive failures; NOT introduced by this iteration.", "frontend": "not tested (backend only per request)"},
+  "test_credentials": "Owner akmaljn7@gmail.com / GeofenceAdmin123!, Employee employee@example.com / Employee123!",
+  "seed_data_creation": "TEST_MeSchLagos_* office (6.5244,3.3792 radius 300m), reassigns sample employee. Teardown resets schedule={mode:'any'} and deletes office. No permanent data added.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "New file /app/backend/tests/test_me_schedule.py — 8 tests, one TestMeSchedule class → pinned to a single xdist worker via loadscope. When testing /me schedule freshness, always POST /auth/login again to get a new access-token cookie AFTER the owner PATCHes the schedule — get_current_user re-reads from DB but a stale cookie session isn't the issue; the emp session `s` from `_login` re-reads user each /me call, so even without re-login it works, but re-login is the safest/cleanest pattern per review context. For the 'open now' test, build the window dynamically around datetime.now(ZoneInfo('UTC')) and skip if close crosses midnight (overnight shifts return 'Invalid schedule' — see iter-5 code-review note). Between mode changes, always call POST /api/sessions/reset before /sessions/start.",
+  "rca of the issue": "N/A — the user-reported bug (hardcoded 60min idle countdown; missing schedule in /me) is fixed. UserPublic + /me now include schedule; /me returns the exact PATCHed structure; PATCH+relogin flow reflects new values. All 8 verification tests + all 59 iteration-5 regressions pass."
+}
