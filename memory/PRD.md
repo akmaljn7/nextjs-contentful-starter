@@ -49,6 +49,7 @@ Multi-tenant enterprise geofenced attendance platform. Organizations sign up, ad
 - Startup seed: `akmaljn7@gmail.com` owner + demo office + sample employee
 
 ### Frontend
+- **[5 Aug 2026]** Face-enrollment nudge banner on Employee Console for unenrolled users, with 24h dismiss + auto-escalation (red) when a selfie challenge is live; deep-links to `/profile` for one-tap enrollment.
 - React 19 + CRA, Tailwind, Shadcn UI, React Query, sonner toasts
 - react-leaflet with Esri World Imagery satellite tiles
 - Pages: Login, Register Org, Forgot/Reset Password, Admin Dashboard, Offices Manage, Employees Manage, Employee Console, Attendance History, Reports, Audit Log, Security Events, Org Settings, Employee Profile, Time Off

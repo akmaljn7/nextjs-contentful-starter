@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import { api, toApiError } from "@/lib/api";
 import { AppShell } from "@/components/AppShell";
 import { MapView } from "@/components/MapView";
@@ -10,7 +11,9 @@ import { useAuth } from "@/context/AuthContext";
 import { fmtCoord, fmtDateTime, fmtDist, fmtMinutes, STATUS_LABEL } from "@/lib/format";
 import { computeIdleRemainingMs, todayShiftInfo } from "@/lib/schedule";
 import { toast } from "sonner";
-import { Play, RotateCcw, Radar, CalendarClock, CalendarOff } from "lucide-react";
+import { Play, RotateCcw, Radar, CalendarClock, CalendarOff, ScanFace, ArrowRight, X } from "lucide-react";
+
+const FACE_NUDGE_DISMISS_KEY = "face_nudge_dismissed_at";
 
 function useGeolocation() {
   const [fix, setFix] = useState(null);
@@ -57,6 +60,31 @@ export default function EmployeeConsole() {
     queryFn: async () => (await api.get("/time-off/today")).data,
     refetchInterval: 30000,
   });
+
+  // Face enrollment status — used to nudge employees to enroll a baseline
+  // so their first random selfie challenge can actually be verified.
+  const { data: faceStatus } = useQuery({
+    queryKey: ["face-status"],
+    queryFn: async () => (await api.get("/face/status")).data,
+    refetchInterval: 60000,
+  });
+  const [nudgeDismissed, setNudgeDismissed] = useState(() => {
+    const t = Number(localStorage.getItem(FACE_NUDGE_DISMISS_KEY) || 0);
+    // Re-nag once every 24h even if the user dismissed it
+    return t && (Date.now() - t) < 24 * 3600 * 1000;
+  });
+  const showFaceNudge = faceStatus && faceStatus.enrolled === false && !nudgeDismissed;
+  const dismissNudge = () => {
+    localStorage.setItem(FACE_NUDGE_DISMISS_KEY, String(Date.now()));
+    setNudgeDismissed(true);
+  };
+  // When a challenge arrives without enrollment, escalate: force the banner back
+  useEffect(() => {
+    if (session?.active_challenge && faceStatus && faceStatus.enrolled === false) {
+      localStorage.removeItem(FACE_NUDGE_DISMISS_KEY);
+      setNudgeDismissed(false);
+    }
+  }, [session?.active_challenge?.id, faceStatus?.enrolled]);
 
   // Auto-open the challenge modal whenever the server reports an active challenge
   useEffect(() => {
@@ -177,6 +205,66 @@ export default function EmployeeConsole() {
         }}
         subtitle={`Random check-in · respond within 5 min`}
       />
+      {showFaceNudge && (
+        <div
+          className={`mb-6 flex items-start gap-3 border px-4 py-3 relative ${
+            session?.active_challenge
+              ? "border-red-500/40 bg-red-500/10"
+              : "border-amber-500/40 bg-amber-500/10"
+          }`}
+          data-testid="face-enroll-nudge"
+          role="alert"
+        >
+          <ScanFace
+            size={18}
+            className={`mt-0.5 flex-none ${session?.active_challenge ? "text-red-400" : "text-amber-400"}`}
+          />
+          <div className="min-w-0 flex-1">
+            <div className={`mono text-[10px] uppercase tracking-widest mb-1 ${
+              session?.active_challenge ? "text-red-300" : "text-amber-300"
+            }`}>
+              {session?.active_challenge ? "URGENT · SELFIE CHECK-IN LIVE" : "ACTION REQUIRED"}
+            </div>
+            <div className="text-sm text-white">
+              You haven&apos;t enrolled your face yet.{" "}
+              {session?.active_challenge
+                ? "The current selfie challenge will be flagged unless you enrol a baseline first."
+                : "Random selfie check-ins will be flagged for the admin until you enrol a baseline."}
+            </div>
+            <div className="mt-2 flex items-center gap-2">
+              <Link
+                to="/profile"
+                data-testid="face-enroll-nudge-cta"
+                className={`inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 transition-colors ${
+                  session?.active_challenge
+                    ? "bg-red-500 text-black hover:bg-red-400"
+                    : "bg-amber-500 text-black hover:bg-amber-400"
+                }`}
+              >
+                Enrol my face <ArrowRight size={12} />
+              </Link>
+              {!session?.active_challenge && (
+                <button
+                  onClick={dismissNudge}
+                  data-testid="face-enroll-nudge-dismiss"
+                  className="text-[10px] mono uppercase tracking-widest text-gray-400 hover:text-white px-2 py-1 transition-colors"
+                >
+                  Remind me later
+                </button>
+              )}
+            </div>
+          </div>
+          {!session?.active_challenge && (
+            <button
+              onClick={dismissNudge}
+              aria-label="Dismiss"
+              className="text-gray-400 hover:text-white p-1 transition-colors"
+            >
+              <X size={14} />
+            </button>
+          )}
+        </div>
+      )}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-6">
         <div className="surface" data-testid="employee-map">
           <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
