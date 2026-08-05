@@ -36,6 +36,9 @@ export default function EmployeeConsole() {
   const geo = useGeolocation();
   const pingTimer = useRef(null);
   const [captureOpen, setCaptureOpen] = useState(false);
+  const [challengeOpen, setChallengeOpen] = useState(false);
+  const [challengeInfo, setChallengeInfo] = useState(null); // {id, respond_by_ms}
+  const autoStartRef = useRef(false);
 
   const { data: offices = [] } = useQuery({
     queryKey: ["offices"],
@@ -54,6 +57,42 @@ export default function EmployeeConsole() {
     queryFn: async () => (await api.get("/time-off/today")).data,
     refetchInterval: 30000,
   });
+
+  // Auto-open the challenge modal whenever the server reports an active challenge
+  useEffect(() => {
+    if (session?.active_challenge && !challengeOpen && challengeInfo?.id !== session.active_challenge.id) {
+      setChallengeInfo(session.active_challenge);
+      setChallengeOpen(true);
+      toast("Selfie check-in requested — respond within 5 minutes", { duration: 6000 });
+    }
+  }, [session?.active_challenge?.id]); // eslint-disable-line
+
+  const autoStart = useMutation({
+    mutationFn: async () => {
+      if (!geo.fix) throw new Error("No GPS fix yet");
+      return (await api.post("/sessions/auto-start", { lat: geo.fix.lat, lng: geo.fix.lng, accuracy: geo.fix.accuracy })).data;
+    },
+    onSuccess: (data) => {
+      toast.success("You're in the office — attendance started automatically");
+      qc.setQueryData(["my-session"], data);
+    },
+    onError: () => { autoStartRef.current = false; },
+  });
+
+  // Auto-start when GPS lock puts us inside the office radius and no session is running
+  useEffect(() => {
+    if (session || !geo.fix || !office || autoStartRef.current || autoStart.isPending) return;
+    const R = 6371000;
+    const toRad = (d) => d * Math.PI / 180;
+    const p1 = toRad(geo.fix.lat), p2 = toRad(office.lat);
+    const dp = toRad(office.lat - geo.fix.lat), dl = toRad(office.lng - geo.fix.lng);
+    const a = Math.sin(dp/2)**2 + Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)**2;
+    const dist = 2 * R * Math.asin(Math.sqrt(a));
+    if (dist <= office.radius_meters && (geo.fix.accuracy ?? 999) <= 50) {
+      autoStartRef.current = true;
+      autoStart.mutate();
+    }
+  }, [session, geo.fix?.lat, geo.fix?.lng, office?.id]); // eslint-disable-line
 
   useEffect(() => { geo.start(); return () => geo.stop(); }, []);
 
@@ -121,6 +160,22 @@ export default function EmployeeConsole() {
         onCancel={() => setCaptureOpen(false)}
         onCapture={onCaptured}
         subtitle={office ? `${office.name} · ${office.radius_meters}m` : ""}
+      />
+      <CameraCapture
+        open={challengeOpen}
+        onCancel={() => { setChallengeOpen(false); /* backend expiry will flag if truly no response */ }}
+        onCapture={async (dataUrl) => {
+          const cid = challengeInfo?.id;
+          setChallengeOpen(false);
+          try {
+            const { data } = await api.post(`/sessions/challenge/${cid}/respond`, { face_photo: dataUrl });
+            qc.setQueryData(["my-session"], data);
+            toast.success("Selfie check-in confirmed");
+          } catch (e) {
+            toast.error(toApiError(e));
+          }
+        }}
+        subtitle={`Random check-in · respond within 5 min`}
       />
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-6">
         <div className="surface" data-testid="employee-map">

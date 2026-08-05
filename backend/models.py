@@ -172,8 +172,37 @@ class TimeOffDecision(BaseModel):
 
 
 # ---------- Org Settings ----------
+    selfie_challenges_per_shift: Optional[int] = Field(default=None, ge=0, le=10)
+    selfie_response_window_minutes: Optional[int] = Field(default=None, ge=1, le=30)
+    selfie_mode: Optional[Literal["random", "fixed"]] = None
+    selfie_fixed_times: Optional[List[str]] = None  # ["HH:MM", ...]
+    auto_start_on_entry: Optional[bool] = None
+
+
+# ---------- Org Settings ----------
 class OrgSettingsUpdate(BaseModel):
     session_duration_minutes: Optional[int] = Field(default=None, ge=1, le=1440)
+    resume_window_hours: Optional[int] = Field(default=None, ge=1, le=48)
+    accuracy_tolerance_meters: Optional[int] = Field(default=None, ge=5, le=500)
+    max_speed_kmh: Optional[int] = Field(default=None, ge=10, le=1000)
+    spoof_sensitivity: Optional[Literal["low", "medium", "high"]] = None
+    notify_admin_on_spoof: Optional[bool] = None
+    selfie_challenges_per_shift: Optional[int] = Field(default=None, ge=0, le=10)
+    selfie_response_window_minutes: Optional[int] = Field(default=None, ge=1, le=30)
+    selfie_mode: Optional[Literal["random", "fixed"]] = None
+    selfie_fixed_times: Optional[List[str]] = None
+    auto_start_on_entry: Optional[bool] = None
+
+
+class SessionAutoStart(BaseModel):
+    lat: float
+    lng: float
+    accuracy: float = Field(ge=0)
+    device_fingerprint: Optional[str] = None
+
+
+class ChallengeResponse(BaseModel):
+    face_photo: str = Field(min_length=100, max_length=6_000_000)
     resume_window_hours: Optional[int] = Field(default=None, ge=1, le=48)
     accuracy_tolerance_meters: Optional[int] = Field(default=None, ge=5, le=500)
     max_speed_kmh: Optional[int] = Field(default=None, ge=10, le=1000)

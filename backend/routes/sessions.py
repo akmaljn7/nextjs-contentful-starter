@@ -10,7 +10,7 @@ from fastapi import APIRouter, HTTPException, Depends, Request
 from bson import ObjectId
 
 from db import get_db
-from models import SessionStart, SessionPing
+from models import SessionStart, SessionPing, SessionAutoStart, ChallengeResponse
 from deps import get_current_user, require_admin, client_ip
 from services.geo import haversine_meters, analyze_ping
 from services.audit import log_security_event
@@ -18,6 +18,8 @@ from services.email import send_email, render_alert_email
 from services.ws_manager import manager as ws_manager
 from services.photos import save_session_photo, has_photo
 import os
+import random
+import uuid
 
 router = APIRouter(prefix="/api/sessions", tags=["sessions"])
 
@@ -98,6 +100,12 @@ async def _get_org_settings(db, org_id: str) -> dict:
 
 
 def _sanitize_session(s: dict) -> dict:
+    challenges = s.get("challenges") or []
+    now_ms = _now_ms()
+    active = next(
+        (c for c in challenges if c.get("status") == "pending" and c.get("respond_by_ms", 0) > now_ms),
+        None,
+    )
     return {
         "id": str(s["_id"]),
         "user_id": s["user_id"],
@@ -115,7 +123,53 @@ def _sanitize_session(s: dict) -> dict:
         "log": s.get("log", [])[-100:],
         "flagged": s.get("flagged", False),
         "has_photo": bool(s.get("has_photo", False)),
+        "auto_started": bool(s.get("auto_started", False)),
+        "challenges": [
+            {"id": c["id"], "status": c.get("status"), "prompted_at_ms": c.get("prompted_at_ms"),
+             "respond_by_ms": c.get("respond_by_ms"), "responded_at_ms": c.get("responded_at_ms")}
+            for c in challenges
+        ],
+        "active_challenge": (
+            {"id": active["id"], "respond_by_ms": active["respond_by_ms"]} if active else None
+        ),
     }
+
+
+def _plan_challenges(settings: dict, start_ms: int, duration_ms: int) -> list[dict]:
+    """Return a list of planned challenge triggers for the whole session."""
+    count = int(settings.get("selfie_challenges_per_shift", 0) or 0)
+    if count <= 0 or duration_ms <= 0:
+        return []
+    mode = settings.get("selfie_mode", "random")
+    end_ms = start_ms + duration_ms
+    triggers: list[int] = []
+    if mode == "fixed":
+        # settings.selfie_fixed_times = ["HH:MM", ...] in UTC by default
+        for hhmm in (settings.get("selfie_fixed_times") or [])[:count]:
+            try:
+                h, m = map(int, hhmm.split(":"))
+            except Exception:
+                continue
+            today = datetime.now(timezone.utc).replace(hour=h, minute=m, second=0, microsecond=0)
+            t = int(today.timestamp() * 1000)
+            if start_ms <= t <= end_ms:
+                triggers.append(t)
+    if not triggers:
+        # random: split shift into `count` equal slots, pick a random moment inside each (skip first & last 3 min)
+        span = duration_ms
+        buffer_ms = 3 * 60 * 1000
+        for i in range(count):
+            slot_start = start_ms + int(span * i / count) + buffer_ms
+            slot_end = start_ms + int(span * (i + 1) / count) - buffer_ms
+            if slot_end <= slot_start:
+                continue
+            triggers.append(random.randint(slot_start, slot_end))
+    return [
+        {"id": uuid.uuid4().hex[:12], "trigger_ms": t, "status": "planned",
+         "prompted_at_ms": None, "respond_by_ms": None, "responded_at_ms": None,
+         "photo_saved": False}
+        for t in sorted(triggers)
+    ]
 
 
 async def _broadcast_session(db, session: dict, ended: bool = False, outcome: str | None = None):
@@ -166,6 +220,106 @@ async def _write_attendance_record(db, session: dict, outcome: str, ended_at_ms:
     payload_str = json.dumps(payload, sort_keys=True, default=str)
     payload["record_hash"] = hashlib.sha256(payload_str.encode()).hexdigest()
     await db.attendance_records.insert_one(payload)
+
+
+@router.post("/auto-start")
+async def auto_start_session(payload: SessionAutoStart, request: Request, user: dict = Depends(get_current_user)):
+    """Silently start a session when the employee's device detects they're inside the geofence.
+
+    No photo required upfront — the first random selfie challenge acts as
+    proof-of-presence during the shift.
+    """
+    if user["role"] != "employee":
+        raise HTTPException(status_code=403, detail="Only employees can start sessions")
+    db = get_db()
+    settings = await _get_org_settings(db, user["org_id"])
+    if not settings.get("auto_start_on_entry", True):
+        raise HTTPException(status_code=400, detail="Auto-start is disabled for your org.")
+
+    if not user.get("office_id"):
+        raise HTTPException(status_code=400, detail="No office assigned")
+    try:
+        office = await db.offices.find_one({"_id": ObjectId(user["office_id"]), "org_id": user["org_id"]})
+    except Exception:
+        office = None
+    if not office:
+        raise HTTPException(status_code=404, detail="Office not found")
+
+    session_duration_ms, schedule_err = await _compute_schedule_duration_ms(db, user, settings)
+    if schedule_err:
+        raise HTTPException(status_code=403, detail=schedule_err)
+
+    accuracy_tol = settings.get("accuracy_tolerance_meters", 50)
+    if payload.accuracy > accuracy_tol:
+        raise HTTPException(status_code=400, detail=f"GPS accuracy too low ({payload.accuracy:.0f}m).")
+    office_lat = office["location"]["coordinates"][1]
+    office_lng = office["location"]["coordinates"][0]
+    dist = haversine_meters(payload.lat, payload.lng, office_lat, office_lng)
+    if dist > office["radius_meters"]:
+        raise HTTPException(status_code=403, detail=f"Not inside office ({int(dist)}m from center).")
+
+    if await db.active_sessions.find_one({"user_id": user["id"]}):
+        raise HTTPException(status_code=400, detail="Session already active.")
+
+    now_ms = _now_ms()
+    doc = {
+        "org_id": user["org_id"], "user_id": user["id"], "office_id": user["office_id"],
+        "center": {"lat": payload.lat, "lng": payload.lng, "radius_m": office["radius_meters"]},
+        "start_time": _now_iso(), "start_time_ms": now_ms,
+        "remaining_ms": session_duration_ms, "current_bout_start_ms": now_ms,
+        "status": "active", "paused_at": None,
+        "last_fix": {"lat": payload.lat, "lng": payload.lng, "accuracy": payload.accuracy, "ts_ms": now_ms},
+        "bout_count": 1, "total_inside_ms": 0, "flagged": False,
+        "device_fingerprint": payload.device_fingerprint, "auto_started": True,
+        "challenges": _plan_challenges(settings, now_ms, session_duration_ms),
+        "log": [{"event": "auto_start", "ts_ms": now_ms, "lat": payload.lat, "lng": payload.lng}],
+    }
+    res = await db.active_sessions.insert_one(doc)
+    doc["_id"] = res.inserted_id
+    await db.gps_pings.insert_one({
+        "org_id": user["org_id"], "user_id": user["id"], "session_id": str(res.inserted_id),
+        "ts": datetime.now(timezone.utc), "lat": payload.lat, "lng": payload.lng,
+        "accuracy": payload.accuracy, "speed": None, "flagged": False,
+    })
+    await _broadcast_session(db, doc)
+    return _sanitize_session(doc)
+
+
+@router.post("/challenge/{challenge_id}/respond")
+async def respond_challenge(challenge_id: str, payload: ChallengeResponse, user: dict = Depends(get_current_user)):
+    """Employee uploads a selfie in response to an active challenge."""
+    db = get_db()
+    s = await db.active_sessions.find_one({"user_id": user["id"], "org_id": user["org_id"]})
+    if not s:
+        raise HTTPException(status_code=404, detail="No active session")
+    now_ms = _now_ms()
+    challenges = list(s.get("challenges") or [])
+    ch = next((c for c in challenges if c.get("id") == challenge_id), None)
+    if not ch:
+        raise HTTPException(status_code=404, detail="Challenge not found")
+    if ch.get("status") != "pending":
+        raise HTTPException(status_code=400, detail=f"Challenge is already {ch.get('status')}")
+    if ch.get("respond_by_ms", 0) < now_ms:
+        ch["status"] = "expired"
+        await db.active_sessions.update_one({"_id": s["_id"]}, {"$set": {"challenges": challenges, "flagged": True}})
+        raise HTTPException(status_code=400, detail="Response window expired")
+
+    photo_key = f"{s['_id']}::{challenge_id}"
+    ok = await save_session_photo(photo_key, user["org_id"], user["id"], payload.face_photo)
+    if not ok:
+        raise HTTPException(status_code=400, detail="Invalid photo")
+    ch["status"] = "responded"
+    ch["responded_at_ms"] = now_ms
+    ch["photo_saved"] = True
+    log_entries = list(s.get("log", []))
+    log_entries.append({"event": "selfie_responded", "ts_ms": now_ms, "challenge_id": challenge_id})
+    await db.active_sessions.update_one(
+        {"_id": s["_id"]},
+        {"$set": {"challenges": challenges, "log": log_entries[-500:]}},
+    )
+    new_s = await db.active_sessions.find_one({"_id": s["_id"]})
+    await _broadcast_session(db, new_s)
+    return _sanitize_session(new_s)
 
 
 @router.post("/start")
@@ -240,6 +394,8 @@ async def start_session(payload: SessionStart, request: Request, user: dict = De
         "total_inside_ms": 0,
         "flagged": False,
         "device_fingerprint": payload.device_fingerprint,
+        "auto_started": False,
+        "challenges": _plan_challenges(settings, now_ms, session_duration_ms),
         "log": [{"event": "start", "ts_ms": now_ms, "lat": payload.lat, "lng": payload.lng}],
     }
     try:
@@ -359,6 +515,36 @@ async def ping_session(payload: SessionPing, request: Request, user: dict = Depe
         "log": log_entries[-500:],
         "flagged": flagged,
     }
+
+    # Selfie challenge lifecycle: trigger planned + expire overdue
+    challenges = list(s.get("challenges") or [])
+    resp_window_min = int(settings.get("selfie_response_window_minutes", 5))
+    for ch in challenges:
+        if ch.get("status") == "planned" and ch.get("trigger_ms", 0) <= now_ms:
+            ch["status"] = "pending"
+            ch["prompted_at_ms"] = now_ms
+            ch["respond_by_ms"] = now_ms + resp_window_min * 60 * 1000
+        elif ch.get("status") == "pending" and ch.get("respond_by_ms", 0) < now_ms:
+            ch["status"] = "expired"
+            flagged = True
+            update["flagged"] = True
+            log_entries.append({"event": "selfie_expired", "ts_ms": now_ms, "challenge_id": ch["id"]})
+            await log_security_event(
+                "selfie_missed", "high", client_ip(request),
+                {"challenge_id": ch["id"], "session_id": str(s["_id"])},
+                org_id=user["org_id"], user_id=user["id"],
+            )
+            owner = await db.users.find_one({"org_id": user["org_id"], "role": "org_owner"})
+            if owner and settings.get("notify_admin_on_spoof", True):
+                html = render_alert_email(
+                    "Missed selfie check-in",
+                    [f"Employee: {user['name']} ({user['email']})",
+                     f"Response window: {resp_window_min} minutes",
+                     "The employee did not respond to a random selfie challenge in time — session flagged."],
+                )
+                await send_email(owner["email"], "Geofence Console — missed selfie challenge", html)
+    update["challenges"] = challenges
+    update["log"] = log_entries[-500:]
 
     if analysis["flags"]:
         await log_security_event(
