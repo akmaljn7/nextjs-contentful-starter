@@ -31,6 +31,11 @@ export default function OrgSettings() {
       max_speed_kmh: Number(form.max_speed_kmh),
       spoof_sensitivity: form.spoof_sensitivity,
       notify_admin_on_spoof: !!form.notify_admin_on_spoof,
+      auto_start_on_entry: form.auto_start_on_entry !== false,
+      selfie_challenges_per_shift: Number(form.selfie_challenges_per_shift ?? 1),
+      selfie_response_window_minutes: Number(form.selfie_response_window_minutes ?? 5),
+      selfie_mode: form.selfie_mode || "random",
+      selfie_fixed_times: Array.isArray(form.selfie_fixed_times) ? form.selfie_fixed_times : (form.selfie_fixed_times || "").split(",").map(s => s.trim()).filter(Boolean),
     })).data,
     onSuccess: () => { toast.success("Settings saved"); qc.invalidateQueries({ queryKey: ["org-settings"] }); },
     onError: (e) => toast.error(toApiError(e)),
@@ -70,6 +75,27 @@ export default function OrgSettings() {
               <input type="checkbox" checked={!!form.notify_admin_on_spoof} onChange={(e) => setForm({ ...form, notify_admin_on_spoof: e.target.checked })} data-testid="set-notify" className="w-4 h-4" />
               <span className="text-sm mono uppercase tracking-widest">EMAIL ALERT</span>
             </label>
+          </Field>
+          <Field label="Auto-start on Office Entry" hint="Employees don't need to tap start — sessions begin automatically when GPS puts them inside the office">
+            <label className="inline-flex items-center gap-2 mt-2 cursor-pointer">
+              <input type="checkbox" checked={form.auto_start_on_entry !== false} onChange={(e) => setForm({ ...form, auto_start_on_entry: e.target.checked })} data-testid="set-auto-start" className="w-4 h-4" />
+              <span className="text-sm mono uppercase tracking-widest">ENABLED</span>
+            </label>
+          </Field>
+          <Field label="Selfie Challenges / Shift" hint="0 to disable; sends N random selfie prompts during each shift">
+            <input type="number" min={0} max={10} value={form.selfie_challenges_per_shift ?? 1} onChange={(e) => setForm({ ...form, selfie_challenges_per_shift: e.target.value })} data-testid="set-selfie-count" className="w-full bg-[#0a0a0a] border border-white/10 focus:border-white/30 focus:outline-none px-3 py-2 text-sm mono" />
+          </Field>
+          <Field label="Selfie Response Window (min)" hint="Employee must respond within this many minutes or session is flagged">
+            <input type="number" min={1} max={30} value={form.selfie_response_window_minutes ?? 5} onChange={(e) => setForm({ ...form, selfie_response_window_minutes: e.target.value })} data-testid="set-selfie-window" className="w-full bg-[#0a0a0a] border border-white/10 focus:border-white/30 focus:outline-none px-3 py-2 text-sm mono" />
+          </Field>
+          <Field label="Selfie Timing Mode" hint="Random spreads prompts across the shift; Fixed uses the times you set">
+            <select value={form.selfie_mode || "random"} onChange={(e) => setForm({ ...form, selfie_mode: e.target.value })} data-testid="set-selfie-mode" className="w-full bg-[#0a0a0a] border border-white/10 focus:border-white/30 focus:outline-none px-3 py-2 text-sm mono">
+              <option value="random">Random</option>
+              <option value="fixed">Fixed times</option>
+            </select>
+          </Field>
+          <Field label="Fixed Times (HH:MM, comma-separated)" hint='Only used when Timing Mode = Fixed. Example: "10:00, 14:30"'>
+            <input value={Array.isArray(form.selfie_fixed_times) ? form.selfie_fixed_times.join(", ") : (form.selfie_fixed_times || "")} onChange={(e) => setForm({ ...form, selfie_fixed_times: e.target.value.split(",").map(s => s.trim()).filter(Boolean) })} data-testid="set-selfie-times" placeholder="10:00, 14:30" className="w-full bg-[#0a0a0a] border border-white/10 focus:border-white/30 focus:outline-none px-3 py-2 text-sm mono" />
           </Field>
         </div>
         <div className="mt-6 pt-6 border-t border-white/10">
