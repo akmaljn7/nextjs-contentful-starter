@@ -66,11 +66,12 @@ def similarity(a: list[float], b: list[float]) -> float:
     return float(np.dot(va, vb) / (na * nb))
 
 
-def verify(baseline: list[float], challenge_photo_b64: str, threshold: float = 0.92) -> dict:
+def verify(baseline: list[float], challenge_photo_b64: str, threshold: float = 0.90) -> dict:
     """Return {match: bool, similarity: float, reason?: str}.
 
-    face_recognition embeddings are already L2-normalized-ish; a cosine of 0.92
-    corresponds roughly to a euclidean distance of 0.4 (dlib's default match cutoff = 0.6).
+    face_recognition embeddings are already L2-normalized-ish; a cosine of 0.90
+    corresponds roughly to a euclidean distance of ~0.45 — moderately strict
+    but tolerant of typical selfie variation (lighting, angle, glasses).
     """
     emb = extract_embedding(challenge_photo_b64)
     if emb is None:

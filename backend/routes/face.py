@@ -46,6 +46,7 @@ async def status(user: dict = Depends(get_current_user)):
 @router.delete("/reset/{user_id}")
 async def admin_reset(user_id: str, admin: dict = Depends(require_admin)):
     """Admin resets an employee's enrollment so they can re-submit a new baseline."""
+    from services.audit import log_admin_action, log_security_event
     db = get_db()
     try:
         oid = ObjectId(user_id)
@@ -57,4 +58,13 @@ async def admin_reset(user_id: str, admin: dict = Depends(require_admin)):
     )
     if r.matched_count == 0:
         raise HTTPException(status_code=404, detail="Employee not found")
+    await log_admin_action(
+        admin["org_id"], admin["id"], "face.reset", "employee", user_id,
+        ip="", user_agent="",
+    )
+    await log_security_event(
+        "face_baseline_reset", "medium", "",
+        {"target_user_id": user_id, "actor_id": admin["id"]},
+        org_id=admin["org_id"], user_id=user_id,
+    )
     return {"ok": True}
