@@ -355,7 +355,11 @@ async def auto_start_session(payload: SessionAutoStart, request: Request, user: 
     now_ms = _now_ms()
     doc = {
         "org_id": user["org_id"], "user_id": user["id"], "office_id": user["office_id"],
-        "center": {"lat": payload.lat, "lng": payload.lng, "radius_m": office["radius_meters"]},
+        # Geofence is *always* the admin-configured office boundary — never
+        # centered on the employee's starting GPS fix. Otherwise the "inside"
+        # check drifts with the employee's initial position (and the map draws
+        # a phantom second circle offset from the real office).
+        "center": {"lat": office_lat, "lng": office_lng, "radius_m": office["radius_meters"]},
         "start_time": _now_iso(), "start_time_ms": now_ms,
         "remaining_ms": session_duration_ms, "current_bout_start_ms": now_ms,
         "status": "active", "paused_at": None,
@@ -499,7 +503,10 @@ async def start_session(payload: SessionStart, request: Request, user: dict = De
         raise HTTPException(status_code=400, detail="Session already active. Reset first.")
 
     now_ms = _now_ms()
-    center = {"lat": payload.lat, "lng": payload.lng, "radius_m": office["radius_meters"]}
+    # Geofence is always the admin-configured office boundary — see note in
+    # /auto-start. Using employee's own GPS as the session center would let
+    # them "drift" the boundary at check-in.
+    center = {"lat": office_lat, "lng": office_lng, "radius_m": office["radius_meters"]}
     doc = {
         "org_id": user["org_id"],
         "user_id": user["id"],

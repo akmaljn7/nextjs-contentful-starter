@@ -193,7 +193,6 @@ export default function EmployeeConsole() {
             <MapView
               height={480}
               offices={office ? [office] : []}
-              geofence={session ? { lat: session.center.lat, lng: session.center.lng, radius_m: session.center.radius_m, color: "#f59e0b" } : null}
               pins={geo.fix ? [{ id: "me", lat: geo.fix.lat, lng: geo.fix.lng, status: session?.status || "active", label: user?.name || "You" }] : []}
               center={geo.fix || (office ? { lat: office.lat, lng: office.lng } : null)}
               zoom={17}

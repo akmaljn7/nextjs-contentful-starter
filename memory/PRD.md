@@ -24,6 +24,10 @@ Multi-tenant enterprise geofenced attendance platform. Organizations sign up, ad
 
 ## Implemented (2026-02 → 2026-08)
 ### Backend
+- **[5 Aug 2026 · bugfix]** Session `center` is now always the **admin office coordinates** (was: the employee's GPS at check-in). This means:
+  1. The "inside geofence" check on `/ping` uses the true office boundary, so an employee can no longer drift the boundary by starting near an edge.
+  2. The frontend no longer draws a phantom offset circle around the employee's start position.
+  3. Any active session at deploy time was one-shot migrated to the office center.
 - FastAPI with `/api` prefix, MongoDB (Motor), 2dsphere geo index, TTL index on pings
 - Auth: register-org, login, refresh (rotating), logout, me, forgot-password, reset-password (Resend email via Emergent proxy)
   - **[5 Aug 2026]** `/logout` now ends any active session for the user (outcome=`logout`) so admins no longer see ghost active sessions after log-out
