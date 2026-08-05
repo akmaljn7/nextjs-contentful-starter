@@ -176,6 +176,40 @@ def _plan_challenges(settings: dict, start_ms: int, duration_ms: int) -> list[di
     ]
 
 
+async def _sync_session_center_from_office(db, session: dict) -> bool:
+    """Ensure session.center always reflects the current office geofence.
+
+    Admins may edit office coords/radius after a session has started; without
+    this sync the session would keep using the stale snapshot and could keep
+    an employee "active" outside the newly-drawn boundary. Called from every
+    endpoint that reads or evaluates session state.
+
+    Mutates `session` in place and persists. Returns True if changed.
+    """
+    try:
+        office = await db.offices.find_one({"_id": ObjectId(session["office_id"])})
+    except Exception:
+        return False
+    if not office:
+        return False
+    try:
+        lat = office["location"]["coordinates"][1]
+        lng = office["location"]["coordinates"][0]
+    except Exception:
+        return False
+    r = office.get("radius_meters")
+    cur = session.get("center") or {}
+    if cur.get("lat") == lat and cur.get("lng") == lng and cur.get("radius_m") == r:
+        return False
+    new_center = {"lat": lat, "lng": lng, "radius_m": r}
+    await db.active_sessions.update_one(
+        {"_id": session["_id"]}, {"$set": {"center": new_center}},
+    )
+    session["center"] = new_center
+    logger.info("session_center_synced session=%s new_center=%s", session.get("_id"), new_center)
+    return True
+
+
 async def _tick_challenge_lifecycle(db, session: dict, settings: dict, now_ms: int) -> bool:
     """Promote planned→pending and expire overdue challenges independent of pings.
 
@@ -558,6 +592,11 @@ async def ping_session(payload: SessionPing, request: Request, user: dict = Depe
     s = await db.active_sessions.find_one({"user_id": user["id"], "org_id": user["org_id"]})
     if not s:
         raise HTTPException(status_code=404, detail="No active session")
+    # Always refresh center/radius from the office record so admin edits
+    # (moving the office or resizing the geofence) take effect immediately —
+    # otherwise a session snapshot could keep an employee "at office" using
+    # a stale radius that no longer reflects reality.
+    await _sync_session_center_from_office(db, s)
 
     settings = await _get_org_settings(db, user["org_id"])
     resume_window_h = settings.get("resume_window_hours", 10)
@@ -745,6 +784,8 @@ async def my_session(user: dict = Depends(get_current_user)):
     s = await db.active_sessions.find_one({"user_id": user["id"], "org_id": user["org_id"]})
     if not s:
         return None
+    # Always reflect current office geofence (admin may have edited coords/radius)
+    await _sync_session_center_from_office(db, s)
     settings = await _get_org_settings(db, user["org_id"])
     now_ms = _now_ms()
     # Fire due challenges even if no ping has arrived yet
@@ -772,6 +813,7 @@ async def live_sessions(user: dict = Depends(require_admin)):
     sessions = [s async for s in cur]
     result = []
     for s in sessions:
+        await _sync_session_center_from_office(db, s)
         await _tick_challenge_lifecycle(db, s, settings, now_ms)
         alive, s, outcome = await _tick_stale_session(db, s, settings, now_ms)
         if not alive:
