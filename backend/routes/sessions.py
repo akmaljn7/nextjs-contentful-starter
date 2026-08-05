@@ -308,9 +308,40 @@ async def respond_challenge(challenge_id: str, payload: ChallengeResponse, user:
     ok = await save_session_photo(photo_key, user["org_id"], user["id"], payload.face_photo)
     if not ok:
         raise HTTPException(status_code=400, detail="Invalid photo")
+
+    # Face match verification if the employee has enrolled a baseline
+    baseline = user.get("face_baseline")
+    match_result = None
+    if baseline:
+        from services.face_match import verify as verify_face
+        match_result = verify_face(baseline, payload.face_photo)
+        if not match_result["match"]:
+            ch["status"] = "mismatch"
+            ch["responded_at_ms"] = now_ms
+            ch["photo_saved"] = True
+            ch["similarity"] = match_result["similarity"]
+            log_entries = list(s.get("log", []))
+            log_entries.append({
+                "event": "selfie_mismatch", "ts_ms": now_ms,
+                "challenge_id": challenge_id, "similarity": match_result["similarity"],
+            })
+            await db.active_sessions.update_one(
+                {"_id": s["_id"]},
+                {"$set": {"challenges": challenges, "log": log_entries[-500:], "flagged": True}},
+            )
+            await log_security_event(
+                "face_mismatch", "high", "",
+                {"challenge_id": challenge_id, "session_id": str(s["_id"]),
+                 "similarity": match_result["similarity"], "reason": match_result.get("reason")},
+                org_id=user["org_id"], user_id=user["id"],
+            )
+            raise HTTPException(status_code=403, detail=f"Face does not match your enrolled baseline (similarity {match_result['similarity']:.2f}). Session flagged.")
+
     ch["status"] = "responded"
     ch["responded_at_ms"] = now_ms
     ch["photo_saved"] = True
+    if match_result:
+        ch["similarity"] = match_result["similarity"]
     log_entries = list(s.get("log", []))
     log_entries.append({"event": "selfie_responded", "ts_ms": now_ms, "challenge_id": challenge_id})
     await db.active_sessions.update_one(

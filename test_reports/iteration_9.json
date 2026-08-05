@@ -1,0 +1,39 @@
+{
+  "summary": "Iteration 9 backend tests for server-side face-match verification (dlib/face_recognition based). New test file /app/backend/tests/test_face_match.py with a TestFaceMatch class of 11 tests: fresh /face/status; enroll valid face (obama.jpg → 200 dim=128); enroll no-face → 400 'No clear face detected'; enroll as org_owner → 403 'Only employees'; admin reset → 200 + status flips to enrolled=false; admin reset with foreign ObjectId → 404 (tenant isolation); admin reset with malformed id → 400; employee cannot call reset → 403; challenge MATCH (same obama.jpg baseline+response) → 200 status='responded', not flagged; challenge MISMATCH (obama vs biden) → 403 'Face does not match', challenge.status='mismatch', session.flagged=true, security_events row type='face_mismatch' severity='high'; no-baseline backward-compat → 200 without verification. All 11 pass in 10.7s (parallel/xdist). Regression: full test_auto_start.py (15/15) and test_photos+test_websocket in isolation (22/22) still pass. Teardown resets baseline + session per test.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/face/enroll", "issue": "Payload schema requires face_photo min_length=100, so a client sending an empty/tiny data URL gets a 422 validation error instead of the friendlier 400 'No clear face detected'. Fine for real clients, but the min_length cap is a soft contract that isn't documented in the OpenAPI description."},
+      {"endpoint": "/api/face/reset/{user_id}", "issue": "Response body {'ok': true} is not documented in a Pydantic response model; OpenAPI consumers will get a generic dict. Consider a response_model for consistency with the rest of the codebase."},
+      {"endpoint": "sessions.py /challenge/{id}/respond", "issue": "user.get('face_baseline') is read from the JWT-loaded user dict; the deps.get_current_user must therefore ensure this field is always freshly fetched from Mongo (not cached in a token). Confirmed at runtime it works (mismatch test passed), but worth an assertion in get_current_user or a comment explaining the load."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_face_match.py",
+    "/app/test_reports/pytest/pytest_face_match.xml"
+  ],
+  "action_items": [
+    "None blocking. Optional: document /api/face/enroll size limits + add a Pydantic response_model on /face/reset. (Iteration 8's models.py cleanup — orphan fields on TimeOffDecision + ChallengeResponse — is still open.)"
+  ],
+  "critical_code_review_comments": [
+    "services/face_match.py verify() uses cosine >= 0.92 as the match threshold. This is significantly stricter than dlib's default euclidean 0.6 cutoff and rejects moderately different photos of the same person taken under different lighting/angles. Recommend field-testing on real employee selfies (glasses on/off, indoor/outdoor) before shipping; consider making the threshold a per-org setting.",
+    "extract_embedding uses model='hog' + num_jitters=1. On low-resolution or backlit selfies from a mobile front camera, HOG frequently misses faces (returns None → 400). Consider a fallback to model='cnn' (slower but far more robust) or a client-side hint (bounding box) — otherwise employees may see confusing 'No clear face detected' errors during genuine enrollment attempts.",
+    "routes/face.py enroll: stores the raw 128-D embedding in Mongo. This is biometric data under GDPR/CCPA. There's no encryption-at-rest for face_baseline field nor a retention policy — consider (a) hashing or encrypting with a per-user KMS key, (b) documenting biometric consent in the enrollment UX, (c) allowing employees to self-delete their baseline (currently only admin can reset).",
+    "routes/face.py admin_reset: no security_event logged when an admin wipes a baseline. This is a privileged biometric action and should leave an audit trail (type='face_baseline_reset', severity='medium').",
+    "sessions.py challenge respond: on face MISMATCH the photo IS saved via save_session_photo BEFORE the 403 is raised — this is correct (evidence retention) but the flow is not obvious. Add a code comment stating that mismatch photos are intentionally persisted for admin review.",
+    "sessions.py challenge respond deadline check still uses '<' rather than '<=' — carryover from iteration 8, not blocking.",
+    "The `user['face_baseline']` read on sessions.py:313 relies on deps.get_current_user returning ALL user fields including the embedding on every authenticated request. That means the ~1KB embedding travels through auth on every /api/* call for enrolled users. Consider projecting it out of the default user load and reading it explicitly inside the challenge respond handler only.",
+    "pytest xdist cross-file contamination (documented in iteration 8) still causes 5 failures when running the full tests/ folder in parallel, because tests share a single employee account. Not caused by face_match — face_match's autouse fixture properly resets state — but the ecosystem needs a `sessions/reset` + `face/reset` autouse at conftest level."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_face_match.py"
+  ],
+  "success_rate": {"backend": "100% (11/11) + 100% regression (15/15 auto_start, 22/22 photos+ws in isolation)", "frontend": "not tested (backend-only request)"},
+  "test_credentials": "Owner akmaljn7@gmail.com / GeofenceAdmin123!, Employee employee@example.com / Employee123!",
+  "seed_data_creation": "Module-scoped TEST_Lagos_HQ_* office (radius 300m, deleted at teardown). Face baseline enrolled and cleaned via DELETE /api/face/reset in autouse teardown after every test. Test face images (obama.jpg, biden.jpg) cached in /tmp/.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All 11 face-match tests pass in parallel via xdist (loadscope pins entire class to one worker). test_face_match's autouse fixture resets both baseline (DELETE /api/face/reset) and session (POST /sessions/reset) BEFORE and AFTER each test, so it's safe to combine with other files. The obama.jpg + biden.jpg fixtures download to /tmp on first run; tests are skipped (not failed) if GitHub raw is unreachable. Pre-existing xdist cross-file contamination noted in iteration 8 still causes 4-5 failures when the full tests/ folder is run together (test_photos + test_websocket bleed) — this is orthogonal to face-match.",
+  "rca of the issue": "N/A — no bugs found in iteration 9 implementation. All 5 endpoints and both match/mismatch paths work as specified. Threshold=0.92 correctly distinguishes obama vs biden in verify() (mismatch test consistently returns 403). face_baseline is stored on the user document and read by deps.get_current_user, ensuring sessions/challenge/respond has access without a second Mongo lookup."
+}
