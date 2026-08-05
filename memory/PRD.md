@@ -58,6 +58,7 @@ Multi-tenant enterprise geofenced attendance platform. Organizations sign up, ad
 - Auth via httpOnly cookies + auto-refresh interceptor
 - Live pins with CSS-only pulsing animation, status semantics (green/amber/blue/red)
 - PWA manifest + service worker + install-ready icons
+- **[5 Aug 2026]** Offices Manage — the geofence-center pin is now **draggable** for precise placement. Solves the WiFi-geoloc-off-by-100m problem. Live coord readout under the map updates as you drag, click-anywhere-on-map still works as a coarse pointer.
 - **[5 Aug 2026]** Admin dashboard live rows now expose **Send selfie now** + **End session** buttons and a **STALE · NO PINGS** badge
 - **[5 Aug 2026]** Employees form shows an inline red banner (in addition to toast) when create fails, so the reason cannot be missed
 

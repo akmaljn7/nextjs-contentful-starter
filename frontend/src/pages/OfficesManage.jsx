@@ -45,9 +45,20 @@ function OfficeForm({ initial, onCancel, onSaved }) {
     onError: (e) => toast.error(toApiError(e)),
   });
 
-  const pickCenter = (latlng) => setForm({ ...form, lat: latlng.lat, lng: latlng.lng });
+  const pickCenter = (latlng) => setForm((f) => ({ ...f, lat: latlng.lat, lng: latlng.lng }));
   const centerObj = form.lat !== "" && form.lng !== "" && !Number.isNaN(Number(form.lat)) && !Number.isNaN(Number(form.lng))
     ? { lat: Number(form.lat), lng: Number(form.lng) } : null;
+  // Freeze the map viewport unless there is a big jump. Small drag moves must
+  // NOT re-fly the map or the pin appears to jitter under the cursor. Big
+  // jumps (Use my location, editing a different office) DO re-fly.
+  const [mapAnchor, setMapAnchor] = useState(centerObj);
+  useEffect(() => {
+    if (!centerObj) return;
+    if (!mapAnchor) { setMapAnchor(centerObj); return; }
+    const dLat = Math.abs(centerObj.lat - mapAnchor.lat);
+    const dLng = Math.abs(centerObj.lng - mapAnchor.lng);
+    if (dLat > 0.005 || dLng > 0.005) setMapAnchor(centerObj);
+  }, [centerObj?.lat, centerObj?.lng, mapAnchor]);
 
   return (
     <div className="surface p-5" data-testid="office-form">
@@ -110,14 +121,23 @@ function OfficeForm({ initial, onCancel, onSaved }) {
         </div>
         <div className="min-h-[280px]">
           <MapView
-            height={320}
-            center={centerObj}
-            zoom={16}
+            height={360}
+            center={mapAnchor || centerObj}
+            zoom={17}
+            followCenter={true}
             geofence={centerObj ? { lat: centerObj.lat, lng: centerObj.lng, radius_m: Number(form.radius_meters) || 150, color: "#10b981" } : null}
             onMapClick={pickCenter}
+            onGeofenceDrag={pickCenter}
           />
-          <div className="text-[10px] mono uppercase tracking-widest text-gray-600 mt-2">
-            {centerObj ? "TAP MAP TO ADJUST CENTER" : "TAP \"USE MY CURRENT LOCATION\" OR CLICK THE MAP"}
+          <div className="mt-2 flex items-center justify-between gap-2">
+            <div className="text-[10px] mono uppercase tracking-widest text-gray-500" data-testid="pin-hint">
+              {centerObj ? "DRAG THE PIN · OR CLICK THE MAP" : "TAP \"USE MY CURRENT LOCATION\" OR CLICK THE MAP"}
+            </div>
+            {centerObj && (
+              <div className="text-[10px] mono text-green-400 tabular-nums" data-testid="pin-coords">
+                {Number(form.lat).toFixed(6)}, {Number(form.lng).toFixed(6)}
+              </div>
+            )}
           </div>
         </div>
       </div>

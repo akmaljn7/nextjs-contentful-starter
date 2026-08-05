@@ -144,6 +144,22 @@ body {
 .pin-completed { background: var(--status-completed); box-shadow: 0 0 12px rgba(59,130,246,0.6); }
 .pin-expired { background: var(--status-expired); box-shadow: 0 0 12px rgba(239,68,68,0.6); }
 
+/* Draggable office-center pin (Offices Manage form).
+   Green core, white ring, subtle scale on hover — reads as "grab me". */
+.office-drag-pin {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #34d399 0%, #10b981 60%, #059669 100%);
+  border: 2.5px solid #ffffff;
+  box-shadow: 0 0 0 2px rgba(16,185,129,0.35), 0 6px 12px rgba(0,0,0,0.5);
+  cursor: grab;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+.office-drag-pin:hover { transform: scale(1.12); box-shadow: 0 0 0 3px rgba(16,185,129,0.45), 0 6px 14px rgba(0,0,0,0.55); }
+.office-drag-pin:active { cursor: grabbing; transform: scale(1.05); }
+
+
 /* Employee map pins (name label above avatar/dot) */
 .employee-pin {
   position: relative;

@@ -105,6 +105,7 @@ export function MapView({
   pins = [],
   geofence = null,
   onMapClick,
+  onGeofenceDrag = null,
   showZoom = true,
   followCenter = true,
   focusPoints = null,
@@ -147,17 +148,37 @@ export function MapView({
           </React.Fragment>
         ))}
         {geofence && (
-          <Circle
-            center={[geofence.lat, geofence.lng]}
-            radius={geofence.radius_m || geofence.radius_meters}
-            pathOptions={{
-              color: geofence.color || "#f59e0b",
-              weight: 2,
-              fillColor: geofence.color || "#f59e0b",
-              fillOpacity: 0.1,
-              dashArray: "6,4",
-            }}
-          />
+          <>
+            <Circle
+              center={[geofence.lat, geofence.lng]}
+              radius={geofence.radius_m || geofence.radius_meters}
+              pathOptions={{
+                color: geofence.color || "#f59e0b",
+                weight: 2,
+                fillColor: geofence.color || "#f59e0b",
+                fillOpacity: 0.1,
+                dashArray: onGeofenceDrag ? undefined : "6,4",
+              }}
+            />
+            {onGeofenceDrag && (
+              <Marker
+                position={[geofence.lat, geofence.lng]}
+                draggable
+                icon={L.divIcon({
+                  className: "",
+                  html: `<div class="office-drag-pin" title="Drag to reposition"></div>`,
+                  iconSize: [22, 22],
+                  iconAnchor: [11, 11],
+                })}
+                eventHandlers={{
+                  dragend: (e) => {
+                    const p = e.target.getLatLng();
+                    onGeofenceDrag({ lat: p.lat, lng: p.lng });
+                  },
+                }}
+              />
+            )}
+          </>
         )}
         {pins.map((p, i) => {
           const photoUrl = p.photo_url || (p.has_photo && p.id ? `${BACKEND}/api/photos/session/${p.id}` : "");
