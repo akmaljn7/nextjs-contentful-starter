@@ -1,12 +1,13 @@
 import React, { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { api, BACKEND } from "@/lib/api";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { api, BACKEND, toApiError } from "@/lib/api";
 import { AppShell } from "@/components/AppShell";
 import { MapView } from "@/components/MapView";
 import { StatusChip } from "@/components/StatusChip";
 import { fmtCoord, fmtDateTime, fmtMinutes, STATUS_LABEL } from "@/lib/format";
 import { useLiveSessions } from "@/hooks/useLiveSessions";
-import { Building2, Users, Activity, PauseCircle, Database, ShieldAlert, Wifi } from "lucide-react";
+import { toast } from "sonner";
+import { Building2, Users, Activity, PauseCircle, Database, ShieldAlert, Wifi, Camera, X } from "lucide-react";
 
 const Stat = ({ label, value, sub, icon: Icon, testId }) => (
   <div className="surface p-4" data-testid={testId}>
@@ -22,6 +23,7 @@ const Stat = ({ label, value, sub, icon: Icon, testId }) => (
 export default function AdminDashboard() {
   // Open the live WebSocket — pushes into the ["live"] cache in real time.
   useLiveSessions(true);
+  const qc = useQueryClient();
 
   const { data: offices = [] } = useQuery({
     queryKey: ["offices"],
@@ -32,6 +34,18 @@ export default function AdminDashboard() {
     queryKey: ["live"],
     queryFn: async () => (await api.get("/sessions/live")).data,
     refetchInterval: 8000, // slower polling as safety-net; WS is primary
+  });
+
+  const challengeNow = useMutation({
+    mutationFn: async (userId) => (await api.post(`/sessions/challenge-now/${userId}`)).data,
+    onSuccess: () => { toast.success("Selfie challenge sent"); qc.invalidateQueries({ queryKey: ["live"] }); },
+    onError: (e) => toast.error(toApiError(e)),
+  });
+
+  const forceExpire = useMutation({
+    mutationFn: async (userId) => (await api.post(`/sessions/force-expire/${userId}`)).data,
+    onSuccess: () => { toast.success("Session ended"); qc.invalidateQueries({ queryKey: ["live"] }); },
+    onError: (e) => toast.error(toApiError(e)),
   });
 
   const { data: summary = {} } = useQuery({
@@ -154,6 +168,31 @@ export default function AdminDashboard() {
                 {s.flagged && (
                   <div className="mt-2 text-[10px] mono uppercase tracking-widest text-red-400 border border-red-500/30 bg-red-500/10 inline-block px-2 py-0.5">FLAGGED</div>
                 )}
+                {s.stale && (
+                  <div className="mt-2 text-[10px] mono uppercase tracking-widest text-amber-400 border border-amber-500/30 bg-amber-500/10 inline-block px-2 py-0.5 ml-1" data-testid={`live-stale-${s.id}`}>STALE · NO PINGS</div>
+                )}
+                {s.active_challenge && (
+                  <div className="mt-2 text-[10px] mono uppercase tracking-widest text-blue-400 border border-blue-500/30 bg-blue-500/10 inline-block px-2 py-0.5" data-testid={`live-pending-challenge-${s.id}`}>PENDING SELFIE</div>
+                )}
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button
+                    onClick={() => challengeNow.mutate(s.user_id)}
+                    disabled={challengeNow.isPending || !!s.active_challenge}
+                    data-testid={`send-selfie-${s.id}`}
+                    className="border border-blue-500/30 hover:bg-blue-500/10 text-blue-400 px-2.5 py-1 text-xs transition-colors inline-flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
+                    title={s.active_challenge ? "There's already a pending selfie challenge for this employee" : "Send a selfie challenge now"}
+                  >
+                    <Camera size={12} /> Send selfie now
+                  </button>
+                  <button
+                    onClick={() => { if (confirm(`End ${s.employee_name}'s session?`)) forceExpire.mutate(s.user_id); }}
+                    data-testid={`force-expire-${s.id}`}
+                    className="border border-red-500/30 hover:bg-red-500/10 text-red-400 px-2.5 py-1 text-xs transition-colors inline-flex items-center gap-1"
+                    title="Force-end this session"
+                  >
+                    <X size={12} /> End session
+                  </button>
+                </div>
                 <div className="mt-2 text-[10px] text-gray-600 mono">started {fmtDateTime(s.start_time)}</div>
               </div>
             ))}

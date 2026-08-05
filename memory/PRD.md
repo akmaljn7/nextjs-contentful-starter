@@ -22,17 +22,24 @@ Multi-tenant enterprise geofenced attendance platform. Organizations sign up, ad
 - Dark ops-console theme (Inter + IBM Plex Mono)
 - PWA installable
 
-## Implemented (2026-02)
+## Implemented (2026-02 → 2026-08)
 ### Backend
 - FastAPI with `/api` prefix, MongoDB (Motor), 2dsphere geo index, TTL index on pings
 - Auth: register-org, login, refresh (rotating), logout, me, forgot-password, reset-password (Resend email via Emergent proxy)
+  - **[5 Aug 2026]** `/logout` now ends any active session for the user (outcome=`logout`) so admins no longer see ghost active sessions after log-out
 - Offices CRUD + `admin_audit_log`
 - Employees CRUD + reassign flow
-- Sessions: `/start`, `/ping`, `/reset`, `/me`, `/live`, `/force-expire/{user_id}` — server-authoritative state machine (active → paused → active → completed / expired)
+  - **[5 Aug 2026]** create-employee returns **HTTP 409** with a specific reason (same-org duplicate / soft-deleted / other-org duplicate / role clash); structured logging on every attempt (`employee_create_attempt|conflict|invalid_office|ok|error`)
+- Sessions: `/start`, `/ping`, `/reset`, `/me`, `/live`, `/force-expire/{user_id}`, `/auto-start`, `/challenge/{id}/respond`
+  - **[5 Aug 2026]** `/me` and `/live` now tick challenge lifecycle so `planned→pending` promotion happens even without pings (fixes: selfie challenges never delivered when GPS/pings stall)
+  - **[5 Aug 2026]** Stale-session detection on every `/me` / `/live` call: active + no ping for 3 min → paused; paused past `resume_window_hours` → auto-expired + attendance record written (fixes: ghost active sessions when employee closes tab)
+  - **[5 Aug 2026]** New admin endpoint `POST /api/sessions/challenge-now/{user_id}` — on-demand selfie challenge, refuses if one is already pending, audit-logged
+- Settings: on selfie_* changes, remaining `planned` challenges in every active session are re-planned so newly configured fixed times take effect immediately
 - Attendance: `/records`, `/export.csv`, `/export.pdf` (reportlab), `/summary`
 - Audit log + security events (admin views)
-- Org settings (session duration, resume window, accuracy tolerance, max speed, spoof sensitivity, notifications)
+- Org settings (session duration, resume window, accuracy tolerance, max speed, spoof sensitivity, notifications, selfie config)
 - Anti-spoof engine: accuracy > tolerance rejects/flags, impossible-speed flags + optional owner email alert
+- Server-side face recognition (dlib + face_recognition) with 128-D embedding matcher, baseline enrollment endpoint
 - Immutable hash-chained attendance records
 - Rate-limit-style login attempt tracking with 15-min lockout
 - Startup seed: `akmaljn7@gmail.com` owner + demo office + sample employee
@@ -40,19 +47,21 @@ Multi-tenant enterprise geofenced attendance platform. Organizations sign up, ad
 ### Frontend
 - React 19 + CRA, Tailwind, Shadcn UI, React Query, sonner toasts
 - react-leaflet with Esri World Imagery satellite tiles
-- Pages: Login, Register Org, Forgot/Reset Password, Admin Dashboard (live map + stats grid + live sessions), Offices Manage, Employees Manage, Employee Console (map + countdown + telemetry + event log), Attendance History (filters + CSV/PDF), Reports (daily + top-employee), Audit Log, Security Events, Org Settings, Employee Profile
+- Pages: Login, Register Org, Forgot/Reset Password, Admin Dashboard, Offices Manage, Employees Manage, Employee Console, Attendance History, Reports, Audit Log, Security Events, Org Settings, Employee Profile, Time Off
 - Auth via httpOnly cookies + auto-refresh interceptor
 - Live pins with CSS-only pulsing animation, status semantics (green/amber/blue/red)
 - PWA manifest + service worker + install-ready icons
+- **[5 Aug 2026]** Admin dashboard live rows now expose **Send selfie now** + **End session** buttons and a **STALE · NO PINGS** badge
+- **[5 Aug 2026]** Employees form shows an inline red banner (in addition to toast) when create fails, so the reason cannot be missed
 
 ## Deferred / Backlog (P0/P1/P2)
 - **P0** — Bulk CSV employee import
-- **P0** — Real WebSocket channel (currently 3s polling for live pins)
+- **P1** — APScheduler background jobs (90-day GPS TTL cleanup, refresh-token cleanup, session expiry sweeps as a defence-in-depth backup to inline ticks)
 - **P1** — Email invite for new employees with set-password link
 - **P1** — Device fingerprint + IP-geo cross-check anti-spoof
 - **P1** — SSO (Google/Microsoft) via Emergent Google Auth
 - **P2** — GDPR data-export + hard-delete endpoints (right-to-be-forgotten)
-- **P2** — APScheduler jobs for session expiry sweeps + refresh-token cleanup
+- **P2** — Wire Resend triggers for face_mismatch / spoof_flag / selfie_missed security events
 - **P2** — Stripe billing per org
 - **P2** — i18n
 - **P2** — Landing / marketing page

@@ -211,6 +211,16 @@ async def logout(request: Request, response: Response, user: dict = Depends(get_
             )
         except Exception:
             pass
+    # End any active session for this user — logging out is a strong signal
+    # that they've left the office; otherwise admins would see them "active"
+    # forever until the resume window expires.
+    active = await db.active_sessions.find_one({"user_id": user["id"], "org_id": user["org_id"]})
+    if active:
+        from routes.sessions import _write_attendance_record, _broadcast_session
+        now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+        await _write_attendance_record(db, active, "logout", now_ms)
+        await db.active_sessions.delete_one({"_id": active["_id"]})
+        await _broadcast_session(db, active, ended=True, outcome="logout")
     response.delete_cookie("access_token", path="/")
     response.delete_cookie("refresh_token", path="/")
     return {"ok": True}

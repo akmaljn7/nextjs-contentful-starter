@@ -24,6 +24,7 @@ function EmployeeForm({ initial, offices, onCancel, onSaved }) {
     onSuccess: () => { toast.success(initial ? "Employee updated" : "Employee created"); onSaved(); },
     onError: (e) => toast.error(toApiError(e)),
   });
+  const errorDetail = save.isError ? toApiError(save.error) : null;
 
   return (
     <div className="surface p-5" data-testid="employee-form">
@@ -61,6 +62,18 @@ function EmployeeForm({ initial, offices, onCancel, onSaved }) {
 
         <ScheduleEditor value={form.schedule} onChange={(s) => setForm({ ...form, schedule: s })} />
       </div>
+
+      {errorDetail && (
+        <div
+          className="mt-4 border border-red-500/40 bg-red-500/10 text-red-300 px-3 py-2 text-sm"
+          data-testid="emp-form-error"
+        >
+          <div className="mono text-[10px] uppercase tracking-widest text-red-400 mb-1">
+            COULD NOT SAVE EMPLOYEE
+          </div>
+          <div>{errorDetail}</div>
+        </div>
+      )}
 
       <div className="flex gap-2 mt-5">
         <button onClick={() => save.mutate()} disabled={save.isPending || !form.name || !form.office_id || (!initial && (!form.email || !form.password))} data-testid="emp-save" className="bg-white text-black hover:bg-gray-200 disabled:opacity-50 font-medium px-4 py-2 text-sm transition-colors">{save.isPending ? "Saving…" : (initial ? "Save changes" : "Create employee")}</button>

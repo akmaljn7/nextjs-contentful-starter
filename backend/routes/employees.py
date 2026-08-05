@@ -1,4 +1,6 @@
 """Employees CRUD (users with role=employee)."""
+import logging
+import traceback
 from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Depends, Request
 from bson import ObjectId
@@ -8,6 +10,8 @@ from models import EmployeeCreate, EmployeeUpdate
 from security import hash_password
 from deps import require_admin, client_ip
 from services.audit import log_admin_action
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/employees", tags=["employees"])
 
@@ -37,37 +41,68 @@ async def list_employees(user: dict = Depends(require_admin)):
 async def create_employee(payload: EmployeeCreate, request: Request, user: dict = Depends(require_admin)):
     db = get_db()
     email = payload.email.lower().strip()
-    if await db.users.find_one({"email": email}):
-        raise HTTPException(status_code=400, detail="Email already registered")
-    # Verify office belongs to org
+    ip = client_ip(request)
+    logger.info("employee_create_attempt admin=%s email=%s office_id=%s ip=%s",
+                user.get("email"), email, payload.office_id, ip)
     try:
-        office = await db.offices.find_one({"_id": ObjectId(payload.office_id), "org_id": user["org_id"]})
-    except Exception:
-        office = None
-    if not office:
-        raise HTTPException(status_code=400, detail="Invalid office")
-    doc = {
-        "org_id": user["org_id"],
-        "email": email,
-        "password_hash": hash_password(payload.password),
-        "name": payload.name,
-        "role": "employee",
-        "office_id": payload.office_id,
-        "schedule": payload.schedule.model_dump(exclude_none=True) if payload.schedule else {"mode": "any"},
-        "failed_login_count": 0,
-        "locked_until": None,
-        "last_login_at": None,
-        "created_at": datetime.now(timezone.utc).isoformat(),
-        "deleted_at": None,
-    }
-    res = await db.users.insert_one(doc)
-    doc["_id"] = res.inserted_id
-    await log_admin_action(
-        user["org_id"], user["id"], "employee.create", "employee", str(res.inserted_id),
-        after={"name": doc["name"], "email": doc["email"], "office_id": doc["office_id"]},
-        ip=client_ip(request), user_agent=request.headers.get("user-agent", ""),
-    )
-    return _shape(doc)
+        # Duplicate check — give admin a specific reason
+        existing = await db.users.find_one({"email": email})
+        if existing:
+            same_org = existing.get("org_id") == user["org_id"]
+            role = existing.get("role", "user")
+            soft_deleted = bool(existing.get("deleted_at"))
+            if same_org and role == "employee" and soft_deleted:
+                detail = "An employee with this email was removed. Restore them or use a different email."
+            elif same_org and role == "employee":
+                detail = "An employee with this email already exists in your organization."
+            elif same_org:
+                detail = f"This email is already used by a {role} in your organization."
+            else:
+                detail = "This email is already registered on another organization."
+            logger.warning("employee_create_conflict admin=%s email=%s reason=%s",
+                           user.get("email"), email, detail)
+            raise HTTPException(status_code=409, detail=detail)
+
+        # Verify office belongs to org
+        try:
+            office = await db.offices.find_one({"_id": ObjectId(payload.office_id), "org_id": user["org_id"]})
+        except Exception:
+            office = None
+        if not office:
+            logger.warning("employee_create_invalid_office admin=%s office_id=%s",
+                           user.get("email"), payload.office_id)
+            raise HTTPException(status_code=400, detail="Selected office is invalid or does not belong to your organization.")
+
+        doc = {
+            "org_id": user["org_id"],
+            "email": email,
+            "password_hash": hash_password(payload.password),
+            "name": payload.name,
+            "role": "employee",
+            "office_id": payload.office_id,
+            "schedule": payload.schedule.model_dump(exclude_none=True) if payload.schedule else {"mode": "any"},
+            "failed_login_count": 0,
+            "locked_until": None,
+            "last_login_at": None,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "deleted_at": None,
+        }
+        res = await db.users.insert_one(doc)
+        doc["_id"] = res.inserted_id
+        await log_admin_action(
+            user["org_id"], user["id"], "employee.create", "employee", str(res.inserted_id),
+            after={"name": doc["name"], "email": doc["email"], "office_id": doc["office_id"]},
+            ip=ip, user_agent=request.headers.get("user-agent", ""),
+        )
+        logger.info("employee_create_ok admin=%s email=%s new_id=%s",
+                    user.get("email"), email, res.inserted_id)
+        return _shape(doc)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("employee_create_error admin=%s email=%s err=%s\n%s",
+                     user.get("email"), email, e, traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Could not create employee: {e}")
 
 
 @router.patch("/{employee_id}")
@@ -104,6 +139,8 @@ async def update_employee(employee_id: str, payload: EmployeeUpdate, request: Re
         after={"name": new_doc["name"], "office_id": new_doc.get("office_id")},
         ip=client_ip(request), user_agent=request.headers.get("user-agent", ""),
     )
+    logger.info("employee_update_ok admin=%s target=%s updated_keys=%s",
+                user.get("email"), employee_id, list(update.keys()))
     return _shape(new_doc)
 
 
@@ -128,4 +165,6 @@ async def delete_employee(employee_id: str, request: Request, user: dict = Depen
         before={"name": existing["name"], "email": existing["email"]},
         ip=client_ip(request), user_agent=request.headers.get("user-agent", ""),
     )
+    logger.info("employee_delete_ok admin=%s target=%s email=%s",
+                user.get("email"), employee_id, existing.get("email"))
     return {"ok": True}

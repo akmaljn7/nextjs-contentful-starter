@@ -4,6 +4,7 @@ Server-authoritative — all state transitions decided here from GPS pings.
 """
 import hashlib
 import json
+import logging
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from fastapi import APIRouter, HTTPException, Depends, Request
@@ -20,6 +21,9 @@ from services.photos import save_session_photo, has_photo
 import os
 import random
 import uuid
+
+logger = logging.getLogger(__name__)
+STALE_PING_MS = 3 * 60 * 1000  # if no ping for 3 min, session is considered stale
 
 router = APIRouter(prefix="/api/sessions", tags=["sessions"])
 
@@ -170,6 +174,93 @@ def _plan_challenges(settings: dict, start_ms: int, duration_ms: int) -> list[di
          "photo_saved": False}
         for t in sorted(triggers)
     ]
+
+
+async def _tick_challenge_lifecycle(db, session: dict, settings: dict, now_ms: int) -> bool:
+    """Promote planned→pending and expire overdue challenges independent of pings.
+
+    Called from /me (employee poll) and /live (admin poll) so a challenge can
+    fire even when the client isn't sending pings (bad GPS, background tab, etc.).
+
+    Mutates `session` in place and persists the change. Returns True if changed.
+    """
+    challenges = list(session.get("challenges") or [])
+    if not challenges:
+        return False
+    resp_window_min = int(settings.get("selfie_response_window_minutes", 5))
+    log_entries = list(session.get("log", []))
+    flagged = session.get("flagged", False)
+    changed = False
+    for ch in challenges:
+        st = ch.get("status")
+        if st == "planned" and ch.get("trigger_ms", 0) <= now_ms:
+            ch["status"] = "pending"
+            ch["prompted_at_ms"] = now_ms
+            ch["respond_by_ms"] = now_ms + resp_window_min * 60 * 1000
+            log_entries.append({"event": "selfie_prompted", "ts_ms": now_ms, "challenge_id": ch["id"]})
+            logger.info("selfie_prompted session=%s challenge=%s trigger_ms=%s",
+                        session.get("_id"), ch["id"], ch.get("trigger_ms"))
+            changed = True
+        elif st == "pending" and ch.get("respond_by_ms", 0) < now_ms:
+            ch["status"] = "expired"
+            log_entries.append({"event": "selfie_expired", "ts_ms": now_ms, "challenge_id": ch["id"]})
+            logger.warning("selfie_expired session=%s challenge=%s", session.get("_id"), ch["id"])
+            flagged = True
+            changed = True
+    if changed:
+        await db.active_sessions.update_one(
+            {"_id": session["_id"]},
+            {"$set": {"challenges": challenges, "log": log_entries[-500:], "flagged": flagged}},
+        )
+        session["challenges"] = challenges
+        session["log"] = log_entries[-500:]
+        session["flagged"] = flagged
+    return changed
+
+
+async def _tick_stale_session(db, session: dict, settings: dict, now_ms: int):
+    """Detect ghost sessions where the client stopped pinging.
+
+    - active + no ping for STALE_PING_MS ⇒ mark paused
+    - paused for > resume_window_hours ⇒ expire and write attendance
+
+    Returns (still_alive, session, outcome_or_None).
+    """
+    last_fix = session.get("last_fix") or {}
+    last_ts = last_fix.get("ts_ms") or session.get("start_time_ms") or now_ms
+    idle_ms = now_ms - last_ts
+    status = session.get("status")
+    resume_window_h = int(settings.get("resume_window_hours", 10))
+    resume_ms = resume_window_h * 3600 * 1000
+
+    if status == "active" and idle_ms > STALE_PING_MS:
+        paused_at = last_ts  # went stale at the last ping time
+        log_entries = list(session.get("log", []))
+        log_entries.append({"event": "stale_paused", "ts_ms": now_ms, "idle_ms": idle_ms})
+        await db.active_sessions.update_one(
+            {"_id": session["_id"]},
+            {"$set": {"status": "paused", "paused_at": paused_at, "log": log_entries[-500:]}},
+        )
+        session["status"] = "paused"
+        session["paused_at"] = paused_at
+        session["log"] = log_entries[-500:]
+        status = "paused"
+        logger.info("session_stale_paused session=%s user=%s idle_s=%s",
+                    session.get("_id"), session.get("user_id"), int(idle_ms / 1000))
+
+    if status == "paused":
+        paused_at = session.get("paused_at") or last_ts
+        if now_ms - paused_at > resume_ms:
+            log_entries = list(session.get("log", []))
+            log_entries.append({"event": "expired_stale", "ts_ms": now_ms})
+            session["log"] = log_entries[-500:]
+            await _write_attendance_record(db, session, "expired", now_ms)
+            await db.active_sessions.delete_one({"_id": session["_id"]})
+            logger.warning("session_expired_stale session=%s user=%s",
+                           session.get("_id"), session.get("user_id"))
+            return False, session, "expired"
+
+    return True, session, None
 
 
 async def _broadcast_session(db, session: dict, ended: bool = False, outcome: str | None = None):
@@ -638,23 +729,92 @@ async def my_session(user: dict = Depends(get_current_user)):
     s = await db.active_sessions.find_one({"user_id": user["id"], "org_id": user["org_id"]})
     if not s:
         return None
+    settings = await _get_org_settings(db, user["org_id"])
+    now_ms = _now_ms()
+    # Fire due challenges even if no ping has arrived yet
+    await _tick_challenge_lifecycle(db, s, settings, now_ms)
+    # Stale/ghost session detection
+    alive, s, outcome = await _tick_stale_session(db, s, settings, now_ms)
+    if not alive:
+        await _broadcast_session(db, s, ended=True, outcome=outcome)
+        return None
     return _sanitize_session(s)
 
 
 @router.get("/live")
 async def live_sessions(user: dict = Depends(require_admin)):
-    """All active sessions in the org (for admin dashboard)."""
+    """All active sessions in the org (for admin dashboard).
+
+    Also runs stale-detection and challenge-lifecycle ticks so that ghost
+    sessions (client stopped pinging) don't linger and pending selfie
+    challenges surface even when the employee tab is idle.
+    """
     db = get_db()
+    settings = await _get_org_settings(db, user["org_id"])
+    now_ms = _now_ms()
     cur = db.active_sessions.find({"org_id": user["org_id"]})
+    sessions = [s async for s in cur]
     result = []
-    async for s in cur:
+    for s in sessions:
+        await _tick_challenge_lifecycle(db, s, settings, now_ms)
+        alive, s, outcome = await _tick_stale_session(db, s, settings, now_ms)
+        if not alive:
+            await _broadcast_session(db, s, ended=True, outcome=outcome)
+            continue
         emp = await db.users.find_one({"_id": ObjectId(s["user_id"])})
         result.append({
             **_sanitize_session(s),
             "employee_name": (emp or {}).get("name", "Unknown"),
             "employee_email": (emp or {}).get("email", ""),
+            "stale": (now_ms - (s.get("last_fix") or {}).get("ts_ms", now_ms)) > STALE_PING_MS,
         })
     return result
+
+
+@router.post("/challenge-now/{user_id}")
+async def trigger_challenge_now(user_id: str, request: Request, user: dict = Depends(require_admin)):
+    """Admin-triggered on-demand selfie challenge for an active employee session."""
+    db = get_db()
+    s = await db.active_sessions.find_one({"user_id": user_id, "org_id": user["org_id"]})
+    if not s:
+        raise HTTPException(status_code=404, detail="No active session for this employee")
+    settings = await _get_org_settings(db, user["org_id"])
+    resp_window_min = int(settings.get("selfie_response_window_minutes", 5))
+    now_ms = _now_ms()
+    challenges = list(s.get("challenges") or [])
+    # Refuse if there is already an unresponded pending challenge — avoid stacking
+    open_ch = next((c for c in challenges
+                    if c.get("status") == "pending" and c.get("respond_by_ms", 0) > now_ms), None)
+    if open_ch:
+        raise HTTPException(status_code=400, detail="Employee already has an open selfie challenge.")
+    new_challenge = {
+        "id": uuid.uuid4().hex[:12],
+        "trigger_ms": now_ms,
+        "status": "pending",
+        "prompted_at_ms": now_ms,
+        "respond_by_ms": now_ms + resp_window_min * 60 * 1000,
+        "responded_at_ms": None,
+        "photo_saved": False,
+        "manual": True,
+    }
+    challenges.append(new_challenge)
+    log_entries = list(s.get("log", []))
+    log_entries.append({"event": "selfie_prompted_manual", "ts_ms": now_ms, "challenge_id": new_challenge["id"]})
+    await db.active_sessions.update_one(
+        {"_id": s["_id"]},
+        {"$set": {"challenges": challenges, "log": log_entries[-500:]}},
+    )
+    new_s = await db.active_sessions.find_one({"_id": s["_id"]})
+    await _broadcast_session(db, new_s)
+    logger.info("manual_selfie_challenge admin=%s target_user=%s challenge=%s",
+                user.get("email"), user_id, new_challenge["id"])
+    from services.audit import log_admin_action
+    await log_admin_action(
+        user["org_id"], user["id"], "session.manual_challenge", "session", str(s["_id"]),
+        after={"user_id": user_id, "challenge_id": new_challenge["id"]},
+        ip=client_ip(request), user_agent=request.headers.get("user-agent", ""),
+    )
+    return _sanitize_session(new_s)
 
 
 @router.post("/force-expire/{user_id}")
