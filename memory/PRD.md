@@ -24,6 +24,7 @@ Multi-tenant enterprise geofenced attendance platform. Organizations sign up, ad
 
 ## Implemented (2026-02 → 2026-08)
 ### Backend
+- **[5 Aug 2026 · bugfix]** Low-accuracy pings that are unambiguously outside the geofence (distance > radius + accuracy) now pause the session. Previously any ping with `accuracy > tolerance` skipped the spatial check entirely — allowing a laptop with fuzzy WiFi geoloc to stay "at office" from anywhere in the city. Regression test in `test_bugfixes_5aug.py::test_low_accuracy_ping_far_outside_still_pauses`.
 - **[5 Aug 2026 · bugfix]** Session `center` is now always the **admin office coordinates** (was: the employee's GPS at check-in). This means:
   1. The "inside geofence" check on `/ping` uses the true office boundary, so an employee can no longer drift the boundary by starting near an edge.
   2. The frontend no longer draws a phantom offset circle around the employee's start position.

@@ -43,7 +43,35 @@ async def test_duplicate_employee_returns_specific_409():
 
 
 @pytest.mark.asyncio
-async def test_manual_challenge_and_stale_tick():
+async def test_low_accuracy_ping_far_outside_still_pauses():
+    """A ping that is unambiguously outside the geofence must pause the
+    session even when GPS accuracy is worse than the org tolerance.
+    Otherwise a laptop with fuzzy WiFi-geoloc could hide anywhere."""
+    async with httpx.AsyncClient(base_url=API, follow_redirects=True) as admin, \
+               httpx.AsyncClient(base_url=API, follow_redirects=True) as emp:
+        (await admin.post("/api/auth/login", json={"email": ADMIN_EMAIL, "password": ADMIN_PWD})).raise_for_status()
+        (await emp.post("/api/auth/login", json={"email": EMP_EMAIL, "password": EMP_PWD})).raise_for_status()
+
+        offices = (await admin.get("/api/offices")).json()
+        lagos = next(o for o in offices if o["name"] == "UI Test Lagos")
+        emps = (await admin.get("/api/employees")).json()
+        emp_row = next(e for e in emps if e["email"] == EMP_EMAIL)
+        await admin.patch(f"/api/employees/{emp_row['id']}", json={"office_id": lagos["id"]})
+
+        await admin.post(f"/api/sessions/force-expire/{emp_row['id']}")
+        r = await emp.post("/api/sessions/auto-start",
+                           json={"lat": OFFICE_LAT, "lng": OFFICE_LNG, "accuracy": 10})
+        assert r.status_code == 200 and r.json()["status"] == "active"
+
+        # 5.5km north with 120m accuracy — clearly beyond radius+accuracy → PAUSE.
+        r = await emp.post("/api/sessions/ping",
+                           json={"lat": OFFICE_LAT + 0.05, "lng": OFFICE_LNG, "accuracy": 120})
+        assert r.status_code == 200
+        assert r.json()["status"] == "paused", f"expected paused, got {r.json()['status']}"
+
+        # Cleanup
+        await admin.post(f"/api/sessions/force-expire/{emp_row['id']}")
+
     async with httpx.AsyncClient(base_url=API, follow_redirects=True) as admin, \
                httpx.AsyncClient(base_url=API, follow_redirects=True) as emp:
         (await admin.post("/api/auth/login", json={"email": ADMIN_EMAIL, "password": ADMIN_PWD})).raise_for_status()

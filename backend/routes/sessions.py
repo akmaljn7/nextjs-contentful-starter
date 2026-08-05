@@ -574,7 +574,15 @@ async def ping_session(payload: SessionPing, request: Request, user: dict = Depe
 
     # Compute new state
     dist_from_center = haversine_meters(payload.lat, payload.lng, s["center"]["lat"], s["center"]["lng"])
-    inside = dist_from_center <= s["center"]["radius_m"]
+    radius_m = s["center"]["radius_m"]
+    inside = dist_from_center <= radius_m
+    # "Definitely outside" = even accounting for the GPS accuracy circle, the
+    # employee's true position cannot be inside the geofence.  A low-accuracy
+    # ping normally gets a benefit-of-doubt pass on the spatial check, but
+    # that pass MUST NOT keep them "active" when they are unambiguously far
+    # from the office — otherwise a laptop with fuzzy WiFi-based location
+    # could sit anywhere in the city and still be counted as at-office.
+    definitely_outside = dist_from_center > (radius_m + max(payload.accuracy or 0.0, 0.0))
     status = s["status"]
     remaining = s["remaining_ms"]
     bout_start = s.get("current_bout_start_ms", now_ms)
@@ -584,8 +592,9 @@ async def ping_session(payload: SessionPing, request: Request, user: dict = Depe
     paused_at = s.get("paused_at")
     flagged = s.get("flagged", False)
 
-    # If low_accuracy → ignore this ping's spatial data but count time
-    ignore_spatial = "low_accuracy" in analysis["flags"]
+    # If low_accuracy → ignore this ping's spatial data but count time,
+    # UNLESS the ping is definitely-outside (see above).
+    ignore_spatial = ("low_accuracy" in analysis["flags"]) and not definitely_outside
     if analysis["flags"]:
         flagged = True
 
