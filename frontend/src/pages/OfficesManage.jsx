@@ -10,15 +10,39 @@ import { Plus, Trash2, MapPin, Edit3, X, Crosshair } from "lucide-react";
 function OfficeForm({ initial, onCancel, onSaved }) {
   const [form, setForm] = useState(initial || { name: "", lat: "", lng: "", radius_meters: 150 });
   const [locating, setLocating] = useState(false);
+  // Fallback center when neither the browser nor the admin has picked a spot.
+  // Using a neutral world center so the map isn't stuck on New York or empty.
+  const FALLBACK = { lat: 9.0820, lng: 8.6753 };
 
-  // Auto-fill new-office form with the browser's current location once (no NYC default).
+  // Auto-fill new-office form with the browser's current location once. If
+  // geolocation is denied or times out, drop a draggable pin at the fallback
+  // center so the admin can always start dragging without needing to click
+  // the map first.
   useEffect(() => {
-    if (initial || form.lat !== "" || !("geolocation" in navigator)) return;
-    navigator.geolocation.getCurrentPosition(
-      (p) => setForm((f) => (f.lat === "" ? { ...f, lat: p.coords.latitude, lng: p.coords.longitude } : f)),
-      () => { /* silently ignore — admin can tap map or click the button */ },
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 },
-    );
+    if (initial || form.lat !== "") return;
+    let settled = false;
+    const drop = () => {
+      if (!settled) {
+        settled = true;
+        setForm((f) => (f.lat === "" ? { ...f, lat: FALLBACK.lat, lng: FALLBACK.lng } : f));
+      }
+    };
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (p) => {
+          if (!settled) {
+            settled = true;
+            setForm((f) => (f.lat === "" ? { ...f, lat: p.coords.latitude, lng: p.coords.longitude } : f));
+          }
+        },
+        drop,
+        { enableHighAccuracy: true, timeout: 6000, maximumAge: 60000 },
+      );
+      // Safety fallback if the callback never fires
+      const t = setTimeout(drop, 6500);
+      return () => clearTimeout(t);
+    }
+    drop();
   }, [initial, form.lat]);
 
   const useMyLocation = () => {
@@ -131,7 +155,7 @@ function OfficeForm({ initial, onCancel, onSaved }) {
           />
           <div className="mt-2 flex items-center justify-between gap-2">
             <div className="text-[10px] mono uppercase tracking-widest text-gray-500" data-testid="pin-hint">
-              {centerObj ? "DRAG THE PIN · OR CLICK THE MAP" : "TAP \"USE MY CURRENT LOCATION\" OR CLICK THE MAP"}
+              {centerObj ? "DRAG THE GREEN PIN TO REPOSITION · CLICK MAP TO JUMP" : "TAP \"USE MY CURRENT LOCATION\" OR CLICK THE MAP"}
             </div>
             {centerObj && (
               <div className="text-[10px] mono text-green-400 tabular-nums" data-testid="pin-coords">

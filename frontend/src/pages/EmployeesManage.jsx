@@ -5,7 +5,7 @@ import { AppShell } from "@/components/AppShell";
 import { ScheduleEditor, scheduleSummary } from "@/components/ScheduleEditor";
 import { fmtDateTime } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, Trash2, Edit3, X, User } from "lucide-react";
+import { Plus, Trash2, Edit3, X, User, Camera, Bell } from "lucide-react";
 
 function EmployeeForm({ initial, offices, onCancel, onSaved }) {
   const [form, setForm] = useState(
@@ -101,6 +101,27 @@ export default function EmployeesManage() {
     onError: (e) => toast.error(toApiError(e)),
   });
 
+  const challengeNow = useMutation({
+    mutationFn: async (userId) => (await api.post(`/sessions/challenge-now/${userId}`)).data,
+    onSuccess: () => toast.success("Selfie challenge sent"),
+    onError: (e) => {
+      const msg = toApiError(e);
+      // Fall back to plain nudge when there's no active session yet
+      if (/no active session/i.test(msg)) {
+        toast.info("No active session — sending a check-in reminder instead");
+      } else {
+        toast.error(msg);
+      }
+    },
+  });
+
+  const nudge = useMutation({
+    mutationFn: async ({ userId, title, body }) =>
+      (await api.post(`/sessions/nudge/${userId}`, { title, body })).data,
+    onSuccess: (data) => toast.success(`Reminder sent to ${data.sent_to || "employee"}`),
+    onError: (e) => toast.error(toApiError(e)),
+  });
+
   const officeName = (id) => offices.find((o) => o.id === id)?.name || "—";
 
   return (
@@ -152,7 +173,25 @@ export default function EmployeesManage() {
                   <td className="mono text-xs text-gray-300" data-testid={`emp-sched-${e.id}`}>{scheduleSummary(e.schedule)}</td>
                   <td className="mono text-gray-500 text-xs">{fmtDateTime(e.created_at)}</td>
                   <td className="text-right">
-                    <div className="inline-flex gap-2">
+                    <div className="inline-flex gap-2 flex-wrap justify-end">
+                      <button
+                        onClick={() => challengeNow.mutate(e.id)}
+                        disabled={challengeNow.isPending}
+                        data-testid={`emp-selfie-${e.id}`}
+                        title="Send an on-demand selfie challenge (requires the employee to be in an active session)"
+                        className="border border-blue-500/30 hover:bg-blue-500/10 text-blue-400 px-2.5 py-1 text-xs transition-colors inline-flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        <Camera size={12} /> Send selfie
+                      </button>
+                      <button
+                        onClick={() => nudge.mutate({ userId: e.id, title: "Check-in reminder", body: `Please open Attendance Console and start your shift.` })}
+                        disabled={nudge.isPending}
+                        data-testid={`emp-nudge-${e.id}`}
+                        title="Send a push notification to remind this employee to open the app"
+                        className="border border-amber-500/30 hover:bg-amber-500/10 text-amber-400 px-2.5 py-1 text-xs transition-colors inline-flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        <Bell size={12} /> Notify
+                      </button>
                       <button onClick={() => setEditing(e)} className="border border-white/10 hover:border-white/30 px-2.5 py-1 text-xs transition-colors inline-flex items-center gap-1" data-testid={`edit-emp-${e.id}`}>
                         <Edit3 size={12} /> Edit
                       </button>

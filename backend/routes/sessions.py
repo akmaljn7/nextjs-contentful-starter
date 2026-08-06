@@ -861,6 +861,40 @@ async def live_sessions(user: dict = Depends(require_admin)):
     return result
 
 
+@router.post("/nudge/{user_id}")
+async def nudge_employee(
+    user_id: str,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    user: dict = Depends(require_admin),
+):
+    """Send an arbitrary FCM push to an employee, independent of session state.
+
+    Use this when the admin wants to prompt an employee who isn't currently
+    active (e.g. reminder to open the app + clock in). Unlike /challenge-now/
+    this does NOT create a selfie challenge and works even if the employee
+    has no active_sessions row.
+    """
+    db = get_db()
+    body = {}
+    try:
+        body = await request.json() or {}
+    except Exception:
+        pass
+    title = str(body.get("title") or "Attendance reminder")[:120]
+    message = str(body.get("body") or "Your admin has sent you a reminder. Please open the app.")[:280]
+    target = await db.users.find_one({"_id": ObjectId(user_id), "org_id": user["org_id"]})
+    if not target:
+        raise HTTPException(status_code=404, detail="Employee not found in your org")
+    from services.push import send_push_to_user
+    background_tasks.add_task(
+        send_push_to_user, db, user_id, title, message,
+        {"kind": "admin_nudge", "from_admin": user.get("email", "admin")},
+    )
+    logger.info("admin_nudge admin=%s target=%s", user.get("email"), target.get("email"))
+    return {"ok": True, "sent_to": target.get("email")}
+
+
 @router.post("/challenge-now/{user_id}")
 async def trigger_challenge_now(
     user_id: str,
