@@ -87,13 +87,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => { bootstrap(); }, [bootstrap]);
 
-  // On app foreground: drain pending events + reconcile geofence
+  // On app foreground: drain pending events, reconcile geofence, restart fg watcher
   useEffect(() => {
     if (!user || user.role !== "employee") return;
     const sub = AppState.addEventListener("change", (state) => {
       if (state === "active") {
         drainQueue().catch(() => undefined);
         syncOfficeGeofence().catch(() => undefined);
+        startForegroundWatcher().catch(() => undefined);
       }
     });
     return () => sub.remove();
