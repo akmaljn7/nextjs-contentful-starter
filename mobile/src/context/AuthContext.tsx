@@ -1,12 +1,17 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import * as Application from "expo-application";
 import * as Localization from "expo-localization";
-import { Platform } from "react-native";
+import { Platform, AppState } from "react-native";
 
 import * as authApi from "@/api/auth";
 import { mobile } from "@/api/mobile";
 import { getAccessToken, clearTokens } from "@/api/client";
 import { getDeviceId } from "@/lib/storage";
+import { syncOfficeGeofence, stopGeofencing } from "@/services/geofence";
+import { coldStartReconcile } from "@/services/reconcile";
+import { drainQueue } from "@/services/syncWorker";
+import { startHealthLoop, stopHealthLoop } from "@/services/health";
+import { purgeOldSynced } from "@/services/offlineQueue";
 
 interface AuthState {
   user: authApi.AuthUser | null;
@@ -15,6 +20,7 @@ interface AuthState {
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   refresh: () => Promise<void>;
+  isEmployee: boolean;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -57,6 +63,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const me = await authApi.fetchMe();
       setUser(me);
       await registerDeviceQuiet();
+      // Kick off employee-only side-effects: geofencing, reconciliation, health loop
+      if (me.role === "employee") {
+        // Fire and forget — these should never block UI hydration
+        coldStartReconcile().catch(() => undefined);
+        startHealthLoop();
+        purgeOldSynced().catch(() => undefined);
+      }
     } catch {
       // Auth interceptor already wiped tokens on 401 — surface gracefully
       await clearTokens();
@@ -68,12 +81,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => { bootstrap(); }, [bootstrap]);
 
+  // On app foreground: drain pending events + reconcile geofence
+  useEffect(() => {
+    if (!user || user.role !== "employee") return;
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        drainQueue().catch(() => undefined);
+        syncOfficeGeofence().catch(() => undefined);
+      }
+    });
+    return () => sub.remove();
+  }, [user]);
+
   const signIn = useCallback(async (email: string, password: string) => {
     setLoginError(null);
     try {
       const me = await authApi.login(email, password);
       setUser(me);
       await registerDeviceQuiet();
+      if (me.role === "employee") {
+        coldStartReconcile().catch(() => undefined);
+        startHealthLoop();
+      }
     } catch (e: any) {
       const msg = e?.response?.data?.detail || e?.message || "Login failed";
       setLoginError(typeof msg === "string" ? msg : "Login failed");
@@ -82,6 +111,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [registerDeviceQuiet]);
 
   const signOut = useCallback(async () => {
+    stopHealthLoop();
+    await stopGeofencing();
     await authApi.logout();
     setUser(null);
   }, []);
@@ -94,7 +125,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo<AuthState>(
-    () => ({ user, hydrating, loginError, signIn, signOut, refresh }),
+    () => ({
+      user, hydrating, loginError, signIn, signOut, refresh,
+      isEmployee: user?.role === "employee",
+    }),
     [user, hydrating, loginError, signIn, signOut, refresh],
   );
 

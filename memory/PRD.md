@@ -23,6 +23,48 @@ Multi-tenant enterprise geofenced attendance platform. Organizations sign up, ad
 - PWA installable
 
 ## Implemented (2026-02 → 2026-08)
+### Phase 2 · Background geofencing + offline queue (6 Aug 2026)
+- **Native geofencing** via `expo-location` — `TaskManager.defineTask('gfattend.geofence')` receives OS-level enter/exit transitions even when the app is killed. Fetches a fresh GPS fix on wake so lat/lng/accuracy reflect actual position, not just the region center.
+- **iOS SLC fallback** — arms `startLocationUpdatesAsync('gfattend.slc')` with a 500 m distance interval alongside the geofence, so we still get a signal if force-quit degrades geofencing.
+- **Offline queue** (`src/services/offlineQueue.ts`) — SQLite table `mobile_events` with UNIQUE(client_event_id), attempts counter, last error message, and a 7-day purge on synced rows.
+- **Sync worker** (`src/services/syncWorker.ts`) — drains the queue via `/api/mobile/sync` (bulk). Server-side idempotency + client_event_id UNIQUE index make retries safe.
+- **Cold-start reconciliation** (`src/services/reconcile.ts`) — every app open: drain queue → fetch server state → refresh geofence registration → foreground GPS fix → if inside geofence but server has no session, synthesize a `cold_start_reconcile` enter event. Heals Android-reboot-at-office + iOS force-quit-at-office scenarios.
+- **Health chip** (`src/components/HealthChip.tsx`) — green/amber/red pill on Employee Home showing permission state, queue depth, geofence-armed state; tap to reactivate.
+- **Onboarding gate** (`src/screens/onboarding/PermissionsScreen.tsx` + `EmployeeRoot.tsx`) — three-step permission flow (foreground → background → notifications) with per-step status badges and Open-Settings escape hatch.
+- **Auth-side effects** — after employee login: coldStartReconcile → startHealthLoop (5-min heartbeats via `/api/mobile/heartbeat`) → purgeOldSynced. Sign-out stops geofencing + health loop and calls the new `/api/auth/mobile-logout`.
+- **New backend endpoint**: `POST /api/auth/mobile-logout` — accepts `{refresh_token}` in body, revokes it, and ends any active session. Uses no auth dependency so a mobile client with an expired access token can still sign out cleanly.
+- **Reliability mitigations delivered** (from the Transistor-replacement plan):
+  1. ✅ Cold-start reconciliation
+  2. ✅ Health chip (self-service reactivate)
+  3. ✅ iOS significant-location-change fallback
+  4. ✅ Server-side stale detection (already in Phase 0)
+  5. ⏳ Boot receiver (Android config plugin) — deferred to Phase 6 polish
+  6. ⏳ Server-side deadman timer — deferred to Phase 6 polish
+- **TypeScript** — `yarn typecheck` passes clean (0 errors).
+
+### Phase 1 · Mobile app shell (6 Aug 2026)
+- **New project** at `/app/mobile` — React Native + Expo SDK 52, TypeScript strict, no expo-router (manual React Navigation for explicit role routing).
+- **Providers pyramid** in `App.tsx`: GestureHandler → SafeArea → ReactQuery → Auth → NavigationContainer.
+- **Auth**: `AuthContext` bootstraps from SecureStore-persisted JWT on cold start, calls `/api/auth/me` to hydrate the role, and idempotently posts `/api/mobile/register-device` after login (device id from `Application.getIosIdForVendorAsync` / `getAndroidId`, tz + locale from `expo-localization`).
+- **Role routing**: `RootNavigator` swaps between `AuthStack` (Login → ForgotPassword) and either `EmployeeStack` (Home / History / Profile tabs) or `AdminStack` (LiveMap / Team / Reports / Profile tabs) based on `user.role`.
+- **API client** (`src/api/client.ts`) — axios with Bearer-token interceptor, 401→refresh→retry loop, base URL read from `app.json → extra.apiUrl` so EAS dev/preview/production can point at different backends.
+- **Backend auth changes for mobile compatibility** (fully backwards-compatible with the web dashboard):
+  - `/auth/login`, `/auth/register-org`: response body now includes `access_token`, `refresh_token`, `token_type` alongside the user profile. Web app still ignores them and reads cookies as before.
+  - `/auth/refresh`, `/auth/logout`: accept `refresh_token` in JSON body (mobile) OR from `httpOnly` cookie (web).
+  - `/auth/refresh` returns rotated `access_token` + `refresh_token` in body so mobile can persist them.
+- **Screens delivered (P1 placeholders that already talk to real endpoints)**:
+  - Login (email + password, single form used by both roles) with inline error banner (`data-testid="login-error"`).
+  - Forgot Password.
+  - Employee Home: pulls `/api/mobile/reconcile` and shows assigned office + current session status card.
+  - Employee History / Profile — placeholder + sign-out.
+  - Admin Home: pulls `/api/sessions/live` and shows live sessions list.
+  - Admin Team: pulls `/api/employees`.
+  - Admin Reports / Profile.
+- **Theme** — dark near-black + green (#10b981) accents, mirrors web design tokens.
+- **Reusable components** — `Button`, `Input`, `Screen` (safe-area wrapper).
+- **Build & test config** — `eas.json` with dev/preview/production profiles, `tsconfig.json` strict, `babel.config.js` with module-resolver `@/*` alias. Passes `yarn typecheck` with 0 errors.
+- **Testing** — Phase 1 verified end-to-end via curl: login returns tokens in body, `/auth/refresh` with body works, Bearer auth on `/api/mobile/reconcile` succeeds, `/auth/logout` accepts body refresh token, rotated refresh invalidates old token, web-cookie flow still 100% functional (regression-tested).
+
 ### Phase 0 · Mobile backend prep (6 Aug 2026)
 - **New collections**: `mobile_devices` (unique on `user_id+device_id`), `mobile_events` (unique on `user_id+client_event_id` for offline-safe idempotency).
 - **New endpoints** (all under `/api/mobile`):

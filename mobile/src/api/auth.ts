@@ -1,4 +1,7 @@
 import { api, saveTokens, clearTokens } from "@/api/client";
+import { secureGet } from "@/lib/storage";
+
+const REFRESH_KEY = "refresh_token";
 
 export type Role = "org_owner" | "admin" | "employee";
 
@@ -39,8 +42,18 @@ export async function fetchMe(): Promise<AuthUser> {
   return data;
 }
 
+/** POST /api/auth/logout — mobile-safe fallback to /auth/mobile-logout
+ *  (works even when the access token has expired). */
 export async function logout() {
-  try { await api.post("/auth/logout"); } catch { /* best-effort */ }
+  try {
+    const refresh = await secureGet(REFRESH_KEY);
+    if (refresh) {
+      // Mobile-safe endpoint — needs only the refresh token, no auth dep.
+      await api.post("/auth/mobile-logout", { refresh_token: refresh });
+    } else {
+      await api.post("/auth/logout");
+    }
+  } catch { /* best-effort */ }
   await clearTokens();
 }
 

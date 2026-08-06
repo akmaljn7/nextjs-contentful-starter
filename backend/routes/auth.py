@@ -257,6 +257,52 @@ async def logout(request: Request, response: Response, user: dict = Depends(get_
     return {"ok": True}
 
 
+@router.post("/mobile-logout")
+async def mobile_logout(request: Request):
+    """Mobile-safe logout — authenticates via the refresh token alone.
+
+    Regular /auth/logout requires a valid access token via get_current_user.
+    On mobile the access token often expires while the app is backgrounded,
+    which would strand the refresh_token as still-valid in the DB. This
+    endpoint accepts {refresh_token} in the JSON body, decodes it, revokes
+    it, and ends the user's active session. Idempotent.
+    """
+    db = get_db()
+    body = {}
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    token = (body or {}).get("refresh_token")
+    if not token:
+        raise HTTPException(status_code=400, detail="refresh_token required in body")
+    try:
+        payload = decode_token(token)
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Refresh token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
+    if payload.get("type") != "refresh":
+        raise HTTPException(status_code=401, detail="Invalid token type")
+    user_id = payload["sub"]
+    # Revoke this refresh token
+    await db.refresh_tokens.update_one(
+        {"jti": payload.get("jti")},
+        {"$set": {"revoked_at": datetime.now(timezone.utc).isoformat()}},
+    )
+    # End any active session (mirror of web /logout)
+    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    if user:
+        active = await db.active_sessions.find_one({"user_id": user_id, "org_id": user["org_id"]})
+        if active:
+            from routes.sessions import _write_attendance_record, _broadcast_session
+            now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+            await _write_attendance_record(db, active, "logout", now_ms)
+            await db.active_sessions.delete_one({"_id": active["_id"]})
+            await _broadcast_session(db, active, ended=True, outcome="logout")
+    return {"ok": True}
+
+
 @router.get("/me", response_model=UserPublic)
 async def me(user: dict = Depends(get_current_user)):
     db = get_db()

@@ -3,7 +3,7 @@ import { ActivityIndicator, View } from "react-native";
 import { NavigationContainer, DarkTheme } from "@react-navigation/native";
 import { useAuth, isAdminRole } from "@/context/AuthContext";
 import { AuthStack } from "@/navigation/AuthStack";
-import { EmployeeStack } from "@/navigation/EmployeeStack";
+import { EmployeeRoot } from "@/navigation/EmployeeRoot";
 import { AdminStack } from "@/navigation/AdminStack";
 import { colors } from "@/theme";
 
@@ -37,7 +37,7 @@ export function RootNavigator() {
 
   return (
     <NavigationContainer theme={NAV_THEME}>
-      {!user ? <AuthStack /> : isAdminRole(user.role) ? <AdminStack /> : <EmployeeStack />}
+      {!user ? <AuthStack /> : isAdminRole(user.role) ? <AdminStack /> : <EmployeeRoot />}
     </NavigationContainer>
   );
 }
