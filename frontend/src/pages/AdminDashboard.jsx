@@ -7,7 +7,7 @@ import { StatusChip } from "@/components/StatusChip";
 import { fmtCoord, fmtDateTime, fmtMinutes, STATUS_LABEL } from "@/lib/format";
 import { useLiveSessions } from "@/hooks/useLiveSessions";
 import { toast } from "sonner";
-import { Building2, Users, Activity, PauseCircle, Database, ShieldAlert, Wifi, Camera, X } from "lucide-react";
+import { Building2, Users, Activity, PauseCircle, Database, ShieldAlert, Wifi, Camera, Bell, X } from "lucide-react";
 
 const Stat = ({ label, value, sub, icon: Icon, testId }) => (
   <div className="surface p-4" data-testid={testId}>
@@ -46,6 +46,23 @@ export default function AdminDashboard() {
     mutationFn: async (userId) => (await api.post(`/sessions/force-expire/${userId}`)).data,
     onSuccess: () => { toast.success("Session ended"); qc.invalidateQueries({ queryKey: ["live"] }); },
     onError: (e) => toast.error(toApiError(e)),
+  });
+
+  const nudge = useMutation({
+    mutationFn: async (userId) =>
+      (await api.post(`/sessions/nudge/${userId}`, {
+        title: "Check-in reminder",
+        body: "Please open Attendance Console and start your shift.",
+      })).data,
+    onSuccess: (data) => toast.success(`Reminder sent to ${data.sent_to || "employee"}`),
+    onError: (e) => toast.error(toApiError(e)),
+  });
+
+  // Roster used for the "Ping any employee" panel — always visible even when
+  // nobody has an active session yet.
+  const { data: employees = [] } = useQuery({
+    queryKey: ["employees"],
+    queryFn: async () => (await api.get("/employees")).data,
   });
 
   const { data: summary = {} } = useQuery({
@@ -119,7 +136,37 @@ export default function AdminDashboard() {
           </div>
           <div className="max-h-[480px] overflow-y-auto">
             {live.length === 0 && (
-              <div className="p-8 text-center text-gray-500 text-sm mono">NO ACTIVE SESSIONS</div>
+              <div className="p-6">
+                <div className="text-center text-gray-500 text-xs mono mb-4" data-testid="no-active-sessions">
+                  NO ACTIVE SESSIONS
+                </div>
+                <div className="label-uppercase mb-2">PING ANY EMPLOYEE</div>
+                <div className="text-xs text-gray-500 mb-3">
+                  Send a push reminder to any employee to open the app and start their shift.
+                </div>
+                <div className="space-y-2">
+                  {employees.length === 0 && (
+                    <div className="text-xs text-gray-500 mono">NO EMPLOYEES YET</div>
+                  )}
+                  {employees.map((e) => (
+                    <div key={e.id} className="flex items-center justify-between gap-2 border border-white/5 px-3 py-2" data-testid={`roster-row-${e.id}`}>
+                      <div className="min-w-0">
+                        <div className="text-sm truncate">{e.name}</div>
+                        <div className="text-[10px] text-gray-500 mono truncate">{e.email}</div>
+                      </div>
+                      <button
+                        onClick={() => nudge.mutate(e.id)}
+                        disabled={nudge.isPending}
+                        data-testid={`roster-nudge-${e.id}`}
+                        title="Send a push notification"
+                        className="border border-amber-500/30 hover:bg-amber-500/10 text-amber-400 px-2.5 py-1 text-xs transition-colors inline-flex items-center gap-1 disabled:opacity-40 flex-none"
+                      >
+                        <Bell size={12} /> Notify
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
             {live.map((s, i) => (
               <div key={s.id} className="p-4 border-b border-white/5 stagger" style={{ animationDelay: `${i * 40}ms` }} data-testid={`live-row-${s.id}`}>
