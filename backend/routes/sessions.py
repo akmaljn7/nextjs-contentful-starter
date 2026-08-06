@@ -830,6 +830,17 @@ async def live_sessions(user: dict = Depends(require_admin)):
     now_ms = _now_ms()
     cur = db.active_sessions.find({"org_id": user["org_id"]})
     sessions = [s async for s in cur]
+    # Batch-fetch users + offices to avoid N+1 across the live-map query
+    user_ids = list({s["user_id"] for s in sessions})
+    office_ids = list({s.get("office_id") for s in sessions if s.get("office_id")})
+    users_by_id: dict = {}
+    if user_ids:
+        async for u in db.users.find({"_id": {"$in": [ObjectId(uid) for uid in user_ids]}}):
+            users_by_id[str(u["_id"])] = u
+    offices_by_id: dict = {}
+    if office_ids:
+        async for o in db.offices.find({"_id": {"$in": [ObjectId(oid) for oid in office_ids]}}):
+            offices_by_id[str(o["_id"])] = o
     result = []
     for s in sessions:
         await _sync_session_center_from_office(db, s)
@@ -838,11 +849,13 @@ async def live_sessions(user: dict = Depends(require_admin)):
         if not alive:
             await _broadcast_session(db, s, ended=True, outcome=outcome)
             continue
-        emp = await db.users.find_one({"_id": ObjectId(s["user_id"])})
+        emp = users_by_id.get(s["user_id"])
+        off = offices_by_id.get(s.get("office_id")) if s.get("office_id") else None
         result.append({
             **_sanitize_session(s),
             "employee_name": (emp or {}).get("name", "Unknown"),
             "employee_email": (emp or {}).get("email", ""),
+            "office_name": (off or {}).get("name", ""),
             "stale": (now_ms - (s.get("last_fix") or {}).get("ts_ms", now_ms)) > STALE_PING_MS,
         })
     return result
@@ -863,7 +876,8 @@ async def trigger_challenge_now(user_id: str, request: Request, user: dict = Dep
     open_ch = next((c for c in challenges
                     if c.get("status") == "pending" and c.get("respond_by_ms", 0) > now_ms), None)
     if open_ch:
-        raise HTTPException(status_code=400, detail="Employee already has an open selfie challenge.")
+        # 409 Conflict — an unresponded selfie challenge already exists.
+        raise HTTPException(status_code=409, detail="Employee already has an open selfie challenge.")
     new_challenge = {
         "id": uuid.uuid4().hex[:12],
         "trigger_ms": now_ms,

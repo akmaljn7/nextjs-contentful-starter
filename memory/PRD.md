@@ -23,6 +23,15 @@ Multi-tenant enterprise geofenced attendance platform. Organizations sign up, ad
 - PWA installable
 
 ## Implemented (2026-02 → 2026-08)
+### Phase 0-6 whole-app audit pass (6 Aug 2026)
+- Full serial pytest: **168 passed / 1 skipped / 1 warning** (was 146; testing agent added 22 e2e-ingress tests that hit the public Kubernetes URL).
+- Mobile `yarn typecheck` clean.
+- Two minor spec deviations flagged by testing agent + fixed in-place:
+  1. `GET /api/sessions/live` now enriches with `office_name` (batched N+1-safe fetch alongside users_by_id) — `routes/sessions.py:832-861`.
+  2. `POST /api/sessions/challenge-now/{user_id}` returns **409 Conflict** (was 400) when an unresponded selfie challenge is already pending — `routes/sessions.py:867`.
+- Per-phase live-ingress pass matrix (from iteration_15.json):
+  - Phase 0 (mobile prep) ✅ · Phase 1 (auth dual-mode) ✅ · Phase 2 (BG geofence contract) ✅ · Phase 3 (push+selfie) ✅ · Phase 4 (admin live) ✅ · Phase 5 (employees+reports) ✅ · Phase 6 (attestation+deadman) ✅
+
 ### Phase 6 · Reliability polish — anti-spoof + deadman + boot receiver (6 Aug 2026)
 - **`POST /api/mobile/attestation`** — records a Play Integrity (Android) / App Attest (iOS) token per device. Structural verification stub for now (JWS 3-segment shape or base64-ish for iOS; anything matching our stub format `stub-<nonce>-...` tagged `stub_accepted`). Malformed payloads log a `high`-severity `attestation_invalid` security_event but never block the request (anti-spoof is soft).
 - **Mobile client** — `src/services/attestation.ts` mints a stub token (`stub-<nonce>-<devicePrefix>-<hex24>`) and posts on device register + can be re-invoked before critical events. Auto-called from `AuthContext.registerDeviceQuiet()` right after `/register-device` so every login refreshes the attestation.
