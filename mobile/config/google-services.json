@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "807409907612",
+    "project_id": "attend-11366",
+    "storage_bucket": "attend-11366.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:807409907612:android:c7d6f8ff8127053301ba59",
+        "android_client_info": {
+          "package_name": "com.geofenceattendance.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCEm2EyzxEQfkL40ljhwDPBdTJVq957hVA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

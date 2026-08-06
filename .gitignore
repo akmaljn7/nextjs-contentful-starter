@@ -84,9 +84,11 @@ android-sdk/
 backend/.env
 frontend/.env
 
-# Firebase mobile config — contains project identifiers, keep local only
-mobile/config/google-services.json
-mobile/config/GoogleService-Info.plist
+# NOTE: mobile/config/google-services.json + GoogleService-Info.plist are
+# COMMITTED intentionally. Per Firebase docs, these client-side config files
+# only carry package-restricted API keys and are safe to ship in source control.
+# The Firebase Admin private key (backend/.env FCM_SERVICE_ACCOUNT_JSON) stays
+# git-ignored above and never touches the repo.
 .env
 .env.*
 *.env
