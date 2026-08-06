@@ -93,17 +93,10 @@
       "./plugins/withAndroidBootReceiver.js"
     ],
     "extra": {
-      "eas": {
-        "projectId": "REPLACE_ME_AFTER_eas_init"
-      },
       "apiUrl": "https://geo-enterprise.preview.emergentagent.com"
-    },
-    "updates": {
-      "url": "https://u.expo.dev/REPLACE_ME_AFTER_eas_init"
     },
     "runtimeVersion": {
       "policy": "appVersion"
-    },
-    "owner": "REPLACE_ME_WITH_EXPO_USERNAME"
+    }
   }
 }
