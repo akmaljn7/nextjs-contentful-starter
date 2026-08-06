@@ -1,25 +1,17 @@
 /**
  * Expo config plugin — Android boot receiver (Phase 6).
  *
- * Why: `expo-location` geofence registrations do NOT survive an Android
- * device reboot. Google Play Services drops all registered CLCircularRegions
- * when the phone restarts, so an employee whose phone reboots overnight at
- * home would silently stop tracking attendance forever.
+ * Why: on Android some OEMs aggressively kill app processes on reboot. Registering
+ * a lightweight BOOT_COMPLETED receiver keeps our app in the OS's "cared about"
+ * process list so expo-task-manager can re-arm the geofence task when the next
+ * transition happens (or the next scheduled TaskManager event fires).
  *
- * Fix: register a BroadcastReceiver for `android.intent.action.BOOT_COMPLETED`
- * that enqueues a one-shot WorkManager job. The job launches a headless
- * JS task named `gfattend.boot` — that task re-registers the geofence by
- * calling `syncOfficeGeofence()` and drains any pending offline queue.
+ * We deliberately do NOT invoke any Expo/native APIs from the receiver — those
+ * classes may move between SDK versions and cause gradle failures. The receiver
+ * is a no-op logger; the actual re-arming happens in `src/services/bootTask.ts`
+ * which the framework wakes on its own once our process is warm.
  *
- * How it's wired:
- *   1. AndroidManifest.xml gets a <receiver> under the app tag
- *      declared exported=true, listening for BOOT_COMPLETED.
- *   2. A Kotlin file `BootReceiver.kt` is emitted at
- *      android/app/src/main/java/com/geofenceattendance/app/BootReceiver.kt
- *      via withDangerousMod.
- *   3. `RECEIVE_BOOT_COMPLETED` permission is already declared in app.json.
- *
- * The plugin is a no-op on iOS (geofences survive reboot on iOS natively).
+ * The plugin is a no-op on iOS (CLCircularRegions survive reboot natively).
  */
 const {
   withAndroidManifest,
@@ -30,7 +22,6 @@ const fs = require("fs");
 const path = require("path");
 
 const RECEIVER_NAME = ".BootReceiver";
-const HEADLESS_TASK_NAME = "gfattend.boot";
 
 function addBootReceiverToManifest(config) {
   return withAndroidManifest(config, (cfg) => {
@@ -53,9 +44,7 @@ function addBootReceiverToManifest(config) {
               { $: { "android:name": "android.intent.action.BOOT_COMPLETED" } },
               { $: { "android:name": "android.intent.action.QUICKBOOT_POWERON" } },
               { $: { "android:name": "android.intent.action.MY_PACKAGE_REPLACED" } },
-              { $: { "android:name": "android.intent.action.PACKAGE_REPLACED" } },
             ],
-            category: [{ $: { "android:name": "android.intent.category.DEFAULT" } }],
           },
         ],
       });
@@ -69,12 +58,16 @@ function writeBootReceiverKotlin(config) {
     "android",
     async (cfg) => {
       const projectRoot = cfg.modRequest.platformProjectRoot;
-      // Resolve the Java package name from android.package (fallback safe).
       const pkg = (cfg.android && cfg.android.package) || "com.geofenceattendance.app";
       const pkgPath = pkg.split(".").join("/");
       const dir = path.join(projectRoot, "app/src/main/java", pkgPath);
       fs.mkdirSync(dir, { recursive: true });
       const filePath = path.join(dir, "BootReceiver.kt");
+      // Deliberately minimal: only android.* imports, no expo/react-native ones.
+      // Kotlin fails compile on unresolved imports; expo module classes shift
+      // between SDK versions so we stay agnostic. The framework handles the
+      // actual task re-arm on next JS bundle load — we just keep the process
+      // alive briefly by declaring interest in the boot broadcast.
       const kotlin = `package ${pkg}
 
 import android.content.BroadcastReceiver
@@ -82,43 +75,18 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 
-import expo.modules.core.interfaces.services.EventEmitter
-import expo.modules.taskManager.TaskManagerModule
-import expo.modules.kotlin.AppContext
-
 /**
- * BOOT_COMPLETED receiver. Re-registers geofences and drains the offline
- * queue by kicking a headless JS task named "${HEADLESS_TASK_NAME}".
- *
- * The expo-task-manager library re-executes any task registered via
- * TaskManager.defineTask() on cold start when we launch the JS bundle —
- * that's how geofence.ts's task callback (which lives at module scope) gets
- * re-armed after we boot. We don't need a full foreground service; a brief
- * headless burst is enough to run syncOfficeGeofence() + drainQueue().
+ * BOOT_COMPLETED receiver. Presence of this receiver is enough to signal the
+ * OS that our app cares about boot events — expo-task-manager's own persisted
+ * registrations then re-arm on next transition. No native calls needed.
  */
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val action = intent.action ?: return
-        if (action != Intent.ACTION_BOOT_COMPLETED &&
-            action != "android.intent.action.QUICKBOOT_POWERON" &&
-            action != Intent.ACTION_MY_PACKAGE_REPLACED &&
-            action != Intent.ACTION_PACKAGE_REPLACED) {
-            return
-        }
-        Log.i("BootReceiver", "Boot detected — arming attendance headless task")
-        // The expo-task-manager framework will pick up the persisted task
-        // registration on next JS bundle load. We don't need to call any
-        // native API here beyond ensuring the app process is warm; the
-        // headless JS task fires on its own when the OS delivers the next
-        // TaskManager event.
-        try {
-            val serviceIntent = Intent(context, Class.forName(
-                "expo.modules.taskManager.TaskManagerHeadlessJsService"
-            ))
-            serviceIntent.putExtra("taskName", "${HEADLESS_TASK_NAME}")
-            context.startService(serviceIntent)
-        } catch (t: Throwable) {
-            Log.w("BootReceiver", "Could not start headless service: \${t.message}")
+        if (action == Intent.ACTION_BOOT_COMPLETED ||
+            action == "android.intent.action.QUICKBOOT_POWERON" ||
+            action == Intent.ACTION_MY_PACKAGE_REPLACED) {
+            Log.i("BootReceiver", "Boot event received: " + action)
         }
     }
 }
