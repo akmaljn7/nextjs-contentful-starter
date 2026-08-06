@@ -7,7 +7,7 @@
     "icon": "./assets/icon.png",
     "scheme": "geofenceattendance",
     "userInterfaceStyle": "dark",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
@@ -22,7 +22,11 @@
         "NSLocationAlwaysAndWhenInUseUsageDescription": "This app uses your location in the background to detect when you arrive at or leave your assigned office and record attendance automatically. Location data is only used for attendance and never shared with third parties.",
         "NSLocationAlwaysUsageDescription": "This app uses your location in the background to detect when you arrive at or leave your assigned office and record attendance automatically. Location data is only used for attendance and never shared with third parties.",
         "NSCameraUsageDescription": "This app uses your camera for random selfie check-ins during your shift, which your organization uses to verify your identity at work.",
-        "UIBackgroundModes": ["location", "fetch", "remote-notification"],
+        "UIBackgroundModes": [
+          "location",
+          "fetch",
+          "remote-notification"
+        ],
         "ITSAppUsesNonExemptEncryption": false
       },
       "config": {
@@ -90,7 +94,9 @@
           }
         }
       ],
-      "./plugins/withAndroidBootReceiver.js"
+      "./plugins/withAndroidBootReceiver.js",
+      "expo-font",
+      "expo-sqlite"
     ],
     "extra": {
       "apiUrl": "https://geo-enterprise.preview.emergentagent.com"

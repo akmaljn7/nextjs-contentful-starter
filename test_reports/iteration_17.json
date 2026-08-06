@@ -1,0 +1,49 @@
+{
+  "summary": "Verified the SDK 52 dependency alignment + newArchEnabled=false fix. expo-doctor now reports 18/18 checks passed (was flagging 4 version mismatches + missing expo-font peer). `expo prebuild --clean` succeeds (exit 0), generated android/gradle.properties has newArchEnabled=false, and BootReceiver.kt still contains 0 expo.* imports (only android.content.* + android.util.Log). `expo export:embed --eager --platform android --dev false` — the exact EAS Bundle-JS command — bundles 1337 modules in 828ms with exit 0. `yarn typecheck` exit 0. Full backend serial pytest (-n 0): 168 passed / 1 skipped, matching iteration_15 baseline (the previously flaky test_deadman_sweep_pokes_stale_employee is now passing at current UTC hour). All Phase 6 live endpoints via public ingress respond correctly. No code regressions detected — mobile app is ready for EAS Android build.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "mobile_verification": {
+    "expo_doctor": "18/18 checks passed, zero warnings",
+    "prebuild_exit_code": 0,
+    "gradle_properties_newArchEnabled": "false",
+    "bootreceiver_kt_expo_imports": 0,
+    "bootreceiver_kt_imports": ["android.content.BroadcastReceiver", "android.content.Context", "android.content.Intent", "android.util.Log"],
+    "export_embed_exit_code": 0,
+    "export_embed_output": "Android Bundled 828ms index.ts (1337 modules)",
+    "typecheck_exit_code": 0,
+    "package_json_versions_aligned": {
+      "react-native": "0.76.9",
+      "expo-updates": "~0.27.5",
+      "expo-sqlite": "~15.1.4",
+      "@expo/vector-icons": "~14.0.4",
+      "expo-font": "~13.0.4 (added as peer dep for @expo/vector-icons)"
+    },
+    "install_exclude_present": ["@react-navigation/bottom-tabs", "@react-navigation/native", "@react-navigation/native-stack"]
+  },
+  "backend_verification": {
+    "pytest_serial_result": "168 passed / 1 skipped / 0 failed in 75.97s",
+    "baseline_match": "YES (iteration_15 baseline was 168 passed / 1 skipped)",
+    "flaky_deadman_test": "PASSED this run (test_deadman_sweep_pokes_stale_employee) — the iteration_16 UTC-boundary flake did not repeat at current hour",
+    "leaked_test_devices_cleaned": 18
+  },
+  "phase6_endpoint_probes": {
+    "POST /api/mobile/attestation (no JWT)": "401 expected",
+    "POST /api/cron/deadman-tick (no bearer)": "401 expected",
+    "POST /api/cron/deadman-tick (valid WEBHOOK_CRON_SECRET)": "200 expected",
+    "POST /api/cron/deadman-tick (wrong secret)": "401 expected"
+  },
+  "test_report_links": ["/app/test_reports/pytest/pytest_iteration17.xml"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "app.json has newArchEnabled=false and both expo-font + expo-sqlite are registered as plugins — the exact combination expo-doctor requires for SDK 52. expo.install.exclude correctly pins @react-navigation/* v6 so `expo install --check` won't try to bump them.",
+    "BootReceiver.kt regeneration remains clean: no expo.* imports (verified via grep). This is the piece that previously broke kotlinc; still safe.",
+    "One benign prebuild advisory: 'userInterfaceStyle: Install expo-system-ui to enable this feature' — non-blocking, will not fail gradle build; can be addressed later if dark-mode toggle behavior is needed."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (168/168 non-skipped)", "mobile_upstream_of_gradle": "100%"},
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All EAS upstream checks (doctor/prebuild/export:embed/typecheck) are green. The container cannot run gradle itself (no Android SDK), so final APK verification must happen on EAS servers. Backend pytest baseline preserved at 168/1. Note: the WEBHOOK_CRON_SECRET in /app/backend/.env is wrapped in double-quotes — when curl-testing, load via python-dotenv (not `cut -d=`) or trim quotes manually, otherwise the bearer check will 401 falsely.",
+  "rca of the issue": "Iteration 17 verifies the fix chain: (a) 4 SDK-52 version mismatches (react-native 0.76.5→0.76.9, expo-updates 0.26.19→~0.27.5, expo-sqlite→~15.1.4, @expo/vector-icons→~14.0.4) resolved via `expo install --check --fix`; (b) expo-font added as explicit dep to satisfy @expo/vector-icons peer, preventing cold-start native crash; (c) newArchEnabled flipped to false in app.json so community modules without Fabric bindings don't trigger kotlinc unresolved-reference errors; (d) @react-navigation/* pinned via expo.install.exclude to keep v6 intact. All four upstream EAS steps now succeed locally with exit 0, so the previous 'Run gradlew' failure at Bundle-JS phase is resolved. Final gradle assembleRelease must be validated on EAS itself."
+}
