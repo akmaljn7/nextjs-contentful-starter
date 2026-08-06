@@ -47,3 +47,12 @@ async def ensure_indexes():
     await db.refresh_tokens.create_index("expires_at", expireAfterSeconds=0)
     await db.time_off_requests.create_index([("org_id", 1), ("user_id", 1), ("status", 1)])
     await db.time_off_requests.create_index([("org_id", 1), ("start_date", 1), ("end_date", 1)])
+    # Mobile app collections (Phase 0)
+    await db.mobile_devices.create_index([("user_id", 1), ("device_id", 1)], unique=True)
+    await db.mobile_devices.create_index([("org_id", 1), ("last_seen_at", -1)])
+    await db.mobile_events.create_index(
+        [("user_id", 1), ("client_event_id", 1)], unique=True,
+    )
+    await db.mobile_events.create_index([("org_id", 1), ("ts_ms", -1)])
+    # 90-day retention on raw mobile events, same policy as gps_pings
+    await db.mobile_events.create_index("received_at_dt", expireAfterSeconds=60 * 60 * 24 * 90)

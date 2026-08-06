@@ -20,11 +20,18 @@ EMP_PWD = "Employee123!"
 OFFICE_LAT, OFFICE_LNG = 6.5244, 3.3792
 
 
+async def _login(c: httpx.AsyncClient, email: str, pwd: str):
+    r = await c.post("/api/auth/login", json={"email": email, "password": pwd})
+    r.raise_for_status()
+    tok = c.cookies.get("access_token")
+    if tok:
+        c.headers.update({"Authorization": f"Bearer {tok}"})
+
+
 @pytest.mark.asyncio
 async def test_duplicate_employee_returns_specific_409():
     async with httpx.AsyncClient(base_url=API, follow_redirects=True) as c:
-        r = await c.post("/api/auth/login", json={"email": ADMIN_EMAIL, "password": ADMIN_PWD})
-        assert r.status_code == 200, r.text
+        await _login(c, ADMIN_EMAIL, ADMIN_PWD)
         # Fetch offices to grab one that belongs to this org
         r = await c.get("/api/offices")
         assert r.status_code == 200
@@ -49,8 +56,8 @@ async def test_low_accuracy_ping_far_outside_still_pauses():
     Otherwise a laptop with fuzzy WiFi-geoloc could hide anywhere."""
     async with httpx.AsyncClient(base_url=API, follow_redirects=True) as admin, \
                httpx.AsyncClient(base_url=API, follow_redirects=True) as emp:
-        (await admin.post("/api/auth/login", json={"email": ADMIN_EMAIL, "password": ADMIN_PWD})).raise_for_status()
-        (await emp.post("/api/auth/login", json={"email": EMP_EMAIL, "password": EMP_PWD})).raise_for_status()
+        await _login(admin, ADMIN_EMAIL, ADMIN_PWD)
+        await _login(emp, EMP_EMAIL, EMP_PWD)
 
         offices = (await admin.get("/api/offices")).json()
         lagos = next(o for o in offices if o["name"] == "UI Test Lagos")
@@ -74,8 +81,8 @@ async def test_low_accuracy_ping_far_outside_still_pauses():
 
     async with httpx.AsyncClient(base_url=API, follow_redirects=True) as admin, \
                httpx.AsyncClient(base_url=API, follow_redirects=True) as emp:
-        (await admin.post("/api/auth/login", json={"email": ADMIN_EMAIL, "password": ADMIN_PWD})).raise_for_status()
-        (await emp.post("/api/auth/login", json={"email": EMP_EMAIL, "password": EMP_PWD})).raise_for_status()
+        await _login(admin, ADMIN_EMAIL, ADMIN_PWD)
+        await _login(emp, EMP_EMAIL, EMP_PWD)
 
         # Ensure the employee is assigned to Lagos office (idempotent)
         offices = (await admin.get("/api/offices")).json()

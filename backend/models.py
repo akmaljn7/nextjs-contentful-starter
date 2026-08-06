@@ -195,3 +195,59 @@ class SessionAutoStart(BaseModel):
 
 class ChallengeResponse(BaseModel):
     face_photo: str = Field(min_length=100, max_length=6_000_000)
+
+
+# ---------- Mobile app models (Phase 0) ----------
+class MobileDeviceRegister(BaseModel):
+    """Called by mobile app on login / token refresh. Upserted per (user, device)."""
+    device_id: str = Field(min_length=8, max_length=128)
+    platform: Literal["ios", "android"]
+    push_token: Optional[str] = Field(default=None, max_length=512)
+    app_version: str = Field(min_length=1, max_length=32)
+    os_version: Optional[str] = Field(default=None, max_length=64)
+    tz: Optional[str] = Field(default=None, max_length=64)
+    locale: Optional[str] = Field(default=None, max_length=16)
+    model: Optional[str] = Field(default=None, max_length=64)
+
+    @field_validator("tz")
+    @classmethod
+    def _tz_valid(cls, v):
+        if not v:
+            return v
+        try:
+            ZoneInfo(v)
+        except ZoneInfoNotFoundError:
+            return None  # ignore bad tz silently, we default UTC
+        return v
+
+
+class MobileGeofenceEvent(BaseModel):
+    """A single enter/exit event from the mobile geofencing runtime.
+
+    Idempotent via `client_event_id` — a UUID generated on the device. This lets
+    us safely retry offline events without creating duplicate sessions.
+    """
+    client_event_id: str = Field(min_length=8, max_length=64)
+    device_id: str = Field(min_length=8, max_length=128)
+    type: Literal["enter", "exit", "cold_start_reconcile"]
+    ts_ms: int = Field(ge=0)  # client-side UTC timestamp of the event (NOT arrival time)
+    office_id: str = Field(min_length=1)
+    lat: float
+    lng: float
+    accuracy: float = Field(ge=0, le=10_000)
+    mock_location: bool = False
+    from_boot: bool = False
+    battery: Optional[float] = Field(default=None, ge=0, le=1)
+    attestation: Optional[Dict] = None  # Play Integrity / App Attest verdict, verified server-side later
+
+
+class MobileBulkSync(BaseModel):
+    events: List[MobileGeofenceEvent] = Field(min_length=1, max_length=200)
+
+
+class MobileHeartbeat(BaseModel):
+    device_id: str = Field(min_length=8, max_length=128)
+    ts_ms: int = Field(ge=0)
+    battery: Optional[float] = Field(default=None, ge=0, le=1)
+    permission_state: Optional[Literal["always", "when_in_use", "denied", "restricted"]] = None
+    last_geofence_event_ms: Optional[int] = None

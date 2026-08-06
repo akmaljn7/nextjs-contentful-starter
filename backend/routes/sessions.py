@@ -225,6 +225,7 @@ async def _tick_challenge_lifecycle(db, session: dict, settings: dict, now_ms: i
     log_entries = list(session.get("log", []))
     flagged = session.get("flagged", False)
     changed = False
+    newly_prompted: list[dict] = []
     for ch in challenges:
         st = ch.get("status")
         if st == "planned" and ch.get("trigger_ms", 0) <= now_ms:
@@ -234,6 +235,7 @@ async def _tick_challenge_lifecycle(db, session: dict, settings: dict, now_ms: i
             log_entries.append({"event": "selfie_prompted", "ts_ms": now_ms, "challenge_id": ch["id"]})
             logger.info("selfie_prompted session=%s challenge=%s trigger_ms=%s",
                         session.get("_id"), ch["id"], ch.get("trigger_ms"))
+            newly_prompted.append(ch)
             changed = True
         elif st == "pending" and ch.get("respond_by_ms", 0) < now_ms:
             ch["status"] = "expired"
@@ -249,6 +251,23 @@ async def _tick_challenge_lifecycle(db, session: dict, settings: dict, now_ms: i
         session["challenges"] = challenges
         session["log"] = log_entries[-500:]
         session["flagged"] = flagged
+        # Fire an FCM push per newly-prompted challenge so mobile users get
+        # notified even if the app is backgrounded. No-op in dev when FCM
+        # creds are missing (see services/push.py stub behaviour).
+        if newly_prompted:
+            try:
+                from services.push import send_push_to_user
+                for ch in newly_prompted:
+                    await send_push_to_user(
+                        db, session["user_id"],
+                        title="Selfie check-in required",
+                        body=f"Take a quick selfie now. You have {resp_window_min} min.",
+                        data={"kind": "selfie_challenge", "challenge_id": ch["id"],
+                              "session_id": str(session["_id"]),
+                              "respond_by_ms": str(ch["respond_by_ms"])},
+                    )
+            except Exception as e:
+                logger.error("push_dispatch_error err=%s", e)
     return changed
 
 
@@ -864,6 +883,19 @@ async def trigger_challenge_now(user_id: str, request: Request, user: dict = Dep
     )
     new_s = await db.active_sessions.find_one({"_id": s["_id"]})
     await _broadcast_session(db, new_s)
+    # FCM push so the mobile app pops the selfie modal even if backgrounded
+    try:
+        from services.push import send_push_to_user
+        await send_push_to_user(
+            db, user_id,
+            title="Selfie check-in required",
+            body=f"Your admin requested a selfie. You have {resp_window_min} min.",
+            data={"kind": "selfie_challenge", "challenge_id": new_challenge["id"],
+                  "session_id": str(s["_id"]), "manual": "true",
+                  "respond_by_ms": str(new_challenge["respond_by_ms"])},
+        )
+    except Exception as e:
+        logger.error("manual_challenge_push_error err=%s", e)
     logger.info("manual_selfie_challenge admin=%s target_user=%s challenge=%s",
                 user.get("email"), user_id, new_challenge["id"])
     from services.audit import log_admin_action

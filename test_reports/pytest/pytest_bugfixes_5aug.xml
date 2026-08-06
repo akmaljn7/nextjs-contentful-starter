@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="2" skipped="0" tests="2" time="0.895" timestamp="2026-08-06T02:10:04.958953+00:00" hostname="agent-env-a13556a5-fd33-4f8c-bfba-74c530cd6e8c"><testcase classname="tests.test_bugfixes_5aug" name="test_duplicate_employee_returns_specific_409" time="0.307"><failure message="assert 401 == 200&#10; +  where 401 = &lt;Response [401 Unauthorized]&gt;.status_code">tests/test_bugfixes_5aug.py:30: in test_duplicate_employee_returns_specific_409
+    assert r.status_code == 200
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401 Unauthorized]&gt;.status_code</failure></testcase><testcase classname="tests.test_bugfixes_5aug" name="test_low_accuracy_ping_far_outside_still_pauses" time="0.503"><failure message="TypeError: string indices must be integers, not 'str'">tests/test_bugfixes_5aug.py:56: in test_low_accuracy_ping_far_outside_still_pauses
+    lagos = next(o for o in offices if o["name"] == "UI Test Lagos")
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_bugfixes_5aug.py:56: in &lt;genexpr&gt;
+    lagos = next(o for o in offices if o["name"] == "UI Test Lagos")
+                                       ^^^^^^^^^
+E   TypeError: string indices must be integers, not 'str'</failure></testcase></testsuite></testsuites>

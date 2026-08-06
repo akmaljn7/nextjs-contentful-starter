@@ -22,6 +22,7 @@ from routes.ws import router as ws_router
 from routes.photos import router as photos_router
 from routes.time_off import router as time_off_router
 from routes.face import router as face_router
+from routes.mobile import router as mobile_router
 from seed import seed_demo
 
 logging.basicConfig(
@@ -72,3 +73,4 @@ app.include_router(ws_router)
 app.include_router(photos_router)
 app.include_router(time_off_router)
 app.include_router(face_router)
+app.include_router(mobile_router)
