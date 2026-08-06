@@ -1,0 +1,56 @@
+{
+  "summary": "End-to-end backend regression + per-phase ingress spot-check for Phases 0-6. Ran full pytest suite serially (-n 0) — 146 passed / 1 skipped / 1 warning, matching the expected baseline exactly. Added 22 new live-ingress tests (test_phase_e2e_ingress.py) that hit the PUBLIC Kubernetes URL and exercise every phase; 21/22 pass. The single failure exposed one genuine spec deviation (missing office_name in /api/sessions/live). Additionally identified one status-code mismatch (challenge-now returns 400 instead of the specified 409) by code review. Everything else — auth dual-mode, mobile Phase 0 device/event/heartbeat/reconcile, multi-tenant office isolation, Phase 5 admin CRUD & reports, Phase 6 attestation stub + deadman cron with hmac-safe secret compare, JWT enforcement on all /api/mobile/* endpoints — verified live through the public ingress.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "GET /api/sessions/live",
+        "issue": "Response is missing office_name enrichment. Review spec: 'returns enriched sessions with employee_name/office_name'. Current impl (routes/sessions.py:842-847) only injects employee_name/employee_email/stale — office_name is never joined from the offices collection. Frontend live map that expects office_name will show blanks.",
+        "priority": "MEDIUM"
+      },
+      {
+        "endpoint": "POST /api/sessions/challenge-now/{user_id}",
+        "issue": "Returns HTTP 400 instead of 409 when a challenge is already pending. Review spec explicitly calls for 409 (Conflict). routes/sessions.py:866 raises HTTPException(status_code=400, detail='Employee already has an open selfie challenge.'). Change to 409 to match REST semantics + spec.",
+        "priority": "LOW"
+      }
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "phase_matrix": {
+    "PHASE 0 (mobile prep)": "PASS — register-device upsert + push_token hidden from GET, heartbeat 404 for unregistered device, geofence-event idempotent on client_event_id replay, reconcile returns snapshot, multi-tenant office isolation returns 400 'Unknown office for this org'.",
+    "PHASE 1 (auth dual-mode)": "PASS — /auth/login returns access_token+refresh_token in JSON, /auth/refresh accepts body, /auth/me works with Bearer, /auth/mobile-logout accepts refresh_token body even with garbage/expired Bearer.",
+    "PHASE 2 (geofence backend contract)": "PASS via test_auto_start.py (15/15) — ts_ms-anchored start, pause-with-total_inside_ms, cold_start_reconcile healing all green.",
+    "PHASE 3 (push + selfie)": "PASS via test_challenge_flow.py + test_face_match.py — challenge lifecycle, dlib face match, push stub logging confirmed. Note: challenge-now 400-vs-409 status-code mismatch flagged above.",
+    "PHASE 4 (admin live/offices)": "MOSTLY PASS — offices CRUD (create + PATCH lat/lng/radius + delete) green live; /sessions/live enriches employee_name but NOT office_name (see minor issue above); force-expire covered by test_backend.py.",
+    "PHASE 5 (employees + reports)": "PASS — /attendance/summary returns all 6 required keys, /attendance/records enriched, POST /employees returns 409 on duplicate email.",
+    "PHASE 6 (attestation + deadman)": "PASS — attestation stub returns verdict (structural check), 404 when device not registered, 401 without JWT; /cron/deadman-tick returns 401 on wrong/missing secret and 200 on correct WEBHOOK_CRON_SECRET (hmac.compare_digest verified in code)."
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_phase_e2e_ingress.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "Add office_name to /api/sessions/live response by joining db.offices on session.office_id (mirror the employee_name pattern in routes/sessions.py around line 842).",
+    "Change status_code=400 → 409 on routes/sessions.py:866 (challenge-now conflict) to match REST semantics + review spec."
+  ],
+  "critical_code_review_comments": [
+    "sessions.py is 926 lines — approaching the 700-line splitting guideline; consider extracting live/challenge/state-machine into submodules.",
+    "In routes/sessions.py line 841 (`db.users.find_one({\"_id\": ObjectId(s['user_id'])})`) the office lookup could be batched with users to avoid N+1 per active session on /live.",
+    "MobileGeofenceEvent uses field name `accuracy` while other geofence models in the codebase use `accuracy_m` — inconsistency worth documenting in models.py.",
+    "Cron deadman-tick correctly uses hmac.compare_digest for constant-time secret compare — verified in routes/cron.py."
+  ],
+  "updated_files": ["/app/backend/tests/test_phase_e2e_ingress.py (new)"],
+  "success_rate": {
+    "backend_regression_suite": "100% (146/146 non-skipped tests passed)",
+    "live_ingress_e2e_suite": "95% (21/22 — the 1 failure is the genuine office_name gap in /sessions/live)"
+  },
+  "test_credentials": "Admin akmaljn7@gmail.com / GeofenceAdmin123!, Employee employee@example.com / Employee123! — both verified working via public ingress.",
+  "seed_data_creation": "None. Test creates ephemeral device registrations and one office (deleted at end) — no lingering data.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Baseline pytest = 146 passed / 1 skipped / 1 warning; always run with `python -m pytest -n 0` (pytest.ini has -n 2 baked in but shared uvicorn instance flakes under parallel load). New file tests/test_phase_e2e_ingress.py exercises the PUBLIC Kubernetes ingress URL and should be preserved as regression. Two spec gaps remain open: (1) missing office_name in /sessions/live enrichment, (2) challenge-now returns 400 not 409. Both are trivial code fixes in routes/sessions.py.",
+  "rca of the issue": {
+    "office_name_missing": "routes/sessions.py:live_sessions() enriches only from db.users (line 841). No lookup of db.offices is performed before appending to the result dict. Fix: fetch office by s['office_id'] and add 'office_name': (off or {}).get('name', '') in the appended dict — mirroring the employee_name pattern.",
+    "challenge_now_wrong_status": "routes/sessions.py:866 hard-codes status_code=400 for the 'already pending' conflict. Should be 409 Conflict per REST semantics and the review request. One-line change."
+  }
+}
