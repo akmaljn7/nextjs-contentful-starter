@@ -16,6 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.geofenceattendance.app",
+      "googleServicesFile": "./config/GoogleService-Info.plist",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "This app uses your location while open to detect when you arrive at or leave your assigned office and record attendance automatically.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "This app uses your location in the background to detect when you arrive at or leave your assigned office and record attendance automatically. Location data is only used for attendance and never shared with third parties.",
@@ -34,6 +35,7 @@
         "backgroundColor": "#0a0a0a"
       },
       "package": "com.geofenceattendance.app",
+      "googleServicesFile": "./config/google-services.json",
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",

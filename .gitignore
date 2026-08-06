@@ -83,3 +83,7 @@ android-sdk/
 # Secrets — never commit
 backend/.env
 frontend/.env
+
+# Firebase mobile config — contains project identifiers, keep local only
+mobile/config/google-services.json
+mobile/config/GoogleService-Info.plist
