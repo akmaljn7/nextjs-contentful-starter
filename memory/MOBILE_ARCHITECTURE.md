@@ -120,18 +120,22 @@ Server sends FCM push when:
 6. Admin can drag office pin — mobile `react-native-maps` must implement the
    same for admins-on-mobile editing offices.
 
-## Timeline commit
+## Timeline commit (updated 6 Aug 2026 — 4 of 8 phases delivered)
 
-- P0 — Backend prep — 3–4 days
-- P1 — App shell + login + role routing — 1 week
-- P2 — Employee flow: BG geofence + offline queue + 6 reliability fixes — 2 weeks
-- P3 — Employee flow: push + selfie challenge — 1 week
-- P4 — Admin flow: live map + core actions — 1.5 weeks
-- P5 — Admin flow: offices/employees/reports — 1.5 weeks
-- P6 — Anti-spoof, polish, error UX — 1 week
-- P7 — Real-device testing — 1 week
-- P8 — Store submission + review — 2–3 weeks
-- **Total 11–13 weeks; ~$425–1225 one-time + $99/yr**
+| Phase | Status | Notes |
+|-------|--------|-------|
+| **P0** — Backend prep | ✅ DONE | 7 endpoints + FCM stub + indexes (iteration_10 11/11 pass) |
+| **P1** — App shell + auth | ✅ DONE | Bearer-token support, role routing (iteration_11 20/20 pass) |
+| **P2** — BG geofence + offline queue | ✅ DONE | expo-location + SQLite queue + cold-start reconcile + health chip (iteration_12 28/28 pass) |
+| **P3** — Push + selfie challenge | ✅ DONE | expo-notifications + expo-camera + FCM data-payload handling (iteration_12 28/28 pass) |
+| **P4** — Admin live map + core actions | ✅ DONE | react-native-maps + force-end + send-selfie + offices edit |
+| **P5** — Admin employees + reports | ⏳ Next | Employees CRUD via mobile + CSV/PDF report viewer |
+| **P6** — Anti-spoof + reliability polish | Planned | Play Integrity / App Attest, boot receiver (Android config plugin), server-side deadman timer, expired-response retry |
+| **P7** — Real-device testing | Planned | iPhone SE→15 Pro, Android 8→14, various OEMs, TestFlight + Play Internal |
+| **P8** — Store submission | Planned | Global privacy policies, screenshots, review cycles |
+
+- ~7 of 11-13 weeks worth of implementation delivered so far
+- ~$99/yr costs still stand (no plugin upgrade needed yet — free `expo-location` path holds)
 
 ## Testing protocol per phase
 

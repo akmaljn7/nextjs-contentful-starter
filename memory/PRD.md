@@ -23,6 +23,36 @@ Multi-tenant enterprise geofenced attendance platform. Organizations sign up, ad
 - PWA installable
 
 ## Implemented (2026-02 → 2026-08)
+### Phase 4 · Admin live map + core actions (6 Aug 2026)
+- **`AdminHomeScreen`** — native `react-native-maps` with:
+  - Every office rendered as a **green geofence circle** + green pin marker.
+  - Every live employee rendered as a **status-coloured marker** (blue for active, orange for paused).
+  - Header stats row: ACTIVE / PAUSED / OFFICES counts (`data-testid="stat-active|paused|offices"`).
+  - Per-session action row underneath the map with:
+    - **Send selfie now** button (calls `POST /api/sessions/challenge-now/{user_id}` — disabled if a challenge is already pending, testID `send-selfie-{sessionId}`)
+    - **End session** button (calls `POST /api/sessions/force-expire/{user_id}` with confirm alert, testID `end-session-{sessionId}`)
+  - Pull-to-refresh + 10 s auto-refresh via `react-query`.
+  - Status flags rendered inline: STALE, FLAGGED, minutes-remaining.
+- **`AdminOfficesScreen`** — offices list with tap-to-edit modal:
+  - Native map preview inside the edit modal.
+  - Live-updating geofence circle as the admin changes the radius.
+  - Bottom tab renamed to include Offices between Live and Team.
+  - Refuses radius < 30 m with inline validation ("iOS ignores geofences smaller than 50 m" tip).
+- **Backend security hardening**: `/api/auth/mobile-logout` now validates that the JWT `sub` is a well-formed ObjectId before hitting Mongo — a forged token with a non-ObjectId sub would previously 500; now it returns 401 cleanly. Non-blocking finding from iteration_12 report.
+
+### Phase 3 · Push notifications + selfie capture (6 Aug 2026)
+- **Push token registration** (`src/services/push.ts`) — requests notification permission, fetches the native FCM/APNs device token via `Notifications.getDevicePushTokenAsync()`, and posts it to `/api/mobile/register-device`. Uses raw platform tokens (not Expo Push) so our own FCM pipeline can talk directly to APNs+FCM.
+- **Android notification channel** — `attendance` channel with MAX importance, vibration, lockscreen visibility public.
+- **Foreground handler** — `Notifications.setNotificationHandler` so pushes appear as heads-up banners even while the app is open.
+- **Challenge subscription** (`subscribeChallenges`) — installs 3 listeners: (1) foreground receive, (2) tap-response, (3) `getLastNotificationResponseAsync` for "app opened by push while killed". All converge on the same `open()` callback.
+- **ChallengeContext** (`src/context/ChallengeContext.tsx`) — global store for "the user has a pending selfie challenge". Three trigger paths converge here:
+  1. FCM push data payload (primary)
+  2. `/api/sessions/me` foreground poll every 12 s (safety net when FCM_SERVICE_ACCOUNT_JSON is not yet configured)
+  3. Programmatic `open()` (debug / future admin push-through)
+  Deduplicates by `challenge_id` so a push + poll for the same challenge only opens the modal once.
+- **ChallengeModal** (`src/components/ChallengeModal.tsx`) — full-screen `expo-camera` front-facing capture with a live countdown to `respond_by_ms` (turns red under 60 s), auto-requests camera permission on first open, uploads base64 image to `/api/sessions/challenge/{id}/respond` where the existing server-side dlib matcher verifies against the face baseline. Emits alert on success/failure and invalidates `["my-session"]` + `["mobile-reconcile"]` so the Home screen updates instantly.
+- **App wiring** — `App.tsx` now nests `<ChallengeProvider>` between Auth and Navigation, and mounts `<ChallengeModal>` above the navigator so it can overlay any screen (Employee tabs, Admin tabs, or during transitions).
+
 ### Phase 2 · Background geofencing + offline queue (6 Aug 2026)
 - **Native geofencing** via `expo-location` — `TaskManager.defineTask('gfattend.geofence')` receives OS-level enter/exit transitions even when the app is killed. Fetches a fresh GPS fix on wake so lat/lng/accuracy reflect actual position, not just the region center.
 - **iOS SLC fallback** — arms `startLocationUpdatesAsync('gfattend.slc')` with a 500 m distance interval alongside the geofence, so we still get a signal if force-quit degrades geofencing.

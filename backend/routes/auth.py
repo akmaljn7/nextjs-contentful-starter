@@ -285,13 +285,17 @@ async def mobile_logout(request: Request):
     if payload.get("type") != "refresh":
         raise HTTPException(status_code=401, detail="Invalid token type")
     user_id = payload["sub"]
+    try:
+        user_oid = ObjectId(user_id)
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
     # Revoke this refresh token
     await db.refresh_tokens.update_one(
         {"jti": payload.get("jti")},
         {"$set": {"revoked_at": datetime.now(timezone.utc).isoformat()}},
     )
     # End any active session (mirror of web /logout)
-    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    user = await db.users.find_one({"_id": user_oid})
     if user:
         active = await db.active_sessions.find_one({"user_id": user_id, "org_id": user["org_id"]})
         if active:
