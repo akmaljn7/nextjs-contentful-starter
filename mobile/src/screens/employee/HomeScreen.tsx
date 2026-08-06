@@ -1,36 +1,70 @@
 import React from "react";
-import { Text, View, StyleSheet, RefreshControl, ScrollView } from "react-native";
+import { Text, View, StyleSheet, RefreshControl, ScrollView, Pressable, Linking, Platform } from "react-native";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Ionicons } from "@expo/vector-icons";
+import * as Location from "expo-location";
 import { Screen } from "@/components/Screen";
 import { HealthChip } from "@/components/HealthChip";
 import { useAuth } from "@/context/AuthContext";
 import { mobile } from "@/api/mobile";
 import { coldStartReconcile } from "@/services/reconcile";
 import { drainQueue } from "@/services/syncWorker";
+import { startForegroundWatcher, stopForegroundWatcher } from "@/services/foregroundWatcher";
 import { colors } from "@/theme";
 
-/**
- * Placeholder Home. Phase 2 will replace this with the live geofence status
- * card, permission health chip, and reconciliation footer. For Phase 1 we
- * just prove the plumbing: fetch /mobile/reconcile and display the assigned
- * office + current session state.
- */
 export default function EmployeeHomeScreen() {
   const { user } = useAuth();
   const qc = useQueryClient();
+  const [bgPerm, setBgPerm] = React.useState<"granted" | "missing" | "checking">("checking");
+
   const rec = useQuery({
     queryKey: ["mobile-reconcile"],
     queryFn: mobile.reconcile,
     refetchInterval: 20_000,
   });
 
+  // Keep foreground watcher alive for the entire lifetime of the Home screen.
+  // This is what makes "app open + walk in/out" instantly detect enter/exit
+  // instead of waiting for OS-level native geofence transitions (which can
+  // lag 30-90s on Android).
+  React.useEffect(() => {
+    startForegroundWatcher().catch(() => undefined);
+    return () => { stopForegroundWatcher(); };
+  }, []);
+
+  // Refresh the watcher whenever the office changes server-side.
+  React.useEffect(() => {
+    if (rec.data?.office) {
+      startForegroundWatcher().catch(() => undefined);
+    }
+  }, [rec.data?.office?.id, rec.data?.office?.radius_meters]);
+
+  // Poll bg permission so the "Fix location" banner disappears the moment
+  // the user grants it via Settings.
+  React.useEffect(() => {
+    let mounted = true;
+    const tick = async () => {
+      const bg = await Location.getBackgroundPermissionsAsync();
+      if (mounted) setBgPerm(bg.status === "granted" ? "granted" : "missing");
+    };
+    tick();
+    const t = setInterval(tick, 8_000);
+    return () => { mounted = false; clearInterval(t); };
+  }, []);
+
   const onRefresh = React.useCallback(async () => {
     await Promise.all([
       drainQueue().catch(() => undefined),
       coldStartReconcile().catch(() => undefined),
     ]);
+    startForegroundWatcher().catch(() => undefined);
     qc.invalidateQueries({ queryKey: ["mobile-reconcile"] });
   }, [qc]);
+
+  const openSettings = React.useCallback(() => {
+    if (Platform.OS === "ios") Linking.openURL("app-settings:");
+    else Linking.openSettings();
+  }, []);
 
   const office = rec.data?.office;
   const session = rec.data?.session;
@@ -48,6 +82,24 @@ export default function EmployeeHomeScreen() {
         <Text style={styles.greeting}>Hi {user?.name?.split(" ")[0] || "there"}</Text>
         <Text style={styles.subGreeting}>Attendance is fully automatic.</Text>
         <HealthChip testID="health-chip" />
+
+        {bgPerm === "missing" && (
+          <Pressable
+            testID="fix-location-banner"
+            onPress={openSettings}
+            style={styles.warnBanner}
+          >
+            <Ionicons name="warning" size={20} color={colors.amber} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.warnTitle}>Enable "Always" location</Text>
+              <Text style={styles.warnBody}>
+                Attendance can't run in the background without "Always" location.
+                Tap here to open Settings.
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.amber} />
+          </Pressable>
+        )}
 
         <View style={styles.card} testID="employee-status-card">
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
@@ -119,4 +171,11 @@ const styles = StyleSheet.create({
   cardLabel: { color: colors.textDim, fontSize: 10, letterSpacing: 2, marginBottom: 8, fontWeight: "600" },
   officeName: { color: colors.text, fontSize: 18, fontWeight: "600" },
   officeCoords: { color: colors.textDim, fontFamily: "Menlo", fontSize: 12, marginTop: 6 },
+  warnBanner: {
+    marginTop: 16, padding: 14, backgroundColor: "#3a2a10",
+    borderColor: colors.amber, borderLeftWidth: 3,
+    flexDirection: "row", alignItems: "center", gap: 12,
+  },
+  warnTitle: { color: colors.amber, fontSize: 13, fontWeight: "700" },
+  warnBody: { color: colors.text, fontSize: 12, marginTop: 4, lineHeight: 16 },
 });

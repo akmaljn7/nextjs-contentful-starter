@@ -5,6 +5,7 @@ import { useAuth, isAdminRole } from "@/context/AuthContext";
 import { AuthStack } from "@/navigation/AuthStack";
 import { EmployeeRoot } from "@/navigation/EmployeeRoot";
 import { AdminStack } from "@/navigation/AdminStack";
+import { PermissionsGate } from "@/components/PermissionsGate";
 import { colors } from "@/theme";
 
 const NAV_THEME = {
@@ -37,7 +38,11 @@ export function RootNavigator() {
 
   return (
     <NavigationContainer theme={NAV_THEME}>
-      {!user ? <AuthStack /> : isAdminRole(user.role) ? <AdminStack /> : <EmployeeRoot />}
+      {!user
+        ? <AuthStack />
+        : isAdminRole(user.role)
+          ? <AdminStack />
+          : <PermissionsGate><EmployeeRoot /></PermissionsGate>}
     </NavigationContainer>
   );
 }

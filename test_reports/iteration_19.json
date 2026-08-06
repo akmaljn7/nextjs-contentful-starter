@@ -1,0 +1,48 @@
+{
+  "summary": "Verified mobile UX/logic changes for auto-detection bug fix (foreground watcher + PermissionsGate). yarn typecheck: PASS. expo export:embed --eager (EAS Bundle-JS phase equivalent) for Android: PASS (1339 modules bundled, 39.5s). npx expo-doctor: 18/18 PASS. Backend pytest -n 0 serial: 168 passed / 1 skipped / 0 failed — baseline from iteration_17 fully preserved. All required exports/wiring in the 5 changed mobile files confirmed via file inspection.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "verification_matrix": {
+    "typecheck_exit_0": true,
+    "export_embed_android_exit_0": true,
+    "expo_doctor_18_of_18": true,
+    "foregroundWatcher_exports_start_stop_isActive": true,
+    "PermissionsGate_gates_on_bg_perm_else_PermissionsScreen": true,
+    "RootNavigator_wraps_EmployeeRoot_only_not_AdminStack": true,
+    "HomeScreen_useEffect_start_stop_watcher_and_fix_location_banner": true,
+    "AuthContext_imports_startForegroundWatcher": true,
+    "AuthContext_signOut_calls_stopForegroundWatcher": true,
+    "AuthContext_AppState_active_calls_startForegroundWatcher": false,
+    "watcher_HYSTERESIS_M_15_and_CROSS_DEBOUNCE_MS_30000": true,
+    "client_event_id_prefixed_fg_dash": true,
+    "backend_pytest_168_pass_1_skip_0_fail": true
+  },
+  "test_report_links": [
+    "/app/mobile/src/services/foregroundWatcher.ts",
+    "/app/mobile/src/components/PermissionsGate.tsx",
+    "/app/mobile/src/navigation/RootNavigator.tsx",
+    "/app/mobile/src/screens/employee/HomeScreen.tsx",
+    "/app/mobile/src/context/AuthContext.tsx"
+  ],
+  "action_items": [
+    "MINOR (optional): AuthContext.tsx AppState listener at line 91-100 imports startForegroundWatcher but does NOT invoke it on 'active' — only drainQueue + syncOfficeGeofence. Functionally the watcher is still restarted on foreground via PermissionsGate's own AppState listener (line 58-63 of PermissionsGate.tsx which calls check() -> startForegroundWatcher) AND via HomeScreen's mount useEffect, so live behavior is correct. But the checklist item literally asks for the call to also live in AuthContext. Consider adding `startForegroundWatcher().catch(() => undefined);` alongside drainQueue in the AppState 'active' branch for defence in depth (e.g. if HomeScreen is unmounted for a modal + PermissionsGate is bypassed). Not a functional bug — watcher lifecycle is already covered."
+  ],
+  "critical_code_review_comments": [
+    "foregroundWatcher hysteresis + debounce logic is sound: fuzzy band (r-15 .. r+15) returns without state change, first-fix establishes baseline without firing, and 30 s debounce guards against rapid re-cross. Naming `fg-` for client_event_id will not collide with native `ce-` events so server unique index dedup is preserved.",
+    "PermissionsGate correctly re-evaluates on AppState 'active' — this is critical for the Settings round-trip UX and matches the fix intent.",
+    "HomeScreen restarts watcher when office.id or radius_meters changes (line 36-40) — good, handles admin reassignment without app restart.",
+    "signOut in AuthContext correctly stops watcher before clearing tokens — no leaked subscription."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "100%", "frontend": "100% (static verification only — no Android device/SDK available in container)" },
+  "test_credentials": "Owner: akmaljn7@gmail.com / GeofenceAdmin123!, Employee: employee@example.com / Employee123! (not exercised — this iteration is mobile static verification + backend regression only)",
+  "seed_data_creation": "None. No test devices created. No mobile_events written.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Iteration 19 verified the auto-detection fix statically (typecheck + Metro bundle + expo-doctor + backend pytest). Since container has no Android SDK, on-device behavior (walking in/out with app foreground and phone locked) CANNOT be tested here — this needs the user's real APK build via EAS + physical walk test. All 13 checklist items pass except one minor: AuthContext's AppState 'active' listener does not itself call startForegroundWatcher, though the watcher is still restarted on foreground via PermissionsGate + HomeScreen's own lifecycles. Backend baseline is 168 passed / 1 skipped / 0 failed with -n 0 serial run.",
+  "rca of the issue": "N/A — this iteration validates a fix from iteration 18. Original RCA (from problem statement): (a) PermissionsScreen was orphaned from RootNavigator so users never granted bg location; (b) registerOfficeGeofence silently no-op'd without bg perm; (c) no foreground watcher meant reliance on 30-90s-lag native geofences; (d) Android 10+ requires ACCESS_BACKGROUND_LOCATION for startGeofencingAsync even when foreground. The applied fix (PermissionsGate + foregroundWatcher + amber CTA banner + AuthContext hooks) addresses all four causes in the code base as verified."
+}
