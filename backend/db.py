@@ -56,3 +56,6 @@ async def ensure_indexes():
     await db.mobile_events.create_index([("org_id", 1), ("ts_ms", -1)])
     # 90-day retention on raw mobile events, same policy as gps_pings
     await db.mobile_events.create_index("received_at_dt", expireAfterSeconds=60 * 60 * 24 * 90)
+    # Phase 6: cron run history for the deadman-tick idempotency check
+    await db.cron_runs.create_index([("name", 1), ("run_id", 1)], unique=True)
+    await db.cron_runs.create_index("ts", expireAfterSeconds=60 * 60 * 24 * 14)

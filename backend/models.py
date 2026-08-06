@@ -251,3 +251,21 @@ class MobileHeartbeat(BaseModel):
     battery: Optional[float] = Field(default=None, ge=0, le=1)
     permission_state: Optional[Literal["always", "when_in_use", "denied", "restricted"]] = None
     last_geofence_event_ms: Optional[int] = None
+
+
+class MobileAttestation(BaseModel):
+    """Play Integrity (Android) / App Attest (iOS) attestation payload (Phase 6).
+
+    The token is minted client-side. Server verifies structure now (stub) —
+    later phases can swap in real Google Play Integrity + Apple App Attest
+    verification without a new endpoint. Any suspicious payload records a
+    high-severity security_events row.
+    """
+    device_id: str = Field(min_length=8, max_length=128)
+    platform: Literal["ios", "android"]
+    token: str = Field(min_length=1, max_length=8192)
+    nonce: str = Field(min_length=8, max_length=128)
+    ts_ms: int = Field(ge=0)
+    # Optional context so the server can correlate with a specific event
+    # (mobile geofence event this attestation is protecting, if any).
+    client_event_id: Optional[str] = Field(default=None, max_length=64)

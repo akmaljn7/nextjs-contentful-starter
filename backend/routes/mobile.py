@@ -19,6 +19,7 @@ from models import (
     MobileGeofenceEvent,
     MobileBulkSync,
     MobileHeartbeat,
+    MobileAttestation,
 )
 
 logger = logging.getLogger(__name__)
@@ -382,6 +383,106 @@ async def heartbeat(
     if not r.matched_count:
         raise HTTPException(status_code=404, detail="Device not registered — call /register-device first")
     return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
+# Attestation (Phase 6) — Play Integrity / App Attest verification stub
+# ---------------------------------------------------------------------------
+def _validate_attestation_structure(platform: str, token: str) -> tuple[str, str | None]:
+    """Cheap structural verification. Returns (verdict, reason_if_suspicious).
+
+    verdict ∈ {"ok", "invalid_structure", "stub_accepted"}.
+    - Real Play Integrity tokens are three-segment JWS (header.payload.sig).
+    - Real App Attest assertions are base64-encoded CBOR blobs.
+    - Anything matching our own dev-stub format ("stub-<nonce>-<hex>") is
+      accepted but tagged so we know we haven't verified crypto yet.
+    """
+    if not token or len(token) < 8:
+        return "invalid_structure", "empty_or_too_short"
+    if token.startswith("stub-"):
+        return "stub_accepted", None
+    if platform == "android":
+        # JWS = 3 base64url segments separated by dots
+        parts = token.split(".")
+        if len(parts) == 3 and all(len(p) > 0 for p in parts):
+            return "ok", None
+        return "invalid_structure", "not_a_jws"
+    if platform == "ios":
+        # App Attest assertions are base64 (roughly). Accept anything > 32
+        # base64-ish chars; real verify happens later.
+        import re
+        if re.fullmatch(r"[A-Za-z0-9+/=_\-]{32,}", token):
+            return "ok", None
+        return "invalid_structure", "not_base64"
+    return "invalid_structure", "unknown_platform"
+
+
+@router.post("/attestation")
+async def submit_attestation(
+    payload: MobileAttestation,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """Record + soft-verify a Play Integrity / App Attest token.
+
+    Verification is structural for now (stub). This endpoint is here so the
+    mobile client integration is complete and future phases can flip to real
+    crypto verification with zero client changes.
+
+    A failed verification logs a `high`-severity security_event but does NOT
+    block the request — anti-spoof is `soft` per the MOBILE_ARCHITECTURE doc.
+    """
+    from services.audit import log_security_event
+    db = get_db()
+
+    # Device must be registered first (matches heartbeat semantics)
+    dev = await db.mobile_devices.find_one({
+        "user_id": user["id"], "device_id": payload.device_id, "deleted_at": None,
+    })
+    if not dev:
+        raise HTTPException(status_code=404, detail="Device not registered — call /register-device first")
+
+    verdict, reason = _validate_attestation_structure(payload.platform, payload.token)
+
+    truncated_token = payload.token if len(payload.token) < 200 else (payload.token[:180] + "...")
+    now_ms = _now_ms()
+    await db.mobile_devices.update_one(
+        {"_id": dev["_id"]},
+        {"$set": {
+            "attestation_verdict": verdict,
+            "attestation_ts_ms": now_ms,
+            "attestation_ts": _now_iso(),
+            "attestation_reason": reason,
+            "attestation_nonce": payload.nonce,
+            "attestation_token_preview": truncated_token,
+            "attestation_platform": payload.platform,
+            "attestation_client_event_id": payload.client_event_id,
+        }},
+    )
+
+    if verdict == "invalid_structure":
+        await log_security_event(
+            type_="attestation_invalid",
+            severity="high",
+            ip=client_ip(request),
+            details={
+                "device_id": payload.device_id, "platform": payload.platform,
+                "reason": reason, "nonce": payload.nonce,
+                "client_event_id": payload.client_event_id,
+            },
+            org_id=user["org_id"], user_id=user["id"],
+        )
+        logger.warning(
+            "attestation_invalid user=%s device=%s platform=%s reason=%s",
+            user.get("email"), payload.device_id, payload.platform, reason,
+        )
+    else:
+        logger.info(
+            "attestation_recorded user=%s device=%s platform=%s verdict=%s",
+            user.get("email"), payload.device_id, payload.platform, verdict,
+        )
+
+    return {"ok": True, "verdict": verdict, "ts_ms": now_ms}
 
 
 # ---------------------------------------------------------------------------

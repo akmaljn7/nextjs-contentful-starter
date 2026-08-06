@@ -43,4 +43,8 @@ export const mobile = {
                          permission_state?: string; last_geofence_event_ms?: number }) =>
     api.post("/mobile/heartbeat", payload).then((r) => r.data),
   reconcile: (): Promise<ReconcileState> => api.get("/mobile/reconcile").then((r) => r.data),
+  attestation: (payload: { device_id: string; platform: "ios" | "android";
+                           token: string; nonce: string; ts_ms: number;
+                           client_event_id?: string }) =>
+    api.post("/mobile/attestation", payload).then((r) => r.data),
 };

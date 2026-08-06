@@ -1,0 +1,8 @@
+crons:
+  - name: deadman-tick
+    description: "Silent-push wake for scheduled employees whose phones haven't sent a geofence event in 20 min"
+    cron: "*/15 * * * *"
+    endpoint: "{{BASE_URL}}/api/cron/deadman-tick"
+    method: POST
+    # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
+    enabled: true

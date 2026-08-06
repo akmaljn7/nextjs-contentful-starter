@@ -10,6 +10,10 @@ import { ChallengeProvider } from "@/context/ChallengeContext";
 import { RootNavigator } from "@/navigation/RootNavigator";
 import { ChallengeModal } from "@/components/ChallengeModal";
 import { queryClient } from "@/lib/queryClient";
+// Side-effect imports: register global TaskManager tasks at cold-start so
+// the OS can wake them from geofence transitions AND from BOOT_COMPLETED.
+import "@/services/geofence";
+import "@/services/bootTask";
 
 /**
  * Root component. Wires the top-level providers in the order:

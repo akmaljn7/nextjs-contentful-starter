@@ -12,6 +12,7 @@ import { coldStartReconcile } from "@/services/reconcile";
 import { drainQueue } from "@/services/syncWorker";
 import { startHealthLoop, stopHealthLoop } from "@/services/health";
 import { purgeOldSynced } from "@/services/offlineQueue";
+import { submitAttestation } from "@/services/attestation";
 
 interface AuthState {
   user: authApi.AuthUser | null;
@@ -47,6 +48,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         tz: tz || undefined,
         locale,
       });
+      // Phase 6: attach a fresh Play Integrity / App Attest proof right after
+      // register-device so the server always has a recent attestation on file.
+      // Failures are silently swallowed — anti-spoof is soft (flag, don't block).
+      submitAttestation().catch(() => undefined);
     } catch {
       // no-op
     }

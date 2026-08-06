@@ -23,6 +23,22 @@ Multi-tenant enterprise geofenced attendance platform. Organizations sign up, ad
 - PWA installable
 
 ## Implemented (2026-02 → 2026-08)
+### Phase 6 · Reliability polish — anti-spoof + deadman + boot receiver (6 Aug 2026)
+- **`POST /api/mobile/attestation`** — records a Play Integrity (Android) / App Attest (iOS) token per device. Structural verification stub for now (JWS 3-segment shape or base64-ish for iOS; anything matching our stub format `stub-<nonce>-...` tagged `stub_accepted`). Malformed payloads log a `high`-severity `attestation_invalid` security_event but never block the request (anti-spoof is soft).
+- **Mobile client** — `src/services/attestation.ts` mints a stub token (`stub-<nonce>-<devicePrefix>-<hex24>`) and posts on device register + can be re-invoked before critical events. Auto-called from `AuthContext.registerDeviceQuiet()` right after `/register-device` so every login refreshes the attestation.
+- **`POST /api/cron/deadman-tick`** — new cron webhook that every 15 min scans employees whose schedule says they should be at work but whose device hasn't sent a heartbeat / geofence event in `> 20 min` and has no active session. Sends a silent FCM push (background=1, no UI) to wake the app which then reconciles + drains queue. Per-device 30 min cooldown + `cron_runs` idempotency guard so the same `run_id` is never processed twice.
+- **`.emergent/crons.yml`** — schedules `deadman-tick` at `*/15 * * * *`. Uses `WEBHOOK_CRON_SECRET` from `backend/.env`, constant-time bearer check, returns 2xx quickly and offloads the sweep to FastAPI `BackgroundTasks` as the scheduled-tasks skill mandates.
+- **Android boot receiver** — Expo config plugin at `/app/mobile/plugins/withAndroidBootReceiver.js`. Adds a `<receiver>` for `ACTION_BOOT_COMPLETED / QUICKBOOT_POWERON / (MY_)PACKAGE_REPLACED` to `AndroidManifest.xml`, emits `BootReceiver.kt` under the app package, and boots a headless JS task named `gfattend.boot`. The task (`src/services/bootTask.ts`) runs `coldStartReconcile → syncOfficeGeofence → drainQueue → sendHeartbeat`, re-arming a phone that rebooted overnight. iOS is a no-op — CLCircularRegions survive reboot natively.
+- **Backend tests** — `tests/test_mobile_phase6.py` (8 cases): missing device → 404, stub verdict, invalid structure logs security event, JWS shape accepted, cron auth 401 (missing/wrong), duplicate run_id dedup, and end-to-end stale-device silent push proof (plants a stale mobile_device row + verifies `last_deadman_poke_ms` moves).
+- **Reliability mitigations delivered** (all 6 from MOBILE_ARCHITECTURE.md):
+  1. ✅ Android boot receiver (this phase)
+  2. ✅ Cold-start reconciliation (Phase 2)
+  3. ✅ Server-side deadman timer (this phase)
+  4. ✅ iOS SLC fallback (Phase 2)
+  5. ✅ Health chip (Phase 2)
+  6. ✅ Admin OFFLINE DEVICE badge (Phase 0)
+- **TypeScript** — `yarn typecheck` clean (0 errors).
+
 ### Phase 5 · Admin Team + Reports + Offices CRUD (6 Aug 2026)
 - **`AdminTeamScreen`** — full mobile CRUD for employees:
   - **Create**: name / email / password (min 8) / office chip-selector; disabled until valid.
@@ -172,7 +188,11 @@ Multi-tenant enterprise geofenced attendance platform. Organizations sign up, ad
 - **[5 Aug 2026]** Employees form shows an inline red banner (in addition to toast) when create fails, so the reason cannot be missed
 
 ## Deferred / Backlog (P0/P1/P2)
+- **P0** — Wire actual FCM Credentials (Firebase service-account JSON → set FCM_SERVICE_ACCOUNT_JSON env; flips push/deadman from stub to live)
+- **P0** — Mobile Phase 7: Real-device testing on iOS + Android (TestFlight + Play Internal)
+- **P0** — Mobile Phase 8: Store submissions prep (privacy policy, `privacyManifest`, app.json cleanup)
 - **P0** — Bulk CSV employee import
+- **P1** — Swap Phase 6 attestation stub → real Play Integrity + App Attest (add `expo-play-integrity` + native iOS bindings)
 - **P1** — APScheduler background jobs (90-day GPS TTL cleanup, refresh-token cleanup, session expiry sweeps as a defence-in-depth backup to inline ticks)
 - **P1** — Email invite for new employees with set-password link
 - **P1** — Device fingerprint + IP-geo cross-check anti-spoof

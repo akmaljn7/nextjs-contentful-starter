@@ -87,7 +87,8 @@
             "deploymentTarget": "15.1"
           }
         }
-      ]
+      ],
+      "./plugins/withAndroidBootReceiver.js"
     ],
     "extra": {
       "eas": {
