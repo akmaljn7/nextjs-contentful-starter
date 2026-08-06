@@ -298,7 +298,11 @@ async def test_reconcile_no_session_shape():
 
 @pytest.mark.asyncio
 async def test_challenge_now_uses_push_stub():
-    """Admin manual challenge should succeed and (in stub mode) log push_stub."""
+    """Admin manual challenge should succeed. With FCM live it POSTs to
+    fcm.googleapis.com; a fake push_token returns fcm_400 and gets nulled by
+    the auto-cleanup (see services/push.py). Push fan-out happens in a
+    BackgroundTask so the API returns immediately regardless of FCM latency.
+    """
     async with httpx.AsyncClient(base_url=API, follow_redirects=True) as admin, \
                httpx.AsyncClient(base_url=API, follow_redirects=True) as emp:
         await _login(admin, ADMIN_EMAIL, ADMIN_PWD)

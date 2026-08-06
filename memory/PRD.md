@@ -23,6 +23,13 @@ Multi-tenant enterprise geofenced attendance platform. Organizations sign up, ad
 - PWA installable
 
 ## Implemented (2026-02 → 2026-08)
+### Live FCM wired (6 Aug 2026)
+- Firebase service-account JSON (project `attend-11366`) added to `backend/.env` as `FCM_SERVICE_ACCOUNT_JSON` + `FCM_PROJECT_ID`; `backend/.env` + `frontend/.env` now git-ignored.
+- `_fcm_configured()` → True; real OAuth2 token minted against `oauth2.googleapis.com`; real POST to `https://fcm.googleapis.com/v1/projects/attend-11366/messages:send` verified end-to-end (fake device token cleanly returns `fcm_400 INVALID_ARGUMENT`).
+- `challenge-now` push moved to FastAPI `BackgroundTasks` — admin API stays snappy (<300ms) regardless of FCM round-trip latency. Deadman cron sweep already runs sends in a BackgroundTask.
+- Invalid-token auto-cleanup verified live: sending to a fake push_token → `push_token` set to null + `push_token_invalid_at` timestamped on the `mobile_devices` row.
+- Backend tests: 168 passed, 1 skipped (0 regressions).
+
 ### Phase 0-6 whole-app audit pass (6 Aug 2026)
 - Full serial pytest: **168 passed / 1 skipped / 1 warning** (was 146; testing agent added 22 e2e-ingress tests that hit the public Kubernetes URL).
 - Mobile `yarn typecheck` clean.

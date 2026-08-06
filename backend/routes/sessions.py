@@ -7,7 +7,7 @@ import json
 import logging
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
-from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Depends, Request
 from bson import ObjectId
 
 from db import get_db
@@ -862,7 +862,12 @@ async def live_sessions(user: dict = Depends(require_admin)):
 
 
 @router.post("/challenge-now/{user_id}")
-async def trigger_challenge_now(user_id: str, request: Request, user: dict = Depends(require_admin)):
+async def trigger_challenge_now(
+    user_id: str,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    user: dict = Depends(require_admin),
+):
     """Admin-triggered on-demand selfie challenge for an active employee session."""
     db = get_db()
     s = await db.active_sessions.find_one({"user_id": user_id, "org_id": user["org_id"]})
@@ -897,19 +902,19 @@ async def trigger_challenge_now(user_id: str, request: Request, user: dict = Dep
     )
     new_s = await db.active_sessions.find_one({"_id": s["_id"]})
     await _broadcast_session(db, new_s)
-    # FCM push so the mobile app pops the selfie modal even if backgrounded
-    try:
-        from services.push import send_push_to_user
-        await send_push_to_user(
-            db, user_id,
-            title="Selfie check-in required",
-            body=f"Your admin requested a selfie. You have {resp_window_min} min.",
-            data={"kind": "selfie_challenge", "challenge_id": new_challenge["id"],
-                  "session_id": str(s["_id"]), "manual": "true",
-                  "respond_by_ms": str(new_challenge["respond_by_ms"])},
-        )
-    except Exception as e:
-        logger.error("manual_challenge_push_error err=%s", e)
+    # Fire FCM push OUT OF BAND so the admin's API call returns immediately.
+    # Real FCM v1 requests to Google can add 500ms-2s of latency + retries; we
+    # never want the admin UI to block on that.
+    from services.push import send_push_to_user
+    background_tasks.add_task(
+        send_push_to_user,
+        db, user_id,
+        "Selfie check-in required",
+        f"Your admin requested a selfie. You have {resp_window_min} min.",
+        {"kind": "selfie_challenge", "challenge_id": new_challenge["id"],
+         "session_id": str(s["_id"]), "manual": "true",
+         "respond_by_ms": str(new_challenge["respond_by_ms"])},
+    )
     logger.info("manual_selfie_challenge admin=%s target_user=%s challenge=%s",
                 user.get("email"), user_id, new_challenge["id"])
     from services.audit import log_admin_action
