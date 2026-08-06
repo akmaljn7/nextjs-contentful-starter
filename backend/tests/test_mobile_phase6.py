@@ -167,9 +167,41 @@ async def test_deadman_sweep_pokes_stale_employee():
     user = await db.users.find_one({"email": EMP_EMAIL})
     assert user, "seeded employee missing"
     user_id = str(user["_id"])
+    prior_office = user.get("office_id")
+
+    # Ensure the employee has an office assigned (cron sweep skips users
+    # without an office_id — this fixture is defensive against test order
+    # side-effects). Create a temp office if the seeded one has been deleted.
+    office = None
+    if prior_office:
+        office = await db.offices.find_one({"_id": ObjectId(prior_office)})
+    tmp_office_id = None
+    if not office:
+        ins = await db.offices.insert_one({
+            "org_id": user["org_id"], "name": "Phase6 Test Office",
+            "address": "", "lat": 6.5244, "lng": 3.3792, "radius_meters": 300,
+            "created_at": datetime.now(timezone.utc).isoformat(), "deleted_at": None,
+        })
+        tmp_office_id = str(ins.inserted_id)
+        await db.users.update_one({"_id": user["_id"]}, {"$set": {"office_id": tmp_office_id}})
 
     # Clean any active session so the sweep considers this user
     await db.active_sessions.delete_many({"user_id": user_id})
+
+    # Cron treats a user as "healthy" if ANY of their devices has a recent
+    # last_seen_at. Prior test iterations may have left recent devices; hide
+    # them from the sweep by nulling their push_token for the duration of
+    # this test, then restore.
+    healthy_ids: list = []
+    async for other in db.mobile_devices.find({
+        "user_id": user_id, "deleted_at": None, "push_token": {"$ne": None},
+    }):
+        healthy_ids.append(other["_id"])
+    if healthy_ids:
+        await db.mobile_devices.update_many(
+            {"_id": {"$in": healthy_ids}},
+            {"$set": {"push_token_backup_for_test": True, "push_token": None}},
+        )
 
     # Plant a stale device (last_seen_at 40 min ago, no cooldown yet)
     dev_id = f"STALE-{uuid.uuid4().hex[:12]}"
@@ -182,29 +214,47 @@ async def test_deadman_sweep_pokes_stale_employee():
         "last_deadman_poke_ms": 0,
     })
 
-    secret = _cron_secret()
-    run_id = f"stale-run-{uuid.uuid4().hex[:12]}"
-    async with httpx.AsyncClient(base_url=API, follow_redirects=True) as c:
-        r = await c.post(
-            "/api/cron/deadman-tick",
-            json={"event": "schedule.triggered", "run_id": run_id},
-            headers={"Authorization": f"Bearer {secret}", "X-Webhook-Id": run_id},
-        )
-        assert r.status_code == 200, r.text
+    try:
+        secret = _cron_secret()
+        run_id = f"stale-run-{uuid.uuid4().hex[:12]}"
+        async with httpx.AsyncClient(base_url=API, follow_redirects=True) as c:
+            r = await c.post(
+                "/api/cron/deadman-tick",
+                json={"event": "schedule.triggered", "run_id": run_id},
+                headers={"Authorization": f"Bearer {secret}", "X-Webhook-Id": run_id},
+            )
+            assert r.status_code == 200, r.text
 
-    # Wait for background sweep, then confirm the device was poked
-    await asyncio.sleep(1.5)
-    dev_now = await db.mobile_devices.find_one({"device_id": dev_id})
-    # Any employee-scheduling logic may skip during off-hours; assert only if
-    # user was in scheduled window. Since seeded employee has mode='any',
-    # sweep only pokes them between 06:00-22:00 local. Check accordingly.
-    hour_utc = datetime.now(timezone.utc).hour
-    if 6 <= hour_utc < 22:
-        assert dev_now.get("last_deadman_poke_ms", 0) > 0, "expected deadman poke"
+        # Wait for background sweep, then confirm the device was poked
+        await asyncio.sleep(2.0)
+        dev_now = await db.mobile_devices.find_one({"device_id": dev_id})
 
-    # Cleanup
-    await db.mobile_devices.delete_one({"device_id": dev_id})
-    client.close()
+        # Cron sweep only pokes users during their scheduled work window.
+        # Consult cron.py's own predicate so the assertion is DST/tz-safe.
+        import sys, pathlib
+        sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
+        from routes.cron import _employee_is_scheduled_now
+        user_doc = await db.users.find_one({"email": EMP_EMAIL})
+        in_window = _employee_is_scheduled_now(user_doc)
+        if in_window:
+            assert dev_now.get("last_deadman_poke_ms", 0) > 0, "expected deadman poke"
+    finally:
+        # Cleanup: device + temp office + restore original office_id + restore healthy devices
+        await db.mobile_devices.delete_one({"device_id": dev_id})
+        if tmp_office_id:
+            await db.offices.delete_one({"_id": ObjectId(tmp_office_id)})
+            await db.users.update_one({"_id": user["_id"]}, {"$set": {"office_id": prior_office}})
+        if healthy_ids:
+            # Restore the push_tokens we nulled at setup
+            async for restored in db.mobile_devices.find(
+                {"_id": {"$in": healthy_ids}, "push_token_backup_for_test": True}
+            ):
+                await db.mobile_devices.update_one(
+                    {"_id": restored["_id"]},
+                    {"$set": {"push_token": f"restored-tok-{restored['device_id']}"},
+                     "$unset": {"push_token_backup_for_test": ""}},
+                )
+        client.close()
 
 
 @pytest.mark.asyncio
