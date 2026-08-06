@@ -40,7 +40,7 @@ def _slugify(text: str) -> str:
     return slug[:60] or f"org-{uuid.uuid4().hex[:8]}"
 
 
-async def _issue_tokens(user_doc: dict, response: Response):
+async def _issue_tokens(user_doc: dict, response: Response) -> tuple[str, str]:
     db = get_db()
     user_id = str(user_doc["_id"])
     access = create_access_token(user_id, user_doc["email"], user_doc["org_id"], user_doc["role"])
@@ -71,7 +71,19 @@ def _shape_user(user: dict, org: dict | None = None) -> dict:
     }
 
 
-@router.post("/register-org", response_model=UserPublic)
+def _shape_user_with_tokens(user: dict, org: dict | None, access: str, refresh: str) -> dict:
+    """Response body used by mobile clients — cookies still get set for the
+    web dashboard, but mobile reads tokens from the JSON body since it can't
+    reliably rely on cookies (esp. across app restarts / iOS Safari WKW)."""
+    return {
+        **_shape_user(user, org),
+        "access_token": access,
+        "refresh_token": refresh,
+        "token_type": "bearer",
+    }
+
+
+@router.post("/register-org")
 async def register_org(payload: RegisterOrgRequest, request: Request, response: Response):
     db = get_db()
     email = payload.email.lower().strip()
@@ -121,11 +133,11 @@ async def register_org(payload: RegisterOrgRequest, request: Request, response: 
     }
     user_res = await db.users.insert_one(user_doc)
     user_doc["_id"] = user_res.inserted_id
-    await _issue_tokens(user_doc, response)
-    return _shape_user(user_doc, org_doc)
+    access, refresh = await _issue_tokens(user_doc, response)
+    return _shape_user_with_tokens(user_doc, org_doc, access, refresh)
 
 
-@router.post("/login", response_model=UserPublic)
+@router.post("/login")
 async def login(payload: LoginRequest, request: Request, response: Response):
     db = get_db()
     email = payload.email.lower().strip()
@@ -162,14 +174,24 @@ async def login(payload: LoginRequest, request: Request, response: Response):
     await db.users.update_one({"_id": user["_id"]}, {"$set": {"last_login_at": now.isoformat(), "failed_login_count": 0}})
 
     org = await db.organizations.find_one({"_id": ObjectId(user["org_id"])})
-    await _issue_tokens(user, response)
-    return _shape_user(user, org)
+    access, refresh = await _issue_tokens(user, response)
+    return _shape_user_with_tokens(user, org, access, refresh)
 
 
 @router.post("/refresh")
-async def refresh(request: Request, response: Response):
+async def refresh(request: Request, response: Response, payload: dict | None = None):
     db = get_db()
-    token = request.cookies.get("refresh_token")
+    # Mobile clients pass the refresh token in the JSON body; the web app
+    # uses httpOnly cookies. Accept either.
+    token = None
+    try:
+        if request.headers.get("content-length") and int(request.headers["content-length"]) > 0:
+            body = await request.json()
+            token = (body or {}).get("refresh_token")
+    except Exception:
+        token = None
+    if not token:
+        token = request.cookies.get("refresh_token")
     if not token:
         raise HTTPException(status_code=401, detail="No refresh token")
     try:
@@ -194,14 +216,23 @@ async def refresh(request: Request, response: Response):
         {"jti": payload["jti"]},
         {"$set": {"revoked_at": datetime.now(timezone.utc).isoformat()}},
     )
-    await _issue_tokens(user, response)
-    return {"ok": True}
+    access, refresh_new = await _issue_tokens(user, response)
+    return {"ok": True, "access_token": access, "refresh_token": refresh_new, "token_type": "bearer"}
 
 
 @router.post("/logout")
 async def logout(request: Request, response: Response, user: dict = Depends(get_current_user)):
     db = get_db()
-    token = request.cookies.get("refresh_token")
+    # Mobile clients pass refresh_token in body; web uses cookie
+    token = None
+    try:
+        if request.headers.get("content-length") and int(request.headers["content-length"]) > 0:
+            body = await request.json()
+            token = (body or {}).get("refresh_token")
+    except Exception:
+        token = None
+    if not token:
+        token = request.cookies.get("refresh_token")
     if token:
         try:
             payload = decode_token(token)

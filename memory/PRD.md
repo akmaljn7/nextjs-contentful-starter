@@ -23,6 +23,21 @@ Multi-tenant enterprise geofenced attendance platform. Organizations sign up, ad
 - PWA installable
 
 ## Implemented (2026-02 → 2026-08)
+### Phase 0 · Mobile backend prep (6 Aug 2026)
+- **New collections**: `mobile_devices` (unique on `user_id+device_id`), `mobile_events` (unique on `user_id+client_event_id` for offline-safe idempotency).
+- **New endpoints** (all under `/api/mobile`):
+  - `POST /register-device` — upsert per user+device with push token, tz, app version.
+  - `DELETE /register-device/{device_id}` — soft-delete + wipes push_token.
+  - `GET  /devices` — self service list.
+  - `POST /geofence-event` — single enter/exit/cold_start_reconcile with `client_event_id` dedup.
+  - `POST /sync` — bulk drain of offline queue; events replayed in chronological order.
+  - `POST /heartbeat` — device health for the OFFLINE DEVICE admin badge.
+  - `GET  /reconcile` — one-shot state snapshot for cold-start app open.
+- **Mobile event → state machine bridge**: `enter` events auto-start using `event.ts_ms` as effective start (fixes indoor-notification-delay drift). `exit` pauses; `cold_start_reconcile` heals mismatched state. All events go through the same `_sync_session_center_from_office` guard so admin office edits propagate instantly.
+- **FCM push service** (`services/push.py`) — OAuth2 v1 API, `send_push_to_user()` fan-out per user. Graceful stub when `FCM_SERVICE_ACCOUNT_JSON` env is missing so Phase 0 works without creds.
+- **Push triggers wired**: selfie challenge promotion (`_tick_challenge_lifecycle`) and admin manual `challenge-now` both fan out an FCM notification with `kind=selfie_challenge` + `challenge_id` payload.
+- **Soft anti-spoof**: `mock_location: true` payloads log a `security_events` row (severity `high`) but the session still starts — flag, don't block.
+
 ### Backend
 - **[5 Aug 2026 · bugfix]** Session `center` (coords + radius) is now re-synced from the office record on every `/ping`, `/me`, and `/live` call. Previously the session snapshotted the office radius at start time — so if the admin later shrank the geofence (e.g. 700m → 70m), the session kept using the stale 700m and an employee 660m away stayed "active". Regression test: `test_admin_shrinking_office_pauses_active_session`.
 - **[5 Aug 2026 · bugfix]** Low-accuracy pings that are unambiguously outside the geofence (distance > radius + accuracy) now pause the session. Previously any ping with `accuracy > tolerance` skipped the spatial check entirely — allowing a laptop with fuzzy WiFi geoloc to stay "at office" from anywhere in the city. Regression test in `test_bugfixes_5aug.py::test_low_accuracy_ping_far_outside_still_pauses`.

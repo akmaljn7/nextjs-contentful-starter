@@ -1,0 +1,51 @@
+{
+  "summary": "Phase 1 backend verification — Bearer-token-in-body support added to /auth/login, /refresh, /logout while cookie flow preserved for web dashboard. Created /app/backend/tests/test_auth_token_in_body.py with 10 pytest cases covering: login body tokens + Set-Cookie parity, Bearer auth against /me and mobile endpoints, refresh-body rotation with old-token revocation (401), refresh-cookie web-flow, logout-body rotation + session end, cookie regression for /me /offices /employees /sessions/live /sessions/me, duplicate employee 409, mock_location soft-flag security event, and mobile /sync via Bearer. Also re-ran Phase 0 (8 tests) and 5-Aug regression (2 tests). Result: 20/20 pass. Mobile TypeScript `yarn typecheck` passes clean. FCM push_stub log lines observed in backend.err.log confirming stub behavior.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/auth/refresh, /api/auth/me (cookie flow)", "issue": "Test-harness quirk (NOT an app bug): requests.Session AND httpx.AsyncClient both fail to resend the Partitioned; SameSite=None; Secure cookies when running under pytest — the cookies are stored in-jar (visible via s.cookies keys) but stripped from the outgoing Cookie header by the preview edge/CF layer. curl handles them correctly. The two cookie-only tests (test_refresh_via_cookie_still_works_web_dashboard, test_web_cookie_flow_regression_admin_endpoints) therefore shell out to curl. Manually verified backend responds 200 on cookie-only /refresh, /me, /offices, /employees, /sessions/live, /sessions/me. Same behavior noted in iteration_10.json; carried forward."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "phase1_coverage": {
+    "login_body_carries_access_refresh_bearer": "PASS (admin + employee)",
+    "login_still_sets_httponly_secure_samesite_none_cookies": "PASS",
+    "bearer_from_body_authorizes_me_and_all_mobile_endpoints": "PASS (reconcile, devices, register-device, heartbeat)",
+    "refresh_accepts_body_and_returns_rotated_tokens": "PASS",
+    "refresh_old_token_revoked_after_rotation_401": "PASS (detail contains 'revoked')",
+    "refresh_new_token_valid_for_next_rotate": "PASS",
+    "refresh_via_cookie_still_works_web": "PASS (verified via curl subprocess)",
+    "logout_body_revokes_refresh_and_ends_active_session_outcome_logout": "PASS",
+    "web_dashboard_cookie_regression_me_offices_employees_sessions": "PASS (curl subprocess)",
+    "duplicate_employee_returns_409_specific_reason": "PASS ('An employee with this email already exists in your organization.')",
+    "mock_location_soft_flag_session_starts_plus_security_event_high": "PASS",
+    "mobile_sync_bulk_via_bearer": "PASS (2 events acknowledged)",
+    "challenge_now_fires_fcm_push_stub_log": "PASS (observed in backend.err.log)"
+  },
+  "mobile_typecheck": "PASS (yarn typecheck → tsc --noEmit → Done in 1.71s)",
+  "test_report_links": [
+    "/app/backend/tests/test_auth_token_in_body.py",
+    "/app/backend/tests/test_mobile_phase0.py",
+    "/app/backend/tests/test_bugfixes_5aug.py",
+    "/app/test_reports/pytest/pytest_all.xml",
+    "/app/test_reports/pytest/pytest_auth_body.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "routes/auth.py:198 — /refresh accepts body OR cookie, but if BOTH are present the body wins. That's fine for now; document it. Also the local variable `payload` is shadowed on line 198 (function param + jwt payload) — cosmetic but confusing; consider renaming decoded to `claims`.",
+    "routes/auth.py:224 /logout — Depends(get_current_user) requires a valid access_token (Bearer or cookie). If mobile client's access has already expired, logout call 401s and the refresh_token is never revoked server-side. Consider a variant that accepts refresh-only for graceful mobile logout, or clients should refresh-then-logout.",
+    "routes/auth.py:229 — using `request.headers.get('content-length')` to gate body read is brittle (some clients omit Content-Length on chunked/empty POST). Better to just try/except around `await request.json()` unconditionally, which the current code also does — the content-length guard is dead-safe but unnecessary.",
+    "routes/auth.py:56 _set_auth_cookies is called from _issue_tokens on EVERY refresh — this is correct for the web flow but wasteful for pure-mobile Bearer clients that don't consume cookies. Non-blocking (cookies are cheap to set); flagging for awareness.",
+    "routes/mobile.py TTL — iteration_10 flagged received_at stored as ISO string but TTL index on received_at_dt. Per E1's request, code now writes received_at_dt as BSON datetime — confirmed in mobile.py._dedupe_and_store_event; TTL should now fire. Consider verifying with a scripted 90-day rollover test in Phase 2."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_auth_token_in_body.py (new — 10 tests, 385 lines)"
+  ],
+  "success_rate": {"backend": "100% (20/20)", "frontend": "N/A (backend-only scope; mobile RN not runnable in container per E1)"},
+  "test_credentials": "admin akmaljn7@gmail.com / GeofenceAdmin123! ; employee employee@example.com / Employee123! — both working, no lockout during test run",
+  "seed_data_creation": "All test-created mobile devices deleted via DELETE /register-device/{id}; all sessions force-expired at test teardown. No orphan security events beyond the intentional mock_location_flag which is required by the assertion (immutable audit log — expected).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Cookie flow in httpx/requests under pytest is broken in this preview env (Partitioned cookie + CF edge quirk). Always use curl subprocess for cookie-only tests, and Bearer for token-in-body tests. Login response body ALWAYS carries access_token, refresh_token, token_type='bearer' now — mobile clients can/should read those and never rely on cookies. Refresh rotation is atomic: old jti is marked revoked in refresh_tokens collection immediately after new one is issued. Logout still requires a valid access token (get_current_user dependency) — if mobile access token has expired the client must refresh first (or E1 may want to accept refresh-only logout — see code review comment).",
+  "rca of the issue": "N/A — no functional bug. All Phase 1 acceptance criteria met."
+}

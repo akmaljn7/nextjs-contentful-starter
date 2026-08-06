@@ -10,6 +10,7 @@ from typing import List
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Request
+from pymongo.errors import DuplicateKeyError
 
 from db import get_db
 from deps import get_current_user, client_ip
@@ -110,14 +111,10 @@ async def _dedupe_and_store_event(
     """Store event with idempotency; return (status, doc).
 
     status ∈ {"new", "duplicate"}. Uses client_event_id as unique key so
-    retries from an offline queue are safe.
+    retries from an offline queue are safe. Uses insert-then-catch-dup for
+    race safety instead of check-then-insert.
     """
-    existing = await db.mobile_events.find_one({
-        "user_id": user["id"],
-        "client_event_id": event.client_event_id,
-    })
-    if existing:
-        return "duplicate", existing
+    now_dt = datetime.now(timezone.utc)
     doc = {
         "org_id": user["org_id"],
         "user_id": user["id"],
@@ -133,12 +130,21 @@ async def _dedupe_and_store_event(
         "from_boot": event.from_boot,
         "battery": event.battery,
         "attestation": event.attestation,
-        "received_at": _now_iso(),
+        "received_at": now_dt.isoformat(),
+        "received_at_dt": now_dt,  # datetime → TTL index actually fires
         "processed_at": None,
         "session_outcome": None,
     }
-    await db.mobile_events.insert_one(doc)
-    return "new", doc
+    try:
+        res = await db.mobile_events.insert_one(doc)
+        doc["_id"] = res.inserted_id
+        return "new", doc
+    except DuplicateKeyError:
+        existing = await db.mobile_events.find_one({
+            "user_id": user["id"],
+            "client_event_id": event.client_event_id,
+        })
+        return "duplicate", (existing or doc)
 
 
 async def _apply_geofence_event(db, user: dict, event: MobileGeofenceEvent) -> dict:

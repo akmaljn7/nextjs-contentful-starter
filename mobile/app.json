@@ -1,0 +1,106 @@
+{
+  "expo": {
+    "name": "Attendance Console",
+    "slug": "geofence-attendance",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "geofenceattendance",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0a0a0a"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.geofenceattendance.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "This app uses your location while open to detect when you arrive at or leave your assigned office and record attendance automatically.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "This app uses your location in the background to detect when you arrive at or leave your assigned office and record attendance automatically. Location data is only used for attendance and never shared with third parties.",
+        "NSLocationAlwaysUsageDescription": "This app uses your location in the background to detect when you arrive at or leave your assigned office and record attendance automatically. Location data is only used for attendance and never shared with third parties.",
+        "NSCameraUsageDescription": "This app uses your camera for random selfie check-ins during your shift, which your organization uses to verify your identity at work.",
+        "UIBackgroundModes": ["location", "fetch", "remote-notification"],
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "config": {
+        "usesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0a0a0a"
+      },
+      "package": "com.geofenceattendance.app",
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION",
+        "CAMERA",
+        "POST_NOTIFICATIONS",
+        "RECEIVE_BOOT_COMPLETED",
+        "WAKE_LOCK"
+      ]
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "This app uses your location in the background to record attendance automatically when you arrive at or leave your assigned office.",
+          "locationWhenInUsePermission": "This app uses your location while open to record attendance automatically when you arrive at or leave your assigned office.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "This app uses the camera for random selfie check-ins during your shift."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#10b981"
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "minSdkVersion": 24
+          },
+          "ios": {
+            "deploymentTarget": "15.1"
+          }
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "REPLACE_ME_AFTER_eas_init"
+      },
+      "apiUrl": "https://geo-enterprise.preview.emergentagent.com"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/REPLACE_ME_AFTER_eas_init"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "owner": "REPLACE_ME_WITH_EXPO_USERNAME"
+  }
+}
