@@ -87,3 +87,9 @@ frontend/.env
 # Firebase mobile config — contains project identifiers, keep local only
 mobile/config/google-services.json
 mobile/config/GoogleService-Info.plist
+.env
+.env.*
+*.env
+credentials.json
+*.key
+.credentials
