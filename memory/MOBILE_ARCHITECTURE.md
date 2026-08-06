@@ -129,8 +129,8 @@ Server sends FCM push when:
 | **P2** — BG geofence + offline queue | ✅ DONE | expo-location + SQLite queue + cold-start reconcile + health chip (iteration_12 28/28 pass) |
 | **P3** — Push + selfie challenge | ✅ DONE | expo-notifications + expo-camera + FCM data-payload handling (iteration_12 28/28 pass) |
 | **P4** — Admin live map + core actions | ✅ DONE | react-native-maps + force-end + send-selfie + offices edit |
-| **P5** — Admin employees + reports | ⏳ Next | Employees CRUD via mobile + CSV/PDF report viewer |
-| **P6** — Anti-spoof + reliability polish | Planned | Play Integrity / App Attest, boot receiver (Android config plugin), server-side deadman timer, expired-response retry |
+| **P5** — Admin employees + reports | ✅ DONE | Full mobile CRUD for employees + offices + real reports (summary + records) |
+| **P6** — Anti-spoof + reliability polish | ⏳ Next | Play Integrity / App Attest, boot receiver, server-side deadman timer |
 | **P7** — Real-device testing | Planned | iPhone SE→15 Pro, Android 8→14, various OEMs, TestFlight + Play Internal |
 | **P8** — Store submission | Planned | Global privacy policies, screenshots, review cycles |
 

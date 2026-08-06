@@ -23,6 +23,28 @@ Multi-tenant enterprise geofenced attendance platform. Organizations sign up, ad
 - PWA installable
 
 ## Implemented (2026-02 → 2026-08)
+### Phase 5 · Admin Team + Reports + Offices CRUD (6 Aug 2026)
+- **`AdminTeamScreen`** — full mobile CRUD for employees:
+  - **Create**: name / email / password (min 8) / office chip-selector; disabled until valid.
+  - **Edit**: name + office reassignment; email is read-only (backend blocks changes anyway).
+  - **Delete**: confirm alert → soft-delete via `DELETE /api/employees/{id}`.
+  - Empty state with call-to-action; office name resolved via join of `offices` query.
+  - testIDs: `new-emp-btn`, `emp-row-{id}`, `emp-save`, `emp-delete`, `emp-office-{officeId}`.
+- **`AdminReportsScreen`** — real reports view (replaced the P4 placeholder):
+  - 6 live-updating summary cards (ACTIVE, PAUSED, EMPLOYEES, OFFICES, TOTAL RECORDS, FLAGGED) from `/api/attendance/summary`.
+  - Horizontal filter chips: "Everyone" + one per employee, filters records inline.
+  - Recent records list (limit 100) with outcome pill colour (green=completed, red=expired, blue=logout, grey=reset), hours formatted `Xh MMm`, FLAGGED badge inline.
+  - Footer note that CSV/PDF export lives on the web dashboard (mobile blob-download deferred to Phase 6 polish).
+  - testIDs: `rep-active|paused|employees|offices|total|flagged`, `filter-all`, `filter-emp-{id}`, `record-{id}`.
+- **`AdminOfficesScreen`** — upgraded from P4 edit-only to full CRUD:
+  - **Create**: name + tap-map-to-place + Use-my-current-location button + radius input; native map with live-updating geofence circle as radius changes.
+  - **Edit**: same modal UX; draggable pin lets admin reposition existing offices on-device (parity with the web draggable pin fix from 5 Aug).
+  - **Delete**: confirm alert → `DELETE /api/offices/{id}`.
+  - `data-testid="new-office-btn"`, `office-row-{id}`, `office-save`, `office-delete`, `use-my-location`.
+- **AdminStack** now has 5 tabs: Live · Offices · Team · Reports · Profile.
+- **TypeCheck** — `yarn typecheck` clean (0 errors).
+- **Backend verified via curl** — `GET /api/attendance/summary` returns the 6 counts; `GET /api/attendance/records` returns the expected employee_name + office_name enriched shape via Bearer token. No backend changes required.
+
 ### Phase 4 · Admin live map + core actions (6 Aug 2026)
 - **`AdminHomeScreen`** — native `react-native-maps` with:
   - Every office rendered as a **green geofence circle** + green pin marker.
