@@ -7,7 +7,7 @@ import { StatusChip } from "@/components/StatusChip";
 import { fmtCoord, fmtDateTime, fmtMinutes, STATUS_LABEL } from "@/lib/format";
 import { useLiveSessions } from "@/hooks/useLiveSessions";
 import { toast } from "sonner";
-import { Building2, Users, Activity, PauseCircle, Database, ShieldAlert, Wifi, Camera, Bell, X } from "lucide-react";
+import { Building2, Users, Activity, PauseCircle, Database, ShieldAlert, Wifi, Camera, Bell, X, LogIn, LogOut } from "lucide-react";
 
 const Stat = ({ label, value, sub, icon: Icon, testId }) => (
   <div className="surface p-4" data-testid={testId}>
@@ -19,6 +19,33 @@ const Stat = ({ label, value, sub, icon: Icon, testId }) => (
     {sub && <div className="mt-1 text-xs text-gray-500 mono">{sub}</div>}
   </div>
 );
+
+// Log events that represent the employee crossing the office boundary.
+const IN_EVENTS = new Set([
+  "start", "auto_start", "auto_start_mobile", "auto_start_live",
+  "resume", "resume_mobile", "resume_live",
+]);
+const OUT_EVENTS = new Set(["pause_exit", "pause_mobile", "pause_live"]);
+
+function fmtClock(ms) {
+  if (!ms) return "—";
+  try {
+    return new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  } catch { return "—"; }
+}
+
+// Extract chronological enter/exit crossings from a session's log.
+function inOutLog(log = []) {
+  return log
+    .filter((e) => IN_EVENTS.has(e.event) || OUT_EVENTS.has(e.event))
+    .map((e) => ({
+      dir: IN_EVENTS.has(e.event) ? "in" : "out",
+      ts_ms: e.ts_ms,
+      lat: e.lat,
+      lng: e.lng,
+      distance_m: e.distance_m,
+    }));
+}
 
 export default function AdminDashboard() {
   // Open the live WebSocket — pushes into the ["live"] cache in real time.
@@ -212,6 +239,45 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                 </div>
+                {(() => {
+                  const moves = inOutLog(s.log);
+                  if (!moves.length) return null;
+                  return (
+                    <div className="mt-3 border-t border-white/5 pt-2" data-testid={`inout-log-${s.id}`}>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <div className="label-uppercase text-[10px]">IN / OUT LOG</div>
+                        <div className="text-[10px] text-gray-600 mono">{moves.length} crossing{moves.length === 1 ? "" : "s"}</div>
+                      </div>
+                      <div className="max-h-36 overflow-y-auto space-y-1 pr-1">
+                        {moves.slice().reverse().map((m, idx) => (
+                          <div
+                            key={`${s.id}-${m.ts_ms}-${idx}`}
+                            className="flex items-center gap-2 text-[10px] mono border border-white/5 px-2 py-1"
+                            data-testid={`inout-entry-${s.id}-${idx}`}
+                          >
+                            {m.dir === "in" ? (
+                              <span className="inline-flex items-center gap-1 text-green-400 flex-none w-14">
+                                <LogIn size={11} /> IN
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-amber-400 flex-none w-14">
+                                <LogOut size={11} /> OUT
+                              </span>
+                            )}
+                            <span className="text-gray-300 flex-none">{fmtClock(m.ts_ms)}</span>
+                            <span className="text-gray-500 truncate ml-auto">
+                              {m.lat != null && m.lng != null
+                                ? `${fmtCoord(m.lat)}, ${fmtCoord(m.lng)}`
+                                : m.distance_m != null
+                                  ? `${Math.round(m.distance_m)}m out`
+                                  : ""}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
                 {s.flagged && (
                   <div className="mt-2 text-[10px] mono uppercase tracking-widest text-red-400 border border-red-500/30 bg-red-500/10 inline-block px-2 py-0.5">FLAGGED</div>
                 )}
