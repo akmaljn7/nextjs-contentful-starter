@@ -15,6 +15,7 @@ import { syncOfficeGeofence } from "@/services/geofence";
 import { drainQueue } from "@/services/syncWorker";
 import { sendHeartbeat } from "@/services/health";
 import { coldStartReconcile } from "@/services/reconcile";
+import { startLiveLocation, drainLocationQueue } from "@/services/liveLocation";
 
 export const BOOT_TASK_NAME = "gfattend.boot";
 
@@ -30,7 +31,12 @@ TaskManager.defineTask(BOOT_TASK_NAME, async ({ error }) => {
     // but we call it explicitly as a safety net when there's no session.
     await coldStartReconcile();
     await syncOfficeGeofence();
+    // Resume WhatsApp-style continuous tracking after a reboot so live
+    // streaming re-arms without the user having to open the app. Requires
+    // background ("Always") location permission — no-op otherwise.
+    await startLiveLocation();
     await drainQueue();
+    await drainLocationQueue();
     await sendHeartbeat();
   } catch (e) {
     console.warn("[boot-task] failed:", e);
