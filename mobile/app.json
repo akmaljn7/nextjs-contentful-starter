@@ -99,7 +99,7 @@
       "expo-sqlite"
     ],
     "extra": {
-      "apiUrl": "https://geo-enterprise.preview.emergentagent.com"
+      "apiUrl": "https://geofence-admin-1.preview.emergentagent.com"
     },
     "runtimeVersion": {
       "policy": "appVersion"

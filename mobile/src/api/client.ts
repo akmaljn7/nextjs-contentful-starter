@@ -9,7 +9,7 @@ import { secureGet, secureSet, secureDelete } from "@/lib/storage";
  */
 export const BASE_URL = (
   (Constants.expoConfig?.extra as any)?.apiUrl ||
-  "https://geo-enterprise.preview.emergentagent.com"
+  "https://geofence-admin-1.preview.emergentagent.com"
 ).replace(/\/+$/, "");
 
 const ACCESS_KEY = "access_token";

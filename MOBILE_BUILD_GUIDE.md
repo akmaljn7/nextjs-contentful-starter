@@ -11,7 +11,7 @@ Everything in this repo is ready. This guide takes you from **your laptop → AP
 - **Preview APK**: a real Android app signed for internal distribution
 - **Bundle ID / package**: `com.geofenceattendance.app`
 - **Firebase project**: `attend-11366` (already wired)
-- **Backend it hits**: `https://geo-enterprise.preview.emergentagent.com`
+- **Backend it hits**: `https://geofence-admin-1.preview.emergentagent.com`
 
 ---
 
@@ -152,7 +152,7 @@ Then log in with your credentials:
 2. You'll see the Employee dashboard with a status chip
 
 **On your laptop** (as admin, in a browser):
-1. Go to https://geo-enterprise.preview.emergentagent.com/login
+1. Go to https://geofence-admin-1.preview.emergentagent.com/login
 2. Log in as `akmaljn7@gmail.com`
 3. Open the live map → click the employee's row → click **"Send selfie challenge"**
 
