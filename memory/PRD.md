@@ -23,6 +23,14 @@ Multi-tenant enterprise geofenced attendance platform. Organizations sign up, ad
 - PWA installable
 
 ## Implemented (2026-02 → 2026-08)
+### WhatsApp-style continuous live location (7 Aug 2026)
+- **Root cause of two field bugs**: the app relied on native geofence ENTER/EXIT transitions. Samsung's battery optimizer suppresses these once the phone sleeps in a pocket, so (1) the EXIT never fired → session stayed "active" forever after walking out, and (2) nothing streamed between transitions → the admin map pin never moved (looked like the WebSocket was broken — it wasn't).
+- **Mobile — `src/services/liveLocation.ts`**: new Android/iOS foreground-service location task (`gfattend.live`) via `Location.startLocationUpdatesAsync` with a persistent notification ("Attendance tracking active"). Streams a High-accuracy fix every **15s / 25m** with `pausesUpdatesAutomatically:false` so it keeps running with the screen off. Each fix POSTs to `/api/mobile/location`. Wired into `AuthContext` (start on login/bootstrap/foreground, stop on sign-out) and `EmployeeHomeScreen` (start on mount + when bg permission granted). Geofences remain armed as a battery-cheap fast-path.
+- **Backend — `POST /api/mobile/location`** (`routes/mobile.py` `_apply_location_fix`): ingests each continuous fix and drives the session state machine server-side on EVERY fix — no session+inside→auto-start, active+definitely-outside→pause, active+inside→accrue time, paused+inside→resume, paused+outside→keep paused but move the pin. Every branch calls `_broadcast_session` so the admin live-map updates in real time. Ticks selfie-challenge lifecycle, respects resume window, writes attendance record on completion/expiry, logs mock-location as a soft security event. New model `MobileLocationFix`. `mobile.postLocation` added to `src/api/mobile.ts`.
+- **Verified**: curl state-machine flow (start→active→pause-on-exit→resume) ✅; WebSocket smoke test proved an employee fix instantly pushes a `session.update` with moving `last_fix` to a connected admin ✅; mobile `yarn typecheck` clean ✅; `yarn expo export:embed` Android bundle (1340 modules) ✅. Backend suite: 173 passed / 2 shared-DB contamination flakes (pass in isolation) / 1 skipped.
+- **NOTE**: real background behaviour (screen-off streaming, persistent notification, Samsung battery) can only be verified by the user on a real APK/EAS build — the container cannot run Android.
+
+
 ### Live FCM wired (6 Aug 2026)
 - Firebase service-account JSON (project `attend-11366`) added to `backend/.env` as `FCM_SERVICE_ACCOUNT_JSON` + `FCM_PROJECT_ID`; `backend/.env` + `frontend/.env` now git-ignored.
 - `_fcm_configured()` → True; real OAuth2 token minted against `oauth2.googleapis.com`; real POST to `https://fcm.googleapis.com/v1/projects/attend-11366/messages:send` verified end-to-end (fake device token cleanly returns `fcm_400 INVALID_ARGUMENT`).

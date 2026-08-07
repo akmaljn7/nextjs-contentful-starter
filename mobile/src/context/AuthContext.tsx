@@ -9,6 +9,7 @@ import { getAccessToken, clearTokens } from "@/api/client";
 import { getDeviceId } from "@/lib/storage";
 import { syncOfficeGeofence, stopGeofencing } from "@/services/geofence";
 import { startForegroundWatcher, stopForegroundWatcher } from "@/services/foregroundWatcher";
+import { startLiveLocation, stopLiveLocation } from "@/services/liveLocation";
 import { coldStartReconcile } from "@/services/reconcile";
 import { drainQueue } from "@/services/syncWorker";
 import { startHealthLoop, stopHealthLoop } from "@/services/health";
@@ -74,6 +75,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Fire and forget — these should never block UI hydration
         coldStartReconcile().catch(() => undefined);
         startHealthLoop();
+        startLiveLocation().catch(() => undefined);
         purgeOldSynced().catch(() => undefined);
       }
     } catch {
@@ -95,6 +97,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         drainQueue().catch(() => undefined);
         syncOfficeGeofence().catch(() => undefined);
         startForegroundWatcher().catch(() => undefined);
+        startLiveLocation().catch(() => undefined);
       }
     });
     return () => sub.remove();
@@ -109,6 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (me.role === "employee") {
         coldStartReconcile().catch(() => undefined);
         startHealthLoop();
+        startLiveLocation().catch(() => undefined);
       }
     } catch (e: any) {
       const msg = e?.response?.data?.detail || e?.message || "Login failed";
@@ -120,6 +124,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = useCallback(async () => {
     stopHealthLoop();
     stopForegroundWatcher();
+    await stopLiveLocation();
     await stopGeofencing();
     await authApi.logout();
     setUser(null);

@@ -20,6 +20,7 @@ from models import (
     MobileBulkSync,
     MobileHeartbeat,
     MobileAttestation,
+    MobileLocationFix,
 )
 
 logger = logging.getLogger(__name__)
@@ -358,6 +359,192 @@ async def bulk_sync(
     logger.info("mobile_bulk_sync user=%s count=%s dupes=%s",
                 user.get("email"), len(payload.events), dupes)
     return {"ok": True, "processed": processed, "dupes": dupes}
+
+
+# ---------------------------------------------------------------------------
+# Continuous background location (WhatsApp-style live tracking)
+# ---------------------------------------------------------------------------
+async def _apply_location_fix(db, user: dict, fix: MobileLocationFix) -> dict:
+    """Ingest one continuous background-location fix and drive session state.
+
+    Unlike native geofence enter/exit events (which never fire while a phone
+    sleeps in a pocket on Samsung), the mobile foreground-service streams a
+    fix every ~15s. So we decide inside/outside on EVERY fix here:
+
+      * no session + inside (accuracy OK) -> auto-start
+      * active + definitely outside        -> pause
+      * active + inside/ambiguous          -> accrue time (like a ping)
+      * paused + inside                    -> resume
+      * paused + outside                   -> keep paused, just move the pin
+
+    Every branch broadcasts the session so the admin live-map pin moves in
+    real time. Also ticks the selfie-challenge lifecycle so selfies still fire.
+    """
+    from routes.sessions import (
+        _sync_session_center_from_office, _get_org_settings, _plan_challenges,
+        _write_attendance_record, _broadcast_session, _compute_schedule_duration_ms,
+        _tick_challenge_lifecycle,
+    )
+    from services.audit import log_security_event
+    from services.geo import haversine_meters
+
+    user_doc = await db.users.find_one({"_id": ObjectId(user["id"])})
+    office_id = (user_doc or {}).get("office_id")
+    if not office_id:
+        return {"outcome": "no_office"}
+    try:
+        office = await db.offices.find_one({"_id": ObjectId(office_id), "org_id": user["org_id"]})
+    except Exception:
+        office = None
+    if not office:
+        return {"outcome": "no_office"}
+
+    settings = await _get_org_settings(db, user["org_id"])
+    now_ms = fix.ts_ms or _now_ms()
+    office_lat = office["location"]["coordinates"][1]
+    office_lng = office["location"]["coordinates"][0]
+    radius = office["radius_meters"]
+    accuracy_tol = settings.get("accuracy_tolerance_meters", 50)
+
+    if fix.mock_location:
+        await log_security_event(
+            type_="mock_location_flag", severity="high", ip="",
+            details={"source": "live_location", "device_id": fix.device_id,
+                     "lat": fix.lat, "lng": fix.lng, "office_id": office_id},
+            org_id=user["org_id"], user_id=user["id"],
+        )
+
+    last_fix = {"lat": fix.lat, "lng": fix.lng, "accuracy": fix.accuracy, "ts_ms": now_ms}
+    session = await db.active_sessions.find_one({"user_id": user["id"], "org_id": user["org_id"]})
+
+    # ---- No active session: auto-start if firmly inside with good accuracy ----
+    if not session:
+        dist = haversine_meters(fix.lat, fix.lng, office_lat, office_lng)
+        if dist <= radius and fix.accuracy <= accuracy_tol:
+            if not settings.get("auto_start_on_entry", True):
+                return {"outcome": "auto_start_disabled"}
+            duration_ms, deny_reason = await _compute_schedule_duration_ms(db, user_doc | {"id": user["id"]}, settings)
+            if deny_reason:
+                return {"outcome": "denied", "reason": deny_reason}
+            challenges = _plan_challenges(settings, now_ms, duration_ms)
+            doc = {
+                "org_id": user["org_id"], "user_id": user["id"], "office_id": str(office["_id"]),
+                "center": {"lat": office_lat, "lng": office_lng, "radius_m": radius},
+                "start_time": datetime.fromtimestamp(now_ms / 1000, tz=timezone.utc).isoformat(),
+                "start_time_ms": now_ms, "remaining_ms": duration_ms, "total_inside_ms": 0,
+                "current_bout_start_ms": now_ms, "bout_count": 1, "status": "active",
+                "flagged": False, "paused_at": None, "challenges": challenges,
+                "last_fix": last_fix, "auto_started": True, "source": "live_location",
+                "log": [{"event": "auto_start_live", "ts_ms": now_ms, "lat": fix.lat, "lng": fix.lng}],
+            }
+            res = await db.active_sessions.insert_one(doc)
+            doc["_id"] = res.inserted_id
+            await _broadcast_session(db, doc)
+            logger.info("live_auto_start user=%s office=%s", user.get("email"), office["name"])
+            return {"outcome": "session_started", "status": "active"}
+        return {"outcome": "outside_no_session", "dist_m": int(dist)}
+
+    # ---- Active session exists: recompute against the current office center ----
+    await _sync_session_center_from_office(db, session)
+    center = session["center"]
+    radius = center["radius_m"]
+    dist = haversine_meters(fix.lat, fix.lng, center["lat"], center["lng"])
+    inside = dist <= radius
+    definitely_outside = dist > (radius + max(fix.accuracy or 0.0, 0.0))
+    status = session.get("status")
+    last = session.get("last_fix") or {}
+
+    # Persist ping (best-effort, for history/anti-spoof trail)
+    await db.gps_pings.insert_one({
+        "org_id": user["org_id"], "user_id": user["id"], "session_id": str(session["_id"]),
+        "ts": datetime.now(timezone.utc), "lat": fix.lat, "lng": fix.lng,
+        "accuracy": fix.accuracy, "speed": fix.speed, "flagged": False, "source": "live",
+    })
+
+    if status == "active":
+        if definitely_outside:
+            bout_start = session.get("current_bout_start_ms", now_ms)
+            bout_ms = max(0, now_ms - bout_start)
+            total_inside = session.get("total_inside_ms", 0) + bout_ms
+            remaining = max(0, session.get("remaining_ms", 0) - bout_ms)
+            update = {"status": "paused", "paused_at": now_ms, "total_inside_ms": total_inside,
+                      "remaining_ms": remaining, "last_fix": last_fix}
+            await db.active_sessions.update_one(
+                {"_id": session["_id"]},
+                {"$set": update, "$push": {"log": {"event": "pause_live", "ts_ms": now_ms,
+                                                    "distance_m": int(dist)}}},
+            )
+            new_s = await db.active_sessions.find_one({"_id": session["_id"]})
+            if remaining <= 0:
+                await _write_attendance_record(db, new_s, "completed", now_ms)
+                await db.active_sessions.delete_one({"_id": session["_id"]})
+                await _broadcast_session(db, new_s, ended=True, outcome="completed")
+                return {"outcome": "session_completed"}
+            await _broadcast_session(db, new_s)
+            return {"outcome": "session_paused", "status": "paused"}
+        # still inside (or ambiguous accuracy) -> accrue time like a ping
+        remaining = session.get("remaining_ms", 0)
+        total_inside = session.get("total_inside_ms", 0)
+        if last.get("ts_ms") and inside:
+            dt = now_ms - last["ts_ms"]
+            if dt > 0:
+                remaining = max(0, remaining - dt)
+                total_inside += dt
+        update = {"remaining_ms": remaining, "total_inside_ms": total_inside, "last_fix": last_fix}
+        await db.active_sessions.update_one({"_id": session["_id"]}, {"$set": update})
+        merged = {**session, **update}
+        if remaining <= 0:
+            await _write_attendance_record(db, merged, "completed", now_ms)
+            await db.active_sessions.delete_one({"_id": session["_id"]})
+            await _broadcast_session(db, merged, ended=True, outcome="completed")
+            return {"outcome": "session_completed"}
+        await _tick_challenge_lifecycle(db, merged, settings, now_ms)
+        await _broadcast_session(db, merged)
+        return {"outcome": "active", "status": "active"}
+
+    if status == "paused":
+        if inside:
+            resume_window_h = int(settings.get("resume_window_hours", 10))
+            paused_at = session.get("paused_at")
+            if paused_at and (now_ms - paused_at) > resume_window_h * 3600 * 1000:
+                await _write_attendance_record(db, session, "expired", now_ms)
+                await db.active_sessions.delete_one({"_id": session["_id"]})
+                await _broadcast_session(db, session, ended=True, outcome="expired")
+                return {"outcome": "session_expired"}
+            update = {"status": "active", "current_bout_start_ms": now_ms, "paused_at": None,
+                      "last_fix": last_fix}
+            await db.active_sessions.update_one(
+                {"_id": session["_id"]},
+                {"$set": update, "$inc": {"bout_count": 1},
+                 "$push": {"log": {"event": "resume_live", "ts_ms": now_ms}}},
+            )
+            new_s = await db.active_sessions.find_one({"_id": session["_id"]})
+            await _broadcast_session(db, new_s)
+            return {"outcome": "session_resumed", "status": "active"}
+        # still outside — just move the pin so the admin sees live movement
+        await db.active_sessions.update_one({"_id": session["_id"]}, {"$set": {"last_fix": last_fix}})
+        merged = {**session, "last_fix": last_fix}
+        await _broadcast_session(db, merged)
+        return {"outcome": "still_paused", "status": "paused"}
+
+    return {"outcome": "noop"}
+
+
+@router.post("/location")
+async def location_fix(
+    payload: MobileLocationFix,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """Continuous background-location ingest for WhatsApp-style live tracking."""
+    db = get_db()
+    # Keep the device's last_seen fresh so the OFFLINE badge stays accurate
+    await db.mobile_devices.update_one(
+        {"user_id": user["id"], "device_id": payload.device_id, "deleted_at": None},
+        {"$set": {"last_seen_at": _now_iso(), "last_seen_ts_ms": payload.ts_ms}},
+    )
+    outcome = await _apply_location_fix(db, user, payload)
+    return {"ok": True, **outcome}
 
 
 # ---------------------------------------------------------------------------

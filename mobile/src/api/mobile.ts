@@ -39,6 +39,9 @@ export const mobile = {
   listDevices: () => api.get("/mobile/devices").then((r) => r.data),
   postEvent: (e: MobileEventPayload) => api.post("/mobile/geofence-event", e).then((r) => r.data),
   bulkSync: (events: MobileEventPayload[]) => api.post("/mobile/sync", { events }).then((r) => r.data),
+  postLocation: (payload: { device_id: string; lat: number; lng: number; accuracy: number;
+                            ts_ms: number; speed?: number; battery?: number; mock_location?: boolean }) =>
+    api.post("/mobile/location", payload).then((r) => r.data),
   heartbeat: (payload: { device_id: string; ts_ms: number; battery?: number;
                          permission_state?: string; last_geofence_event_ms?: number }) =>
     api.post("/mobile/heartbeat", payload).then((r) => r.data),

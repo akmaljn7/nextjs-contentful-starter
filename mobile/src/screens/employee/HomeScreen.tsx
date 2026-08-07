@@ -10,6 +10,7 @@ import { mobile } from "@/api/mobile";
 import { coldStartReconcile } from "@/services/reconcile";
 import { drainQueue } from "@/services/syncWorker";
 import { startForegroundWatcher, stopForegroundWatcher } from "@/services/foregroundWatcher";
+import { startLiveLocation } from "@/services/liveLocation";
 import { colors } from "@/theme";
 
 export default function EmployeeHomeScreen() {
@@ -29,6 +30,7 @@ export default function EmployeeHomeScreen() {
   // lag 30-90s on Android).
   React.useEffect(() => {
     startForegroundWatcher().catch(() => undefined);
+    startLiveLocation().catch(() => undefined);
     return () => { stopForegroundWatcher(); };
   }, []);
 
@@ -46,6 +48,7 @@ export default function EmployeeHomeScreen() {
     const tick = async () => {
       const bg = await Location.getBackgroundPermissionsAsync();
       if (mounted) setBgPerm(bg.status === "granted" ? "granted" : "missing");
+      if (bg.status === "granted") startLiveLocation().catch(() => undefined);
     };
     tick();
     const t = setInterval(tick, 8_000);

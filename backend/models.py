@@ -269,3 +269,23 @@ class MobileAttestation(BaseModel):
     # Optional context so the server can correlate with a specific event
     # (mobile geofence event this attestation is protecting, if any).
     client_event_id: Optional[str] = Field(default=None, max_length=64)
+
+
+
+class MobileLocationFix(BaseModel):
+    """A single continuous background-location fix (WhatsApp-style live tracking).
+
+    Streamed every ~15s by the Android/iOS foreground-service location task while
+    the employee is on shift. Unlike geofence enter/exit events these arrive
+    continuously, so the server decides inside/outside on every fix — this is
+    what keeps a session correctly paused when the phone sleeps in a pocket and
+    what makes the admin map pin move in real time.
+    """
+    device_id: str = Field(min_length=8, max_length=128)
+    lat: float
+    lng: float
+    accuracy: float = Field(ge=0, le=10_000)
+    ts_ms: int = Field(ge=0)
+    speed: Optional[float] = None
+    battery: Optional[float] = Field(default=None, ge=0, le=1)
+    mock_location: bool = False
