@@ -21,6 +21,7 @@ from models import (
     MobileHeartbeat,
     MobileAttestation,
     MobileLocationFix,
+    MobileLocationBulk,
 )
 
 logger = logging.getLogger(__name__)
@@ -417,6 +418,12 @@ async def _apply_location_fix(db, user: dict, fix: MobileLocationFix) -> dict:
     last_fix = {"lat": fix.lat, "lng": fix.lng, "accuracy": fix.accuracy, "ts_ms": now_ms}
     session = await db.active_sessions.find_one({"user_id": user["id"], "org_id": user["org_id"]})
 
+    # Idempotency watermark — skip any fix at/behind the newest one we've
+    # already applied. Makes offline-batch replay (and lost-response retries)
+    # perfectly safe: a resent batch never double-counts time or bouts.
+    if session and session.get("last_live_ts_ms") and now_ms <= session["last_live_ts_ms"]:
+        return {"outcome": "stale_replay"}
+
     # ---- No active session: auto-start if firmly inside with good accuracy ----
     if not session:
         dist = haversine_meters(fix.lat, fix.lng, office_lat, office_lng)
@@ -435,6 +442,7 @@ async def _apply_location_fix(db, user: dict, fix: MobileLocationFix) -> dict:
                 "current_bout_start_ms": now_ms, "bout_count": 1, "status": "active",
                 "flagged": False, "paused_at": None, "challenges": challenges,
                 "last_fix": last_fix, "auto_started": True, "source": "live_location",
+                "last_live_ts_ms": now_ms,
                 "log": [{"event": "auto_start_live", "ts_ms": now_ms, "lat": fix.lat, "lng": fix.lng}],
             }
             res = await db.active_sessions.insert_one(doc)
@@ -468,7 +476,7 @@ async def _apply_location_fix(db, user: dict, fix: MobileLocationFix) -> dict:
             total_inside = session.get("total_inside_ms", 0) + bout_ms
             remaining = max(0, session.get("remaining_ms", 0) - bout_ms)
             update = {"status": "paused", "paused_at": now_ms, "total_inside_ms": total_inside,
-                      "remaining_ms": remaining, "last_fix": last_fix}
+                      "remaining_ms": remaining, "last_fix": last_fix, "last_live_ts_ms": now_ms}
             await db.active_sessions.update_one(
                 {"_id": session["_id"]},
                 {"$set": update, "$push": {"log": {"event": "pause_live", "ts_ms": now_ms,
@@ -490,7 +498,8 @@ async def _apply_location_fix(db, user: dict, fix: MobileLocationFix) -> dict:
             if dt > 0:
                 remaining = max(0, remaining - dt)
                 total_inside += dt
-        update = {"remaining_ms": remaining, "total_inside_ms": total_inside, "last_fix": last_fix}
+        update = {"remaining_ms": remaining, "total_inside_ms": total_inside, "last_fix": last_fix,
+                  "last_live_ts_ms": now_ms}
         await db.active_sessions.update_one({"_id": session["_id"]}, {"$set": update})
         merged = {**session, **update}
         if remaining <= 0:
@@ -512,7 +521,7 @@ async def _apply_location_fix(db, user: dict, fix: MobileLocationFix) -> dict:
                 await _broadcast_session(db, session, ended=True, outcome="expired")
                 return {"outcome": "session_expired"}
             update = {"status": "active", "current_bout_start_ms": now_ms, "paused_at": None,
-                      "last_fix": last_fix}
+                      "last_fix": last_fix, "last_live_ts_ms": now_ms}
             await db.active_sessions.update_one(
                 {"_id": session["_id"]},
                 {"$set": update, "$inc": {"bout_count": 1},
@@ -522,7 +531,10 @@ async def _apply_location_fix(db, user: dict, fix: MobileLocationFix) -> dict:
             await _broadcast_session(db, new_s)
             return {"outcome": "session_resumed", "status": "active"}
         # still outside — just move the pin so the admin sees live movement
-        await db.active_sessions.update_one({"_id": session["_id"]}, {"$set": {"last_fix": last_fix}})
+        await db.active_sessions.update_one(
+            {"_id": session["_id"]},
+            {"$set": {"last_fix": last_fix, "last_live_ts_ms": now_ms}},
+        )
         merged = {**session, "last_fix": last_fix}
         await _broadcast_session(db, merged)
         return {"outcome": "still_paused", "status": "paused"}
@@ -545,6 +557,37 @@ async def location_fix(
     )
     outcome = await _apply_location_fix(db, user, payload)
     return {"ok": True, **outcome}
+
+
+@router.post("/location-sync")
+async def location_sync(
+    payload: MobileLocationBulk,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """Bulk replay of offline-buffered live-location fixes.
+
+    Fixes captured while the device had no internet (e.g. walked in/out with
+    the phone offline) are drained here when connectivity returns, so the
+    in/out transitions and movement reconstruct on the admin side. Processed
+    oldest-first; time accrual is idempotent so retries are safe.
+    """
+    db = get_db()
+    ordered = sorted(payload.fixes, key=lambda f: f.ts_ms)
+    latest = ordered[-1]
+    await db.mobile_devices.update_one(
+        {"user_id": user["id"], "device_id": latest.device_id, "deleted_at": None},
+        {"$set": {"last_seen_at": _now_iso(), "last_seen_ts_ms": latest.ts_ms}},
+    )
+    outcomes: List[str] = []
+    for f in ordered:
+        try:
+            out = await _apply_location_fix(db, user, f)
+        except HTTPException as e:
+            out = {"outcome": "error", "detail": e.detail}
+        outcomes.append(out.get("outcome"))
+    logger.info("mobile_location_sync user=%s count=%s", user.get("email"), len(ordered))
+    return {"ok": True, "processed": len(ordered), "outcomes": outcomes}
 
 
 # ---------------------------------------------------------------------------

@@ -289,3 +289,15 @@ class MobileLocationFix(BaseModel):
     speed: Optional[float] = None
     battery: Optional[float] = Field(default=None, ge=0, le=1)
     mock_location: bool = False
+    # Present when the fix is replayed from the device's offline queue.
+    client_event_id: Optional[str] = Field(default=None, max_length=64)
+
+
+class MobileLocationBulk(BaseModel):
+    """Bulk replay of offline-buffered live-location fixes (WhatsApp-style).
+
+    Processed chronologically so pause/resume/time-accrual reconstruct
+    coherently. Time accrual is naturally idempotent (dt<=0 on replay) so a
+    retried batch never double-counts.
+    """
+    fixes: List[MobileLocationFix] = Field(min_length=1, max_length=500)

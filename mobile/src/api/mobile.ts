@@ -42,6 +42,9 @@ export const mobile = {
   postLocation: (payload: { device_id: string; lat: number; lng: number; accuracy: number;
                             ts_ms: number; speed?: number; battery?: number; mock_location?: boolean }) =>
     api.post("/mobile/location", payload).then((r) => r.data),
+  bulkLocation: (fixes: Array<{ device_id: string; lat: number; lng: number; accuracy: number;
+                                ts_ms: number; speed?: number; battery?: number; mock_location?: boolean }>) =>
+    api.post("/mobile/location-sync", { fixes }).then((r) => r.data),
   heartbeat: (payload: { device_id: string; ts_ms: number; battery?: number;
                          permission_state?: string; last_geofence_event_ms?: number }) =>
     api.post("/mobile/heartbeat", payload).then((r) => r.data),

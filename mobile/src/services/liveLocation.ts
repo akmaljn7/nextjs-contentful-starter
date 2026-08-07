@@ -23,12 +23,52 @@ import * as TaskManager from "expo-task-manager";
 
 import { mobile } from "@/api/mobile";
 import { getDeviceId } from "@/lib/storage";
+import {
+  enqueueLocationFix, pendingLocationFixes, markLocationSynced,
+  markLocationFailed, purgeOldLocationFixes,
+} from "@/services/offlineQueue";
 
 export const LIVE_LOCATION_TASK = "gfattend.live";
 
 // Cadence — 15s / 25m per product decision (responsive, WhatsApp-like).
 const TIME_INTERVAL_MS = 15_000;
 const DISTANCE_INTERVAL_M = 25;
+
+let draining = false;
+
+/**
+ * Drain the offline-durable location queue via the bulk endpoint. Fixes
+ * captured while offline (walked in/out with no internet) replay here in
+ * chronological order the moment connectivity returns, so the in/out
+ * transitions + movement reconstruct on the admin side. Idempotent on the
+ * server (time accrual is dt<=0 on replay), so a retried batch is safe.
+ */
+export async function drainLocationQueue(): Promise<{ synced: number }> {
+  if (draining) return { synced: 0 };
+  draining = true;
+  try {
+    const pending = await pendingLocationFixes(300);
+    if (!pending.length) return { synced: 0 };
+    const ids = pending.map((f) => f.id!).filter((x) => x != null);
+    try {
+      await mobile.bulkLocation(
+        pending.map((f) => ({
+          device_id: f.device_id, lat: f.lat, lng: f.lng, accuracy: f.accuracy,
+          ts_ms: f.ts_ms, speed: f.speed ?? undefined, battery: f.battery ?? undefined,
+          mock_location: f.mock_location,
+        })),
+      );
+      await markLocationSynced(ids);
+      purgeOldLocationFixes().catch(() => undefined);
+      return { synced: ids.length };
+    } catch {
+      await markLocationFailed(ids);
+      return { synced: 0 };
+    }
+  } finally {
+    draining = false;
+  }
+}
 
 TaskManager.defineTask(LIVE_LOCATION_TASK, async ({ data, error }) => {
   if (error) {
@@ -40,11 +80,12 @@ TaskManager.defineTask(LIVE_LOCATION_TASK, async ({ data, error }) => {
   if (!locations?.length) return;
 
   const deviceId = await getDeviceId();
-  // Only the freshest fix matters for live tracking; post it (and any others)
-  // best-effort. Failures are dropped — the next fix (≤15s away) supersedes.
+  // Always persist first (offline-durable), then drain. Draining fires
+  // immediately when online so the admin map stays near-real-time, and the
+  // buffer replays automatically once connectivity returns when offline.
   for (const loc of locations) {
     try {
-      await mobile.postLocation({
+      await enqueueLocationFix({
         device_id: deviceId,
         lat: loc.coords.latitude,
         lng: loc.coords.longitude,
@@ -53,10 +94,11 @@ TaskManager.defineTask(LIVE_LOCATION_TASK, async ({ data, error }) => {
         speed: loc.coords.speed ?? undefined,
         mock_location: (loc as any).mocked === true,
       });
-    } catch {
-      /* offline / transient — next fix will catch up */
+    } catch (e) {
+      console.warn("[liveLocation] enqueue failed:", e);
     }
   }
+  await drainLocationQueue().catch(() => undefined);
 });
 
 export async function isLiveLocationActive(): Promise<boolean> {

@@ -23,6 +23,12 @@ Multi-tenant enterprise geofenced attendance platform. Organizations sign up, ad
 - PWA installable
 
 ## Implemented (2026-02 → 2026-08)
+### Offline-durable live location — Goal 2 fully met (7 Aug 2026)
+- **Mobile** — the live-location task now writes every fix into a new SQLite table `mobile_location_fixes` (offlineQueue.ts) BEFORE draining, so movement captured while offline (walked in/out with no internet) is buffered on-device and replayed when connectivity returns. `drainLocationQueue()` bulk-sends pending fixes chronologically via `/api/mobile/location-sync`, marks them synced, and 2-day-purges. Wired into the task itself + AuthContext bootstrap/foreground.
+- **Backend** — new `POST /api/mobile/location-sync` (`MobileLocationBulk`) replays fixes oldest-first through `_apply_location_fix`. Added a per-session **idempotency watermark** (`last_live_ts_ms`): any fix at/behind the newest applied one returns `stale_replay` and mutates nothing — so a resent batch (lost-response retry) never double-counts time or bouts.
+- **Verified**: bulk replay start→active→pause ✅; replaying the identical batch yields `stale_replay ×3` with `inside_ms` unchanged (true idempotency) ✅; mobile typecheck + Android bundle (1340 modules) ✅; `test_mobile_phase6.py` 8/8 ✅.
+- **Goal status now**: G1 (online+asleep) ✅, G2 (offline→sync) ✅, G3 (online+app-open) ✅ — all pending real-APK confirmation.
+
 ### WhatsApp-style continuous live location (7 Aug 2026)
 - **Root cause of two field bugs**: the app relied on native geofence ENTER/EXIT transitions. Samsung's battery optimizer suppresses these once the phone sleeps in a pocket, so (1) the EXIT never fired → session stayed "active" forever after walking out, and (2) nothing streamed between transitions → the admin map pin never moved (looked like the WebSocket was broken — it wasn't).
 - **Mobile — `src/services/liveLocation.ts`**: new Android/iOS foreground-service location task (`gfattend.live`) via `Location.startLocationUpdatesAsync` with a persistent notification ("Attendance tracking active"). Streams a High-accuracy fix every **15s / 25m** with `pausesUpdatesAutomatically:false` so it keeps running with the screen off. Each fix POSTs to `/api/mobile/location`. Wired into `AuthContext` (start on login/bootstrap/foreground, stop on sign-out) and `EmployeeHomeScreen` (start on mount + when bg permission granted). Geofences remain armed as a battery-cheap fast-path.

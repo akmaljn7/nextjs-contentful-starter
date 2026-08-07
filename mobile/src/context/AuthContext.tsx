@@ -9,7 +9,7 @@ import { getAccessToken, clearTokens } from "@/api/client";
 import { getDeviceId } from "@/lib/storage";
 import { syncOfficeGeofence, stopGeofencing } from "@/services/geofence";
 import { startForegroundWatcher, stopForegroundWatcher } from "@/services/foregroundWatcher";
-import { startLiveLocation, stopLiveLocation } from "@/services/liveLocation";
+import { startLiveLocation, stopLiveLocation, drainLocationQueue } from "@/services/liveLocation";
 import { coldStartReconcile } from "@/services/reconcile";
 import { drainQueue } from "@/services/syncWorker";
 import { startHealthLoop, stopHealthLoop } from "@/services/health";
@@ -76,6 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         coldStartReconcile().catch(() => undefined);
         startHealthLoop();
         startLiveLocation().catch(() => undefined);
+        drainLocationQueue().catch(() => undefined);
         purgeOldSynced().catch(() => undefined);
       }
     } catch {
@@ -95,6 +96,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const sub = AppState.addEventListener("change", (state) => {
       if (state === "active") {
         drainQueue().catch(() => undefined);
+        drainLocationQueue().catch(() => undefined);
         syncOfficeGeofence().catch(() => undefined);
         startForegroundWatcher().catch(() => undefined);
         startLiveLocation().catch(() => undefined);

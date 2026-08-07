@@ -55,6 +55,22 @@ async function db(): Promise<SQLite.SQLiteDatabase> {
     );
     CREATE INDEX IF NOT EXISTS idx_events_unsynced
       ON mobile_events (synced_at, created_at);
+    CREATE TABLE IF NOT EXISTS mobile_location_fixes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ts_ms INTEGER NOT NULL,
+      lat REAL NOT NULL,
+      lng REAL NOT NULL,
+      accuracy REAL NOT NULL,
+      speed REAL,
+      battery REAL,
+      mock_location INTEGER NOT NULL DEFAULT 0,
+      device_id TEXT NOT NULL,
+      synced_at INTEGER,
+      attempts INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_locfix_unsynced
+      ON mobile_location_fixes (synced_at, ts_ms);
   `);
   return _db;
 }
@@ -153,4 +169,85 @@ export async function pendingCount(): Promise<number> {
     `SELECT COUNT(*) as n FROM mobile_events WHERE synced_at IS NULL`,
   );
   return row?.n ?? 0;
+}
+
+// ---------------------------------------------------------------------------
+// Live-location fixes (WhatsApp-style continuous tracking, offline-durable)
+// ---------------------------------------------------------------------------
+export interface QueuedLocationFix {
+  id?: number;
+  ts_ms: number;
+  lat: number;
+  lng: number;
+  accuracy: number;
+  speed?: number | null;
+  battery?: number | null;
+  mock_location?: boolean;
+  device_id: string;
+}
+
+export async function enqueueLocationFix(fix: QueuedLocationFix): Promise<void> {
+  const d = await db();
+  await d.runAsync(
+    `INSERT INTO mobile_location_fixes
+     (ts_ms, lat, lng, accuracy, speed, battery, mock_location, device_id, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      fix.ts_ms, fix.lat, fix.lng, fix.accuracy,
+      fix.speed ?? null, fix.battery ?? null,
+      fix.mock_location ? 1 : 0, fix.device_id, Date.now(),
+    ],
+  );
+}
+
+export async function pendingLocationFixes(limit = 300): Promise<QueuedLocationFix[]> {
+  const d = await db();
+  const rows = await d.getAllAsync<any>(
+    `SELECT * FROM mobile_location_fixes WHERE synced_at IS NULL
+     ORDER BY ts_ms ASC LIMIT ?`,
+    [limit],
+  );
+  return rows.map((r) => ({
+    id: r.id,
+    ts_ms: r.ts_ms,
+    lat: r.lat,
+    lng: r.lng,
+    accuracy: r.accuracy,
+    speed: r.speed ?? undefined,
+    battery: r.battery ?? undefined,
+    mock_location: !!r.mock_location,
+    device_id: r.device_id,
+  }));
+}
+
+export async function markLocationSynced(ids: number[]): Promise<void> {
+  if (!ids.length) return;
+  const d = await db();
+  const now = Date.now();
+  const placeholders = ids.map(() => "?").join(",");
+  await d.runAsync(
+    `UPDATE mobile_location_fixes SET synced_at = ? WHERE id IN (${placeholders})`,
+    [now, ...ids],
+  );
+}
+
+export async function markLocationFailed(ids: number[]): Promise<void> {
+  if (!ids.length) return;
+  const d = await db();
+  const placeholders = ids.map(() => "?").join(",");
+  await d.runAsync(
+    `UPDATE mobile_location_fixes SET attempts = attempts + 1 WHERE id IN (${placeholders})`,
+    ids,
+  );
+}
+
+/** Delete synced fixes older than 2 days — live fixes are high-volume. */
+export async function purgeOldLocationFixes(): Promise<number> {
+  const d = await db();
+  const cutoff = Date.now() - 2 * 24 * 3600 * 1000;
+  const res = await d.runAsync(
+    `DELETE FROM mobile_location_fixes WHERE synced_at IS NOT NULL AND synced_at < ?`,
+    [cutoff],
+  );
+  return res.changes ?? 0;
 }
