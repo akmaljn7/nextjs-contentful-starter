@@ -23,7 +23,16 @@ import random
 import uuid
 
 logger = logging.getLogger(__name__)
-STALE_PING_MS = 3 * 60 * 1000  # if no ping for 3 min, session is considered stale
+# NOTE: Native geofences (Android GeofencingClient / iOS CLCircularRegion)
+# only fire on ENTER/EXIT transitions, they do NOT send periodic heartbeats.
+# So a phone that entered the office and then went to sleep in a pocket is
+# genuinely still inside — no pings coming in doesn't mean the user left.
+# We therefore never AUTO-PAUSE a session based on ping silence. We only
+# EXPIRE (end) sessions after the full scheduled resume window has elapsed
+# since the last activity as an absolute safety net for orphaned sessions.
+# The `stale` badge on the admin live-map is UI-only and does not change
+# session status.
+STALE_PING_MS = 30 * 60 * 1000  # UI-only "connection lost" badge threshold
 
 router = APIRouter(prefix="/api/sessions", tags=["sessions"])
 
@@ -274,8 +283,14 @@ async def _tick_challenge_lifecycle(db, session: dict, settings: dict, now_ms: i
 async def _tick_stale_session(db, session: dict, settings: dict, now_ms: int):
     """Detect ghost sessions where the client stopped pinging.
 
-    - active + no ping for STALE_PING_MS ⇒ mark paused
-    - paused for > resume_window_hours ⇒ expire and write attendance
+    Native geofences ONLY fire on ENTER/EXIT — they never send periodic
+    heartbeats. A phone sleeping in a pocket inside the office is legitimately
+    still active. We therefore NEVER auto-pause a session based on ping
+    silence — a session only transitions active → paused via a real exit
+    event from the client (see geofence_event handler).
+
+    We DO still auto-expire sessions that have been idle beyond the resume
+    window as an absolute safety net for orphaned sessions.
 
     Returns (still_alive, session, outcome_or_None).
     """
@@ -286,20 +301,19 @@ async def _tick_stale_session(db, session: dict, settings: dict, now_ms: int):
     resume_window_h = int(settings.get("resume_window_hours", 10))
     resume_ms = resume_window_h * 3600 * 1000
 
-    if status == "active" and idle_ms > STALE_PING_MS:
-        paused_at = last_ts  # went stale at the last ping time
+    # Expire sessions that are past the full resume window as an absolute
+    # safety net for orphaned sessions (e.g., a device that's been offline
+    # for a full shift). Under normal operation the client's exit event
+    # pauses the session and the user's next enter event resumes it.
+    if idle_ms > resume_ms:
         log_entries = list(session.get("log", []))
-        log_entries.append({"event": "stale_paused", "ts_ms": now_ms, "idle_ms": idle_ms})
-        await db.active_sessions.update_one(
-            {"_id": session["_id"]},
-            {"$set": {"status": "paused", "paused_at": paused_at, "log": log_entries[-500:]}},
-        )
-        session["status"] = "paused"
-        session["paused_at"] = paused_at
+        log_entries.append({"event": "expired_stale", "ts_ms": now_ms, "idle_ms": idle_ms})
         session["log"] = log_entries[-500:]
-        status = "paused"
-        logger.info("session_stale_paused session=%s user=%s idle_s=%s",
-                    session.get("_id"), session.get("user_id"), int(idle_ms / 1000))
+        await _write_attendance_record(db, session, "expired", now_ms)
+        await db.active_sessions.delete_one({"_id": session["_id"]})
+        logger.warning("session_expired_stale session=%s user=%s idle_h=%.1f",
+                       session.get("_id"), session.get("user_id"), idle_ms / 3600000)
+        return False, session, "expired"
 
     if status == "paused":
         paused_at = session.get("paused_at") or last_ts

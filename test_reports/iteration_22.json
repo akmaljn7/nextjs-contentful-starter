@@ -1,0 +1,36 @@
+{
+  "summary": "Iteration 22: Verified backend fix that removes auto-pause on ping silence. Native geofences only fire ENTER/EXIT, so a phone asleep in a pocket inside the office no longer gets falsely paused. Created and ran the new test file /app/backend/tests/test_no_autopause_on_ping_silence.py (2 tests, both pass). Full backend regression: 175 passed / 1 skipped in 79s (no regressions).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_no_autopause_on_ping_silence.py",
+    "/app/test_reports/pytest/pytest_iter22.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "sessions.py line 35: STALE_PING_MS = 30*60*1000 confirmed. Grep shows it is ONLY referenced at line 873 inside /api/sessions/live for the boolean 'stale' UI badge — never used to mutate session.status. Meets fix contract.",
+    "_tick_stale_session (lines 283-330) confirmed to no longer set status='paused'. It only DELETES sessions when idle_ms > resume_ms (safety-net for orphaned sessions), or when paused_at is older than resume_ms. active→paused transitions only happen inside POST /ping on a real exit event (line 706), which is the correct behavior.",
+    "sessions.py is 993 lines — exceeds the 700-line guideline. Consider splitting into submodules (challenges, ping-handler, admin-actions, stale-cleanup). Not blocking.",
+    "STALE_PING_MS threshold in the /live response drives a UI badge; ensure the frontend admin dashboard renders this 'stale' boolean as a connection-lost hint rather than treating it as a status change (out of scope for this iteration, backend-only fix)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_no_autopause_on_ping_silence.py (NEW)"
+  ],
+  "success_rate": {
+    "backend": "100% (175/175 executed passed, 1 skipped)",
+    "frontend": "not tested (backend-only iteration per request)"
+  },
+  "test_credentials": "Owner: akmaljn7@gmail.com / GeofenceAdmin123!  Employee: employee@example.com / Employee123!",
+  "seed_data_creation": "Test creates a TEST_NoAutoPause_* office and deletes it on teardown. active_sessions rows for the employee are cleaned up in each test's finally block.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Baseline is now 175 passed / 1 skipped (differs slightly from spec's 172/4 — some skips may be env-dependent). New test file test_no_autopause_on_ping_silence.py has 2 tests covering both branches: (a) 10-min ping silence must NOT auto-pause, (b) 12h silence must trigger safety-net expire with an attendance record. Run with `python -m pytest -n 0` from /app/backend because pytest.ini's xdist -n 2 can flake.",
+  "rca of the issue": "Root cause was in /app/backend/routes/sessions.py: the original _tick_stale_session function auto-paused any active session whose last_fix.ts_ms exceeded STALE_PING_MS (3 min). This treats ping silence as a proxy for 'user left', which is invalid on Android/iOS where native geofences send zero pings between ENTER/EXIT transitions. Fix (already applied by main agent): removed the auto-pause block, raised STALE_PING_MS to 30 min and demoted it to a UI-only 'stale' badge in the /live enrichment (line 873), and kept only the safety-net expire branch that deletes sessions idle for more than resume_window_hours (default 10h). Verified via static grep + 2 new integration tests + full 175-test regression pass."
+}
