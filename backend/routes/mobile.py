@@ -295,11 +295,20 @@ async def _apply_geofence_event(db, user: dict, event: MobileGeofenceEvent) -> d
         await _sync_session_center_from_office(db, session)
         settings = await _get_org_settings(db, user["org_id"])
         if session.get("status") == "active":
-            # Compute bout duration and add to total_inside_ms
-            bout_start = session.get("current_bout_start_ms", event.ts_ms)
-            bout_ms = max(0, event.ts_ms - bout_start)
-            total_inside = session.get("total_inside_ms", 0) + bout_ms
-            remaining = max(0, session.get("remaining_ms", 0) - bout_ms)
+            if session.get("last_live_ts_ms"):
+                # Live tracking is running and accrues time INCREMENTALLY, so
+                # this exit is only a state flip — adding bout time here would
+                # double-count. (Pure geofence-only sessions fall through to
+                # the bout-based branch below.)
+                total_inside = session.get("total_inside_ms", 0)
+                remaining = session.get("remaining_ms", 0)
+                bout_ms = 0
+            else:
+                # Compute bout duration and add to total_inside_ms
+                bout_start = session.get("current_bout_start_ms", event.ts_ms)
+                bout_ms = max(0, event.ts_ms - bout_start)
+                total_inside = session.get("total_inside_ms", 0) + bout_ms
+                remaining = max(0, session.get("remaining_ms", 0) - bout_ms)
             update = {
                 "status": "paused",
                 "paused_at": event.ts_ms,
@@ -602,28 +611,21 @@ async def _apply_location_fix(db, user: dict, fix: MobileLocationFix) -> dict:
 
     if status == "active":
         if definitely_outside:
-            bout_start = session.get("current_bout_start_ms", now_ms)
-            # Don't count a bout that spans a coverage gap as work time.
-            bout_ms = 0 if gap_detected else max(0, now_ms - bout_start)
-            total_inside = session.get("total_inside_ms", 0) + bout_ms
-            remaining = max(0, session.get("remaining_ms", 0) - bout_ms)
-            update = {"status": "paused", "paused_at": now_ms, "total_inside_ms": total_inside,
-                      "remaining_ms": remaining, "last_fix": last_fix, "last_live_ts_ms": now_ms,
-                      "last_battery": fix.battery}
+            # Crossing OUT. Time is accrued INCREMENTALLY on each inside fix
+            # (see the else-branch below), so we must NOT add the whole bout
+            # again here — that double-counts. Just flip to paused. This mirrors
+            # the canonical /ping model in sessions.py.
+            update = {"status": "paused", "paused_at": now_ms, "last_fix": last_fix,
+                      "last_live_ts_ms": now_ms, "last_battery": fix.battery}
             await db.active_sessions.update_one(
                 {"_id": session["_id"]},
                 {"$set": update, "$push": {"log": {"event": "pause_live", "ts_ms": now_ms,
                                                     "distance_m": int(dist)}}},
             )
             new_s = await db.active_sessions.find_one({"_id": session["_id"]})
-            if remaining <= 0:
-                await _write_attendance_record(db, new_s, "completed", now_ms)
-                await db.active_sessions.delete_one({"_id": session["_id"]})
-                await _broadcast_session(db, new_s, ended=True, outcome="completed")
-                return {"outcome": "session_completed"}
             await _broadcast_session(db, new_s)
             return {"outcome": "session_paused", "status": "paused"}
-        # still inside (or ambiguous accuracy) -> accrue time like a ping,
+        # still inside (or ambiguous accuracy) -> accrue time incrementally,
         # EXCEPT across a coverage gap (device was dark — don't count it).
         remaining = session.get("remaining_ms", 0)
         total_inside = session.get("total_inside_ms", 0)

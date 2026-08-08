@@ -1,0 +1,25 @@
+{
+  "summary": "Validated the inside-time double-count fix in /app/backend/routes/mobile.py::_apply_location_fix. Wrote 4 pytest tests covering (a) active inside accrual then far-outside -> paused with total_inside_ms == 30000 (not 75000), (b) resume + further inside accrual -> total_inside_ms == 45000, (c) offline /location-sync batch of 3 inside + 1 outside -> total_inside_ms == 120000, and replaying identical batch is idempotent (watermark rejects stale fixes), (d) coverage gap regression: >10min inside excluded and session flagged. ALL 4 TESTS PASS when run serially. The bug fix is working correctly.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_inside_time_double_count_fix.py",
+    "/app/test_reports/pytest/inside_time_fix.xml"
+  ],
+  "action_items": [
+    "Note for CI: the new test module hits a single shared session for employee@example.com and must be run with -n0 (or the offline-batch class must be scoped to the same xdist worker). Under default pytest-xdist LoadScope with 2 workers, the offline-batch class ran on gw1 in parallel with TestActiveInsideAccrualNoDoubleCount on gw0 and clobbered last_live_ts_ms, producing a stale_replay outcome on the first test. Running serially (which is what the review effectively simulates) is green. Consider adding a module-level pytest marker or grouping these tests with @pytest.mark.serial / xdist_group so they share one worker."
+  ],
+  "critical_code_review_comments": [
+    "Fix looks correct: mobile.py:612-627 active+definitely_outside branch now only flips to paused (last_live_ts_ms updated) with NO bout_ms add, matching the incremental dt accrual in the else branch at lines 630-638. This mirrors ping_session in sessions.py.",
+    "Idempotency guard at mobile.py:519 (now_ms <= session.last_live_ts_ms -> stale_replay) correctly protects offline batch replays.",
+    "_apply_geofence_event exit path (lines ~298-315) still adds bout_ms only when session has no last_live_ts_ms — good, avoids double-count when both live+geofence pipelines are active."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "n/a"},
+  "test_credentials": "Owner akmaljn7@gmail.com/GeofenceAdmin123!, Employee employee@example.com/Employee123!",
+  "seed_data_creation": "Each test class force-expires the employee session before seeding fresh location fixes with current epoch ms.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "New regression file: /app/backend/tests/test_inside_time_double_count_fix.py. Run with -n0 or ensure xdist keeps its classes on one worker; parallel workers stomp on the shared employee session's last_live_ts_ms watermark.",
+  "rca of the issue": "Previously _apply_location_fix ADDED the entire bout_ms on the active->paused transition while also accruing dt incrementally on every inside fix in the else branch. Net effect: total_inside_ms doubled once the user walked out (dt already counted while inside, then bout_ms = current_bout_start_ms->now_ms added again on pause). Fix removes the bout add on the live pause branch so accrual is incremental only. Verified: 3 inside fixes 15s apart + one outside now yields total_inside_ms = 30000 (2 * 15s deltas), previously would have been 75000."
+}

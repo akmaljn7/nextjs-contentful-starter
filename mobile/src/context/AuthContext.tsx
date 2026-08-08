@@ -13,6 +13,7 @@ import { startLiveLocation, stopLiveLocation, drainLocationQueue } from "@/servi
 import { coldStartReconcile } from "@/services/reconcile";
 import { drainQueue } from "@/services/syncWorker";
 import { startHealthLoop, stopHealthLoop } from "@/services/health";
+import { startConnectivityWatcher, stopConnectivityWatcher } from "@/services/connectivity";
 import { purgeOldSynced } from "@/services/offlineQueue";
 import { submitAttestation } from "@/services/attestation";
 
@@ -76,6 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         coldStartReconcile().catch(() => undefined);
         startHealthLoop();
         startLiveLocation().catch(() => undefined);
+        startConnectivityWatcher();
         drainLocationQueue().catch(() => undefined);
         purgeOldSynced().catch(() => undefined);
       }
@@ -115,6 +117,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         coldStartReconcile().catch(() => undefined);
         startHealthLoop();
         startLiveLocation().catch(() => undefined);
+        startConnectivityWatcher();
       }
     } catch (e: any) {
       const msg = e?.response?.data?.detail || e?.message || "Login failed";
@@ -126,6 +129,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = useCallback(async () => {
     stopHealthLoop();
     stopForegroundWatcher();
+    stopConnectivityWatcher();
     await stopLiveLocation();
     await stopGeofencing();
     await authApi.logout();

@@ -31,9 +31,13 @@ import {
 
 export const LIVE_LOCATION_TASK = "gfattend.live";
 
-// Cadence — 15s / 25m per product decision (responsive, WhatsApp-like).
+// Cadence — a fix every 15s. distanceInterval MUST be 0 so Android delivers
+// TIME-based updates even when the employee is completely stationary (sitting
+// at their desk). A non-zero distanceInterval acts as a minimum-displacement
+// filter and suppresses updates while still — which both under-counts inside
+// time and stops the offline queue from draining. Keep this at 0.
 const TIME_INTERVAL_MS = 15_000;
-const DISTANCE_INTERVAL_M = 25;
+const DISTANCE_INTERVAL_M = 0;
 
 let draining = false;
 
