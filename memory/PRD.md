@@ -23,6 +23,17 @@ Multi-tenant enterprise geofenced attendance platform. Organizations sign up, ad
 - PWA installable
 
 ## Implemented (2026-02 → 2026-08)
+### "My Colleague" proxy flow + mandatory face enrollment + gap review (8 Aug 2026)
+- **Mandatory face enrollment (mobile)**: `/api/auth/me` now returns `face_enrolled`. `EmployeeRoot` shows a strict `FaceEnrollScreen` (front-camera capture → `/api/face/enroll`) before app access whenever an employee has an office assigned but no baseline. Reusable `CameraCapture` component (expo-camera).
+- **"My Colleague" tab (mobile `MyColleagueScreen`)**, for employees whose phone is dead/off — used on a colleague's logged-in phone:
+  1. **Check me in + selfie**: enter absent employee's email/ID + reason → `POST /api/colleague/checkin` (uses this phone's GPS as location proof, must be inside the absent employee's office; blocked if no face baseline) → starts their session + pending selfie challenge → capture selfie on this phone → `POST /api/colleague/selfie` (face-matched to their baseline).
+  2. **Phone-off reason**: enter email/ID + note + optional verified selfie → `POST /api/colleague/gap-reason` → attaches to their latest pending coverage gap for admin review.
+  Every proxy action is labelled (`proxy_by`, `source=proxy_checkin`) and surfaced to admins; mismatched selfies flag the session + log a `face_mismatch` security event.
+- **Coverage gaps persisted** to a `coverage_gaps` collection (id, from/to, gap_ms, battery, likely_battery_died, status, reason_note, selfie_match, reviewed_by). Gap detection now keys strictly off `last_live_ts_ms` (no false gap on a web-created session's first live fix).
+- **Admin gap review** (`routes/gaps.py` + web `GapReviews.jsx` at `/admin/gaps`, nav "GAPS"): list by status, view reason + verified selfie photo, **Approve** (status=approved; re-credits `gap_ms` to an active session's `total_inside_ms`/`remaining_ms`) or **Reject** (status=rejected/absent). Second decision → 409.
+- **Verified**: testing agent iteration_23 — 14/14 backend pytest + web Gap Reviews 100% (loads, filter tabs, seeded gap card, Approve moves pending→approved with re-credit, employee token rejected, `/me` face_enrolled). Mobile typecheck + Android bundle (1347 modules incl. expo-camera/battery) ✅. Post-fix regression: 15-min gap still detected ✅.
+- **Not testable in-container**: mobile screens + the successful proxy-selfie face-match happy path (needs a real enrolled face + Android). User must confirm on a real APK.
+
 ### Coverage-gap detection + battery intent-signal (8 Aug 2026)
 - **Problem it solves**: powering the phone fully off (or the OS killing the app) leaves NO fixes to capture an exit — and since we never pause on silence, the dark period was wrongly counted as present. This closes that loophole.
 - **Mobile**: added `expo-battery`; every live fix now includes battery level (piggybacks the GPS cycle, near-zero cost). `MobileLocationFix`/queue/bulk all carry `battery`.

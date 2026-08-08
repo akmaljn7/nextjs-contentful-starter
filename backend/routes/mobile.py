@@ -481,7 +481,9 @@ async def _apply_location_fix(db, user: dict, fix: MobileLocationFix) -> dict:
     await _sync_session_center_from_office(db, session)
 
     # Coverage-gap detection — did the device go dark (phone off / app killed)?
-    prev_ts = session.get("last_live_ts_ms") or (session.get("last_fix") or {}).get("ts_ms")
+    # Key strictly off last_live_ts_ms so the FIRST live fix on a session that
+    # was created elsewhere (e.g. web/geofence) never registers a false gap.
+    prev_ts = session.get("last_live_ts_ms")
     gap_ms = (now_ms - prev_ts) if prev_ts else 0
     gap_detected = gap_ms > COVERAGE_GAP_MS
     if gap_detected:
