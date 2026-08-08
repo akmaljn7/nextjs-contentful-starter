@@ -7,6 +7,7 @@ import { colors } from "@/theme";
 
 export default function EmployeeProfileScreen() {
   const { user, signOut } = useAuth();
+  const canLogout = user?.logout_enabled === true;
   return (
     <Screen>
       <View style={styles.container}>
@@ -25,11 +26,17 @@ export default function EmployeeProfileScreen() {
         </View>
         <Button
           testID="signout-btn"
-          onPress={signOut}
+          onPress={canLogout ? signOut : undefined}
+          disabled={!canLogout}
           label="Sign out"
           variant="danger"
           style={{ marginTop: 24 }}
         />
+        {!canLogout && (
+          <Text style={styles.lockNote} testID="logout-locked-note">
+            Sign out is disabled by your manager. Contact your administrator if you need to sign out.
+          </Text>
+        )}
       </View>
     </Screen>
   );
@@ -41,4 +48,5 @@ const styles = StyleSheet.create({
   card: { padding: 16, backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, marginBottom: 12 },
   label: { color: colors.textDim, fontSize: 10, letterSpacing: 2, marginBottom: 4, fontWeight: "600" },
   value: { color: colors.text, fontSize: 15 },
+  lockNote: { color: colors.textMute, fontSize: 12, textAlign: "center", marginTop: 12, lineHeight: 18 },
 });

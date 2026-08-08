@@ -5,7 +5,7 @@ import { AppShell } from "@/components/AppShell";
 import { ScheduleEditor, scheduleSummary } from "@/components/ScheduleEditor";
 import { fmtDateTime } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, Trash2, Edit3, X, User, Camera, Bell } from "lucide-react";
+import { Plus, Trash2, Edit3, X, User, Camera, Bell, Smartphone, Check, LogOut, Lock } from "lucide-react";
 
 function EmployeeForm({ initial, offices, onCancel, onSaved }) {
   const [form, setForm] = useState(
@@ -122,6 +122,34 @@ export default function EmployeesManage() {
     onError: (e) => toast.error(toApiError(e)),
   });
 
+  const { data: deviceRequests = [] } = useQuery({
+    queryKey: ["device-requests"],
+    queryFn: async () => (await api.get("/employees/device-requests")).data,
+    refetchInterval: 15000,
+  });
+
+  const decideDevice = useMutation({
+    mutationFn: async ({ id, action }) => (await api.post(`/employees/device-requests/${id}/${action}`)).data,
+    onSuccess: (_d, v) => {
+      toast.success(v.action === "approve" ? "New device approved" : "Device request rejected");
+      qc.invalidateQueries({ queryKey: ["device-requests"] });
+      qc.invalidateQueries({ queryKey: ["employees"] });
+    },
+    onError: (e) => toast.error(toApiError(e)),
+  });
+
+  const toggleLogout = useMutation({
+    mutationFn: async ({ id, enabled }) => (await api.patch(`/employees/${id}`, { logout_enabled: enabled })).data,
+    onSuccess: (d) => { toast.success(`Logout ${d.logout_enabled ? "enabled" : "locked"} for ${d.name}`); qc.invalidateQueries({ queryKey: ["employees"] }); },
+    onError: (e) => toast.error(toApiError(e)),
+  });
+
+  const resetDevice = useMutation({
+    mutationFn: async (id) => (await api.post(`/employees/${id}/reset-device`)).data,
+    onSuccess: () => { toast.success("Device unbound — next login re-binds"); qc.invalidateQueries({ queryKey: ["employees"] }); },
+    onError: (e) => toast.error(toApiError(e)),
+  });
+
   const officeName = (id) => offices.find((o) => o.id === id)?.name || "—";
 
   return (
@@ -145,6 +173,39 @@ export default function EmployeesManage() {
         </div>
       )}
 
+      {deviceRequests.length > 0 && (
+        <div className="border border-amber-500/40 bg-amber-500/10 p-4 mb-6" data-testid="device-requests-banner">
+          <div className="mono text-xs uppercase tracking-widest text-amber-400 mb-3 inline-flex items-center gap-2">
+            <Smartphone size={13} /> {deviceRequests.length} new-device approval{deviceRequests.length === 1 ? "" : "s"} pending
+          </div>
+          <div className="space-y-2">
+            {deviceRequests.map((r) => (
+              <div key={r.id} className="flex items-center justify-between gap-3 flex-wrap border border-white/10 bg-black/30 px-3 py-2" data-testid={`device-req-${r.id}`}>
+                <div className="text-sm">
+                  <span className="font-medium">{r.employee_name}</span>
+                  <span className="text-gray-500 mono text-xs ml-2">{r.employee_email}</span>
+                  <div className="text-[11px] text-gray-400 mono mt-0.5">
+                    wants to use {r.model || r.platform || "a new device"} · <span className="text-gray-500">{r.device_id?.slice(0, 16)}…</span>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => decideDevice.mutate({ id: r.id, action: "approve" })} disabled={decideDevice.isPending}
+                    data-testid={`device-approve-${r.id}`}
+                    className="border border-green-500/40 hover:bg-green-500/10 text-green-400 px-3 py-1.5 text-xs uppercase tracking-widest font-mono inline-flex items-center gap-1.5">
+                    <Check size={13} /> Approve
+                  </button>
+                  <button onClick={() => decideDevice.mutate({ id: r.id, action: "reject" })} disabled={decideDevice.isPending}
+                    data-testid={`device-reject-${r.id}`}
+                    className="border border-red-500/40 hover:bg-red-500/10 text-red-400 px-3 py-1.5 text-xs uppercase tracking-widest font-mono inline-flex items-center gap-1.5">
+                    <X size={13} /> Reject
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {editing !== null && (
         <div className="mb-6">
           <EmployeeForm initial={editing?.id ? editing : null} offices={offices} onCancel={() => setEditing(null)} onSaved={() => { setEditing(null); qc.invalidateQueries({ queryKey: ["employees"] }); }} />
@@ -162,7 +223,7 @@ export default function EmployeesManage() {
         {employees.length > 0 && (
           <table className="w-full data-table">
             <thead><tr>
-              <th>NAME</th><th>EMAIL</th><th>OFFICE</th><th>SCHEDULE</th><th>CREATED</th><th className="text-right">ACTIONS</th>
+              <th>NAME</th><th>EMAIL</th><th>OFFICE</th><th>SCHEDULE</th><th>DEVICE</th><th className="text-right">ACTIONS</th>
             </tr></thead>
             <tbody>
               {employees.map((e, i) => (
@@ -171,9 +232,35 @@ export default function EmployeesManage() {
                   <td className="mono text-gray-300">{e.email}</td>
                   <td className="text-gray-300">{officeName(e.office_id)}</td>
                   <td className="mono text-xs text-gray-300" data-testid={`emp-sched-${e.id}`}>{scheduleSummary(e.schedule)}</td>
-                  <td className="mono text-gray-500 text-xs">{fmtDateTime(e.created_at)}</td>
+                  <td className="mono text-xs" data-testid={`emp-device-${e.id}`}>
+                    {e.bound_device_id ? (
+                      <span className="inline-flex items-center gap-1 text-green-400"><Smartphone size={12} /> bound</span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-gray-500"><Smartphone size={12} /> none</span>
+                    )}
+                  </td>
                   <td className="text-right">
                     <div className="inline-flex gap-2 flex-wrap justify-end">
+                      <button
+                        onClick={() => toggleLogout.mutate({ id: e.id, enabled: !e.logout_enabled })}
+                        disabled={toggleLogout.isPending}
+                        data-testid={`emp-logout-toggle-${e.id}`}
+                        title={e.logout_enabled ? "Employee CAN sign out — click to lock" : "Sign out is LOCKED — click to allow"}
+                        className={`border px-2.5 py-1 text-xs transition-colors inline-flex items-center gap-1 ${e.logout_enabled ? "border-green-500/30 hover:bg-green-500/10 text-green-400" : "border-white/10 hover:border-white/30 text-gray-400"}`}
+                      >
+                        {e.logout_enabled ? <LogOut size={12} /> : <Lock size={12} />} Logout {e.logout_enabled ? "ON" : "OFF"}
+                      </button>
+                      {e.bound_device_id && (
+                        <button
+                          onClick={() => { if (confirm(`Unbind ${e.name}'s device? Their next login on any phone will re-bind.`)) resetDevice.mutate(e.id); }}
+                          disabled={resetDevice.isPending}
+                          data-testid={`emp-reset-device-${e.id}`}
+                          title="Unbind the current device (e.g. employee got a new phone)"
+                          className="border border-white/10 hover:border-white/30 text-gray-300 px-2.5 py-1 text-xs transition-colors inline-flex items-center gap-1"
+                        >
+                          <Smartphone size={12} /> Reset
+                        </button>
+                      )}
                       <button
                         onClick={() => challengeNow.mutate(e.id)}
                         disabled={challengeNow.isPending}

@@ -15,6 +15,7 @@ export interface AuthUser {
   office_id?: string | null;
   schedule?: any;
   face_enrolled?: boolean;
+  logout_enabled?: boolean;
 }
 
 interface LoginResponse extends AuthUser {

@@ -23,6 +23,7 @@ from models import (
     MobileAttestation,
     MobileLocationFix,
     MobileLocationBulk,
+    MobileDeviceBind,
 )
 
 logger = logging.getLogger(__name__)
@@ -385,6 +386,66 @@ async def bulk_sync(
     logger.info("mobile_bulk_sync user=%s count=%s dupes=%s",
                 user.get("email"), len(payload.events), dupes)
     return {"ok": True, "processed": processed, "dupes": dupes}
+
+
+# ---------------------------------------------------------------------------
+# Device binding — tie an employee's account to one phone
+# ---------------------------------------------------------------------------
+@router.post("/device/bind")
+async def device_bind(payload: MobileDeviceBind, request: Request, user: dict = Depends(get_current_user)):
+    """Called on login. First device auto-binds; a different device creates a
+    pending request that a manager must approve before the app unlocks."""
+    db = get_db()
+    udoc = await db.users.find_one({"_id": ObjectId(user["id"])})
+    if not udoc or udoc.get("role") != "employee":
+        return {"status": "authorized"}  # admins/owner are not device-bound
+    bound = udoc.get("bound_device_id")
+    did = payload.device_id
+    if not bound:
+        await db.users.update_one({"_id": udoc["_id"]}, {"$set": {"bound_device_id": did}})
+        logger.info("device_bound_first user=%s device=%s", user.get("email"), did)
+        return {"status": "authorized", "first_bind": True}
+    if bound == did:
+        return {"status": "authorized"}
+    req = await db.device_requests.find_one(
+        {"org_id": user["org_id"], "user_id": user["id"], "device_id": did},
+        sort=[("created_at", -1)],
+    )
+    if req and req.get("status") == "approved":
+        await db.users.update_one({"_id": udoc["_id"]}, {"$set": {"bound_device_id": did}})
+        return {"status": "authorized"}
+    if req and req.get("status") == "rejected":
+        return {"status": "rejected"}
+    if not req or req.get("status") not in ("pending",):
+        await db.device_requests.insert_one({
+            "id": uuid.uuid4().hex[:12], "org_id": user["org_id"], "user_id": user["id"],
+            "device_id": did, "platform": payload.platform, "model": payload.model,
+            "status": "pending", "created_at": _now_iso(),
+            "reviewed_by": None, "reviewed_at": None,
+        })
+        logger.warning("device_request_created user=%s device=%s", user.get("email"), did)
+    return {"status": "pending"}
+
+
+@router.get("/device/status")
+async def device_status(device_id: str, user: dict = Depends(get_current_user)):
+    db = get_db()
+    udoc = await db.users.find_one({"_id": ObjectId(user["id"])})
+    if not udoc or udoc.get("role") != "employee":
+        return {"status": "authorized"}
+    bound = udoc.get("bound_device_id")
+    if not bound or bound == device_id:
+        return {"status": "authorized"}
+    req = await db.device_requests.find_one(
+        {"org_id": user["org_id"], "user_id": user["id"], "device_id": device_id},
+        sort=[("created_at", -1)],
+    )
+    if req and req.get("status") == "approved":
+        await db.users.update_one({"_id": udoc["_id"]}, {"$set": {"bound_device_id": device_id}})
+        return {"status": "authorized"}
+    if req and req.get("status") == "rejected":
+        return {"status": "rejected"}
+    return {"status": "pending"}
 
 
 # ---------------------------------------------------------------------------

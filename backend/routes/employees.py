@@ -25,9 +25,16 @@ def _shape(doc: dict) -> dict:
         "role": doc["role"],
         "office_id": doc.get("office_id"),
         "schedule": doc.get("schedule") or {"mode": "any"},
+        "logout_enabled": bool(doc.get("logout_enabled", False)),
+        "bound_device_id": doc.get("bound_device_id"),
+        "face_enrolled": bool(doc.get("face_baseline")),
         "created_at": doc.get("created_at"),
         "last_login_at": doc.get("last_login_at"),
     }
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
 
 
 @router.get("")
@@ -128,6 +135,8 @@ async def update_employee(employee_id: str, payload: EmployeeUpdate, request: Re
         update["office_id"] = payload.office_id
     if payload.schedule is not None:
         update["schedule"] = payload.schedule.model_dump(exclude_none=True)
+    if payload.logout_enabled is not None:
+        update["logout_enabled"] = bool(payload.logout_enabled)
     if update:
         await db.users.update_one({"_id": eid}, {"$set": update})
     new_doc = await db.users.find_one({"_id": eid})
@@ -167,4 +176,98 @@ async def delete_employee(employee_id: str, request: Request, user: dict = Depen
     )
     logger.info("employee_delete_ok admin=%s target=%s email=%s",
                 user.get("email"), employee_id, existing.get("email"))
+    return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
+# Device binding — manager review of new-device requests
+# ---------------------------------------------------------------------------
+@router.get("/device-requests")
+async def list_device_requests(user: dict = Depends(require_admin)):
+    db = get_db()
+    out = []
+    cur = db.device_requests.find({"org_id": user["org_id"], "status": "pending"}).sort("created_at", -1)
+    async for r in cur:
+        try:
+            emp = await db.users.find_one({"_id": ObjectId(r["user_id"])}, {"name": 1, "email": 1, "bound_device_id": 1})
+        except Exception:
+            emp = None
+        out.append({
+            "id": r["id"],
+            "user_id": r["user_id"],
+            "employee_name": (emp or {}).get("name", "Unknown"),
+            "employee_email": (emp or {}).get("email", ""),
+            "current_bound_device_id": (emp or {}).get("bound_device_id"),
+            "device_id": r.get("device_id"),
+            "platform": r.get("platform"),
+            "model": r.get("model"),
+            "created_at": r.get("created_at"),
+        })
+    return out
+
+
+@router.post("/device-requests/{request_id}/approve")
+async def approve_device_request(request_id: str, request: Request, user: dict = Depends(require_admin)):
+    db = get_db()
+    req = await db.device_requests.find_one({"org_id": user["org_id"], "id": request_id})
+    if not req:
+        raise HTTPException(status_code=404, detail="Request not found")
+    if req.get("status") != "pending":
+        raise HTTPException(status_code=409, detail=f"Request already {req.get('status')}")
+    await db.device_requests.update_one(
+        {"_id": req["_id"]},
+        {"$set": {"status": "approved", "reviewed_by": user.get("email"), "reviewed_at": _now_iso()}},
+    )
+    await db.users.update_one({"_id": ObjectId(req["user_id"])}, {"$set": {"bound_device_id": req["device_id"]}})
+    # Supersede any other pending requests for the same employee.
+    await db.device_requests.update_many(
+        {"org_id": user["org_id"], "user_id": req["user_id"], "status": "pending", "id": {"$ne": request_id}},
+        {"$set": {"status": "superseded"}},
+    )
+    await log_admin_action(user["org_id"], user["id"], "device.approve", "employee", req["user_id"],
+                           after={"device_id": req["device_id"]},
+                           ip=client_ip(request), user_agent=request.headers.get("user-agent", ""))
+    logger.info("device_request_approved admin=%s user=%s device=%s", user.get("email"), req["user_id"], req["device_id"])
+    return {"ok": True}
+
+
+@router.post("/device-requests/{request_id}/reject")
+async def reject_device_request(request_id: str, request: Request, user: dict = Depends(require_admin)):
+    db = get_db()
+    req = await db.device_requests.find_one({"org_id": user["org_id"], "id": request_id})
+    if not req:
+        raise HTTPException(status_code=404, detail="Request not found")
+    if req.get("status") != "pending":
+        raise HTTPException(status_code=409, detail=f"Request already {req.get('status')}")
+    await db.device_requests.update_one(
+        {"_id": req["_id"]},
+        {"$set": {"status": "rejected", "reviewed_by": user.get("email"), "reviewed_at": _now_iso()}},
+    )
+    await log_admin_action(user["org_id"], user["id"], "device.reject", "employee", req["user_id"],
+                           after={"device_id": req["device_id"]},
+                           ip=client_ip(request), user_agent=request.headers.get("user-agent", ""))
+    logger.info("device_request_rejected admin=%s user=%s device=%s", user.get("email"), req["user_id"], req["device_id"])
+    return {"ok": True}
+
+
+@router.post("/{employee_id}/reset-device")
+async def reset_device(employee_id: str, request: Request, user: dict = Depends(require_admin)):
+    """Unbind an employee's device (e.g. they got a new phone). Their next
+    login auto-binds the new device."""
+    db = get_db()
+    try:
+        eid = ObjectId(employee_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid id")
+    existing = await db.users.find_one({"_id": eid, "org_id": user["org_id"], "role": "employee"})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Employee not found")
+    await db.users.update_one({"_id": eid}, {"$set": {"bound_device_id": None}})
+    await db.device_requests.update_many(
+        {"org_id": user["org_id"], "user_id": employee_id, "status": "pending"},
+        {"$set": {"status": "cancelled"}},
+    )
+    await log_admin_action(user["org_id"], user["id"], "device.reset", "employee", employee_id,
+                           ip=client_ip(request), user_agent=request.headers.get("user-agent", ""))
+    logger.info("device_reset admin=%s target=%s", user.get("email"), employee_id)
     return {"ok": True}

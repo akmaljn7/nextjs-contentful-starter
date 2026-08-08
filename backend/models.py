@@ -85,6 +85,7 @@ class UserPublic(BaseModel):
     org_name: Optional[str] = None
     schedule: Optional[Dict] = None
     face_enrolled: Optional[bool] = None
+    logout_enabled: Optional[bool] = None
     created_at: Optional[str] = None
 
 
@@ -126,6 +127,7 @@ class EmployeeUpdate(BaseModel):
     name: Optional[str] = None
     office_id: Optional[str] = None
     schedule: Optional[EmployeeSchedule] = None
+    logout_enabled: Optional[bool] = None
 
 
 # ---------- Sessions ----------
@@ -328,3 +330,10 @@ class ColleagueGapReason(BaseModel):
     note: str = Field(min_length=1, max_length=1000)
     face_photo: Optional[str] = Field(default=None, max_length=6_000_000)
     gap_id: Optional[str] = Field(default=None, max_length=64)
+
+
+class MobileDeviceBind(BaseModel):
+    """Device-binding check on login — ties an employee to one phone."""
+    device_id: str = Field(min_length=8, max_length=128)
+    platform: Optional[str] = Field(default=None, max_length=20)
+    model: Optional[str] = Field(default=None, max_length=120)
