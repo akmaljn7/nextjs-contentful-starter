@@ -14,6 +14,7 @@ export interface AuthUser {
   role: Role;
   office_id?: string | null;
   schedule?: any;
+  face_enrolled?: boolean;
 }
 
 interface LoginResponse extends AuthUser {
@@ -22,7 +23,7 @@ interface LoginResponse extends AuthUser {
   token_type?: string;
 }
 
-/** POST /api/auth/login — issues JWT pair and returns the user profile. */
+/** POST /api/auth/login — issues JWT pair, then hydrates the full profile. */
 export async function login(email: string, password: string): Promise<AuthUser> {
   const { data } = await api.post<LoginResponse>("/auth/login", {
     email: email.trim().toLowerCase(),
@@ -32,9 +33,8 @@ export async function login(email: string, password: string): Promise<AuthUser> 
     throw new Error("Login response missing tokens. Server may not be up to date.");
   }
   await saveTokens(data.access_token, data.refresh_token);
-  return { id: data.id, org_id: data.org_id, org_name: data.org_name,
-           email: data.email, name: data.name,
-           role: data.role, office_id: data.office_id, schedule: data.schedule };
+  // Re-fetch /me so we get server-computed fields like face_enrolled.
+  return fetchMe();
 }
 
 export async function fetchMe(): Promise<AuthUser> {

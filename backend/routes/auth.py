@@ -311,6 +311,7 @@ async def mobile_logout(request: Request):
 async def me(user: dict = Depends(get_current_user)):
     db = get_db()
     org = await db.organizations.find_one({"_id": ObjectId(user["org_id"])})
+    u = await db.users.find_one({"_id": ObjectId(user["id"])}, {"face_baseline": 1})
     return {
         "id": user["id"],
         "org_id": user["org_id"],
@@ -320,6 +321,7 @@ async def me(user: dict = Depends(get_current_user)):
         "office_id": user.get("office_id"),
         "org_name": (org or {}).get("name"),
         "schedule": user.get("schedule"),
+        "face_enrolled": bool(u and u.get("face_baseline")),
         "created_at": user.get("created_at"),
     }
 

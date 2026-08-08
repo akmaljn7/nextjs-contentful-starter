@@ -84,6 +84,7 @@ class UserPublic(BaseModel):
     office_id: Optional[str] = None
     org_name: Optional[str] = None
     schedule: Optional[Dict] = None
+    face_enrolled: Optional[bool] = None
     created_at: Optional[str] = None
 
 
@@ -301,3 +302,29 @@ class MobileLocationBulk(BaseModel):
     retried batch never double-counts.
     """
     fixes: List[MobileLocationFix] = Field(min_length=1, max_length=500)
+
+
+
+# ---------- Colleague proxy actions (phone unavailable) ----------
+class ColleagueCheckin(BaseModel):
+    """Proxy check-in for an absent employee via a colleague's phone."""
+    email_or_id: str = Field(min_length=1, max_length=200)
+    reason: str = Field(default="", max_length=500)
+    lat: float
+    lng: float
+    accuracy: float = Field(ge=0, le=10_000)
+
+
+class ColleagueSelfie(BaseModel):
+    """Selfie taken on a colleague's phone for the absent employee."""
+    email_or_id: str = Field(min_length=1, max_length=200)
+    challenge_id: Optional[str] = Field(default=None, max_length=64)
+    face_photo: str = Field(min_length=100, max_length=6_000_000)
+
+
+class ColleagueGapReason(BaseModel):
+    """Reason + optional verified selfie explaining a coverage gap."""
+    email_or_id: str = Field(min_length=1, max_length=200)
+    note: str = Field(min_length=1, max_length=1000)
+    face_photo: Optional[str] = Field(default=None, max_length=6_000_000)
+    gap_id: Optional[str] = Field(default=None, max_length=64)

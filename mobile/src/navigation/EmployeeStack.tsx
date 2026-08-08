@@ -5,10 +5,12 @@ import { Ionicons } from "@expo/vector-icons";
 import EmployeeHomeScreen from "@/screens/employee/HomeScreen";
 import EmployeeHistoryScreen from "@/screens/employee/HistoryScreen";
 import EmployeeProfileScreen from "@/screens/employee/ProfileScreen";
+import MyColleagueScreen from "@/screens/employee/MyColleagueScreen";
 import { colors } from "@/theme";
 
 export type EmployeeTabParamList = {
   Home: undefined;
+  Colleague: undefined;
   History: undefined;
   Profile: undefined;
 };
@@ -34,6 +36,7 @@ export function EmployeeStack() {
         tabBarIcon: ({ color, size }) => {
           const map: Record<string, keyof typeof Ionicons.glyphMap> = {
             Home: "home",
+            Colleague: "people",
             History: "time",
             Profile: "person",
           };
@@ -42,6 +45,7 @@ export function EmployeeStack() {
       })}
     >
       <Tab.Screen name="Home" component={EmployeeHomeScreen} />
+      <Tab.Screen name="Colleague" component={MyColleagueScreen} options={{ tabBarLabel: "Colleague" }} />
       <Tab.Screen name="History" component={EmployeeHistoryScreen} />
       <Tab.Screen name="Profile" component={EmployeeProfileScreen} />
     </Tab.Navigator>

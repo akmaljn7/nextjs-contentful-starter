@@ -5,6 +5,7 @@ untouched — the mobile geofence-event endpoint routes into the same
 auto-start / ping helpers used by the web PWA.
 """
 import logging
+import uuid
 from datetime import datetime, timezone
 from typing import List
 
@@ -46,15 +47,17 @@ COVERAGE_GAP_MS = 10 * 60 * 1000
 BATTERY_DEAD_THRESHOLD = 0.20
 
 
-def _coverage_gap_entry(from_ms: int, to_ms: int, battery_before, battery_after) -> dict:
+def _coverage_gap_entry(gap_id: str, from_ms: int, to_ms: int, battery_before, battery_after) -> dict:
     return {
         "event": "coverage_gap",
+        "id": gap_id,
         "from_ms": from_ms,
         "to_ms": to_ms,
         "gap_ms": to_ms - from_ms,
         "battery_before": battery_before,
         "battery_after": battery_after,
         "likely_battery_died": bool(battery_before is not None and battery_before < BATTERY_DEAD_THRESHOLD),
+        "status": "pending",
         "ts_ms": to_ms,
     }
 
@@ -482,16 +485,41 @@ async def _apply_location_fix(db, user: dict, fix: MobileLocationFix) -> dict:
     gap_ms = (now_ms - prev_ts) if prev_ts else 0
     gap_detected = gap_ms > COVERAGE_GAP_MS
     if gap_detected:
-        ge = _coverage_gap_entry(prev_ts, now_ms, session.get("last_battery"), fix.battery)
+        gid = uuid.uuid4().hex[:12]
+        ge = _coverage_gap_entry(gid, prev_ts, now_ms, session.get("last_battery"), fix.battery)
         await db.active_sessions.update_one(
             {"_id": session["_id"]},
             {"$set": {"flagged": True}, "$push": {"log": ge}},
         )
         session["flagged"] = True
+        # Durable record so admins can review/approve/reject even after the
+        # session ends, and so a colleague can attach a reason to it.
+        await db.coverage_gaps.insert_one({
+            "id": gid,
+            "org_id": user["org_id"],
+            "user_id": user["id"],
+            "session_id": str(session["_id"]),
+            "from_ms": prev_ts,
+            "to_ms": now_ms,
+            "gap_ms": gap_ms,
+            "battery_before": session.get("last_battery"),
+            "battery_after": fix.battery,
+            "likely_battery_died": ge["likely_battery_died"],
+            "status": "pending",
+            "reason_note": None,
+            "reason_by": None,
+            "reason_at": None,
+            "has_photo": False,
+            "selfie_match": None,
+            "selfie_similarity": None,
+            "reviewed_by": None,
+            "reviewed_at": None,
+            "created_at": _now_iso(),
+        })
         logger.warning(
-            "coverage_gap session=%s user=%s gap_min=%.1f battery_before=%s likely_died=%s",
+            "coverage_gap session=%s user=%s gap_min=%.1f battery_before=%s likely_died=%s gap_id=%s",
             session["_id"], user.get("email"), gap_ms / 60000,
-            session.get("last_battery"), ge["likely_battery_died"],
+            session.get("last_battery"), ge["likely_battery_died"], gid,
         )
 
     center = session["center"]
