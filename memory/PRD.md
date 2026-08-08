@@ -23,6 +23,11 @@ Multi-tenant enterprise geofenced attendance platform. Organizations sign up, ad
 - PWA installable
 
 ## Implemented (2026-02 → 2026-08)
+### Device binding + per-employee logout lock (8 Aug 2026)
+- **Device binding (mobile only, employees):** first phone an employee logs in from **auto-binds** (`users.bound_device_id`). A *different* device creates a pending `device_requests` row and the app shows a blocked **"Waiting for manager's approval"** screen (polls status, auto-unlocks on approval). Manager approves/rejects **inline on the web Employees page** (banner with Approve/Reject); Reset unbinds a phone (e.g. new device). Owners/admins bypass binding. Endpoints: `POST /api/mobile/device/bind`, `GET /api/mobile/device/status`, `GET/POST /api/employees/device-requests*`, `POST /api/employees/{id}/reset-device`. Mobile: `EmployeeRoot` device gate (before face gate) + `WaitingApprovalScreen`; device_id from `getDeviceId()` (iOS IDFV / Android ID).
+- **Per-employee logout lock:** employee mobile Profile **Sign out is disabled by default** (`users.logout_enabled=false`); shows a "disabled by your manager" note. Admin toggles it per-employee on the web Employees page (**Logout ON/OFF** button). `/api/auth/me` + employees list return `logout_enabled`.
+- **Verified:** testing agent iteration_24 — 12/12 backend (full bind state machine incl. approve/409/reject/reset/owner-bypass + `/me` logout toggle) + web Employees 100% (banner Approve clears row, logout toggle persists, Reset shows only when bound). Mobile typecheck + Android bundle ✅. Backend regression: 22 tests (mobile_phase6 + colleague_gaps) pass.
+
 ### "My Colleague" proxy flow + mandatory face enrollment + gap review (8 Aug 2026)
 - **Mandatory face enrollment (mobile)**: `/api/auth/me` now returns `face_enrolled`. `EmployeeRoot` shows a strict `FaceEnrollScreen` (front-camera capture → `/api/face/enroll`) before app access whenever an employee has an office assigned but no baseline. Reusable `CameraCapture` component (expo-camera).
 - **"My Colleague" tab (mobile `MyColleagueScreen`)**, for employees whose phone is dead/off — used on a colleague's logged-in phone:
