@@ -23,6 +23,14 @@ Multi-tenant enterprise geofenced attendance platform. Organizations sign up, ad
 - PWA installable
 
 ## Implemented (2026-02 → 2026-08)
+### Coverage-gap detection + battery intent-signal (8 Aug 2026)
+- **Problem it solves**: powering the phone fully off (or the OS killing the app) leaves NO fixes to capture an exit — and since we never pause on silence, the dark period was wrongly counted as present. This closes that loophole.
+- **Mobile**: added `expo-battery`; every live fix now includes battery level (piggybacks the GPS cycle, near-zero cost). `MobileLocationFix`/queue/bulk all carry `battery`.
+- **Backend** (`_apply_location_fix`): on each fix, compares its timestamp to the session's `last_live_ts_ms`. A gap > **10 min** → (1) that span is **excluded from counted work time** (no accrual across the gap, incl. bout time on pause), (2) session **flagged**, (3) a `coverage_gap` log entry records `{from_ms, to_ms, gap_ms, battery_before, battery_after, likely_battery_died}`. Battery-before **< 20%** ⇒ `likely_battery_died` (benign); ≥ 20% ⇒ suspicious/intentional. Constants `COVERAGE_GAP_MS`, `BATTERY_DEAD_THRESHOLD`.
+- **Admin console** (`AdminDashboard.jsx` IN/OUT LOG): renders a red `⚠ GAP 12m · <time> · battery 56% · suspicious|likely battery died` row inline with the IN/OUT crossings (`data-testid=inout-gap-{id}-{idx}`).
+- **Verified**: curl — a 12-min gap between inside fixes counts only the pre-gap 60s (INSIDE=1.0 min), flags the session, logs the gap with `likely_died=False` at 56% ✅; admin screenshot shows the red GAP row + FLAGGED ✅; mobile typecheck + Android bundle (1343 modules, incl. expo-battery) ✅.
+- **Known limitation**: a gap proves "unverifiable," not "definitely absent" — if the employee powered off but stayed inside, that time is still (correctly) not counted while flagged for admin review. iOS background throttling could occasionally produce a benign >10min gap (admin review mitigates).
+
 ### Offline-durable live location — Goal 2 fully met (7 Aug 2026)
 - **Mobile** — the live-location task now writes every fix into a new SQLite table `mobile_location_fixes` (offlineQueue.ts) BEFORE draining, so movement captured while offline (walked in/out with no internet) is buffered on-device and replayed when connectivity returns. `drainLocationQueue()` bulk-sends pending fixes chronologically via `/api/mobile/location-sync`, marks them synced, and 2-day-purges. Wired into the task itself + AuthContext bootstrap/foreground.
 - **Backend** — new `POST /api/mobile/location-sync` (`MobileLocationBulk`) replays fixes oldest-first through `_apply_location_fix`. Added a per-session **idempotency watermark** (`last_live_ts_ms`): any fix at/behind the newest applied one returns `stale_replay` and mutates nothing — so a resent batch (lost-response retry) never double-counts time or bouts.

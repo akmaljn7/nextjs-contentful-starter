@@ -7,7 +7,7 @@ import { StatusChip } from "@/components/StatusChip";
 import { fmtCoord, fmtDateTime, fmtMinutes, STATUS_LABEL } from "@/lib/format";
 import { useLiveSessions } from "@/hooks/useLiveSessions";
 import { toast } from "sonner";
-import { Building2, Users, Activity, PauseCircle, Database, ShieldAlert, Wifi, Camera, Bell, X, LogIn, LogOut } from "lucide-react";
+import { Building2, Users, Activity, PauseCircle, Database, ShieldAlert, Wifi, Camera, Bell, X, LogIn, LogOut, AlertTriangle } from "lucide-react";
 
 const Stat = ({ label, value, sub, icon: Icon, testId }) => (
   <div className="surface p-4" data-testid={testId}>
@@ -34,17 +34,41 @@ function fmtClock(ms) {
   } catch { return "—"; }
 }
 
-// Extract chronological enter/exit crossings from a session's log.
+function fmtGap(ms) {
+  const mins = Math.round((ms || 0) / 60000);
+  if (mins < 60) return `${mins}m`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m ? `${h}h ${m}m` : `${h}h`;
+}
+
+function fmtBatteryPct(frac) {
+  if (frac == null) return "unknown";
+  return `${Math.round(frac * 100)}%`;
+}
+
+// Extract chronological enter/exit crossings + coverage gaps from a session log.
 function inOutLog(log = []) {
   return log
-    .filter((e) => IN_EVENTS.has(e.event) || OUT_EVENTS.has(e.event))
-    .map((e) => ({
-      dir: IN_EVENTS.has(e.event) ? "in" : "out",
-      ts_ms: e.ts_ms,
-      lat: e.lat,
-      lng: e.lng,
-      distance_m: e.distance_m,
-    }));
+    .filter((e) => IN_EVENTS.has(e.event) || OUT_EVENTS.has(e.event) || e.event === "coverage_gap")
+    .map((e) => {
+      if (e.event === "coverage_gap") {
+        return {
+          kind: "gap",
+          ts_ms: e.to_ms || e.ts_ms,
+          gap_ms: e.gap_ms,
+          battery_before: e.battery_before,
+          likely_battery_died: e.likely_battery_died,
+        };
+      }
+      return {
+        kind: IN_EVENTS.has(e.event) ? "in" : "out",
+        ts_ms: e.ts_ms,
+        lat: e.lat,
+        lng: e.lng,
+        distance_m: e.distance_m,
+      };
+    });
 }
 
 export default function AdminDashboard() {
@@ -250,29 +274,45 @@ export default function AdminDashboard() {
                       </div>
                       <div className="max-h-36 overflow-y-auto space-y-1 pr-1">
                         {moves.slice().reverse().map((m, idx) => (
-                          <div
-                            key={`${s.id}-${m.ts_ms}-${idx}`}
-                            className="flex items-center gap-2 text-[10px] mono border border-white/5 px-2 py-1"
-                            data-testid={`inout-entry-${s.id}-${idx}`}
-                          >
-                            {m.dir === "in" ? (
-                              <span className="inline-flex items-center gap-1 text-green-400 flex-none w-14">
-                                <LogIn size={11} /> IN
+                          m.kind === "gap" ? (
+                            <div
+                              key={`${s.id}-gap-${m.ts_ms}-${idx}`}
+                              className="flex items-center gap-2 text-[10px] mono border border-red-500/40 bg-red-500/10 px-2 py-1"
+                              data-testid={`inout-gap-${s.id}-${idx}`}
+                            >
+                              <span className="inline-flex items-center gap-1 text-red-400 flex-none">
+                                <AlertTriangle size={11} /> GAP {fmtGap(m.gap_ms)}
                               </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 text-amber-400 flex-none w-14">
-                                <LogOut size={11} /> OUT
+                              <span className="text-gray-300 flex-none">{fmtClock(m.ts_ms)}</span>
+                              <span className="truncate ml-auto text-red-300/80">
+                                battery {fmtBatteryPct(m.battery_before)} · {m.likely_battery_died ? "likely battery died" : "suspicious"}
                               </span>
-                            )}
-                            <span className="text-gray-300 flex-none">{fmtClock(m.ts_ms)}</span>
-                            <span className="text-gray-500 truncate ml-auto">
-                              {m.lat != null && m.lng != null
-                                ? `${fmtCoord(m.lat)}, ${fmtCoord(m.lng)}`
-                                : m.distance_m != null
-                                  ? `${Math.round(m.distance_m)}m out`
-                                  : ""}
-                            </span>
-                          </div>
+                            </div>
+                          ) : (
+                            <div
+                              key={`${s.id}-${m.ts_ms}-${idx}`}
+                              className="flex items-center gap-2 text-[10px] mono border border-white/5 px-2 py-1"
+                              data-testid={`inout-entry-${s.id}-${idx}`}
+                            >
+                              {m.kind === "in" ? (
+                                <span className="inline-flex items-center gap-1 text-green-400 flex-none w-14">
+                                  <LogIn size={11} /> IN
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-amber-400 flex-none w-14">
+                                  <LogOut size={11} /> OUT
+                                </span>
+                              )}
+                              <span className="text-gray-300 flex-none">{fmtClock(m.ts_ms)}</span>
+                              <span className="text-gray-500 truncate ml-auto">
+                                {m.lat != null && m.lng != null
+                                  ? `${fmtCoord(m.lat)}, ${fmtCoord(m.lng)}`
+                                  : m.distance_m != null
+                                    ? `${Math.round(m.distance_m)}m out`
+                                    : ""}
+                              </span>
+                            </div>
+                          )
                         ))}
                       </div>
                     </div>

@@ -20,6 +20,7 @@
  */
 import * as Location from "expo-location";
 import * as TaskManager from "expo-task-manager";
+import * as Battery from "expo-battery";
 
 import { mobile } from "@/api/mobile";
 import { getDeviceId } from "@/lib/storage";
@@ -80,6 +81,16 @@ TaskManager.defineTask(LIVE_LOCATION_TASK, async ({ data, error }) => {
   if (!locations?.length) return;
 
   const deviceId = await getDeviceId();
+  // Battery level piggybacks on the existing GPS cycle — near-zero cost (a
+  // cached OS read, no extra wake-up). Used server-side to tell an intentional
+  // power-off (healthy battery) from a dead-battery shutdown across a gap.
+  let battery: number | undefined;
+  try {
+    const lvl = await Battery.getBatteryLevelAsync();
+    battery = lvl >= 0 ? lvl : undefined;
+  } catch {
+    battery = undefined;
+  }
   // Always persist first (offline-durable), then drain. Draining fires
   // immediately when online so the admin map stays near-real-time, and the
   // buffer replays automatically once connectivity returns when offline.
@@ -92,6 +103,7 @@ TaskManager.defineTask(LIVE_LOCATION_TASK, async ({ data, error }) => {
         accuracy: loc.coords.accuracy ?? 50,
         ts_ms: Math.round(loc.timestamp || Date.now()),
         speed: loc.coords.speed ?? undefined,
+        battery,
         mock_location: (loc as any).mocked === true,
       });
     } catch (e) {

@@ -37,6 +37,28 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+# Coverage-gap detection: a run of missing fixes means the app stopped running
+# (phone powered off / app killed). Gaps longer than this while a session is
+# active are flagged and NOT counted as work time.
+COVERAGE_GAP_MS = 10 * 60 * 1000
+# If battery just before the gap was below this, the shutdown was probably a
+# dead battery (benign) rather than an intentional power-off (suspicious).
+BATTERY_DEAD_THRESHOLD = 0.20
+
+
+def _coverage_gap_entry(from_ms: int, to_ms: int, battery_before, battery_after) -> dict:
+    return {
+        "event": "coverage_gap",
+        "from_ms": from_ms,
+        "to_ms": to_ms,
+        "gap_ms": to_ms - from_ms,
+        "battery_before": battery_before,
+        "battery_after": battery_after,
+        "likely_battery_died": bool(battery_before is not None and battery_before < BATTERY_DEAD_THRESHOLD),
+        "ts_ms": to_ms,
+    }
+
+
 # ---------------------------------------------------------------------------
 # Device registration
 # ---------------------------------------------------------------------------
@@ -442,7 +464,7 @@ async def _apply_location_fix(db, user: dict, fix: MobileLocationFix) -> dict:
                 "current_bout_start_ms": now_ms, "bout_count": 1, "status": "active",
                 "flagged": False, "paused_at": None, "challenges": challenges,
                 "last_fix": last_fix, "auto_started": True, "source": "live_location",
-                "last_live_ts_ms": now_ms,
+                "last_live_ts_ms": now_ms, "last_battery": fix.battery,
                 "log": [{"event": "auto_start_live", "ts_ms": now_ms, "lat": fix.lat, "lng": fix.lng}],
             }
             res = await db.active_sessions.insert_one(doc)
@@ -454,6 +476,24 @@ async def _apply_location_fix(db, user: dict, fix: MobileLocationFix) -> dict:
 
     # ---- Active session exists: recompute against the current office center ----
     await _sync_session_center_from_office(db, session)
+
+    # Coverage-gap detection — did the device go dark (phone off / app killed)?
+    prev_ts = session.get("last_live_ts_ms") or (session.get("last_fix") or {}).get("ts_ms")
+    gap_ms = (now_ms - prev_ts) if prev_ts else 0
+    gap_detected = gap_ms > COVERAGE_GAP_MS
+    if gap_detected:
+        ge = _coverage_gap_entry(prev_ts, now_ms, session.get("last_battery"), fix.battery)
+        await db.active_sessions.update_one(
+            {"_id": session["_id"]},
+            {"$set": {"flagged": True}, "$push": {"log": ge}},
+        )
+        session["flagged"] = True
+        logger.warning(
+            "coverage_gap session=%s user=%s gap_min=%.1f battery_before=%s likely_died=%s",
+            session["_id"], user.get("email"), gap_ms / 60000,
+            session.get("last_battery"), ge["likely_battery_died"],
+        )
+
     center = session["center"]
     radius = center["radius_m"]
     dist = haversine_meters(fix.lat, fix.lng, center["lat"], center["lng"])
@@ -472,11 +512,13 @@ async def _apply_location_fix(db, user: dict, fix: MobileLocationFix) -> dict:
     if status == "active":
         if definitely_outside:
             bout_start = session.get("current_bout_start_ms", now_ms)
-            bout_ms = max(0, now_ms - bout_start)
+            # Don't count a bout that spans a coverage gap as work time.
+            bout_ms = 0 if gap_detected else max(0, now_ms - bout_start)
             total_inside = session.get("total_inside_ms", 0) + bout_ms
             remaining = max(0, session.get("remaining_ms", 0) - bout_ms)
             update = {"status": "paused", "paused_at": now_ms, "total_inside_ms": total_inside,
-                      "remaining_ms": remaining, "last_fix": last_fix, "last_live_ts_ms": now_ms}
+                      "remaining_ms": remaining, "last_fix": last_fix, "last_live_ts_ms": now_ms,
+                      "last_battery": fix.battery}
             await db.active_sessions.update_one(
                 {"_id": session["_id"]},
                 {"$set": update, "$push": {"log": {"event": "pause_live", "ts_ms": now_ms,
@@ -490,16 +532,17 @@ async def _apply_location_fix(db, user: dict, fix: MobileLocationFix) -> dict:
                 return {"outcome": "session_completed"}
             await _broadcast_session(db, new_s)
             return {"outcome": "session_paused", "status": "paused"}
-        # still inside (or ambiguous accuracy) -> accrue time like a ping
+        # still inside (or ambiguous accuracy) -> accrue time like a ping,
+        # EXCEPT across a coverage gap (device was dark — don't count it).
         remaining = session.get("remaining_ms", 0)
         total_inside = session.get("total_inside_ms", 0)
-        if last.get("ts_ms") and inside:
+        if last.get("ts_ms") and inside and not gap_detected:
             dt = now_ms - last["ts_ms"]
             if dt > 0:
                 remaining = max(0, remaining - dt)
                 total_inside += dt
         update = {"remaining_ms": remaining, "total_inside_ms": total_inside, "last_fix": last_fix,
-                  "last_live_ts_ms": now_ms}
+                  "last_live_ts_ms": now_ms, "last_battery": fix.battery}
         await db.active_sessions.update_one({"_id": session["_id"]}, {"$set": update})
         merged = {**session, **update}
         if remaining <= 0:
@@ -521,7 +564,7 @@ async def _apply_location_fix(db, user: dict, fix: MobileLocationFix) -> dict:
                 await _broadcast_session(db, session, ended=True, outcome="expired")
                 return {"outcome": "session_expired"}
             update = {"status": "active", "current_bout_start_ms": now_ms, "paused_at": None,
-                      "last_fix": last_fix, "last_live_ts_ms": now_ms}
+                      "last_fix": last_fix, "last_live_ts_ms": now_ms, "last_battery": fix.battery}
             await db.active_sessions.update_one(
                 {"_id": session["_id"]},
                 {"$set": update, "$inc": {"bout_count": 1},
@@ -533,7 +576,7 @@ async def _apply_location_fix(db, user: dict, fix: MobileLocationFix) -> dict:
         # still outside — just move the pin so the admin sees live movement
         await db.active_sessions.update_one(
             {"_id": session["_id"]},
-            {"$set": {"last_fix": last_fix, "last_live_ts_ms": now_ms}},
+            {"$set": {"last_fix": last_fix, "last_live_ts_ms": now_ms, "last_battery": fix.battery}},
         )
         merged = {**session, "last_fix": last_fix}
         await _broadcast_session(db, merged)
