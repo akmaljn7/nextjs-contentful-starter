@@ -1,14 +1,12 @@
-"""Bug fix: inside-time was double-counted (iteration 25).
+"""Regression tests for inside-time double-count fix (iter 25) AFTER the
+GPS-jitter suppression change (iter 26).
 
-Validates:
-  * BUG 1a: Active inside pings accrue incremental dt only. On a definitely-outside
-    fix the session flips to paused WITHOUT re-adding the full bout.
-  * BUG 1b: After pause, resuming (inside fix) and further inside accrual continues
-    to only add the dt between consecutive post-resume inside fixes.
-  * BUG 1c: Offline batch via /location-sync accrues INCREMENTAL deltas only, and
-    replaying the same batch is idempotent thanks to the last_live_ts_ms watermark.
-  * Regression: coverage gap >10min inside is excluded from total_inside_ms and
-    flags the session.
+BEHAVIOR CHANGE: a SINGLE outside live-location fix no longer immediately
+pauses. It returns 'exit_pending' (status stays active) until either the
+employee returns inside (jitter, no OUT crossing logged) OR stays outside
+for more than EXIT_GRACE_MS (=3min), at which point a confirmed exit is
+recorded with a BACKDATED pause_live crossing. Tests that need a pause
+now send TWO outside fixes >3min apart.
 """
 import os
 import time
@@ -35,6 +33,10 @@ EMP_ID = "6a6f63fda37a01476b2c4cca"
 OFFICE_ID = "6a6f842be7d1e8c6030df446"
 OFFICE_LAT = 6.5244
 OFFICE_LNG = 3.3792
+# ~400m north of office center — comfortably beyond radius(300)+accuracy(8)
+FAR_OUTSIDE = (6.5280, 3.3792)
+FAR_FAR = (6.6, 3.45)
+EXIT_GRACE_MS = 3 * 60 * 1000
 
 
 def _login(email, pw):
@@ -97,52 +99,55 @@ def _get_live_session(admin_tok):
 
 
 class TestActiveInsideAccrualNoDoubleCount:
-    """BUG 1 primary: 3 inside fixes then one far-outside must produce
-    total_inside_ms == 30000 (delta between fixes), NOT 75000 (delta + full bout)."""
+    """3 inside fixes then a SUSTAINED outside (two outside fixes >3min apart)
+    must produce total_inside_ms == 30000 (delta between inside fixes only)."""
 
-    def test_no_double_count_on_outside_pause(self, admin_tok, emp_tok):
+    def test_no_double_count_on_sustained_outside_pause(self, admin_tok, emp_tok):
         _force_expire(admin_tok)
         device_id = "testdev-" + uuid.uuid4().hex[:8]
         now = int(time.time() * 1000)
 
-        # 3 inside fixes 15s apart
         _post_fix(emp_tok, device_id, OFFICE_LAT, OFFICE_LNG, now)
         _post_fix(emp_tok, device_id, OFFICE_LAT, OFFICE_LNG, now + 15_000)
         _post_fix(emp_tok, device_id, OFFICE_LAT, OFFICE_LNG, now + 30_000)
 
-        # One far-outside fix
-        out = _post_fix(emp_tok, device_id, 6.6, 3.45, now + 45_000)
-        assert out.get("status") == "paused", f"expected paused, got {out}"
+        # First outside fix -> exit_pending (NOT paused)
+        p1 = _post_fix(emp_tok, device_id, *FAR_OUTSIDE, now + 45_000)
+        assert p1.get("outcome") == "exit_pending", p1
+        assert p1.get("status") == "active", p1
+
+        # Second outside fix >3min later -> confirmed sustained exit -> paused
+        p2 = _post_fix(emp_tok, device_id, *FAR_OUTSIDE, now + 45_000 + EXIT_GRACE_MS + 5_000)
+        assert p2.get("outcome") == "session_paused", p2
+        assert p2.get("status") == "paused", p2
 
         s = _get_live_session(admin_tok)
-        assert s is not None, "expected live (paused) session"
+        assert s is not None
         assert s.get("status") == "paused", s
         total = s.get("total_inside_ms", -1)
-        # 30_000ms inside (from ts_ms=0 -> 15000 -> 30000), NOT 75_000
         assert 29_000 <= total <= 31_000, (
-            f"double-count bug re-appeared: total_inside_ms={total} (expected ~30000)"
+            f"double-count regression: total_inside_ms={total} (expected ~30000)"
         )
 
     def test_resume_incremental_accrual_continues(self, admin_tok, emp_tok):
-        """Continuation of the previous scenario in a FRESH session:
-        after paused state, resume with inside fix, then another inside fix
-        15s later -> total should become 45000 (30000 + 15000)."""
         _force_expire(admin_tok)
         device_id = "testdev-" + uuid.uuid4().hex[:8]
         now = int(time.time() * 1000)
 
-        # inside x3 -> total 30_000
         _post_fix(emp_tok, device_id, OFFICE_LAT, OFFICE_LNG, now)
         _post_fix(emp_tok, device_id, OFFICE_LAT, OFFICE_LNG, now + 15_000)
         _post_fix(emp_tok, device_id, OFFICE_LAT, OFFICE_LNG, now + 30_000)
-        # outside -> paused, still 30_000
-        _post_fix(emp_tok, device_id, 6.6, 3.45, now + 45_000)
 
-        # resume
-        r1 = _post_fix(emp_tok, device_id, OFFICE_LAT, OFFICE_LNG, now + 60_000)
+        # Sustained outside -> pause
+        _post_fix(emp_tok, device_id, *FAR_OUTSIDE, now + 45_000)
+        _post_fix(emp_tok, device_id, *FAR_OUTSIDE, now + 45_000 + EXIT_GRACE_MS + 5_000)
+
+        base = now + 45_000 + EXIT_GRACE_MS + 5_000
+        # Resume inside
+        r1 = _post_fix(emp_tok, device_id, OFFICE_LAT, OFFICE_LNG, base + 15_000)
         assert r1.get("status") == "active", r1
-        # accrue another 15s
-        r2 = _post_fix(emp_tok, device_id, OFFICE_LAT, OFFICE_LNG, now + 75_000)
+        # +15s inside -> +15000 accrual
+        r2 = _post_fix(emp_tok, device_id, OFFICE_LAT, OFFICE_LNG, base + 30_000)
         assert r2.get("status") == "active", r2
 
         s = _get_live_session(admin_tok)
@@ -150,13 +155,13 @@ class TestActiveInsideAccrualNoDoubleCount:
         assert s.get("status") == "active", s
         total = s.get("total_inside_ms", -1)
         assert 44_000 <= total <= 46_000, (
-            f"expected ~45000 after resume+15s inside, got {total}"
+            f"expected ~45000 (30000 + 15000 post-resume), got {total}"
         )
 
 
 class TestOfflineBatchReplayAccrual:
-    """BUG 1 offline path: /location-sync batch produces incremental accrual
-    (120s inside for 3 inside pings 60s apart, then far-outside)."""
+    """/location-sync batch drains through the same debounce/speed logic. Two
+    outside fixes >3min apart in the ordered batch confirm the exit."""
 
     def test_batch_accrual_and_idempotent_replay(self, admin_tok, emp_tok):
         _force_expire(admin_tok)
@@ -169,35 +174,32 @@ class TestOfflineBatchReplayAccrual:
              "accuracy": 8, "ts_ms": now + 60_000, "battery": 0.9},
             {"device_id": device_id, "lat": OFFICE_LAT, "lng": OFFICE_LNG,
              "accuracy": 8, "ts_ms": now + 120_000, "battery": 0.9},
-            {"device_id": device_id, "lat": 6.6, "lng": 3.45,
+            # first outside -> exit_pending
+            {"device_id": device_id, "lat": FAR_OUTSIDE[0], "lng": FAR_OUTSIDE[1],
              "accuracy": 8, "ts_ms": now + 180_000, "battery": 0.9},
+            # second outside >3min later -> confirmed pause
+            {"device_id": device_id, "lat": FAR_OUTSIDE[0], "lng": FAR_OUTSIDE[1],
+             "accuracy": 8, "ts_ms": now + 180_000 + EXIT_GRACE_MS + 5_000, "battery": 0.9},
         ]
-        r = requests.post(
-            f"{BASE}/api/mobile/location-sync",
-            headers=_h(emp_tok),
-            json={"fixes": fixes},
-            timeout=30,
-        )
+        r = requests.post(f"{BASE}/api/mobile/location-sync",
+                          headers=_h(emp_tok), json={"fixes": fixes}, timeout=30)
         assert r.status_code == 200, r.text
+        outs = r.json().get("outcomes", [])
+        # first three: auto-start then active accrual
+        assert outs[-2] == "exit_pending", outs
+        assert outs[-1] == "session_paused", outs
 
         s = _get_live_session(admin_tok)
-        assert s is not None, "session should exist after batch"
+        assert s is not None
         assert s.get("status") == "paused", s
         total_first = s.get("total_inside_ms", -1)
-        # 60_000 + 60_000 = 120_000 (deltas between the 3 inside fixes). NOT
-        # 300_000 (that would be double-count including a full bout on pause).
         assert 118_000 <= total_first <= 122_000, (
             f"expected ~120000 from offline batch, got {total_first}"
         )
 
-        # Replay identical batch -> watermark on last_live_ts_ms should reject
-        # all fixes as stale; total must not change.
-        r2 = requests.post(
-            f"{BASE}/api/mobile/location-sync",
-            headers=_h(emp_tok),
-            json={"fixes": fixes},
-            timeout=30,
-        )
+        # Replay identical batch -> watermark rejects all as stale_replay.
+        r2 = requests.post(f"{BASE}/api/mobile/location-sync",
+                           headers=_h(emp_tok), json={"fixes": fixes}, timeout=30)
         assert r2.status_code == 200, r2.text
         s2 = _get_live_session(admin_tok)
         total_second = s2.get("total_inside_ms", -1)
@@ -207,7 +209,7 @@ class TestOfflineBatchReplayAccrual:
 
 
 class TestCoverageGapExcluded:
-    """Regression: coverage gap >10min inside is excluded and flagged."""
+    """>10min coverage gap between inside fixes is excluded and flags session."""
 
     def test_coverage_gap_excludes_time(self, admin_tok, emp_tok):
         _force_expire(admin_tok)
@@ -216,13 +218,11 @@ class TestCoverageGapExcluded:
 
         _post_fix(emp_tok, device_id, OFFICE_LAT, OFFICE_LNG, now)
         _post_fix(emp_tok, device_id, OFFICE_LAT, OFFICE_LNG, now + 60_000)
-        # 780_000 = 13 minutes after 2nd fix -> gap
         _post_fix(emp_tok, device_id, OFFICE_LAT, OFFICE_LNG, now + 780_000)
 
         s = _get_live_session(admin_tok)
         assert s is not None
         total = s.get("total_inside_ms", -1)
-        # Only the 60s pre-gap delta should be counted
         assert 55_000 <= total <= 65_000, (
             f"expected ~60000 (gap excluded), got {total}"
         )

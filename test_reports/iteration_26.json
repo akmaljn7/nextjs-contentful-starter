@@ -1,0 +1,29 @@
+{
+  "summary": "Validated the GPS jitter suppression fix in /app/backend/routes/mobile.py::_apply_location_fix. Two new mechanisms verified: (A) EXIT DEBOUNCE — a single outside live-location fix now returns 'exit_pending' (status stays 'active') and NO pause_live log entry is added; only a second outside fix beyond EXIT_GRACE_MS (3min) confirms the exit and writes a BACKDATED pause_live crossing at the first-outside ts_ms. Grace-window outside time is NOT counted toward total_inside_ms. (B) IMPOSSIBLE-SPEED FILTER — a fix implying >55 m/s over <=120s with >=100m displacement returns outcome 'rejected_gps_glitch', leaves session state (status + last_fix) untouched, and writes no gps_ping / no log entry. Also confirmed the /location-sync offline batch path drains through the same debounce/speed logic in ts_ms order without error, and idempotent replay still works via the last_live_ts_ms watermark. Coverage-gap regression still passes. 8/8 tests green.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_gps_jitter_suppression.py",
+    "/app/backend/tests/test_inside_time_double_count_fix.py",
+    "/app/test_reports/pytest/iter26.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "mobile.py:636-670 exit debounce is implemented cleanly: first-outside stashes pending_exit_ms; subsequent inside fix clears it (was_pending flag skips dt accrual over the excursion span) and no log entry is written; a second outside beyond EXIT_GRACE_MS backdates paused_at + pause_live.ts_ms to the initial outside — matches spec.",
+    "mobile.py:619-626 speed filter runs BEFORE gps_pings.insert_one (line 629) so rejected spikes leave no trail, correct.",
+    "One minor nit: the speed filter still returns before updating last_live_ts_ms, so a legitimate very-fast movement (e.g., driving) that happens to trip the threshold once will be silently dropped and the next fix compared against the previous, potentially compounding rejections. Not a blocker for the current scenario but worth logging metrics on for tuning.",
+    "The offline /location-sync path (line 764) processes each fix through _apply_location_fix serially in ts order — the exit-debounce state (pending_exit_ms in DB) survives fix-to-fix within the same batch, so a batch containing two outside fixes >3min apart correctly confirms the exit. Verified in TestOfflineBatchReplayAccrual.",
+    "Watermark check at mobile.py:530 protects replay idempotency but does NOT protect against a rejected_gps_glitch not updating last_live_ts_ms — that is intentional (a legit next fix should still be evaluated); acceptable."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_inside_time_double_count_fix.py",
+    "/app/backend/tests/test_gps_jitter_suppression.py"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "n/a"},
+  "test_credentials": "Owner akmaljn7@gmail.com/GeofenceAdmin123!, Employee employee@example.com/Employee123! (id 6a6f63fda37a01476b2c4cca, office id 6a6f842be7d1e8c6030df446).",
+  "seed_data_creation": "Each test class force-expires the employee session before seeding fresh location fixes with epoch-ms ts. Outside coord = (6.5280, 3.3792) ≈ 400m north of office center (radius 300m, accuracy 8) — verified via a haversine sanity assertion. FAR_FAR (6.6, 3.45) was avoided for the first outside fix because a 19km jump within 30-60s trips the impossible-speed filter itself.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "New file: /app/backend/tests/test_gps_jitter_suppression.py (3 classes covering jitter suppression, sustained exit + backdated pause, impossible-speed teleport rejection). Existing /app/backend/tests/test_inside_time_double_count_fix.py was UPDATED to reflect the new debounce semantics: a pause now requires TWO outside fixes >3min apart, not one. Both files run cleanly under default pytest (single worker); prior xdist parallel warning still applies — do NOT run these two files in parallel with each other because they share the single employee@example.com active_session row via last_live_ts_ms watermark.",
+  "rca of the issue": "Not a bug being fixed here — this is validation of a newly added feature (GPS jitter suppression). The prior double-count fix (iter 25) unchanged. Old regression test had to be updated because a single outside fix no longer immediately pauses the session; the new debounce semantics require sustained (>3min) outside to pause and record a pause_live crossing (backdated to the first outside ts)."
+}

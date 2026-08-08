@@ -47,6 +47,17 @@ COVERAGE_GAP_MS = 10 * 60 * 1000
 # dead battery (benign) rather than an intentional power-off (suspicious).
 BATTERY_DEAD_THRESHOLD = 0.20
 
+# --- GPS jitter suppression -------------------------------------------------
+# Exit debounce: a brief excursion outside the geofence that returns within
+# this window is treated as GPS jitter — not logged and the session is NOT
+# paused (avoids phantom OUT/IN flicker on the admin console).
+EXIT_GRACE_MS = 3 * 60 * 1000
+# Impossible-speed filter: a fix implying travel faster than this over a short
+# interval is a GPS teleport spike and is discarded outright.
+MAX_PLAUSIBLE_SPEED_MPS = 55.0        # ~198 km/h
+GLITCH_MIN_DISPLACEMENT_M = 100.0     # ignore small jitter within accuracy
+GLITCH_MAX_DT_S = 120.0               # only judge speed on closely-spaced fixes
+
 
 def _coverage_gap_entry(gap_id: str, from_ms: int, to_ms: int, battery_before, battery_after) -> dict:
     return {
@@ -602,6 +613,18 @@ async def _apply_location_fix(db, user: dict, fix: MobileLocationFix) -> dict:
     status = session.get("status")
     last = session.get("last_fix") or {}
 
+    # Impossible-speed filter — discard GPS teleport spikes so they never
+    # trigger phantom exits/enters. Only judged on closely-spaced fixes; a
+    # large jump after a long silence is legit travel / post-gap, not a glitch.
+    if last.get("ts_ms") and last.get("lat") is not None:
+        seg_dt = (now_ms - last["ts_ms"]) / 1000.0
+        if 0 < seg_dt <= GLITCH_MAX_DT_S:
+            seg_dist = haversine_meters(fix.lat, fix.lng, last["lat"], last["lng"])
+            if seg_dist >= GLITCH_MIN_DISPLACEMENT_M and (seg_dist / seg_dt) > MAX_PLAUSIBLE_SPEED_MPS:
+                logger.info("gps_glitch_rejected user=%s speed=%.0fm/s disp=%.0fm dt=%.1fs",
+                            user.get("email"), seg_dist / seg_dt, seg_dist, seg_dt)
+                return {"outcome": "rejected_gps_glitch", "speed_mps": round(seg_dist / seg_dt, 1)}
+
     # Persist ping (best-effort, for history/anti-spoof trail)
     await db.gps_pings.insert_one({
         "org_id": user["org_id"], "user_id": user["id"], "session_id": str(session["_id"]),
@@ -611,31 +634,53 @@ async def _apply_location_fix(db, user: dict, fix: MobileLocationFix) -> dict:
 
     if status == "active":
         if definitely_outside:
-            # Crossing OUT. Time is accrued INCREMENTALLY on each inside fix
-            # (see the else-branch below), so we must NOT add the whole bout
-            # again here — that double-counts. Just flip to paused. This mirrors
-            # the canonical /ping model in sessions.py.
-            update = {"status": "paused", "paused_at": now_ms, "last_fix": last_fix,
-                      "last_live_ts_ms": now_ms, "last_battery": fix.battery}
+            # Exit debounce — don't pause/log the moment we see one outside fix.
+            # Start a grace timer; if they're back inside within EXIT_GRACE_MS
+            # it's treated as GPS jitter (no OUT/IN entry, session stays active).
+            pending = session.get("pending_exit_ms")
+            if not pending:
+                await db.active_sessions.update_one(
+                    {"_id": session["_id"]},
+                    {"$set": {"pending_exit_ms": now_ms, "last_fix": last_fix,
+                              "last_live_ts_ms": now_ms, "last_battery": fix.battery}},
+                )
+                merged = {**session, "pending_exit_ms": now_ms, "last_fix": last_fix}
+                await _broadcast_session(db, merged)
+                return {"outcome": "exit_pending", "status": "active"}
+            if (now_ms - pending) < EXIT_GRACE_MS:
+                # Still within the grace window — keep active, don't log.
+                await db.active_sessions.update_one(
+                    {"_id": session["_id"]},
+                    {"$set": {"last_fix": last_fix, "last_live_ts_ms": now_ms, "last_battery": fix.battery}},
+                )
+                merged = {**session, "last_fix": last_fix}
+                await _broadcast_session(db, merged)
+                return {"outcome": "exit_pending", "status": "active"}
+            # Sustained outside beyond the grace window -> confirm the exit.
+            # Backdate the OUT crossing to when they first left.
+            update = {"status": "paused", "paused_at": pending, "last_fix": last_fix,
+                      "last_live_ts_ms": now_ms, "last_battery": fix.battery, "pending_exit_ms": None}
             await db.active_sessions.update_one(
                 {"_id": session["_id"]},
-                {"$set": update, "$push": {"log": {"event": "pause_live", "ts_ms": now_ms,
+                {"$set": update, "$push": {"log": {"event": "pause_live", "ts_ms": pending,
                                                     "distance_m": int(dist)}}},
             )
             new_s = await db.active_sessions.find_one({"_id": session["_id"]})
             await _broadcast_session(db, new_s)
             return {"outcome": "session_paused", "status": "paused"}
-        # still inside (or ambiguous accuracy) -> accrue time incrementally,
-        # EXCEPT across a coverage gap (device was dark — don't count it).
+        # Inside (or ambiguous). Clear any pending-exit (jitter suppressed).
+        # Accrue time incrementally, EXCEPT across a coverage gap or the fix
+        # that resolves a pending-exit excursion (that span is not counted).
+        was_pending = bool(session.get("pending_exit_ms"))
         remaining = session.get("remaining_ms", 0)
         total_inside = session.get("total_inside_ms", 0)
-        if last.get("ts_ms") and inside and not gap_detected:
+        if last.get("ts_ms") and inside and not gap_detected and not was_pending:
             dt = now_ms - last["ts_ms"]
             if dt > 0:
                 remaining = max(0, remaining - dt)
                 total_inside += dt
         update = {"remaining_ms": remaining, "total_inside_ms": total_inside, "last_fix": last_fix,
-                  "last_live_ts_ms": now_ms, "last_battery": fix.battery}
+                  "last_live_ts_ms": now_ms, "last_battery": fix.battery, "pending_exit_ms": None}
         await db.active_sessions.update_one({"_id": session["_id"]}, {"$set": update})
         merged = {**session, **update}
         if remaining <= 0:
