@@ -56,6 +56,8 @@ function inOutLog(log = []) {
         return {
           kind: "gap",
           ts_ms: e.to_ms || e.ts_ms,
+          from_ms: e.from_ms,
+          to_ms: e.to_ms || e.ts_ms,
           gap_ms: e.gap_ms,
           battery_before: e.battery_before,
           likely_battery_died: e.likely_battery_died,
@@ -283,7 +285,10 @@ export default function AdminDashboard() {
                               <span className="inline-flex items-center gap-1 text-red-400 flex-none">
                                 <AlertTriangle size={11} /> GAP {fmtGap(m.gap_ms)}
                               </span>
-                              <span className="text-gray-300 flex-none">{fmtClock(m.ts_ms)}</span>
+                              <span className="text-gray-300 flex-none">
+                                <span className="text-red-400/70">OFF</span> {fmtClock(m.from_ms)}
+                                <span className="text-green-400/70 ml-1.5">ON</span> {fmtClock(m.to_ms)}
+                              </span>
                               <span className="truncate ml-auto text-red-300/80">
                                 battery {fmtBatteryPct(m.battery_before)} · {m.likely_battery_died ? "likely battery died" : "suspicious"}
                               </span>

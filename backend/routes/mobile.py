@@ -573,6 +573,9 @@ async def _apply_location_fix(db, user: dict, fix: MobileLocationFix) -> dict:
             {"$set": {"flagged": True}, "$push": {"log": ge}},
         )
         session["flagged"] = True
+        # Keep the in-memory log in sync so a later $set-log write (e.g.
+        # _tick_challenge_lifecycle) doesn't overwrite and wipe this gap entry.
+        session["log"] = list(session.get("log", [])) + [ge]
         # Durable record so admins can review/approve/reject even after the
         # session ends, and so a colleague can attach a reason to it.
         await db.coverage_gaps.insert_one({
