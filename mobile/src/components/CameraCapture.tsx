@@ -16,9 +16,10 @@ interface Props {
   hint?: string;
   captureLabel?: string;
   testID?: string;
+  facing?: "front" | "back";
 }
 
-export function CameraCapture({ onCapture, busy, hint, captureLabel = "Capture", testID }: Props) {
+export function CameraCapture({ onCapture, busy, hint, captureLabel = "Capture", testID, facing = "front" }: Props) {
   const [perm, requestPerm] = useCameraPermissions();
   const camRef = useRef<CameraView | null>(null);
   const [capturing, setCapturing] = useState(false);
@@ -65,7 +66,7 @@ export function CameraCapture({ onCapture, busy, hint, captureLabel = "Capture",
 
   return (
     <View style={styles.wrap}>
-      <CameraView ref={(r) => { camRef.current = r; }} style={styles.cam} facing="front" mode="picture" />
+      <CameraView ref={(r) => { camRef.current = r; }} style={styles.cam} facing={facing} mode="picture" />
       {hint ? <Text style={styles.hint}>{hint}</Text> : null}
       <Pressable
         testID={testID || "camera-capture-btn"}

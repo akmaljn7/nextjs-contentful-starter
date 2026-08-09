@@ -22,6 +22,7 @@ import { apiError } from "@/api/client";
 import { colors } from "@/theme";
 
 type Mode = "checkin" | "gap";
+type Step = "form" | "camera" | "gap-selfie" | "gap-evidence-choice" | "gap-evidence-camera";
 
 export default function MyColleagueScreen() {
   const [mode, setMode] = useState<Mode>("checkin");
@@ -30,10 +31,12 @@ export default function MyColleagueScreen() {
   const [busy, setBusy] = useState(false);
   const [challengeId, setChallengeId] = useState<string | null>(null);
   const [targetName, setTargetName] = useState<string>("");
-  const [step, setStep] = useState<"form" | "camera">("form");
+  const [step, setStep] = useState<Step>("form");
+  const [gapSelfie, setGapSelfie] = useState<string | null>(null);
 
   const reset = () => {
-    setEmailOrId(""); setReason(""); setChallengeId(null); setTargetName(""); setStep("form");
+    setEmailOrId(""); setReason(""); setChallengeId(null); setTargetName("");
+    setStep("form"); setGapSelfie(null);
   };
 
   // ---- Check-in flow ----
@@ -81,8 +84,8 @@ export default function MyColleagueScreen() {
     }
   }, [emailOrId, challengeId, targetName]);
 
-  // ---- Gap-reason flow ----
-  const submitGap = useCallback(async (dataUrl?: string) => {
+  // ---- Gap-reason flow ---- (selfie is mandatory; phone-evidence photo optional)
+  const submitGap = useCallback(async (selfie: string, evidence?: string) => {
     if (!emailOrId.trim()) return Alert.alert("Missing", "Enter the employee's email or ID.");
     if (!reason.trim()) return Alert.alert("Missing", "Write a short reason for the phone being off.");
     setBusy(true);
@@ -90,10 +93,12 @@ export default function MyColleagueScreen() {
       const res = await colleague.gapReason({
         email_or_id: emailOrId.trim(),
         note: reason.trim(),
-        face_photo: dataUrl,
+        face_photo: selfie,
+        evidence_photo: evidence,
       });
       const verified = res.selfie_match === true ? " Selfie verified." : res.selfie_match === false ? " (selfie did NOT match)" : "";
-      Alert.alert("✅ Reason submitted", `Sent to admin for review.${verified}`);
+      const withPhoto = evidence ? " Phone photo attached." : "";
+      Alert.alert("✅ Reason submitted", `Sent to admin for review.${verified}${withPhoto}`);
       reset();
     } catch (e) {
       Alert.alert("Couldn't submit", apiError(e));
@@ -101,6 +106,12 @@ export default function MyColleagueScreen() {
       setBusy(false);
     }
   }, [emailOrId, reason]);
+
+  // First captures the mandatory selfie, then offers the optional phone photo.
+  const onGapSelfie = useCallback((dataUrl: string) => {
+    setGapSelfie(dataUrl);
+    setStep("gap-evidence-choice");
+  }, []);
 
   return (
     <Screen>
@@ -156,12 +167,12 @@ export default function MyColleagueScreen() {
             ) : (
               <Button
                 testID="colleague-gap-photo-btn"
-                label="Add verified selfie + submit"
+                label="Take selfie & submit reason"
                 disabled={busy}
                 onPress={() => {
                   if (!emailOrId.trim() || !reason.trim())
                     return Alert.alert("Missing", "Enter the employee and a reason first.");
-                  setStep("camera");
+                  setStep("gap-selfie");
                 }}
               />
             )}
@@ -170,19 +181,68 @@ export default function MyColleagueScreen() {
 
         {step === "camera" && (
           <View style={{ gap: 12 }}>
-            <Text style={styles.camTitle}>
-              {mode === "checkin"
-                ? `Take ${targetName}'s selfie`
-                : `Take ${emailOrId.trim()}'s selfie (proof of presence)`}
-            </Text>
+            <Text style={styles.camTitle}>Take {targetName}'s selfie</Text>
             <CameraCapture
-              onCapture={mode === "checkin" ? submitSelfie : (d) => submitGap(d)}
+              onCapture={submitSelfie}
               busy={busy}
               hint="The colleague must face the camera — it's matched to their enrolled photo."
               captureLabel="Capture selfie"
               testID="colleague-selfie-capture"
             />
             <Button label="Cancel" variant="ghost" onPress={reset} testID="colleague-cancel-btn" />
+          </View>
+        )}
+
+        {step === "gap-selfie" && (
+          <View style={{ gap: 12 }}>
+            <Text style={styles.camTitle}>Take your selfie (identity proof)</Text>
+            <CameraCapture
+              onCapture={onGapSelfie}
+              busy={busy}
+              facing="front"
+              hint="Face the camera — this confirms it's really you submitting the reason."
+              captureLabel="Capture selfie"
+              testID="colleague-gap-selfie-capture"
+            />
+            <Button label="Cancel" variant="ghost" onPress={reset} testID="colleague-gap-cancel-btn" />
+          </View>
+        )}
+
+        {step === "gap-evidence-choice" && (
+          <View style={{ gap: 12 }}>
+            <Text style={styles.camTitle}>Add a photo of your phone?</Text>
+            <Text style={styles.sub}>
+              Optional — attach a picture of the dead/crashed phone as evidence, or skip and submit now.
+            </Text>
+            <Button
+              testID="colleague-gap-add-evidence-btn"
+              label="Add phone photo"
+              variant="secondary"
+              disabled={busy}
+              onPress={() => setStep("gap-evidence-camera")}
+            />
+            <Button
+              testID="colleague-gap-skip-evidence-btn"
+              label="Skip & submit"
+              loading={busy}
+              onPress={() => gapSelfie && submitGap(gapSelfie, undefined)}
+            />
+            <Button label="Cancel" variant="ghost" onPress={reset} testID="colleague-gap-cancel2-btn" />
+          </View>
+        )}
+
+        {step === "gap-evidence-camera" && (
+          <View style={{ gap: 12 }}>
+            <Text style={styles.camTitle}>Photograph the phone</Text>
+            <CameraCapture
+              onCapture={(evidence) => { if (gapSelfie) submitGap(gapSelfie, evidence); }}
+              busy={busy}
+              facing="back"
+              hint="Point the camera at the dead/crashed phone."
+              captureLabel="Capture phone photo"
+              testID="colleague-gap-evidence-capture"
+            />
+            <Button label="Back" variant="ghost" onPress={() => setStep("gap-evidence-choice")} testID="colleague-gap-back-btn" />
           </View>
         )}
       </ScrollView>

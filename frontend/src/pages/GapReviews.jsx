@@ -21,23 +21,23 @@ function fmtDT(ms) {
 }
 function pct(f) { return f == null ? "unknown" : `${Math.round(f * 100)}%`; }
 
-function GapPhoto({ gapId }) {
+function GapPhoto({ gapId, kind = "photo", label = "View selfie", alt = "reason selfie" }) {
   const [url, setUrl] = useState(null);
   const [loading, setLoading] = useState(false);
   const load = async () => {
     setLoading(true);
     try {
-      const res = await api.get(`/gaps/${gapId}/photo`, { responseType: "blob" });
+      const res = await api.get(`/gaps/${gapId}/${kind}`, { responseType: "blob" });
       setUrl(URL.createObjectURL(res.data));
     } catch (e) {
       toast.error(toApiError(e));
     } finally { setLoading(false); }
   };
-  if (url) return <img src={url} alt="reason selfie" className="mt-2 max-h-48 border border-white/10" data-testid={`gap-photo-img-${gapId}`} />;
+  if (url) return <img src={url} alt={alt} className="mt-2 max-h-48 border border-white/10" data-testid={`gap-${kind}-img-${gapId}`} />;
   return (
-    <button onClick={load} disabled={loading} data-testid={`gap-photo-btn-${gapId}`}
-      className="mt-2 inline-flex items-center gap-1.5 text-xs border border-white/10 hover:border-white/30 px-2 py-1 mono text-gray-300">
-      <ImageIcon size={13} /> {loading ? "Loading…" : "View selfie"}
+    <button onClick={load} disabled={loading} data-testid={`gap-${kind}-btn-${gapId}`}
+      className="mt-2 mr-2 inline-flex items-center gap-1.5 text-xs border border-white/10 hover:border-white/30 px-2 py-1 mono text-gray-300">
+      <ImageIcon size={13} /> {loading ? "Loading…" : label}
     </button>
   );
 }
@@ -127,7 +127,8 @@ export default function GapReviews() {
                       {g.selfie_match === true && <span className="text-green-400 ml-2 inline-flex items-center gap-1"><ShieldCheck size={11} /> selfie verified {g.selfie_similarity != null && `(${g.selfie_similarity.toFixed(2)})`}</span>}
                       {g.selfie_match === false && <span className="text-red-400 ml-2 inline-flex items-center gap-1"><ShieldX size={11} /> selfie did NOT match</span>}
                     </div>
-                    {g.has_photo && <GapPhoto gapId={g.id} />}
+                    {g.has_photo && <GapPhoto gapId={g.id} kind="photo" label="View selfie" alt="reason selfie" />}
+                    {g.has_evidence_photo && <GapPhoto gapId={g.id} kind="evidence" label="View phone photo" alt="phone evidence" />}
                   </div>
                 ) : (
                   <div className="text-xs text-gray-600 italic">No reason submitted yet.</div>

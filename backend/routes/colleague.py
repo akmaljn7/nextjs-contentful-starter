@@ -221,12 +221,17 @@ async def colleague_gap_reason(payload: ColleagueGapReason, request: Request, us
             selfie_match = r["match"]
             similarity = r["similarity"]
 
+    # Optional phone-evidence photo (e.g. a shot of the dead/crashed phone).
+    if payload.evidence_photo:
+        await save_session_photo(f"gap-evidence::{gap['id']}", user["org_id"], target_id, payload.evidence_photo)
+
     await db.coverage_gaps.update_one(
         {"_id": gap["_id"]},
         {"$set": {
             "reason_note": payload.note, "reason_by": user.get("email"), "reason_at": _now_iso(),
             "has_photo": bool(payload.face_photo), "selfie_match": selfie_match,
             "selfie_similarity": similarity,
+            "has_evidence_photo": bool(payload.evidence_photo),
         }},
     )
     logger.info("gap_reason by=%s target=%s gap=%s selfie_match=%s",

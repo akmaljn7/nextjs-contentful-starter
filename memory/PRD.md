@@ -23,6 +23,15 @@ Multi-tenant enterprise geofenced attendance platform. Organizations sign up, ad
 - PWA installable
 
 ## Implemented (2026-02 → 2026-08)
+### "My Colleague" proxy + selfie fixes — 7-issue batch (June 2026)
+- **#1 Double check-in blocked**: `POST /api/colleague/checkin` now returns 409 "already checked in" (or "paused") if the target already has a session, so the app shows the message instead of opening the camera. Proxy check-in always creates a fresh, labelled session.
+- **#2 On-shift (no change needed)**: confirmed both proxy and automatic check-in already deny off-shift for weekly-schedule employees via `_compute_schedule_duration_ms`; "any"/"fixed-hours" employees stay free anytime (per user's intent).
+- **#3 + #4 Phone-off reason photos**: removed "submit without selfie" — selfie now mandatory; added an OPTIONAL phone-evidence photo (single flow: selfie → "Add phone photo / Skip & submit"). New `evidence_photo` on `ColleagueGapReason`, saved under `gap-evidence::{id}`, new `GET /api/gaps/{id}/evidence`, `has_evidence_photo` in list; web GapReviews shows both "View selfie" + "View phone photo". `CameraCapture` got a `facing` prop (rear for the phone shot). Verified e2e via curl + screenshot.
+- **#5 Named selfie prompt**: push notification and `ChallengeModal` now say "This selfie is for {name}" (name added to `_tick_challenge_lifecycle` + `challenge-now` push body/data, `for_name` in `active_challenge`, carried through push.ts/ChallengeContext).
+- **#6 Selfie "network error" fixed**: `ChallengeModal` now downscales to 512px + compresses before upload (same oversized-payload bug as onboarding).
+- **#7 Proxy labelling surfaced**: `_sanitize_session`/`/live` now return `source`/`proxy_by`/`proxy_reason`; admin console shows an amber "PROXY · BY {email}" badge (screenshot verified).
+- **Verified in-container**: backend curl e2e (evidence flow, 200s), web screenshots (PROXY badge, evidence photo), mobile `yarn typecheck` clean + Android bundle (1365 modules). ⚠️ Mobile-side (#1/#4/#5/#6 UI) needs real-APK confirmation.
+
 ### False coverage gaps on idle phones — battery-optimization exemption (June 2026)
 - **Problem**: an idle phone (screen off, on a desk, online) stopped streaming live location for ~18 min, then logged a false "suspicious" coverage gap the moment it was picked up. Root cause: Android **Doze** freezes the foreground-service location updates unless the app is exempt from battery optimization; heartbeats (JS setInterval) also freeze, so the server can't tell a Doze-throttle from a real power-off.
 - **Fix (mobile, option A)**: request `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` so Doze no longer defers the 15s stream. Added the permission to `app.json`; new `services/batteryOptimization.ts` launches the system exemption dialog (fallback to the battery-settings list) with a one-time SecureStore flag; wired as an Android-only onboarding step in `PermissionsScreen.tsx` and as a one-time post-onboarding prompt in `HomeScreen.tsx`. WAKE_LOCK already declared.

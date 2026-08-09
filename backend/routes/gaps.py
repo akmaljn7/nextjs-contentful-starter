@@ -51,6 +51,7 @@ async def list_gaps(status: str = "pending", user: dict = Depends(require_admin)
             "reason_by": g.get("reason_by"),
             "reason_at": g.get("reason_at"),
             "has_photo": g.get("has_photo", False),
+            "has_evidence_photo": g.get("has_evidence_photo", False),
             "selfie_match": g.get("selfie_match"),
             "selfie_similarity": g.get("selfie_similarity"),
             "reviewed_by": g.get("reviewed_by"),
@@ -114,5 +115,15 @@ async def gap_photo(gap_id: str, user: dict = Depends(require_admin)):
     result = await get_photo(f"gap::{gap_id}", user["org_id"])
     if not result:
         raise HTTPException(status_code=404, detail="No photo for this gap")
+    body, mime = result
+    return Response(content=body, media_type=mime, headers={"Cache-Control": "private, max-age=300"})
+
+
+@router.get("/{gap_id}/evidence")
+async def gap_evidence_photo(gap_id: str, user: dict = Depends(require_admin)):
+    """Optional phone-evidence photo (a shot of the dead/crashed phone)."""
+    result = await get_photo(f"gap-evidence::{gap_id}", user["org_id"])
+    if not result:
+        raise HTTPException(status_code=404, detail="No evidence photo for this gap")
     body, mime = result
     return Response(content=body, media_type=mime, headers={"Cache-Control": "private, max-age=300"})

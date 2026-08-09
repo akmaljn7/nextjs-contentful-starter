@@ -325,10 +325,12 @@ class ColleagueSelfie(BaseModel):
 
 
 class ColleagueGapReason(BaseModel):
-    """Reason + optional verified selfie explaining a coverage gap."""
+    """Reason + required selfie (identity) + optional phone-evidence photo
+    explaining a coverage gap (e.g. a crashed/dead phone)."""
     email_or_id: str = Field(min_length=1, max_length=200)
     note: str = Field(min_length=1, max_length=1000)
     face_photo: Optional[str] = Field(default=None, max_length=6_000_000)
+    evidence_photo: Optional[str] = Field(default=None, max_length=6_000_000)
     gap_id: Optional[str] = Field(default=None, max_length=64)
 
 
