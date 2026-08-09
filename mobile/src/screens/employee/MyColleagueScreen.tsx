@@ -154,27 +154,16 @@ export default function MyColleagueScreen() {
                 onPress={startCheckin}
               />
             ) : (
-              <>
-                <Button
-                  testID="colleague-gap-photo-btn"
-                  label="Add verified selfie + submit"
-                  variant="secondary"
-                  disabled={busy}
-                  onPress={() => {
-                    if (!emailOrId.trim() || !reason.trim())
-                      return Alert.alert("Missing", "Enter the employee and a reason first.");
-                    setStep("camera");
-                  }}
-                />
-                <View style={{ height: 10 }} />
-                <Button
-                  testID="colleague-gap-submit-btn"
-                  label="Submit reason without selfie"
-                  variant="ghost"
-                  loading={busy}
-                  onPress={() => submitGap(undefined)}
-                />
-              </>
+              <Button
+                testID="colleague-gap-photo-btn"
+                label="Add verified selfie + submit"
+                disabled={busy}
+                onPress={() => {
+                  if (!emailOrId.trim() || !reason.trim())
+                    return Alert.alert("Missing", "Enter the employee and a reason first.");
+                  setStep("camera");
+                }}
+              />
             )}
           </View>
         )}

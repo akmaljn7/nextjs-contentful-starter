@@ -86,6 +86,7 @@ interface ChallengeCtx {
   session_id: string;
   respond_by_ms: number;
   manual: boolean;
+  for_name?: string;
 }
 
 /**
@@ -106,6 +107,7 @@ export function parseChallengePayload(payload: any): ChallengeCtx | null {
     session_id: String(data.session_id || ""),
     respond_by_ms: respondBy,
     manual: data.manual === "true" || data.manual === true,
+    for_name: data.for_name ? String(data.for_name) : undefined,
   };
 }
 

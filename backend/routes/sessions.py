@@ -137,13 +137,19 @@ def _sanitize_session(s: dict) -> dict:
         "flagged": s.get("flagged", False),
         "has_photo": bool(s.get("has_photo", False)),
         "auto_started": bool(s.get("auto_started", False)),
+        "source": s.get("source"),
+        "proxy_by": s.get("proxy_by"),
+        "proxy_reason": s.get("proxy_reason"),
+        "employee_name": s.get("employee_name"),
         "challenges": [
             {"id": c["id"], "status": c.get("status"), "prompted_at_ms": c.get("prompted_at_ms"),
              "respond_by_ms": c.get("respond_by_ms"), "responded_at_ms": c.get("responded_at_ms")}
             for c in challenges
         ],
         "active_challenge": (
-            {"id": active["id"], "respond_by_ms": active["respond_by_ms"]} if active else None
+            {"id": active["id"], "respond_by_ms": active["respond_by_ms"],
+             "manual": bool(active.get("manual")), "for_name": s.get("employee_name")}
+            if active else None
         ),
     }
 
@@ -266,13 +272,18 @@ async def _tick_challenge_lifecycle(db, session: dict, settings: dict, now_ms: i
         if newly_prompted:
             try:
                 from services.push import send_push_to_user
+                # Name the employee so the notification is unambiguous — matters
+                # especially on a colleague's shared phone during a proxy check-in.
+                emp = await db.users.find_one({"_id": ObjectId(session["user_id"])}, {"name": 1})
+                emp_name = (emp or {}).get("name") or "the employee"
                 for ch in newly_prompted:
                     await send_push_to_user(
                         db, session["user_id"],
-                        title="Selfie check-in required",
-                        body=f"Take a quick selfie now. You have {resp_window_min} min.",
+                        title=f"Selfie check-in for {emp_name}",
+                        body=f"This selfie is for {emp_name}. Take a quick selfie now — you have {resp_window_min} min.",
                         data={"kind": "selfie_challenge", "challenge_id": ch["id"],
                               "session_id": str(session["_id"]),
+                              "for_name": emp_name,
                               "respond_by_ms": str(ch["respond_by_ms"])},
                     )
             except Exception as e:
@@ -828,6 +839,7 @@ async def my_session(user: dict = Depends(get_current_user)):
     if not alive:
         await _broadcast_session(db, s, ended=True, outcome=outcome)
         return None
+    s["employee_name"] = s.get("employee_name") or user.get("name")
     return _sanitize_session(s)
 
 
@@ -865,6 +877,7 @@ async def live_sessions(user: dict = Depends(require_admin)):
             continue
         emp = users_by_id.get(s["user_id"])
         off = offices_by_id.get(s.get("office_id")) if s.get("office_id") else None
+        s["employee_name"] = s.get("employee_name") or (emp or {}).get("name")
         result.append({
             **_sanitize_session(s),
             "employee_name": (emp or {}).get("name", "Unknown"),
@@ -954,13 +967,15 @@ async def trigger_challenge_now(
     # Real FCM v1 requests to Google can add 500ms-2s of latency + retries; we
     # never want the admin UI to block on that.
     from services.push import send_push_to_user
+    emp = await db.users.find_one({"_id": ObjectId(user_id)}, {"name": 1})
+    emp_name = (emp or {}).get("name") or "the employee"
     background_tasks.add_task(
         send_push_to_user,
         db, user_id,
-        "Selfie check-in required",
-        f"Your admin requested a selfie. You have {resp_window_min} min.",
+        f"Selfie check-in for {emp_name}",
+        f"This selfie is for {emp_name}. Your admin requested it — you have {resp_window_min} min.",
         {"kind": "selfie_challenge", "challenge_id": new_challenge["id"],
-         "session_id": str(s["_id"]), "manual": "true",
+         "session_id": str(s["_id"]), "manual": "true", "for_name": emp_name,
          "respond_by_ms": str(new_challenge["respond_by_ms"])},
     )
     logger.info("manual_selfie_challenge admin=%s target_user=%s challenge=%s",

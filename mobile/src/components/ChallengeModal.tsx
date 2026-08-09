@@ -15,6 +15,7 @@ import {
   View, Text, StyleSheet, Modal, Pressable, ActivityIndicator, Alert,
 } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
+import * as ImageManipulator from "expo-image-manipulator";
 import { Ionicons } from "@expo/vector-icons";
 
 import { useChallenge } from "@/context/ChallengeContext";
@@ -52,10 +53,18 @@ export function ChallengeModal() {
     if (!camRef.current || busy || !active) return;
     setBusy(true);
     try {
-      const photo = await camRef.current.takePictureAsync({
-        base64: true, quality: 0.6, skipProcessing: true,
-      });
-      const dataUrl = `data:image/jpeg;base64,${photo?.base64}`;
+      // Downscale + compress before upload — a full-res base64 JPEG exceeds the
+      // ingress body limit and fails with a "network error". 512px is plenty
+      // for face matching and keeps the payload ~40-80 KB.
+      const photo = await camRef.current.takePictureAsync({ quality: 1, skipProcessing: true });
+      if (!photo?.uri) throw new Error("capture_failed");
+      const manip = await ImageManipulator.manipulateAsync(
+        photo.uri,
+        [{ resize: { width: 512 } }],
+        { compress: 0.6, format: ImageManipulator.SaveFormat.JPEG, base64: true },
+      );
+      if (!manip.base64) throw new Error("encode_failed");
+      const dataUrl = `data:image/jpeg;base64,${manip.base64}`;
       await api.post(`/sessions/challenge/${active.id}/respond`, { face_photo: dataUrl });
       markResponded();
       Alert.alert("✅ Confirmed", "Selfie check-in accepted.");
@@ -104,11 +113,16 @@ export function ChallengeModal() {
               {active.manual ? "ADMIN-REQUESTED SELFIE" : "RANDOM SELFIE CHECK-IN"}
             </Text>
           </View>
+          {active.for_name ? (
+            <Text style={styles.forName}>This selfie is for {active.for_name}</Text>
+          ) : null}
           <Text style={[styles.countdown, dangerZone && { color: colors.red }]}>
             {mm}:{ss}
           </Text>
           <Text style={styles.hint}>
-            Face the camera. This confirms you're at the office.
+            {active.for_name
+              ? `${active.for_name} must face the camera. This confirms they're at the office.`
+              : "Face the camera. This confirms you're at the office."}
           </Text>
         </View>
 
@@ -152,6 +166,9 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     color: colors.text, fontSize: 10, letterSpacing: 2, fontWeight: "700",
+  },
+  forName: {
+    color: colors.green, fontSize: 15, fontWeight: "700", textAlign: "center",
   },
   countdown: {
     color: colors.text, fontSize: 44, fontWeight: "700",

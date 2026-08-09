@@ -241,6 +241,15 @@ export default function AdminDashboard() {
                     <div className="min-w-0">
                       <div className="font-medium truncate">{s.employee_name}</div>
                       <div className="text-xs text-gray-500 mono truncate">{s.employee_email}</div>
+                      {s.source === "proxy_checkin" && (
+                        <div
+                          className="mt-1 text-[9px] mono uppercase tracking-widest text-amber-400 border border-amber-500/40 bg-amber-500/10 inline-block px-1.5 py-0.5"
+                          data-testid={`live-proxy-${s.id}`}
+                          title={s.proxy_reason || ""}
+                        >
+                          PROXY · by {s.proxy_by}
+                        </div>
+                      )}
                     </div>
                   </div>
                   <StatusChip status={s.status} label={STATUS_LABEL[s.status]} testId={`chip-${s.id}`} />

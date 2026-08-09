@@ -96,35 +96,33 @@ async def colleague_checkin(payload: ColleagueCheckin, request: Request, user: d
     last_fix = {"lat": payload.lat, "lng": payload.lng, "accuracy": payload.accuracy, "ts_ms": now_ms}
     existing = await db.active_sessions.find_one({"user_id": target_id, "org_id": user["org_id"]})
     if existing:
-        challenges = list(existing.get("challenges") or [])
-        challenges.append(challenge)
-        await db.active_sessions.update_one(
-            {"_id": existing["_id"]},
-            {"$set": {"challenges": challenges},
-             "$push": {"log": {"event": "proxy_checkin", "ts_ms": now_ms, "by": user.get("email"),
-                               "reason": payload.reason, "challenge_id": challenge["id"]}}},
-        )
-        s = await db.active_sessions.find_one({"_id": existing["_id"]})
-        await _broadcast_session(db, s)
-        session_id = str(existing["_id"])
-    else:
-        challenges = _plan_challenges(settings, now_ms, duration_ms)
-        challenges.append(challenge)
-        doc = {
-            "org_id": user["org_id"], "user_id": target_id, "office_id": office_id,
-            "center": {"lat": office_lat, "lng": office_lng, "radius_m": office["radius_meters"]},
-            "start_time": _now_iso(), "start_time_ms": now_ms, "remaining_ms": duration_ms,
-            "total_inside_ms": 0, "current_bout_start_ms": now_ms, "bout_count": 1,
-            "status": "active", "flagged": False, "paused_at": None, "challenges": challenges,
-            "last_fix": last_fix, "last_live_ts_ms": now_ms, "auto_started": True,
-            "source": "proxy_checkin", "proxy_by": user.get("email"), "proxy_reason": payload.reason,
-            "log": [{"event": "proxy_checkin", "ts_ms": now_ms, "by": user.get("email"),
-                     "reason": payload.reason, "challenge_id": challenge["id"], "lat": payload.lat, "lng": payload.lng}],
-        }
-        res = await db.active_sessions.insert_one(doc)
-        doc["_id"] = res.inserted_id
-        await _broadcast_session(db, doc)
-        session_id = str(res.inserted_id)
+        # Issue 1 — never check the same person in twice. Block and let the
+        # app show the message instead of opening the selfie camera.
+        if existing.get("status") == "paused":
+            raise HTTPException(
+                status_code=409,
+                detail=f"{target['name']} already has an open session (currently paused) — no need to check in again.",
+            )
+        raise HTTPException(status_code=409, detail=f"{target['name']} is already checked in.")
+
+    challenges = _plan_challenges(settings, now_ms, duration_ms)
+    challenges.append(challenge)
+    doc = {
+        "org_id": user["org_id"], "user_id": target_id, "office_id": office_id,
+        "center": {"lat": office_lat, "lng": office_lng, "radius_m": office["radius_meters"]},
+        "start_time": _now_iso(), "start_time_ms": now_ms, "remaining_ms": duration_ms,
+        "total_inside_ms": 0, "current_bout_start_ms": now_ms, "bout_count": 1,
+        "status": "active", "flagged": False, "paused_at": None, "challenges": challenges,
+        "last_fix": last_fix, "last_live_ts_ms": now_ms, "auto_started": True,
+        "employee_name": target.get("name"),
+        "source": "proxy_checkin", "proxy_by": user.get("email"), "proxy_reason": payload.reason,
+        "log": [{"event": "proxy_checkin", "ts_ms": now_ms, "by": user.get("email"),
+                 "reason": payload.reason, "challenge_id": challenge["id"], "lat": payload.lat, "lng": payload.lng}],
+    }
+    res = await db.active_sessions.insert_one(doc)
+    doc["_id"] = res.inserted_id
+    await _broadcast_session(db, doc)
+    session_id = str(res.inserted_id)
 
     logger.info("proxy_checkin by=%s target=%s session=%s", user.get("email"), target.get("email"), session_id)
     return {"ok": True, "session_id": session_id, "challenge_id": challenge["id"],
