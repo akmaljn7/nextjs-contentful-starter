@@ -1,13 +1,14 @@
-"""GPS jitter suppression tests (iter 26).
+"""GPS jitter suppression tests.
 
-Two server-side mechanisms in _apply_location_fix:
-  (A) EXIT DEBOUNCE — a brief outside excursion returning within 3 minutes
-      is jitter: no pause_live crossing, session stays ACTIVE. Only outside
-      beyond 3 min confirms a real exit and pauses with a BACKDATED pause_live
-      crossing at the first-outside ts_ms.
-  (B) IMPOSSIBLE-SPEED FILTER — a fix implying >55 m/s over <=120s with
-      >=100m displacement is discarded (outcome 'rejected_gps_glitch') —
-      state does not change, no log entry, no gps_ping written.
+After removing the 3-minute exit debounce, _apply_location_fix keeps ONE
+jitter mechanism:
+  IMPOSSIBLE-SPEED FILTER — a fix implying >55 m/s over <=120s with
+  >=100m displacement is discarded (outcome 'rejected_gps_glitch') —
+  state does not change, no log entry, no gps_ping written.
+
+A real (plausible-speed) outside fix now pauses the session IMMEDIATELY
+(outcome 'session_paused', one pause_live crossing at the fix ts). Returning
+inside resumes right away. Exits are logged with no delay.
 """
 import os
 import time
@@ -38,7 +39,6 @@ OFFICE_LNG = 3.3792
 FAR_OUTSIDE = (6.5280, 3.3792)   # ~400m north — beyond r(300)+acc(8)
 FAR_FAR = (6.6, 3.45)             # ~far
 TELEPORT = (6.5514, 3.3792)       # ~3km north — teleport spike
-EXIT_GRACE_MS = 3 * 60 * 1000
 
 
 def _haversine(lat1, lng1, lat2, lng2):
@@ -111,11 +111,11 @@ def _pause_live_entries(session):
     return [e for e in (session or {}).get("log", []) if e.get("event") == "pause_live"]
 
 
-class TestExitDebounceJitterSuppressed:
-    """A single outside excursion that returns inside within 3 min = jitter.
-    Session stays ACTIVE. Zero pause_live crossings ever logged."""
+class TestExitPausesImmediately:
+    """A real outside fix pauses the session immediately (no debounce). The
+    pause_live crossing is logged at the outside-fix ts (not backdated)."""
 
-    def test_jitter_no_phantom_out_in(self, admin_tok, emp_tok):
+    def test_outside_pauses_now(self, admin_tok, emp_tok):
         _force_expire(admin_tok)
         device_id = "testdev-" + uuid.uuid4().hex[:8]
         now = int(time.time() * 1000)
@@ -124,59 +124,39 @@ class TestExitDebounceJitterSuppressed:
         assert r1.get("outcome") == "session_started", r1
         _post_fix(emp_tok, device_id, OFFICE_LAT, OFFICE_LNG, now + 30_000)
 
-        out = _post_fix(emp_tok, device_id, *FAR_OUTSIDE, now + 90_000)
-        assert out.get("outcome") == "exit_pending", f"expected exit_pending, got {out}"
-        assert out.get("status") == "active", out
-
-        back = _post_fix(emp_tok, device_id, OFFICE_LAT, OFFICE_LNG, now + 150_000)
-        # Return within grace clears pending_exit; no pause logged.
-        assert back.get("status") == "active", back
+        out_ts = now + 90_000
+        out = _post_fix(emp_tok, device_id, *FAR_OUTSIDE, out_ts)
+        assert out.get("outcome") == "session_paused", f"expected immediate pause, got {out}"
+        assert out.get("status") == "paused", out
 
         s = _get_live_session(admin_tok)
         assert s is not None
-        assert s.get("status") == "active", s
-        assert _pause_live_entries(s) == [], (
-            f"phantom pause_live log entries appeared: {_pause_live_entries(s)}"
+        assert s.get("status") == "paused", s
+        pauses = _pause_live_entries(s)
+        assert len(pauses) == 1, f"expected exactly one pause_live, got {pauses}"
+        assert pauses[0]["ts_ms"] == out_ts, (
+            f"pause_live should be at the outside-fix ts (not backdated/delayed): "
+            f"{pauses[0]['ts_ms']} != {out_ts}"
         )
+        # pre-exit inside delta only (~30s); outside time not counted
+        total = s.get("total_inside_ms", -1)
+        assert 29_000 <= total <= 31_000, f"total_inside_ms={total} (expected ~30000)"
 
-
-class TestExitDebounceSustainedExit:
-    """Two outside fixes >3 min apart = confirmed exit. Session pauses with
-    a BACKDATED pause_live crossing (ts_ms == first-outside ts). Grace-period
-    outside time is NOT counted toward total_inside_ms."""
-
-    def test_sustained_exit_backdated_pause(self, admin_tok, emp_tok):
+    def test_return_inside_resumes(self, admin_tok, emp_tok):
         _force_expire(admin_tok)
         device_id = "testdev-" + uuid.uuid4().hex[:8]
         now = int(time.time() * 1000)
 
         _post_fix(emp_tok, device_id, OFFICE_LAT, OFFICE_LNG, now)
-        _post_fix(emp_tok, device_id, OFFICE_LAT, OFFICE_LNG, now + 30_000)
+        out = _post_fix(emp_tok, device_id, *FAR_OUTSIDE, now + 30_000)
+        assert out.get("outcome") == "session_paused", out
 
-        first_out_ts = now + 60_000
-        p1 = _post_fix(emp_tok, device_id, *FAR_OUTSIDE, first_out_ts)
-        assert p1.get("outcome") == "exit_pending", p1
-
-        second_out_ts = first_out_ts + EXIT_GRACE_MS + 5_000
-        p2 = _post_fix(emp_tok, device_id, *FAR_OUTSIDE, second_out_ts)
-        assert p2.get("outcome") == "session_paused", p2
-        assert p2.get("status") == "paused", p2
+        back = _post_fix(emp_tok, device_id, OFFICE_LAT, OFFICE_LNG, now + 60_000)
+        assert back.get("outcome") == "session_resumed", back
+        assert back.get("status") == "active", back
 
         s = _get_live_session(admin_tok)
-        assert s is not None
-        assert s.get("status") == "paused", s
-
-        pauses = _pause_live_entries(s)
-        assert len(pauses) == 1, f"expected exactly one pause_live, got {pauses}"
-        # Backdated to first-outside ts
-        assert pauses[0]["ts_ms"] == first_out_ts, (
-            f"pause_live not backdated: {pauses[0]['ts_ms']} != {first_out_ts}"
-        )
-        # total_inside_ms must be ~30_000 (the pre-exit inside delta only).
-        total = s.get("total_inside_ms", -1)
-        assert 29_000 <= total <= 31_000, (
-            f"grace-outside must not be counted; total_inside_ms={total} (expected ~30000)"
-        )
+        assert s is not None and s.get("status") == "active", s
 
 
 class TestImpossibleSpeedFilterRejectsTeleport:

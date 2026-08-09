@@ -48,12 +48,10 @@ COVERAGE_GAP_MS = 10 * 60 * 1000
 BATTERY_DEAD_THRESHOLD = 0.20
 
 # --- GPS jitter suppression -------------------------------------------------
-# Exit debounce: a brief excursion outside the geofence that returns within
-# this window is treated as GPS jitter — not logged and the session is NOT
-# paused (avoids phantom OUT/IN flicker on the admin console).
-EXIT_GRACE_MS = 3 * 60 * 1000
 # Impossible-speed filter: a fix implying travel faster than this over a short
-# interval is a GPS teleport spike and is discarded outright.
+# interval is a GPS teleport spike and is discarded outright. A real
+# outside fix pauses the session immediately (no exit debounce) so exits are
+# logged without delay.
 MAX_PLAUSIBLE_SPEED_MPS = 55.0        # ~198 km/h
 GLITCH_MIN_DISPLACEMENT_M = 100.0     # ignore small jitter within accuracy
 GLITCH_MAX_DT_S = 120.0               # only judge speed on closely-spaced fixes

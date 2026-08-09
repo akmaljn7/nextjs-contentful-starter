@@ -23,7 +23,12 @@ Multi-tenant enterprise geofenced attendance platform. Organizations sign up, ad
 - PWA installable
 
 ## Implemented (2026-02 → 2026-08)
-### GPS jitter suppression — no phantom OUT/IN crossings (8 Aug 2026)
+### GPS jitter — impossible-speed filter only, exits log immediately (June 2026)
+- **Change**: removed the 3-minute exit debounce. A real (plausible-speed) outside fix now pauses the session **immediately** with a `pause_live` crossing at the fix ts (no backdating, no delay). The only remaining jitter guard is the **impossible-speed filter** (>55 m/s over <120s with ≥100m displacement → `rejected_gps_glitch`, state unchanged). Dead `EXIT_GRACE_MS` constant + comment removed from `routes/mobile.py`.
+- **Tests updated**: `test_gps_jitter_suppression.py` (immediate pause + resume + teleport reject) and `test_inside_time_double_count_fix.py` (single outside pauses now; offline batch first-outside pauses, next stays paused). 8/8 pass serially (`-n0`).
+- **Rationale (user request)**: the debounce delayed genuine exits from being logged; the impossible-speed filter alone is enough to drop GPS teleport spikes.
+
+### GPS jitter suppression — no phantom OUT/IN crossings (8 Aug 2026, SUPERSEDED)
 - **Problem**: GPS spikes momentarily threw an employee outside then back inside, creating phantom OUT/IN entries + pause/resume flicker on the admin console.
 - **Fix (server-side, `_apply_location_fix`)**:
   - **Exit debounce (3-min grace)**: a `definitely_outside` fix no longer pauses/logs immediately — it sets `pending_exit_ms` and keeps the session ACTIVE (`exit_pending`). If the employee returns inside within `EXIT_GRACE_MS` (3 min) it's treated as jitter (no log, no pause; the excursion span isn't counted). Only sustained-outside beyond 3 min confirms a real exit and logs a `pause_live` crossing **backdated** to when they first left.
