@@ -634,53 +634,31 @@ async def _apply_location_fix(db, user: dict, fix: MobileLocationFix) -> dict:
 
     if status == "active":
         if definitely_outside:
-            # Exit debounce — don't pause/log the moment we see one outside fix.
-            # Start a grace timer; if they're back inside within EXIT_GRACE_MS
-            # it's treated as GPS jitter (no OUT/IN entry, session stays active).
-            pending = session.get("pending_exit_ms")
-            if not pending:
-                await db.active_sessions.update_one(
-                    {"_id": session["_id"]},
-                    {"$set": {"pending_exit_ms": now_ms, "last_fix": last_fix,
-                              "last_live_ts_ms": now_ms, "last_battery": fix.battery}},
-                )
-                merged = {**session, "pending_exit_ms": now_ms, "last_fix": last_fix}
-                await _broadcast_session(db, merged)
-                return {"outcome": "exit_pending", "status": "active"}
-            if (now_ms - pending) < EXIT_GRACE_MS:
-                # Still within the grace window — keep active, don't log.
-                await db.active_sessions.update_one(
-                    {"_id": session["_id"]},
-                    {"$set": {"last_fix": last_fix, "last_live_ts_ms": now_ms, "last_battery": fix.battery}},
-                )
-                merged = {**session, "last_fix": last_fix}
-                await _broadcast_session(db, merged)
-                return {"outcome": "exit_pending", "status": "active"}
-            # Sustained outside beyond the grace window -> confirm the exit.
-            # Backdate the OUT crossing to when they first left.
-            update = {"status": "paused", "paused_at": pending, "last_fix": last_fix,
-                      "last_live_ts_ms": now_ms, "last_battery": fix.battery, "pending_exit_ms": None}
+            # Crossing OUT — pause immediately and log the crossing. Teleport
+            # spikes are already filtered out above by the impossible-speed
+            # check, so a real outside fix here is trusted. Incremental accrual
+            # (below) means we must NOT re-add bout time here.
+            update = {"status": "paused", "paused_at": now_ms, "last_fix": last_fix,
+                      "last_live_ts_ms": now_ms, "last_battery": fix.battery}
             await db.active_sessions.update_one(
                 {"_id": session["_id"]},
-                {"$set": update, "$push": {"log": {"event": "pause_live", "ts_ms": pending,
+                {"$set": update, "$push": {"log": {"event": "pause_live", "ts_ms": now_ms,
                                                     "distance_m": int(dist)}}},
             )
             new_s = await db.active_sessions.find_one({"_id": session["_id"]})
             await _broadcast_session(db, new_s)
             return {"outcome": "session_paused", "status": "paused"}
-        # Inside (or ambiguous). Clear any pending-exit (jitter suppressed).
-        # Accrue time incrementally, EXCEPT across a coverage gap or the fix
-        # that resolves a pending-exit excursion (that span is not counted).
-        was_pending = bool(session.get("pending_exit_ms"))
+        # Inside (or ambiguous) -> accrue time incrementally, EXCEPT across a
+        # coverage gap (device was dark — don't count it).
         remaining = session.get("remaining_ms", 0)
         total_inside = session.get("total_inside_ms", 0)
-        if last.get("ts_ms") and inside and not gap_detected and not was_pending:
+        if last.get("ts_ms") and inside and not gap_detected:
             dt = now_ms - last["ts_ms"]
             if dt > 0:
                 remaining = max(0, remaining - dt)
                 total_inside += dt
         update = {"remaining_ms": remaining, "total_inside_ms": total_inside, "last_fix": last_fix,
-                  "last_live_ts_ms": now_ms, "last_battery": fix.battery, "pending_exit_ms": None}
+                  "last_live_ts_ms": now_ms, "last_battery": fix.battery}
         await db.active_sessions.update_one({"_id": session["_id"]}, {"$set": update})
         merged = {**session, **update}
         if remaining <= 0:
