@@ -16,6 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 
 import { Screen } from "@/components/Screen";
 import { Button } from "@/components/Button";
+import { requestIgnoreBatteryOptimizations } from "@/services/batteryOptimization";
 import { colors } from "@/theme";
 
 interface Props {
@@ -25,7 +26,7 @@ interface Props {
 type StepState = "idle" | "requesting" | "granted" | "denied";
 
 interface Step {
-  key: "foreground" | "background" | "notifications";
+  key: "foreground" | "background" | "notifications" | "battery";
   title: string;
   reason: string;
   icon: keyof typeof Ionicons.glyphMap;
@@ -52,6 +53,17 @@ const STEPS: Step[] = [
       "So we can nudge you for a quick selfie check-in and confirm when attendance starts or pauses.",
     icon: "notifications",
   },
+  // Android-only: without this, Doze freezes background location while the
+  // phone is idle and creates false coverage gaps.
+  ...(Platform.OS === "android"
+    ? ([{
+        key: "battery",
+        title: "Keep tracking running (battery)",
+        reason:
+          "Allow the app to run without battery restrictions. Otherwise your phone pauses location tracking when it's idle in your pocket, which can flag a false 'phone off' gap.",
+        icon: "battery-charging",
+      }] as Step[])
+    : []),
 ];
 
 export default function PermissionsScreen({ onGranted }: Props) {
@@ -59,6 +71,7 @@ export default function PermissionsScreen({ onGranted }: Props) {
     foreground: "idle",
     background: "idle",
     notifications: "idle",
+    battery: "idle",
   });
 
   const setStep = (k: Step["key"], v: StepState) =>
@@ -88,6 +101,19 @@ export default function PermissionsScreen({ onGranted }: Props) {
       ios: { allowAlert: true, allowBadge: true, allowSound: true },
     });
     setStep("notifications", notif.status === "granted" ? "granted" : "denied");
+    // 4. Android battery-optimization exemption — keeps the live stream alive
+    // in Doze so idle phones don't produce false coverage gaps. The system
+    // dialog doesn't return a readable result, so we mark it granted best-effort.
+    if (Platform.OS === "android") {
+      setStep("battery", "requesting");
+      await new Promise((r) => setTimeout(r, 400));
+      try {
+        await requestIgnoreBatteryOptimizations();
+      } catch {
+        /* ignore */
+      }
+      setStep("battery", "granted");
+    }
     onGranted();
   }, [onGranted]);
 
@@ -96,8 +122,8 @@ export default function PermissionsScreen({ onGranted }: Props) {
     else Linking.openSettings();
   };
 
-  const anyDenied = Object.values(state).some((s) => s === "denied");
-  const allSettled = Object.values(state).every((s) => s === "granted" || s === "denied");
+  const anyDenied = STEPS.some((s) => state[s.key] === "denied");
+  const allSettled = STEPS.every((s) => state[s.key] === "granted" || state[s.key] === "denied");
 
   return (
     <Screen scroll>

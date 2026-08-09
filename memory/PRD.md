@@ -23,6 +23,15 @@ Multi-tenant enterprise geofenced attendance platform. Organizations sign up, ad
 - PWA installable
 
 ## Implemented (2026-02 → 2026-08)
+### False coverage gaps on idle phones — battery-optimization exemption (June 2026)
+- **Problem**: an idle phone (screen off, on a desk, online) stopped streaming live location for ~18 min, then logged a false "suspicious" coverage gap the moment it was picked up. Root cause: Android **Doze** freezes the foreground-service location updates unless the app is exempt from battery optimization; heartbeats (JS setInterval) also freeze, so the server can't tell a Doze-throttle from a real power-off.
+- **Fix (mobile, option A)**: request `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` so Doze no longer defers the 15s stream. Added the permission to `app.json`; new `services/batteryOptimization.ts` launches the system exemption dialog (fallback to the battery-settings list) with a one-time SecureStore flag; wired as an Android-only onboarding step in `PermissionsScreen.tsx` and as a one-time post-onboarding prompt in `HomeScreen.tsx`. WAKE_LOCK already declared.
+- **Verified**: `yarn typecheck` clean; Android Metro bundle builds (1365 modules incl. `expo-intent-launcher`). ⚠️ Doze behaviour can only be confirmed on a real APK — user to verify.
+
+### Face-enroll selfie crash + free liveness plan (June 2026)
+- **Stopgap fix (shipped)**: `CameraCapture.tsx` now downscales to 512px + compresses via `expo-image-manipulator` before upload (was sending a full-res ~2–5MB base64 → 413/422 "error"). Payload now ~40–80KB. ⚠️ Needs real-device confirmation.
+- **Liveness decision**: user wants a **free** solution. Chosen path (pending go-ahead): server-side passive liveness via MiniFASNet (Silent-Face-Anti-Spoofing) on enrollment + selfie check-ins; optional Phase 2 on-device active blink/turn challenge. NOT yet implemented.
+
 ### GPS jitter — impossible-speed filter only, exits log immediately (June 2026)
 - **Change**: removed the 3-minute exit debounce. A real (plausible-speed) outside fix now pauses the session **immediately** with a `pause_live` crossing at the fix ts (no backdating, no delay). The only remaining jitter guard is the **impossible-speed filter** (>55 m/s over <120s with ≥100m displacement → `rejected_gps_glitch`, state unchanged). Dead `EXIT_GRACE_MS` constant + comment removed from `routes/mobile.py`.
 - **Tests updated**: `test_gps_jitter_suppression.py` (immediate pause + resume + teleport reject) and `test_inside_time_double_count_fix.py` (single outside pauses now; offline batch first-outside pauses, next stays paused). 8/8 pass serially (`-n0`).

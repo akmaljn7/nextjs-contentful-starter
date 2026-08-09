@@ -11,6 +11,7 @@ import { coldStartReconcile } from "@/services/reconcile";
 import { drainQueue } from "@/services/syncWorker";
 import { startForegroundWatcher, stopForegroundWatcher } from "@/services/foregroundWatcher";
 import { startLiveLocation } from "@/services/liveLocation";
+import { requestIgnoreBatteryOptimizations, hasPromptedBatteryOptimization } from "@/services/batteryOptimization";
 import { colors } from "@/theme";
 
 export default function EmployeeHomeScreen() {
@@ -54,6 +55,18 @@ export default function EmployeeHomeScreen() {
     const t = setInterval(tick, 8_000);
     return () => { mounted = false; clearInterval(t); };
   }, []);
+
+  // One-time battery-optimization exemption for employees who onboarded
+  // before this feature existed. Without it, Doze freezes background location
+  // on an idle phone and the server logs a false coverage gap. Only prompts
+  // once (persisted flag) and only after background location is granted.
+  React.useEffect(() => {
+    if (Platform.OS !== "android" || bgPerm !== "granted") return;
+    (async () => {
+      if (await hasPromptedBatteryOptimization()) return;
+      await requestIgnoreBatteryOptimizations().catch(() => undefined);
+    })();
+  }, [bgPerm]);
 
   const onRefresh = React.useCallback(async () => {
     await Promise.all([
