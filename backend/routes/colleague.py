@@ -6,6 +6,7 @@ inside the absent employee's office geofence).
 
 Every proxy action is labelled (`proxy_by`) and surfaced to admins.
 """
+import asyncio
 import logging
 import uuid
 from datetime import datetime, timezone
@@ -131,8 +132,8 @@ async def colleague_checkin(payload: ColleagueCheckin, request: Request, user: d
 
 @router.post("/selfie")
 async def colleague_selfie(payload: ColleagueSelfie, request: Request, user: dict = Depends(get_current_user)):
-    from routes.sessions import _broadcast_session
-    from services.face_match import verify as verify_face
+    from routes.sessions import _broadcast_session, LIVENESS_ENFORCE, LIVENESS_THRESHOLD
+    from services.face_match import analyze
     db = get_db()
     target = await _resolve_target(db, user["org_id"], payload.email_or_id)
     if not target:
@@ -158,13 +159,35 @@ async def colleague_selfie(payload: ColleagueSelfie, request: Request, user: dic
         await db.active_sessions.update_one({"_id": s["_id"]}, {"$set": {"challenges": challenges, "flagged": True}})
         raise HTTPException(status_code=400, detail="Selfie window expired")
 
-    result = verify_face(baseline, payload.face_photo)
+    res = await asyncio.to_thread(analyze, baseline, payload.face_photo)
+    result = {"match": res["match"], "similarity": res["similarity"], "reason": res.get("reason")}
+    live_prob = res.get("live_prob")
     await save_session_photo(f"{s['_id']}::{ch['id']}", user["org_id"], target_id, payload.face_photo)
     log_entries = list(s.get("log", []))
     ch["responded_at_ms"] = now_ms
     ch["photo_saved"] = True
     ch["similarity"] = result["similarity"]
     ch["proxy_by"] = user.get("email")
+
+    # Liveness gate first — block a printed photo / screen of the employee.
+    if LIVENESS_ENFORCE and live_prob is not None and live_prob < LIVENESS_THRESHOLD:
+        ch["status"] = "mismatch"
+        ch["liveness"] = live_prob
+        log_entries.append({"event": "proxy_liveness_failed", "ts_ms": now_ms, "challenge_id": ch["id"],
+                            "by": user.get("email"), "live_prob": live_prob})
+        await db.active_sessions.update_one(
+            {"_id": s["_id"]}, {"$set": {"challenges": challenges, "log": log_entries[-500:], "flagged": True}},
+        )
+        await log_security_event(
+            "liveness_failed", "high", client_ip(request),
+            {"context": "proxy_selfie", "challenge_id": ch["id"], "session_id": str(s["_id"]),
+             "proxy_by": user.get("email"), "live_prob": live_prob},
+            org_id=user["org_id"], user_id=target_id,
+        )
+        new_s = await db.active_sessions.find_one({"_id": s["_id"]})
+        await _broadcast_session(db, new_s)
+        raise HTTPException(status_code=403, detail="Liveness check failed — this looks like a photo/screen, not a live face. Retake in good lighting.")
+
     if not result["match"]:
         ch["status"] = "mismatch"
         log_entries.append({"event": "proxy_selfie_mismatch", "ts_ms": now_ms, "challenge_id": ch["id"],
@@ -217,7 +240,7 @@ async def colleague_gap_reason(payload: ColleagueGapReason, request: Request, us
     if payload.face_photo:
         await save_session_photo(f"gap::{gap['id']}", user["org_id"], target_id, payload.face_photo)
         if target.get("face_baseline"):
-            r = verify_face(target["face_baseline"], payload.face_photo)
+            r = await asyncio.to_thread(verify_face, target["face_baseline"], payload.face_photo)
             selfie_match = r["match"]
             similarity = r["similarity"]
 
@@ -243,8 +266,8 @@ async def colleague_gap_reason(payload: ColleagueGapReason, request: Request, us
 async def colleague_checkout(payload: ColleagueCheckout, request: Request, user: dict = Depends(get_current_user)):
     """End an absent colleague's active session from a lending device. A selfie
     matching their enrolled baseline confirms it's really them ending the shift."""
-    from routes.sessions import _write_attendance_record, _broadcast_session
-    from services.face_match import verify as verify_face
+    from routes.sessions import _write_attendance_record, _broadcast_session, LIVENESS_ENFORCE, LIVENESS_THRESHOLD
+    from services.face_match import analyze
     db = get_db()
     target = await _resolve_target(db, user["org_id"], payload.email_or_id)
     if not target:
@@ -258,8 +281,18 @@ async def colleague_checkout(payload: ColleagueCheckout, request: Request, user:
         raise HTTPException(status_code=404, detail=f"{target['name']} has no active session to check out from")
 
     now_ms = _now_ms()
-    result = verify_face(baseline, payload.face_photo)
+    res = await asyncio.to_thread(analyze, baseline, payload.face_photo)
+    result = {"match": res["match"], "similarity": res["similarity"], "reason": res.get("reason")}
+    live_prob = res.get("live_prob")
     await save_session_photo(f"{s['_id']}::checkout", user["org_id"], target_id, payload.face_photo)
+    if LIVENESS_ENFORCE and live_prob is not None and live_prob < LIVENESS_THRESHOLD:
+        await db.active_sessions.update_one({"_id": s["_id"]}, {"$set": {"flagged": True}})
+        await log_security_event(
+            "liveness_failed", "high", client_ip(request),
+            {"context": "proxy_checkout", "session_id": str(s["_id"]), "proxy_by": user.get("email"), "live_prob": live_prob},
+            org_id=user["org_id"], user_id=target_id,
+        )
+        raise HTTPException(status_code=403, detail="Liveness check failed — this looks like a photo/screen, not a live face. Retake in good lighting.")
     if not result["match"]:
         await db.active_sessions.update_one({"_id": s["_id"]}, {"$set": {"flagged": True}})
         await log_security_event(

@@ -41,6 +41,18 @@ async function ensureAndroidChannel() {
     lightColor: "#10b981",
     lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
   });
+  // Dedicated high-urgency channel for selfie requests: plays the loud alarm
+  // tone (selfie_alert.wav, bundled via the expo-notifications config plugin)
+  // and a long insistent vibration so it rings even on a sleeping phone.
+  await Notifications.setNotificationChannelAsync("selfie_ring", {
+    name: "Selfie check-in alarm",
+    importance: Notifications.AndroidImportance.MAX,
+    vibrationPattern: [0, 700, 400, 700, 400, 700],
+    sound: "selfie_alert.wav",
+    bypassDnd: true,
+    lightColor: "#ef4444",
+    lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+  });
 }
 
 /**

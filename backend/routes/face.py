@@ -1,4 +1,5 @@
 """Face enrollment + admin re-enroll endpoints."""
+import asyncio
 from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field
@@ -19,7 +20,8 @@ class EnrollPayload(BaseModel):
 async def enroll(payload: EnrollPayload, user: dict = Depends(get_current_user)):
     if user["role"] != "employee":
         raise HTTPException(status_code=403, detail="Only employees enroll their own face")
-    emb = extract_embedding(payload.face_photo)
+    # Offload CPU-bound dlib work off the event loop.
+    emb = await asyncio.to_thread(extract_embedding, payload.face_photo)
     if not emb:
         raise HTTPException(status_code=400, detail="No clear face detected — try again in better lighting")
     db = get_db()

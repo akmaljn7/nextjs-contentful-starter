@@ -97,7 +97,13 @@
       ],
       "./plugins/withAndroidBootReceiver.js",
       "expo-font",
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "expo-notifications",
+        {
+          "sounds": ["./assets/selfie_alert.wav"]
+        }
+      ]
     ],
     "extra": {
       "apiUrl": "https://geofence-admin-1.preview.emergentagent.com"

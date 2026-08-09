@@ -75,6 +75,7 @@ async def send_push(
     data: Optional[dict] = None,
     silent: bool = False,
     channel_id: str = "attendance",
+    sound: Optional[str] = None,
 ) -> dict:
     """Send an FCM push. Returns {ok, reason, [message_id]}.
 
@@ -116,7 +117,9 @@ async def send_push(
         message["data"]["silent"] = "true"
     else:
         message["notification"] = {"title": title, "body": body}
-        message["apns"]["payload"] = {"aps": {"alert": {"title": title, "body": body}, "sound": "default"}}
+        aps_sound = sound or "default"
+        message["apns"]["payload"] = {"aps": {"alert": {"title": title, "body": body}, "sound": aps_sound}}
+        # Android plays the channel's configured sound; nothing else needed here.
 
     url = f"https://fcm.googleapis.com/v1/projects/{project}/messages:send"
     headers = {"Authorization": f"Bearer {access}", "Content-Type": "application/json"}
@@ -134,11 +137,13 @@ async def send_push(
 
 
 async def send_push_to_user(db, user_id: str, title: str, body: str,
-                            data: Optional[dict] = None, silent: bool = False) -> list:
+                            data: Optional[dict] = None, silent: bool = False,
+                            channel_id: str = "attendance", sound: Optional[str] = None) -> list:
     """Fan-out to every registered device for a user. Returns list of send results."""
     results = []
     async for dev in db.mobile_devices.find({"user_id": user_id, "deleted_at": None, "push_token": {"$ne": None}}):
-        res = await send_push(dev["push_token"], title, body, data=data, silent=silent)
+        res = await send_push(dev["push_token"], title, body, data=data, silent=silent,
+                              channel_id=channel_id, sound=sound)
         results.append({"device_id": dev.get("device_id"), **res})
         if not res.get("ok") and res.get("reason") in {"fcm_404", "fcm_400"}:
             # Token invalidated — mark device for cleanup

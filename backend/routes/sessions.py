@@ -2,9 +2,11 @@
 
 Server-authoritative — all state transitions decided here from GPS pings.
 """
+import asyncio
 import hashlib
 import json
 import logging
+import os
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Depends, Request
@@ -33,6 +35,14 @@ logger = logging.getLogger(__name__)
 # The `stale` badge on the admin live-map is UI-only and does not change
 # session status.
 STALE_PING_MS = 30 * 60 * 1000  # UI-only "connection lost" badge threshold
+
+# Passive liveness (anti-spoofing) gate for selfies.
+# Kept OFF by default: the free MiniFASNet ONNX models evaluated in-house did
+# not separate real vs spoof reliably (risk of locking out real staff). The
+# scoring infra stays wired so a validated model can be dropped in and enabled
+# via LIVENESS_ENFORCE=true once its threshold is tuned.
+LIVENESS_THRESHOLD = float(os.environ.get("LIVENESS_THRESHOLD", "0.55"))
+LIVENESS_ENFORCE = os.environ.get("LIVENESS_ENFORCE", "false").lower() == "true"
 
 router = APIRouter(prefix="/api/sessions", tags=["sessions"])
 
@@ -285,6 +295,7 @@ async def _tick_challenge_lifecycle(db, session: dict, settings: dict, now_ms: i
                               "session_id": str(session["_id"]),
                               "for_name": emp_name,
                               "respond_by_ms": str(ch["respond_by_ms"])},
+                        channel_id="selfie_ring", sound="selfie_alert.wav",
                     )
             except Exception as e:
                 logger.error("push_dispatch_error err=%s", e)
@@ -486,8 +497,40 @@ async def respond_challenge(challenge_id: str, payload: ChallengeResponse, user:
     baseline = user.get("face_baseline")
     match_result = None
     if baseline:
-        from services.face_match import verify as verify_face
-        match_result = verify_face(baseline, payload.face_photo)
+        from services.face_match import analyze
+        # Offload dlib + onnx (CPU-bound) to a thread so we don't block the
+        # event loop — blocking here caused selfie requests to time out
+        # ("network error") while other requests streamed in.
+        res = await asyncio.to_thread(analyze, baseline, payload.face_photo)
+        match_result = {"match": res["match"], "similarity": res["similarity"]}
+        live_prob = res.get("live_prob")
+
+        # Passive liveness gate — block presentation attacks (printed photo /
+        # screen showing someone's face). Only enforced when we got a score.
+        if LIVENESS_ENFORCE and live_prob is not None and live_prob < LIVENESS_THRESHOLD:
+            ch["status"] = "mismatch"
+            ch["responded_at_ms"] = now_ms
+            ch["photo_saved"] = True
+            ch["liveness"] = live_prob
+            log_entries = list(s.get("log", []))
+            log_entries.append({
+                "event": "liveness_failed", "ts_ms": now_ms,
+                "challenge_id": challenge_id, "live_prob": live_prob,
+            })
+            await db.active_sessions.update_one(
+                {"_id": s["_id"]},
+                {"$set": {"challenges": challenges, "log": log_entries[-500:], "flagged": True}},
+            )
+            await log_security_event(
+                "liveness_failed", "high", "",
+                {"challenge_id": challenge_id, "session_id": str(s["_id"]), "live_prob": live_prob},
+                org_id=user["org_id"], user_id=user["id"],
+            )
+            raise HTTPException(
+                status_code=403,
+                detail="Liveness check failed — please retake a selfie of your real face in good lighting (no photos or screens).",
+            )
+
         if not match_result["match"]:
             ch["status"] = "mismatch"
             ch["responded_at_ms"] = now_ms
@@ -977,6 +1020,7 @@ async def trigger_challenge_now(
         {"kind": "selfie_challenge", "challenge_id": new_challenge["id"],
          "session_id": str(s["_id"]), "manual": "true", "for_name": emp_name,
          "respond_by_ms": str(new_challenge["respond_by_ms"])},
+        False, "selfie_ring", "selfie_alert.wav",
     )
     logger.info("manual_selfie_challenge admin=%s target_user=%s challenge=%s",
                 user.get("email"), user_id, new_challenge["id"])

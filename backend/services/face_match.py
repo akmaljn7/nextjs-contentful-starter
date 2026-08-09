@@ -78,3 +78,34 @@ def verify(baseline: list[float], challenge_photo_b64: str, threshold: float = 0
         return {"match": False, "similarity": 0.0, "reason": "no_face_detected"}
     sim = similarity(baseline, emb)
     return {"match": sim >= threshold, "similarity": sim}
+
+
+def analyze(baseline: list[float], photo_b64: str, threshold: float = 0.90) -> dict:
+    """One-pass selfie analysis: face-match + passive liveness (single face
+    detection). CPU-bound — call via asyncio.to_thread.
+
+    Returns:
+      {ok, match, similarity, live_prob (0..1 or None), reason?}
+    """
+    img = _load_image(photo_b64)
+    if img is None:
+        return {"ok": False, "match": False, "similarity": 0.0, "live_prob": None, "reason": "invalid_photo"}
+    try:
+        locations = face_recognition.face_locations(img, model="hog")
+    except Exception as e:
+        logger.error(f"face detection failed: {e}")
+        return {"ok": False, "match": False, "similarity": 0.0, "live_prob": None, "reason": "detect_error"}
+    if not locations:
+        return {"ok": True, "match": False, "similarity": 0.0, "live_prob": None, "reason": "no_face_detected"}
+    locations.sort(key=lambda box: (box[2] - box[0]) * (box[1] - box[3]), reverse=True)
+    loc = locations[0]
+    try:
+        encodings = face_recognition.face_encodings(img, known_face_locations=[loc], num_jitters=1)
+    except Exception as e:
+        logger.error(f"encoding failed: {e}")
+        encodings = []
+    sim = similarity(baseline, encodings[0].tolist()) if encodings else 0.0
+    from services.liveness import score_liveness
+    live_prob = score_liveness(img, loc)
+    return {"ok": True, "match": sim >= threshold, "similarity": sim,
+            "live_prob": live_prob, "reason": None if encodings else "no_encoding"}
