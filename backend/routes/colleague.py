@@ -15,7 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 
 from db import get_db
 from deps import get_current_user, client_ip
-from models import ColleagueCheckin, ColleagueSelfie, ColleagueGapReason
+from models import ColleagueCheckin, ColleagueSelfie, ColleagueGapReason, ColleagueCheckout
 from services.geo import haversine_meters
 from services.photos import save_session_photo
 from services.audit import log_security_event
@@ -237,3 +237,51 @@ async def colleague_gap_reason(payload: ColleagueGapReason, request: Request, us
     logger.info("gap_reason by=%s target=%s gap=%s selfie_match=%s",
                 user.get("email"), target.get("email"), gap["id"], selfie_match)
     return {"ok": True, "gap_id": gap["id"], "selfie_match": selfie_match, "similarity": similarity}
+
+
+@router.post("/checkout")
+async def colleague_checkout(payload: ColleagueCheckout, request: Request, user: dict = Depends(get_current_user)):
+    """End an absent colleague's active session from a lending device. A selfie
+    matching their enrolled baseline confirms it's really them ending the shift."""
+    from routes.sessions import _write_attendance_record, _broadcast_session
+    from services.face_match import verify as verify_face
+    db = get_db()
+    target = await _resolve_target(db, user["org_id"], payload.email_or_id)
+    if not target:
+        raise HTTPException(status_code=404, detail="Employee not found in your organization")
+    baseline = target.get("face_baseline")
+    if not baseline:
+        raise HTTPException(status_code=400, detail="This employee hasn't enrolled their face yet — proxy check-out is blocked")
+    target_id = str(target["_id"])
+    s = await db.active_sessions.find_one({"user_id": target_id, "org_id": user["org_id"]})
+    if not s:
+        raise HTTPException(status_code=404, detail=f"{target['name']} has no active session to check out from")
+
+    now_ms = _now_ms()
+    result = verify_face(baseline, payload.face_photo)
+    await save_session_photo(f"{s['_id']}::checkout", user["org_id"], target_id, payload.face_photo)
+    if not result["match"]:
+        await db.active_sessions.update_one({"_id": s["_id"]}, {"$set": {"flagged": True}})
+        await log_security_event(
+            "face_mismatch", "high", client_ip(request),
+            {"context": "proxy_checkout", "session_id": str(s["_id"]), "proxy_by": user.get("email"),
+             "similarity": result["similarity"], "reason": result.get("reason")},
+            org_id=user["org_id"], user_id=target_id,
+        )
+        raise HTTPException(
+            status_code=403,
+            detail=f"Face does not match {target['name']}'s enrolled photo (similarity {result['similarity']:.2f}).",
+        )
+
+    s.setdefault("log", []).append({
+        "event": "proxy_checkout", "ts_ms": now_ms, "by": user.get("email"),
+        "similarity": result["similarity"],
+    })
+    await _write_attendance_record(db, s, "checkout", now_ms)
+    await db.active_sessions.delete_one({"_id": s["_id"]})
+    await _broadcast_session(db, s, ended=True, outcome="checkout")
+    inside_min = round(s.get("total_inside_ms", 0) / 60000, 1)
+    logger.info("proxy_checkout by=%s target=%s session=%s inside_min=%.1f",
+                user.get("email"), target.get("email"), s["_id"], inside_min)
+    return {"ok": True, "target_name": target.get("name"), "inside_minutes": inside_min,
+            "similarity": result["similarity"]}

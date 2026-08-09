@@ -23,6 +23,11 @@ Multi-tenant enterprise geofenced attendance platform. Organizations sign up, ad
 - PWA installable
 
 ## Implemented (2026-02 → 2026-08)
+### Proxy check-OUT + loud selfie alarm (June 2026)
+- **Proxy check-out (#1)**: new `POST /api/colleague/checkout` (`ColleagueCheckout` model) ends an absent colleague's active session from a lending phone — requires a selfie matching their baseline (mismatch → 403 + `face_mismatch` security event), writes the attendance record, deletes the session, broadcasts ended, returns time-on-shift. New "Check out" tab in `MyColleagueScreen` (email → selfie → done). Guard paths verified via curl (400 no-baseline, 404 no-session).
+- **Loud selfie alarm (#2)**: backgrounded pushes already ring via the MAX-importance "attendance" channel (sound + vibration). Added an in-app alarm for when the employee is working inside the app (data-poll opens the modal with no OS sound): `services/alarm.ts` loops a loud tone (`assets/selfie_alert.wav`, via `expo-av`) + a repeating vibration, wired into `ChallengeModal` (starts on open, stops on capture/dismiss/expiry).
+- **Verified**: backend curl (checkout guards), mobile `yarn typecheck` clean, Android bundle builds (1382 modules incl. `expo-av` + alarm asset). ⚠️ Audio/vibration/camera + checkout need real-APK confirmation.
+
 ### "My Colleague" proxy + selfie fixes — 7-issue batch (June 2026)
 - **#1 Double check-in blocked**: `POST /api/colleague/checkin` now returns 409 "already checked in" (or "paused") if the target already has a session, so the app shows the message instead of opening the camera. Proxy check-in always creates a fresh, labelled session.
 - **#2 On-shift (no change needed)**: confirmed both proxy and automatic check-in already deny off-shift for weekly-schedule employees via `_compute_schedule_duration_ms`; "any"/"fixed-hours" employees stay free anytime (per user's intent).

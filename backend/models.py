@@ -334,6 +334,14 @@ class ColleagueGapReason(BaseModel):
     gap_id: Optional[str] = Field(default=None, max_length=64)
 
 
+class ColleagueCheckout(BaseModel):
+    """Proxy check-OUT for an absent employee via a colleague's phone —
+    ends their active session once their shift is done. A selfie matching
+    the employee's baseline confirms it's really them ending the shift."""
+    email_or_id: str = Field(min_length=1, max_length=200)
+    face_photo: str = Field(min_length=100, max_length=6_000_000)
+
+
 class MobileDeviceBind(BaseModel):
     """Device-binding check on login — ties an employee to one phone."""
     device_id: str = Field(min_length=8, max_length=128)

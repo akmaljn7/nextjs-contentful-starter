@@ -21,8 +21,8 @@ import { colleague } from "@/api/colleague";
 import { apiError } from "@/api/client";
 import { colors } from "@/theme";
 
-type Mode = "checkin" | "gap";
-type Step = "form" | "camera" | "gap-selfie" | "gap-evidence-choice" | "gap-evidence-camera";
+type Mode = "checkin" | "checkout" | "gap";
+type Step = "form" | "camera" | "checkout-selfie" | "gap-selfie" | "gap-evidence-choice" | "gap-evidence-camera";
 
 export default function MyColleagueScreen() {
   const [mode, setMode] = useState<Mode>("checkin");
@@ -113,6 +113,21 @@ export default function MyColleagueScreen() {
     setStep("gap-evidence-choice");
   }, []);
 
+  // ---- Proxy check-OUT flow ---- (selfie confirms the real person is ending their shift)
+  const submitCheckout = useCallback(async (selfie: string) => {
+    if (!emailOrId.trim()) return Alert.alert("Missing", "Enter the employee's email or ID.");
+    setBusy(true);
+    try {
+      const res = await colleague.checkout({ email_or_id: emailOrId.trim(), face_photo: selfie });
+      Alert.alert("✅ Checked out", `${res.target_name} is checked out. Time on shift: ${res.inside_minutes} min.`);
+      reset();
+    } catch (e) {
+      Alert.alert("Couldn't check out", apiError(e));
+    } finally {
+      setBusy(false);
+    }
+  }, [emailOrId]);
+
   return (
     <Screen>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
@@ -125,16 +140,24 @@ export default function MyColleagueScreen() {
             onPress={() => { setMode("checkin"); setStep("form"); }}
             style={[styles.tab, mode === "checkin" && styles.tabActive]}
           >
-            <Ionicons name="log-in" size={16} color={mode === "checkin" ? "#000" : colors.textDim} />
-            <Text style={[styles.tabText, mode === "checkin" && styles.tabTextActive]}>Check me in</Text>
+            <Ionicons name="log-in" size={15} color={mode === "checkin" ? "#000" : colors.textDim} />
+            <Text style={[styles.tabText, mode === "checkin" && styles.tabTextActive]}>Check in</Text>
+          </Pressable>
+          <Pressable
+            testID="colleague-tab-checkout"
+            onPress={() => { setMode("checkout"); setStep("form"); }}
+            style={[styles.tab, mode === "checkout" && styles.tabActive]}
+          >
+            <Ionicons name="log-out" size={15} color={mode === "checkout" ? "#000" : colors.textDim} />
+            <Text style={[styles.tabText, mode === "checkout" && styles.tabTextActive]}>Check out</Text>
           </Pressable>
           <Pressable
             testID="colleague-tab-gap"
             onPress={() => { setMode("gap"); setStep("form"); }}
             style={[styles.tab, mode === "gap" && styles.tabActive]}
           >
-            <Ionicons name="alert-circle" size={16} color={mode === "gap" ? "#000" : colors.textDim} />
-            <Text style={[styles.tabText, mode === "gap" && styles.tabTextActive]}>Phone-off reason</Text>
+            <Ionicons name="alert-circle" size={15} color={mode === "gap" ? "#000" : colors.textDim} />
+            <Text style={[styles.tabText, mode === "gap" && styles.tabTextActive]}>Phone-off</Text>
           </Pressable>
         </View>
 
@@ -149,22 +172,42 @@ export default function MyColleagueScreen() {
               value={emailOrId}
               onChangeText={setEmailOrId}
             />
-            <Input
-              label={mode === "checkin" ? "Reason (optional)" : "Reason for phone being off"}
-              testID="colleague-reason"
-              placeholder={mode === "checkin" ? "e.g. phone battery dead" : "e.g. phone crashed and switched off"}
-              value={reason}
-              onChangeText={setReason}
-              multiline
-            />
-            {mode === "checkin" ? (
+            {mode !== "checkout" && (
+              <Input
+                label={mode === "checkin" ? "Reason (optional)" : "Reason for phone being off"}
+                testID="colleague-reason"
+                placeholder={mode === "checkin" ? "e.g. phone battery dead" : "e.g. phone crashed and switched off"}
+                value={reason}
+                onChangeText={setReason}
+                multiline
+              />
+            )}
+            {mode === "checkin" && (
               <Button
                 testID="colleague-checkin-btn"
                 label="Check in & take selfie"
                 loading={busy}
                 onPress={startCheckin}
               />
-            ) : (
+            )}
+            {mode === "checkout" && (
+              <>
+                <Text style={styles.sub}>
+                  Ends your colleague's shift. They must take a selfie to confirm it's really them.
+                </Text>
+                <Button
+                  testID="colleague-checkout-btn"
+                  label="Check out & take selfie"
+                  disabled={busy}
+                  onPress={() => {
+                    if (!emailOrId.trim())
+                      return Alert.alert("Missing", "Enter the employee's email or ID first.");
+                    setStep("checkout-selfie");
+                  }}
+                />
+              </>
+            )}
+            {mode === "gap" && (
               <Button
                 testID="colleague-gap-photo-btn"
                 label="Take selfie & submit reason"
@@ -190,6 +233,21 @@ export default function MyColleagueScreen() {
               testID="colleague-selfie-capture"
             />
             <Button label="Cancel" variant="ghost" onPress={reset} testID="colleague-cancel-btn" />
+          </View>
+        )}
+
+        {step === "checkout-selfie" && (
+          <View style={{ gap: 12 }}>
+            <Text style={styles.camTitle}>Take {emailOrId.trim()}'s selfie to check out</Text>
+            <CameraCapture
+              onCapture={submitCheckout}
+              busy={busy}
+              facing="front"
+              hint="The colleague must face the camera — it's matched to their enrolled photo before ending the shift."
+              captureLabel="Capture selfie & check out"
+              testID="colleague-checkout-capture"
+            />
+            <Button label="Cancel" variant="ghost" onPress={reset} testID="colleague-checkout-cancel-btn" />
           </View>
         )}
 

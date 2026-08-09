@@ -20,6 +20,7 @@ import { Ionicons } from "@expo/vector-icons";
 
 import { useChallenge } from "@/context/ChallengeContext";
 import { api, apiError } from "@/api/client";
+import { startAlarm, stopAlarm } from "@/services/alarm";
 import { colors } from "@/theme";
 
 export function ChallengeModal() {
@@ -28,6 +29,15 @@ export function ChallengeModal() {
   const camRef = useRef<CameraView | null>(null);
   const [busy, setBusy] = useState(false);
   const [countdownMs, setCountdownMs] = useState<number>(0);
+
+  // Loud alarm (looping tone + repeating vibration) while a challenge is open,
+  // so a busy employee notices even with the phone in hand. Stops on any exit.
+  useEffect(() => {
+    if (active) {
+      startAlarm();
+      return () => { stopAlarm(); };
+    }
+  }, [active?.id]);
 
   // Countdown ticker
   useEffect(() => {
@@ -51,6 +61,7 @@ export function ChallengeModal() {
 
   const capture = useCallback(async () => {
     if (!camRef.current || busy || !active) return;
+    stopAlarm();
     setBusy(true);
     try {
       // Downscale + compress before upload — a full-res base64 JPEG exceeds the
