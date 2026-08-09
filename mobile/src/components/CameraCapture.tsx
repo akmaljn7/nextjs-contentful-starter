@@ -6,6 +6,7 @@
 import React, { useCallback, useRef, useState } from "react";
 import { View, Text, StyleSheet, Pressable, ActivityIndicator } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
+import * as ImageManipulator from "expo-image-manipulator";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "@/theme";
 
@@ -30,8 +31,19 @@ export function CameraCapture({ onCapture, busy, hint, captureLabel = "Capture",
     if (!camRef.current || capturing || busy) return;
     setCapturing(true);
     try {
-      const photo = await camRef.current.takePictureAsync({ base64: true, quality: 0.6, skipProcessing: true });
-      await onCapture(`data:image/jpeg;base64,${photo?.base64}`);
+      // Capture at full res WITHOUT base64, then downscale+compress so the
+      // upload payload stays small (a raw full-res base64 JPEG easily exceeds
+      // the ingress body limit → 413/422 "error"). 512px wide is plenty for
+      // face detection/matching and keeps the base64 well under ~80 KB.
+      const photo = await camRef.current.takePictureAsync({ quality: 1, skipProcessing: true });
+      if (!photo?.uri) throw new Error("capture_failed");
+      const manip = await ImageManipulator.manipulateAsync(
+        photo.uri,
+        [{ resize: { width: 512 } }],
+        { compress: 0.6, format: ImageManipulator.SaveFormat.JPEG, base64: true },
+      );
+      if (!manip.base64) throw new Error("encode_failed");
+      await onCapture(`data:image/jpeg;base64,${manip.base64}`);
     } finally {
       setCapturing(false);
     }
