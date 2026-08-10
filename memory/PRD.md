@@ -23,6 +23,12 @@ Multi-tenant enterprise geofenced attendance platform. Organizations sign up, ad
 - PWA installable
 
 ## Implemented (2026-02 → 2026-08)
+### Selfie mismatch 5-retry limit — FIXED (June 2026)
+- **Bug**: a single mismatched selfie permanently locked the challenge ("Challenge is already mismatch"). Root cause: `respond_challenge` set `ch["status"]="mismatch"` on the first failure; the `MAX_SELFIE_ATTEMPTS=5` constant existed but the retry logic was never wired.
+- **Fix**: new `_register_selfie_failure()` helper in `routes/sessions.py` — increments `ch["attempts"]`, keeps `status="pending"` (challenge stays OPEN, employee can retake) until the 5th failure, then flips to `status="missed"`, flags the session, and logs a high-severity security event. Applies to both face-mismatch and liveness branches. Non-terminal failures return 403 "Attempt X of 5 — N left"; the 5-min response window still overrides (expiry → "expired" regardless of attempts). Per-attempt security events: `medium` for retries, `high` for the terminal failure.
+- **Verified**: testing agent iteration_27 — 6/6 new tests (`test_selfie_retry_iter27.py`) enroll a real baseline and drive mismatch/match/window-expiry flows; obsolete assertion in `test_face_match.py::test_challenge_mismatch_flags_and_logs` updated to new semantics. Full run: 17/17 pass.
+
+
 ### WhatsApp-style full-screen incoming selfie (Android) (June 2026)
 - **Goal**: a selfie request should wake a sleeping/locked phone and show a full-screen "Selfie for {name}" page OVER the lock screen, ringing, with a single "OPEN CAMERA" button (no accept/decline) — exactly like a WhatsApp incoming call. Android-only (iOS keeps the loud high-priority alert).
 - **How**: new Expo config plugin `plugins/withSelfieFullScreen.js` injects native Android — `SelfieMessagingService.kt` (extends `ExpoFirebaseMessagingService`; on a `kind=selfie_challenge, full_screen=true` push it builds a `CATEGORY_CALL` notification with `setFullScreenIntent(...)`, delegates all other pushes to Expo) and `IncomingSelfieActivity.kt` (`showWhenLocked`+`turnScreenOn`, loud looping `res/raw/selfie_alert` + vibration, "OPEN CAMERA" deep-links `geofenceattendance://selfie`). Manifest: adds `USE_FULL_SCREEN_INTENT`, removes Expo's FCM service (so ours receives), registers our service+activity. Plugin also copies the alarm tone into `res/raw`.

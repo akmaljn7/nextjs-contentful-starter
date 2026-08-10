@@ -259,13 +259,14 @@ class TestFaceMatch:
         assert rr.status_code == 403, rr.text
         assert rr.json()["detail"].startswith("Face does not match"), rr.json()
 
-        # session flagged + challenge status=mismatch
+        # A single mismatch now keeps the challenge OPEN for retry (up to 5)
+        # and does NOT flag the session — only the terminal 5th failure does.
         me = employee_sess.get(f"{API}/sessions/me").json()
-        assert me["flagged"] is True
+        assert me.get("flagged") is not True
         ch = next(c for c in me["challenges"] if c["id"] == ch_id)
-        assert ch["status"] == "mismatch"
+        assert ch["status"] == "pending"
 
-        # security event created
+        # security event created (non-terminal attempt => medium severity)
         async def _find():
             return await _mongo().security_events.find_one(
                 {"type": "face_mismatch", "session_id": sid}, sort=[("ts", -1)]
@@ -279,7 +280,7 @@ class TestFaceMatch:
                 )
             ev = asyncio.run(_find2())
         assert ev is not None, "expected a face_mismatch security event"
-        assert ev.get("severity") == "high"
+        assert ev.get("severity") == "medium"
 
     def test_challenge_no_baseline_backward_compat(self, employee_sess):
         # Ensure baseline not present
