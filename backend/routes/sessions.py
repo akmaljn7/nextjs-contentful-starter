@@ -565,27 +565,27 @@ async def respond_challenge(challenge_id: str, payload: ChallengeResponse, user:
         await db.active_sessions.update_one({"_id": s["_id"]}, {"$set": {"challenges": challenges, "flagged": True}})
         raise HTTPException(status_code=400, detail="Response window expired")
 
+    # Two-step liveness contract: when enforced we need BOTH the neutral selfie
+    # and the action frame. A missing frame is a client contract error (400) —
+    # it does NOT burn one of the 5 attempts. Checked before any photo I/O so an
+    # incomplete request short-circuits immediately.
+    baseline = user.get("face_baseline")
+    settings = await _get_org_settings(db, user["org_id"]) if baseline else {}
+    enforce_liveness = bool(baseline) and ACTIVE_LIVENESS_ENFORCE and settings.get("active_liveness", True)
+    if enforce_liveness and (not payload.liveness_frame or not payload.liveness_action):
+        raise HTTPException(
+            status_code=400,
+            detail="Liveness check required: submit your neutral selfie plus the requested blink/turn frame.",
+        )
+
     photo_key = f"{s['_id']}::{challenge_id}"
     ok = await save_session_photo(photo_key, user["org_id"], user["id"], payload.face_photo)
     if not ok:
         raise HTTPException(status_code=400, detail="Invalid photo")
 
     # Face match verification if the employee has enrolled a baseline
-    baseline = user.get("face_baseline")
     match_result = None
     if baseline:
-        settings = await _get_org_settings(db, user["org_id"])
-        enforce_liveness = ACTIVE_LIVENESS_ENFORCE and settings.get("active_liveness", True)
-
-        # Two-step liveness contract: when enforced we need BOTH the neutral
-        # selfie and the action frame. A missing frame is a client contract
-        # error (400) — it does NOT burn one of the 5 attempts.
-        if enforce_liveness and (not payload.liveness_frame or not payload.liveness_action):
-            raise HTTPException(
-                status_code=400,
-                detail="Liveness check required: submit your neutral selfie plus the requested blink/turn frame.",
-            )
-
         from services.face_match import analyze
         # Offload dlib + onnx (CPU-bound) to a thread so we don't block the
         # event loop — blocking here caused selfie requests to time out
