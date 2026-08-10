@@ -48,6 +48,12 @@ LIVENESS_ENFORCE = os.environ.get("LIVENESS_ENFORCE", "false").lower() == "true"
 # before it is terminally marked "missed" and the session flagged.
 MAX_SELFIE_ATTEMPTS = 5
 
+# Active liveness (2-frame blink / head-turn) master switch. Per-org override
+# lives in org settings (`active_liveness`, default True). Blocks presentation
+# attacks (printed photo / screen) that plain face-matching can't catch.
+ACTIVE_LIVENESS_ENFORCE = os.environ.get("ACTIVE_LIVENESS_ENFORCE", "true").lower() == "true"
+LIVENESS_ACTIONS = ["blink", "turn_left", "turn_right"]
+
 router = APIRouter(prefix="/api/sessions", tags=["sessions"])
 
 DAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
@@ -133,6 +139,12 @@ def _sanitize_session(s: dict) -> dict:
         (c for c in challenges if c.get("status") == "pending" and c.get("respond_by_ms", 0) > now_ms),
         None,
     )
+    # Surface an unmissable "missed selfie" signal for the admin roster.
+    # "ignored" = employee never answered in time (window expired);
+    # "failed"  = answered but failed the face/liveness check 5 times.
+    ignored = any(c.get("status") == "expired" for c in challenges)
+    failed = any(c.get("status") == "missed" for c in challenges)
+    missed_kind = "ignored" if ignored else ("failed" if failed else None)
     return {
         "id": str(s["_id"]),
         "user_id": s["user_id"],
@@ -150,6 +162,9 @@ def _sanitize_session(s: dict) -> dict:
         "log": s.get("log", [])[-100:],
         "flagged": s.get("flagged", False),
         "has_photo": bool(s.get("has_photo", False)),
+        "missed_selfie": bool(missed_kind),
+        "missed_selfie_kind": missed_kind,
+        "missed_selfie_count": sum(1 for c in challenges if c.get("status") in ("expired", "missed")),
         "auto_started": bool(s.get("auto_started", False)),
         "source": s.get("source"),
         "proxy_by": s.get("proxy_by"),
@@ -162,7 +177,8 @@ def _sanitize_session(s: dict) -> dict:
         ],
         "active_challenge": (
             {"id": active["id"], "respond_by_ms": active["respond_by_ms"],
-             "manual": bool(active.get("manual")), "for_name": s.get("employee_name")}
+             "manual": bool(active.get("manual")), "for_name": s.get("employee_name"),
+             "liveness_action": active.get("liveness_action")}
             if active else None
         ),
     }
@@ -200,7 +216,7 @@ def _plan_challenges(settings: dict, start_ms: int, duration_ms: int) -> list[di
     return [
         {"id": uuid.uuid4().hex[:12], "trigger_ms": t, "status": "planned",
          "prompted_at_ms": None, "respond_by_ms": None, "responded_at_ms": None,
-         "photo_saved": False}
+         "photo_saved": False, "liveness_action": random.choice(LIVENESS_ACTIONS)}
         for t in sorted(triggers)
     ]
 
@@ -255,6 +271,7 @@ async def _tick_challenge_lifecycle(db, session: dict, settings: dict, now_ms: i
     flagged = session.get("flagged", False)
     changed = False
     newly_prompted: list[dict] = []
+    newly_expired: list[dict] = []
     for ch in challenges:
         st = ch.get("status")
         if st == "planned" and ch.get("trigger_ms", 0) <= now_ms:
@@ -271,6 +288,7 @@ async def _tick_challenge_lifecycle(db, session: dict, settings: dict, now_ms: i
             log_entries.append({"event": "selfie_expired", "ts_ms": now_ms, "challenge_id": ch["id"]})
             logger.warning("selfie_expired session=%s challenge=%s", session.get("_id"), ch["id"])
             flagged = True
+            newly_expired.append(ch)
             changed = True
     if changed:
         await db.active_sessions.update_one(
@@ -280,6 +298,17 @@ async def _tick_challenge_lifecycle(db, session: dict, settings: dict, now_ms: i
         session["challenges"] = challenges
         session["log"] = log_entries[-500:]
         session["flagged"] = flagged
+        # An expired (ignored) selfie is a high-severity signal — the employee
+        # never answered the call. Surface it to admins via a security event.
+        for ch in newly_expired:
+            try:
+                await log_security_event(
+                    "selfie_missed", "high", "",
+                    {"challenge_id": ch["id"], "session_id": str(session["_id"]), "reason": "ignored"},
+                    org_id=session["org_id"], user_id=session["user_id"],
+                )
+            except Exception as e:
+                logger.error("selfie_missed_event_error err=%s", e)
         # Fire an FCM push per newly-prompted challenge so mobile users get
         # notified even if the app is backgrounded. No-op in dev when FCM
         # creds are missing (see services/push.py stub behaviour).
@@ -298,6 +327,7 @@ async def _tick_challenge_lifecycle(db, session: dict, settings: dict, now_ms: i
                         data={"kind": "selfie_challenge", "challenge_id": ch["id"],
                               "session_id": str(session["_id"]),
                               "for_name": emp_name,
+                              "liveness_action": ch.get("liveness_action") or "blink",
                               "respond_by_ms": str(ch["respond_by_ms"])},
                         channel_id="selfie_ring", sound="selfie_alert.wav", full_screen=True,
                     )
@@ -544,6 +574,18 @@ async def respond_challenge(challenge_id: str, payload: ChallengeResponse, user:
     baseline = user.get("face_baseline")
     match_result = None
     if baseline:
+        settings = await _get_org_settings(db, user["org_id"])
+        enforce_liveness = ACTIVE_LIVENESS_ENFORCE and settings.get("active_liveness", True)
+
+        # Two-step liveness contract: when enforced we need BOTH the neutral
+        # selfie and the action frame. A missing frame is a client contract
+        # error (400) — it does NOT burn one of the 5 attempts.
+        if enforce_liveness and (not payload.liveness_frame or not payload.liveness_action):
+            raise HTTPException(
+                status_code=400,
+                detail="Liveness check required: submit your neutral selfie plus the requested blink/turn frame.",
+            )
+
         from services.face_match import analyze
         # Offload dlib + onnx (CPU-bound) to a thread so we don't block the
         # event loop — blocking here caused selfie requests to time out
@@ -563,6 +605,7 @@ async def respond_challenge(challenge_id: str, payload: ChallengeResponse, user:
                 terminal_detail="Liveness check failed too many times. This selfie challenge is now marked missed and the session flagged.",
             )
 
+        # Identity match first — a wrong person is reported as a mismatch.
         if not match_result["match"]:
             await _register_selfie_failure(
                 db, s, ch, challenges, now_ms, user,
@@ -571,6 +614,25 @@ async def respond_challenge(challenge_id: str, payload: ChallengeResponse, user:
                 retry_detail=f"Face does not match your enrolled baseline (similarity {match_result['similarity']:.2f}).",
                 terminal_detail=f"Face did not match after {MAX_SELFIE_ATTEMPTS} attempts (last similarity {match_result['similarity']:.2f}). Challenge marked missed and session flagged.",
             )
+
+        # Active liveness (2-frame blink / head-turn) — defeats a printed photo
+        # or a static face on a screen, which can't blink or turn on demand.
+        if enforce_liveness:
+            from services.active_liveness import analyze_frames
+            live = await asyncio.to_thread(
+                analyze_frames, baseline, payload.face_photo,
+                payload.liveness_frame, payload.liveness_action,
+            )
+            if not live["passed"]:
+                action_label = {"blink": "blink", "turn_left": "turn your head left",
+                                "turn_right": "turn your head right"}.get(payload.liveness_action, "the action")
+                await _register_selfie_failure(
+                    db, s, ch, challenges, now_ms, user,
+                    event="active_liveness_failed", security_event="liveness_failed",
+                    extra={"live_reason": live.get("reason"), "action": payload.liveness_action},
+                    retry_detail=f"Liveness check failed — please {action_label} clearly with your real face (no photos or screens).",
+                    terminal_detail=f"Liveness check failed after {MAX_SELFIE_ATTEMPTS} attempts. Challenge marked missed and session flagged.",
+                )
 
     ch["status"] = "responded"
     ch["responded_at_ms"] = now_ms
@@ -588,7 +650,48 @@ async def respond_challenge(challenge_id: str, payload: ChallengeResponse, user:
     return _sanitize_session(new_s)
 
 
-@router.post("/start")
+@router.post("/challenge/{challenge_id}/timeout")
+async def timeout_challenge(challenge_id: str, user: dict = Depends(get_current_user)):
+    """Client-signalled auto-timeout: the full-screen selfie went unanswered.
+
+    Called by the mobile app when its local countdown reaches zero so the
+    challenge is finalized as MISSED immediately (rather than waiting for the
+    next server tick). Idempotent — a challenge that's already terminal is
+    returned as-is. Guards that the response window has genuinely elapsed so a
+    client can't prematurely burn its own challenge.
+    """
+    db = get_db()
+    s = await db.active_sessions.find_one({"user_id": user["id"], "org_id": user["org_id"]})
+    if not s:
+        raise HTTPException(status_code=404, detail="No active session")
+    now_ms = _now_ms()
+    challenges = list(s.get("challenges") or [])
+    ch = next((c for c in challenges if c.get("id") == challenge_id), None)
+    if not ch:
+        raise HTTPException(status_code=404, detail="Challenge not found")
+    if ch.get("status") != "pending":
+        new_s = await db.active_sessions.find_one({"_id": s["_id"]})
+        return _sanitize_session(new_s)
+    # Small grace so a client whose clock is a hair early doesn't 400.
+    if ch.get("respond_by_ms", 0) > now_ms + 2000:
+        raise HTTPException(status_code=400, detail="Response window has not expired yet")
+    ch["status"] = "expired"
+    ch["responded_at_ms"] = now_ms
+    log_entries = list(s.get("log", []))
+    log_entries.append({"event": "selfie_expired", "ts_ms": now_ms, "challenge_id": challenge_id, "reason": "timeout"})
+    await db.active_sessions.update_one(
+        {"_id": s["_id"]},
+        {"$set": {"challenges": challenges, "log": log_entries[-500:], "flagged": True}},
+    )
+    await log_security_event(
+        "selfie_missed", "high", "",
+        {"challenge_id": challenge_id, "session_id": str(s["_id"]), "reason": "ignored"},
+        org_id=user["org_id"], user_id=user["id"],
+    )
+    logger.warning("selfie_timeout session=%s challenge=%s user=%s", s["_id"], challenge_id, user["id"])
+    new_s = await db.active_sessions.find_one({"_id": s["_id"]})
+    await _broadcast_session(db, new_s)
+    return _sanitize_session(new_s)
 async def start_session(payload: SessionStart, request: Request, user: dict = Depends(get_current_user)):
     if user["role"] != "employee":
         raise HTTPException(status_code=403, detail="Only employees can start sessions")
@@ -1015,6 +1118,7 @@ async def trigger_challenge_now(
         "responded_at_ms": None,
         "photo_saved": False,
         "manual": True,
+        "liveness_action": random.choice(LIVENESS_ACTIONS),
     }
     challenges.append(new_challenge)
     log_entries = list(s.get("log", []))
@@ -1038,6 +1142,7 @@ async def trigger_challenge_now(
         f"This selfie is for {emp_name}. Your admin requested it — you have {resp_window_min} min.",
         {"kind": "selfie_challenge", "challenge_id": new_challenge["id"],
          "session_id": str(s["_id"]), "manual": "true", "for_name": emp_name,
+         "liveness_action": new_challenge.get("liveness_action") or "blink",
          "respond_by_ms": str(new_challenge["respond_by_ms"])},
         False, "selfie_ring", "selfie_alert.wav", True,
     )

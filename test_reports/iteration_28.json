@@ -1,0 +1,31 @@
+{
+  "summary": "Iteration 28 — verified the three new features (active liveness, auto-timeout, missed-selfie flag) end-to-end against the deployed backend, plus regressed iter27 selfie retry and the face_match suite. New pytest module tests/test_active_liveness_iter28.py has 11 HTTP-level tests + 1 direct analyze_frames sanity test — all pass. Existing tests/test_active_liveness_unit.py (10) also pass. Regression: tests/test_selfie_retry_iter27.py (6) + tests/test_face_match.py (11) all pass. UI: admin dashboard live roster correctly renders the red 'IGNORED SELFIE CALL' badge with data-testid live-missed-selfie-{sid} after driving the auto-timeout flow.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": { "ui_bugs": [], "integration_issues": [], "design_issues": [] },
+  "test_report_links": [
+    "/app/backend/tests/test_active_liveness_iter28.py",
+    "/app/backend/tests/test_active_liveness_unit.py",
+    "/app/backend/tests/test_selfie_retry_iter27.py",
+    "/app/backend/tests/test_face_match.py",
+    "/app/test_reports/pytest/iter28.xml",
+    "/app/test_reports/pytest/iter28_regression.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "routes/sessions.py — respond_challenge order is match-first, then active-liveness. This is a deliberate contract (user note confirms). Consider documenting that a mismatched liveness_frame won't be checked for liveness because the mismatch on the primary photo short-circuits — otherwise fine.",
+    "The 400 'Liveness check required' is raised BEFORE save_session_photo is called (good — no I/O), but AFTER save_session_photo runs earlier in the same handler. Actually: save_session_photo runs at line 569 BEFORE the liveness contract check at 583, so a client that omits liveness fields still pays the photo-store cost. Minor perf nit — consider moving the contract check above save_session_photo so an incomplete request short-circuits immediately.",
+    "_register_selfie_failure stores photo_saved=True on every failure attempt but the neutral/liveness frames aren't stored, only face_photo. If a security auditor wants to inspect what a failing user submitted (the liveness_frame), it's not persisted. Consider storing the liveness_frame too under a distinct key when a failure is recorded.",
+    "MAX_SELFIE_ATTEMPTS is still hard-coded — same feedback from iter27 stands: promote to an org setting.",
+    "timeout_challenge sets flagged=True unconditionally when a challenge expires, but the tick already sets flagged=True. Idempotency test passes, but if the challenge is already terminal via tick and the mobile then calls timeout, the redundant $set is fine — just noting the double-flag write for future refactors."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_active_liveness_iter28.py"
+  ],
+  "success_rate": { "backend": "100% (38/38 across iter28 + unit + iter27 regression + face_match)", "frontend": "100% (missed-selfie badge visible with correct data-testid)" },
+  "test_credentials": "Owner akmaljn7@gmail.com / GeofenceAdmin123!; Employee employee@example.com / Employee123!. Face baseline is enrolled/reset per test via /api/face/enroll and DELETE /api/face/reset/{emp_id}.",
+  "seed_data_creation": "Per-module TEST_ prefixed office (deleted on teardown). No permanent seed. Employee sessions and baselines are reset in the autouse fixture. All test data cleaned up.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Run with `pytest backend/tests/test_active_liveness_iter28.py -o addopts=''` — xdist parallel workers race the shared employee account, and pytest.ini has addopts=-n auto which must be disabled. The iter28 tests set active_liveness=true in autouse; iter27 and face_match set it to false. Photos: Obama/Biden JPEGs cached at /tmp/_test_{obama,biden}.jpg. The same-neutral-image blink trick (send face_photo == liveness_frame with action='blink') is the deterministic liveness-fail driver — no real blink pair needed. If a real eyes-open/eyes-closed pair of the same identity becomes available, add a happy-path HTTP test — for now the direct analyze_frames path was verified and the negative HTTP path is fully covered.",
+  "rca of the issue": "N/A — features implemented correctly. Auto-timeout endpoint, missed-selfie sanitized fields (missed_selfie/missed_selfie_kind/missed_selfie_count), liveness_action on active_challenge, and the 2-frame contract (400 without attempt increment) all behave per spec. Server tick also correctly logs 'selfie_missed' high-severity security_event on window expiry."
+}

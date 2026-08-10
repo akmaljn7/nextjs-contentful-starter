@@ -16,6 +16,7 @@ interface ChallengeInfo {
   session_id?: string;
   manual?: boolean;
   for_name?: string;
+  liveness_action?: string;
 }
 
 interface ChallengeState {
@@ -80,7 +81,8 @@ export function ChallengeProvider({ children }: { children: React.ReactNode }) {
     registerForPushAsync().catch(() => undefined);
     const unsub = subscribeChallenges((c) => {
       open({ id: c.challenge_id, respond_by_ms: c.respond_by_ms,
-              session_id: c.session_id, manual: c.manual, for_name: c.for_name });
+              session_id: c.session_id, manual: c.manual, for_name: c.for_name,
+              liveness_action: c.liveness_action });
     });
     return unsub;
   }, [isEmployee, open]);
@@ -104,6 +106,7 @@ export function ChallengeProvider({ children }: { children: React.ReactNode }) {
       respond_by_ms: activeChallenge.respond_by_ms,
       manual: !!activeChallenge.manual,
       for_name: activeChallenge.for_name,
+      liveness_action: activeChallenge.liveness_action,
     });
   }, [activeChallenge?.id, activeChallenge?.status, activeChallenge?.respond_by_ms, open]);
 

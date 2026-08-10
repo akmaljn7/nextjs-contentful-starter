@@ -187,6 +187,7 @@ class OrgSettingsUpdate(BaseModel):
     selfie_mode: Optional[Literal["random", "fixed"]] = None
     selfie_fixed_times: Optional[List[str]] = None
     auto_start_on_entry: Optional[bool] = None
+    active_liveness: Optional[bool] = None
 
 
 class SessionAutoStart(BaseModel):
@@ -198,6 +199,11 @@ class SessionAutoStart(BaseModel):
 
 class ChallengeResponse(BaseModel):
     face_photo: str = Field(min_length=100, max_length=6_000_000)
+    # Active-liveness second frame + which action the user was asked to perform.
+    # Required when the org has active liveness enabled (default) and the user
+    # has an enrolled face baseline.
+    liveness_frame: Optional[str] = Field(default=None, max_length=6_000_000)
+    liveness_action: Optional[Literal["blink", "turn_left", "turn_right"]] = None
 
 
 # ---------- Mobile app models (Phase 0) ----------

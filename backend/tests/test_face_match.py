@@ -146,6 +146,7 @@ def _reset(owner_sess, employee_sess, emp_ids):
         "selfie_mode": "random",
         "selfie_fixed_times": [],
         "accuracy_tolerance_meters": 50,
+        "active_liveness": False,
     })
     owner_sess.patch(f"{API}/employees/{emp_ids['emp_id']}", json={"schedule": {"mode": "any"}})
     yield

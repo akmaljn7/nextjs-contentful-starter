@@ -114,6 +114,8 @@ import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.view.Gravity
@@ -125,6 +127,7 @@ import android.widget.TextView
 class IncomingSelfieActivity : Activity() {
     private var player: MediaPlayer? = null
     private var vibrator: Vibrator? = null
+    private val autoDismiss = Handler(Looper.getMainLooper())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -182,6 +185,24 @@ class IncomingSelfieActivity : Activity() {
 
         setContentView(root)
         startRinging()
+        scheduleAutoDismiss()
+    }
+
+    // WhatsApp-style calls stop ringing on their own — likewise, if the selfie
+    // response window elapses with no answer, auto-dismiss this screen and stop
+    // the alarm. The server independently marks the challenge MISSED.
+    private fun scheduleAutoDismiss() {
+        val respondBy = intent.getStringExtra("respond_by_ms")?.toLongOrNull() ?: 0L
+        val now = System.currentTimeMillis()
+        // Fall back to a 5-min ring if no valid deadline was supplied.
+        val delay = if (respondBy > now) (respondBy - now) else 5 * 60 * 1000L
+        autoDismiss.postDelayed({
+            stopRinging()
+            try {
+                (getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager)?.cancel(SELFIE_NOTIF_ID)
+            } catch (_: Exception) {}
+            finish()
+        }, delay.coerceAtMost(10 * 60 * 1000L))
     }
 
     private fun startRinging() {
@@ -236,6 +257,7 @@ class IncomingSelfieActivity : Activity() {
     }
 
     override fun onDestroy() {
+        autoDismiss.removeCallbacksAndMessages(null)
         stopRinging()
         super.onDestroy()
     }
@@ -296,6 +318,7 @@ class SelfieMessagingService : ExpoFirebaseMessagingService() {
         val fsIntent = Intent(this, IncomingSelfieActivity::class.java)
         fsIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
         fsIntent.putExtra("for_name", forName)
+        fsIntent.putExtra("respond_by_ms", data["respond_by_ms"] ?: "")
         val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         val fsPending = PendingIntent.getActivity(this, 0, fsIntent, flags)
 

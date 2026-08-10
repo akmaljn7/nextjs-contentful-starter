@@ -32,6 +32,18 @@ export function ChallengeModal() {
   const [countdownMs, setCountdownMs] = useState<number>(0);
   // Two-phase: first an "incoming" ring screen (alarm loud), then the camera.
   const [cameraOpen, setCameraOpen] = useState(false);
+  // Active-liveness 2-step capture: "neutral" (eyes open, facing straight)
+  // then "action" (blink / turn as prompted).
+  const [step, setStep] = useState<"neutral" | "action">("neutral");
+  const neutralRef = useRef<string | null>(null);
+  const [missed, setMissed] = useState(false);
+  const timeoutFiredRef = useRef(false);
+
+  const livenessAction = active?.liveness_action || "blink";
+  const actionLabel =
+    livenessAction === "turn_left" ? "Turn your head to the LEFT"
+    : livenessAction === "turn_right" ? "Turn your head to the RIGHT"
+    : "Slowly BLINK (close your eyes)";
 
   // Reset to the ring phase whenever a new challenge arrives — UNLESS we were
   // launched straight from the native full-screen "OPEN CAMERA" button, in
@@ -45,6 +57,14 @@ export function ChallengeModal() {
       setCameraOpen(false);
     }
   }, [active?.id, cameraRequested]);
+
+  // Reset the 2-step capture state whenever a new challenge arrives.
+  useEffect(() => {
+    setStep("neutral");
+    neutralRef.current = null;
+    setMissed(false);
+    timeoutFiredRef.current = false;
+  }, [active?.id]);
 
   // Loud alarm (looping tone + repeating vibration) rings from the moment the
   // request appears until the user opens the camera — so a busy/sleeping user
@@ -63,13 +83,23 @@ export function ChallengeModal() {
     setCameraOpen(true);
   }, [perm, requestPerm]);
 
-  // Countdown ticker
+  // Countdown ticker — on expiry, tell the server the selfie was ignored so
+  // it's marked MISSED immediately (don't wait for the next server tick), then
+  // show a brief "missed" screen and auto-dismiss.
   useEffect(() => {
     if (!active) return;
+    const onExpire = async () => {
+      if (timeoutFiredRef.current) return;
+      timeoutFiredRef.current = true;
+      stopAlarm();
+      setMissed(true);
+      try { await api.post(`/sessions/challenge/${active.id}/timeout`); } catch { /* server tick will still expire it */ }
+      setTimeout(() => dismiss(), 2500);
+    };
     const tick = () => {
       const remaining = Math.max(0, active.respond_by_ms - Date.now());
       setCountdownMs(remaining);
-      if (remaining <= 0) dismiss();
+      if (remaining <= 0) onExpire();
     };
     tick();
     const t = setInterval(tick, 1000);
@@ -78,32 +108,52 @@ export function ChallengeModal() {
 
   // Camera permission is requested when the user taps "Open camera" (openCamera).
 
+  const takeCompressed = useCallback(async (): Promise<string> => {
+    if (!camRef.current) throw new Error("camera_not_ready");
+    const photo = await camRef.current.takePictureAsync({ quality: 1, skipProcessing: true });
+    if (!photo?.uri) throw new Error("capture_failed");
+    const manip = await ImageManipulator.manipulateAsync(
+      photo.uri,
+      [{ resize: { width: 512 } }],
+      { compress: 0.6, format: ImageManipulator.SaveFormat.JPEG, base64: true },
+    );
+    if (!manip.base64) throw new Error("encode_failed");
+    return `data:image/jpeg;base64,${manip.base64}`;
+  }, []);
+
   const capture = useCallback(async () => {
     if (!camRef.current || busy || !active) return;
-    stopAlarm();
     setBusy(true);
     try {
-      // Downscale + compress before upload — a full-res base64 JPEG exceeds the
-      // ingress body limit and fails with a "network error". 512px is plenty
-      // for face matching and keeps the payload ~40-80 KB.
-      const photo = await camRef.current.takePictureAsync({ quality: 1, skipProcessing: true });
-      if (!photo?.uri) throw new Error("capture_failed");
-      const manip = await ImageManipulator.manipulateAsync(
-        photo.uri,
-        [{ resize: { width: 512 } }],
-        { compress: 0.6, format: ImageManipulator.SaveFormat.JPEG, base64: true },
-      );
-      if (!manip.base64) throw new Error("encode_failed");
-      const dataUrl = `data:image/jpeg;base64,${manip.base64}`;
-      await api.post(`/sessions/challenge/${active.id}/respond`, { face_photo: dataUrl });
+      // Step 1 — neutral frame (eyes open, facing straight). Store and advance
+      // to the action step; the alarm keeps quiet from here.
+      if (step === "neutral") {
+        stopAlarm();
+        neutralRef.current = await takeCompressed();
+        setStep("action");
+        setBusy(false);
+        return;
+      }
+      // Step 2 — action frame (blink / turn). Upload both frames for the
+      // server-side active-liveness + face-match check.
+      const actionFrame = await takeCompressed();
+      await api.post(`/sessions/challenge/${active.id}/respond`, {
+        face_photo: neutralRef.current,
+        liveness_frame: actionFrame,
+        liveness_action: livenessAction,
+      });
       markResponded();
       Alert.alert("✅ Confirmed", "Selfie check-in accepted.");
     } catch (e) {
+      // A failed match/liveness attempt returns 403 — let the user retake from
+      // the neutral step (the server keeps the challenge open up to 5 tries).
+      neutralRef.current = null;
+      setStep("neutral");
       Alert.alert("Couldn't verify", apiError(e));
     } finally {
       setBusy(false);
     }
-  }, [busy, active, markResponded]);
+  }, [busy, active, step, takeCompressed, livenessAction, markResponded]);
 
   if (!active) return null;
 
@@ -119,7 +169,19 @@ export function ChallengeModal() {
       statusBarTranslucent
     >
       <View style={styles.container}>
-        {!cameraOpen ? (
+        {missed ? (
+          // Auto-timeout — selfie went unanswered; reported to admin.
+          <View style={styles.ringScreen} testID="challenge-missed">
+            <View style={[styles.ringPulse, { backgroundColor: colors.red }]}>
+              <Ionicons name="close" size={54} color="#fff" />
+            </View>
+            <Text style={styles.ringBadge}>SELFIE MISSED</Text>
+            <Text style={styles.ringTitle}>Time's up</Text>
+            <Text style={styles.ringHint}>
+              You didn't complete the selfie in time. This has been reported to your admin.
+            </Text>
+          </View>
+        ) : !cameraOpen ? (
           // Phase 1 — incoming selfie request (alarm ringing)
           <View style={styles.ringScreen}>
             <View style={styles.ringPulse}>
@@ -168,10 +230,13 @@ export function ChallengeModal() {
                 <Text style={styles.forName}>This selfie is for {active.for_name}</Text>
               ) : null}
               <Text style={[styles.countdown, dangerZone && { color: colors.red }]}>{mm}:{ss}</Text>
+              <View style={styles.stepChip}>
+                <Text style={styles.stepChipText}>STEP {step === "neutral" ? "1" : "2"} OF 2 · LIVENESS</Text>
+              </View>
               <Text style={styles.hint}>
-                {active.for_name
-                  ? `${active.for_name} must face the camera. This confirms they're at the office.`
-                  : "Face the camera. This confirms you're at the office."}
+                {step === "neutral"
+                  ? "Look straight at the camera with your eyes open, then capture."
+                  : `Now ${actionLabel.toLowerCase()} while facing the camera, then capture.`}
               </Text>
             </View>
 
@@ -184,7 +249,9 @@ export function ChallengeModal() {
               >
                 {busy ? <ActivityIndicator color="#000" /> : <View style={styles.shutterInner} />}
               </Pressable>
-              <Text style={styles.shutterHint}>{busy ? "Verifying…" : "Tap to capture"}</Text>
+              <Text style={styles.shutterHint}>
+                {busy ? "Verifying…" : step === "neutral" ? "Capture · look straight" : `Capture · ${actionLabel}`}
+              </Text>
             </View>
           </>
         )}
@@ -222,6 +289,10 @@ const styles = StyleSheet.create({
     fontVariant: ["tabular-nums"], letterSpacing: 2,
   },
   hint: { color: colors.textDim, fontSize: 13, textAlign: "center", marginTop: 4 },
+  stepChip: {
+    marginTop: 6, backgroundColor: colors.green, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999,
+  },
+  stepChipText: { color: "#000", fontSize: 10, fontWeight: "800", letterSpacing: 1.5 },
   overlayBottom: {
     position: "absolute", bottom: 0, left: 0, right: 0,
     padding: 24, paddingBottom: 48, backgroundColor: "rgba(0,0,0,0.55)",

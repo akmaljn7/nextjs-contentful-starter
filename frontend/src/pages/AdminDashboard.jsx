@@ -341,6 +341,20 @@ export default function AdminDashboard() {
                 {s.active_challenge && (
                   <div className="mt-2 text-[10px] mono uppercase tracking-widest text-blue-400 border border-blue-500/30 bg-blue-500/10 inline-block px-2 py-0.5" data-testid={`live-pending-challenge-${s.id}`}>PENDING SELFIE</div>
                 )}
+                {s.missed_selfie && (
+                  <div
+                    className="mt-2 text-[10px] mono uppercase tracking-widest text-red-400 border border-red-500/40 bg-red-500/15 inline-block px-2 py-0.5 ml-1 animate-pulse"
+                    data-testid={`live-missed-selfie-${s.id}`}
+                    title={s.missed_selfie_kind === "ignored"
+                      ? "Employee did not respond to the selfie call in time"
+                      : "Employee failed the selfie check (face/liveness) after 5 attempts"}
+                  >
+                    {s.missed_selfie_kind === "ignored"
+                      ? "⚠ IGNORED SELFIE CALL"
+                      : "⚠ FAILED SELFIE CHECK"}
+                    {s.missed_selfie_count > 1 ? ` ×${s.missed_selfie_count}` : ""}
+                  </div>
+                )}
                 <div className="mt-2 flex flex-wrap gap-2">
                   <button
                     onClick={() => challengeNow.mutate(s.user_id)}

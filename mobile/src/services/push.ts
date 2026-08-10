@@ -99,6 +99,7 @@ interface ChallengeCtx {
   respond_by_ms: number;
   manual: boolean;
   for_name?: string;
+  liveness_action?: string;
 }
 
 /**
@@ -120,6 +121,7 @@ export function parseChallengePayload(payload: any): ChallengeCtx | null {
     respond_by_ms: respondBy,
     manual: data.manual === "true" || data.manual === true,
     for_name: data.for_name ? String(data.for_name) : undefined,
+    liveness_action: data.liveness_action ? String(data.liveness_action) : undefined,
   };
 }
 
