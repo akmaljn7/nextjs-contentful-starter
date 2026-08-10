@@ -1,0 +1,25 @@
+{
+  "summary": "Verified the selfie retry / MAX_SELFIE_ATTEMPTS=5 bug fix end-to-end. Wrote a new pytest module (test_selfie_retry_iter27.py) that enrolls a real face baseline (Obama) and drives the /api/sessions/challenge/{id}/respond endpoint with mismatched (Biden) and matching (Obama) selfies against a real active session. All 6 tests pass: single mismatch keeps the challenge pending with 'Attempt 1 of 5 - 4 left', 5 consecutive mismatches terminally mark the challenge 'missed' + flag the session + log a high-severity face_mismatch security event, a matching selfie after mismatches transitions to 'responded', an expired response window is honoured (400 'Response window expired' + challenge=='expired'), the happy path for baseline-less employees still works, and admin /challenge-now/ still creates a pending challenge.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": { "ui_bugs": [], "integration_issues": [], "design_issues": [] },
+  "test_report_links": [
+    "/app/backend/tests/test_selfie_retry_iter27.py",
+    "/app/test_reports/pytest/iter27.xml"
+  ],
+  "action_items": [
+    "The pre-existing /app/backend/tests/test_face_match.py::test_challenge_mismatch_flags_and_logs asserts the OLD behaviour (challenge status=='mismatch' + flagged after a single failure). It is now obsolete and will fail against the fixed backend. Main agent should update or remove that test; the new iter27 module supersedes it."
+  ],
+  "critical_code_review_comments": [
+    "routes/sessions.py::respond_challenge — the pre-lifecycle check at line 533 raises 400 before _tick_challenge_lifecycle is called, so if a challenge's response window expires while the employee is preparing their selfie the status only flips to 'expired' inside respond_challenge (good). However, no security event is logged in that branch — only the /me and /live tick log 'selfie_missed'. Consider logging one here too for consistency.",
+    "The retry counter (ch['attempts']) is not returned by _sanitize_session, so the mobile client cannot show 'x of 5 left' without parsing the 403 detail string. Consider surfacing attempts / max_attempts in the sanitized challenge payload.",
+    "MAX_SELFIE_ATTEMPTS is hard-coded to 5. Given org-level tuning of other selfie settings (window, count, mode) exists, this cap is a natural candidate to move into org settings."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "100% (6/6)", "frontend": "N/A (skipped per request)" },
+  "test_credentials": "Owner akmaljn7@gmail.com / GeofenceAdmin123!; Employee employee@example.com / Employee123! (baseline is enrolled/reset per-test via /api/face/enroll and /api/face/reset).",
+  "seed_data_creation": "Per-module TEST_ prefixed office (deleted on teardown). Face baseline enrolled/reset per test via existing endpoints. No permanent seed data added.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Run with `pytest backend/tests/test_selfie_retry_iter27.py -o addopts=''` — xdist parallel workers race the shared employee account (auto-start conflicts). The tests must run sequentially. Obama/Biden JPEGs are cached at /tmp/_test_{obama,biden}.jpg; if the download fails the mismatch tests skip. The obsolete assertion in test_face_match.py::test_challenge_mismatch_flags_and_logs still needs cleanup by the main agent.",
+  "rca of the issue": "Original bug: routes/sessions.py::respond_challenge previously set ch['status']='mismatch' on the very first face-mismatch, then the guard `if ch.get('status') != 'pending': raise 400 'Challenge is already mismatch'` locked the challenge forever. Fix (implemented by main agent): new _register_selfie_failure(...) increments ch['attempts'], keeps status='pending' until attempts>=MAX_SELFIE_ATTEMPTS (5), then flips to 'missed' + flagged + high-severity security event. Verified: single mismatch keeps pending; 5th terminally missed; 6th returns 400 'already missed'; matching selfie mid-retries wins; response-window expiry still overrides. Reproduction steps for regression: enroll baseline via POST /api/face/enroll, auto-start session inside geofence, patch challenges[0].trigger_ms into the past + ping to promote to pending, then POST /api/sessions/challenge/{id}/respond with a different face — expect 403 + status still pending."
+}

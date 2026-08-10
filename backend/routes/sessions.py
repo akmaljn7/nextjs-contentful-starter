@@ -473,6 +473,49 @@ async def auto_start_session(payload: SessionAutoStart, request: Request, user: 
     return _sanitize_session(doc)
 
 
+async def _register_selfie_failure(db, s, ch, challenges, now_ms, user, *,
+                                   event, security_event, extra, retry_detail, terminal_detail):
+    """Record a failed selfie attempt (face mismatch / liveness).
+
+    Keeps the challenge OPEN (status stays "pending") so the employee can
+    retake, up to MAX_SELFIE_ATTEMPTS. Only the terminal (Nth) failure marks
+    the challenge "missed" and flags the session. Raises HTTPException(403)
+    either way. The response-window timer still applies on top of this cap —
+    if the window expires mid-retries the challenge is expired by the caller.
+    """
+    attempts = int(ch.get("attempts", 0)) + 1
+    ch["attempts"] = attempts
+    ch["photo_saved"] = True
+    ch.update(extra)
+    remaining = max(0, MAX_SELFIE_ATTEMPTS - attempts)
+    terminal = attempts >= MAX_SELFIE_ATTEMPTS
+    log_entries = list(s.get("log", []))
+    log_entries.append({"event": event, "ts_ms": now_ms, "challenge_id": ch["id"],
+                        "attempt": attempts, **extra})
+    update = {"challenges": challenges}
+    if terminal:
+        ch["status"] = "missed"
+        ch["responded_at_ms"] = now_ms
+        log_entries.append({"event": "selfie_missed", "ts_ms": now_ms,
+                            "challenge_id": ch["id"], "attempts": attempts})
+        update["flagged"] = True
+    # else: leave status == "pending" for retry; do NOT flag yet.
+    update["log"] = log_entries[-500:]
+    await db.active_sessions.update_one({"_id": s["_id"]}, {"$set": update})
+    await log_security_event(
+        security_event, "high" if terminal else "medium", "",
+        {"challenge_id": ch["id"], "session_id": str(s["_id"]),
+         "attempt": attempts, "terminal": terminal, **extra},
+        org_id=user["org_id"], user_id=user["id"],
+    )
+    if terminal:
+        raise HTTPException(status_code=403, detail=terminal_detail)
+    raise HTTPException(
+        status_code=403,
+        detail=f"{retry_detail} Attempt {attempts} of {MAX_SELFIE_ATTEMPTS} — {remaining} left. Please retake.",
+    )
+
+
 @router.post("/challenge/{challenge_id}/respond")
 async def respond_challenge(challenge_id: str, payload: ChallengeResponse, user: dict = Depends(get_current_user)):
     """Employee uploads a selfie in response to an active challenge."""
@@ -512,50 +555,22 @@ async def respond_challenge(challenge_id: str, payload: ChallengeResponse, user:
         # Passive liveness gate — block presentation attacks (printed photo /
         # screen showing someone's face). Only enforced when we got a score.
         if LIVENESS_ENFORCE and live_prob is not None and live_prob < LIVENESS_THRESHOLD:
-            ch["status"] = "mismatch"
-            ch["responded_at_ms"] = now_ms
-            ch["photo_saved"] = True
-            ch["liveness"] = live_prob
-            log_entries = list(s.get("log", []))
-            log_entries.append({
-                "event": "liveness_failed", "ts_ms": now_ms,
-                "challenge_id": challenge_id, "live_prob": live_prob,
-            })
-            await db.active_sessions.update_one(
-                {"_id": s["_id"]},
-                {"$set": {"challenges": challenges, "log": log_entries[-500:], "flagged": True}},
-            )
-            await log_security_event(
-                "liveness_failed", "high", "",
-                {"challenge_id": challenge_id, "session_id": str(s["_id"]), "live_prob": live_prob},
-                org_id=user["org_id"], user_id=user["id"],
-            )
-            raise HTTPException(
-                status_code=403,
-                detail="Liveness check failed — please retake a selfie of your real face in good lighting (no photos or screens).",
+            await _register_selfie_failure(
+                db, s, ch, challenges, now_ms, user,
+                event="liveness_failed", security_event="liveness_failed",
+                extra={"live_prob": live_prob},
+                retry_detail="Liveness check failed — take a selfie of your real face in good lighting (no photos or screens).",
+                terminal_detail="Liveness check failed too many times. This selfie challenge is now marked missed and the session flagged.",
             )
 
         if not match_result["match"]:
-            ch["status"] = "mismatch"
-            ch["responded_at_ms"] = now_ms
-            ch["photo_saved"] = True
-            ch["similarity"] = match_result["similarity"]
-            log_entries = list(s.get("log", []))
-            log_entries.append({
-                "event": "selfie_mismatch", "ts_ms": now_ms,
-                "challenge_id": challenge_id, "similarity": match_result["similarity"],
-            })
-            await db.active_sessions.update_one(
-                {"_id": s["_id"]},
-                {"$set": {"challenges": challenges, "log": log_entries[-500:], "flagged": True}},
+            await _register_selfie_failure(
+                db, s, ch, challenges, now_ms, user,
+                event="selfie_mismatch", security_event="face_mismatch",
+                extra={"similarity": match_result["similarity"]},
+                retry_detail=f"Face does not match your enrolled baseline (similarity {match_result['similarity']:.2f}).",
+                terminal_detail=f"Face did not match after {MAX_SELFIE_ATTEMPTS} attempts (last similarity {match_result['similarity']:.2f}). Challenge marked missed and session flagged.",
             )
-            await log_security_event(
-                "face_mismatch", "high", "",
-                {"challenge_id": challenge_id, "session_id": str(s["_id"]),
-                 "similarity": match_result["similarity"], "reason": match_result.get("reason")},
-                org_id=user["org_id"], user_id=user["id"],
-            )
-            raise HTTPException(status_code=403, detail=f"Face does not match your enrolled baseline (similarity {match_result['similarity']:.2f}). Session flagged.")
 
     ch["status"] = "responded"
     ch["responded_at_ms"] = now_ms
