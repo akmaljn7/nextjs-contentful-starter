@@ -13,7 +13,7 @@
  * service extends ExpoFirebaseMessagingService). iOS is unaffected (it gets a
  * normal loud alert — full-screen isn't possible without VoIP/CallKit).
  */
-const { withAndroidManifest, withDangerousMod, AndroidConfig } = require("@expo/config-plugins");
+const { withAndroidManifest, withDangerousMod, withAppBuildGradle, AndroidConfig } = require("@expo/config-plugins");
 const fs = require("fs");
 const path = require("path");
 
@@ -345,8 +345,36 @@ class SelfieMessagingService : ExpoFirebaseMessagingService() {
   ]);
 }
 
+/**
+ * Adds the Firebase Cloud Messaging dependency to the APP module so our
+ * SelfieMessagingService (which subclasses expo-notifications'
+ * ExpoFirebaseMessagingService and references RemoteMessage /
+ * FirebaseMessagingService directly) compiles. expo-notifications keeps
+ * firebase-messaging internal, so the app module can't see those classes
+ * unless we declare the dependency here. Pinned via the Firebase BoM.
+ */
+function addFirebaseMessaging(config) {
+  return withAppBuildGradle(config, (cfg) => {
+    if (cfg.modResults.language !== "groovy") return cfg;
+    let contents = cfg.modResults.contents;
+    if (contents.includes("com.google.firebase:firebase-messaging")) return cfg;
+    const deps =
+      '    implementation(platform("com.google.firebase:firebase-bom:34.5.0"))\n' +
+      '    implementation("com.google.firebase:firebase-messaging")\n';
+    const marker = /dependencies\s*\{/;
+    if (marker.test(contents)) {
+      contents = contents.replace(marker, (m) => `${m}\n${deps}`);
+    } else {
+      contents += `\ndependencies {\n${deps}}\n`;
+    }
+    cfg.modResults.contents = contents;
+    return cfg;
+  });
+}
+
 module.exports = function withSelfieFullScreen(config) {
   config = patchManifest(config);
+  config = addFirebaseMessaging(config);
   config = writeKotlin(config);
   return config;
 };
