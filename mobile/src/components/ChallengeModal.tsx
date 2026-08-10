@@ -25,7 +25,7 @@ import { startAlarm, stopAlarm } from "@/services/alarm";
 import { colors } from "@/theme";
 
 export function ChallengeModal() {
-  const { active, dismiss, markResponded } = useChallenge();
+  const { active, dismiss, markResponded, cameraRequested, consumeCameraRequest } = useChallenge();
   const [perm, requestPerm] = useCameraPermissions();
   const camRef = useRef<CameraView | null>(null);
   const [busy, setBusy] = useState(false);
@@ -33,10 +33,18 @@ export function ChallengeModal() {
   // Two-phase: first an "incoming" ring screen (alarm loud), then the camera.
   const [cameraOpen, setCameraOpen] = useState(false);
 
-  // Reset to the ring phase whenever a new challenge arrives.
+  // Reset to the ring phase whenever a new challenge arrives — UNLESS we were
+  // launched straight from the native full-screen "OPEN CAMERA" button, in
+  // which case jump directly to the camera (the native screen already rang).
   useEffect(() => {
-    setCameraOpen(false);
-  }, [active?.id]);
+    if (active && cameraRequested) {
+      setCameraOpen(true);
+      consumeCameraRequest();
+      if (perm && !perm.granted) requestPerm();
+    } else {
+      setCameraOpen(false);
+    }
+  }, [active?.id, cameraRequested]);
 
   // Loud alarm (looping tone + repeating vibration) rings from the moment the
   // request appears until the user opens the camera — so a busy/sleeping user

@@ -3,7 +3,7 @@
  * challenge modal in response to a push, a poll, or a local test button.
  */
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { AppState } from "react-native";
+import { AppState, Linking } from "react-native";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "@/api/client";
@@ -23,6 +23,8 @@ interface ChallengeState {
   open: (c: ChallengeInfo) => void;
   dismiss: () => void;
   markResponded: () => void;
+  cameraRequested: boolean;
+  consumeCameraRequest: () => void;
 }
 
 const Ctx = createContext<ChallengeState | null>(null);
@@ -39,7 +41,26 @@ const Ctx = createContext<ChallengeState | null>(null);
 export function ChallengeProvider({ children }: { children: React.ReactNode }) {
   const { user, isEmployee } = useAuth();
   const [active, setActive] = useState<ChallengeInfo | null>(null);
+  // Set when the native full-screen "OPEN CAMERA" button deep-links us in
+  // (geofenceattendance://selfie) — tells the modal to skip its ring screen and
+  // jump straight to the camera.
+  const [cameraRequested, setCameraRequested] = useState(false);
+  const consumeCameraRequest = useCallback(() => setCameraRequested(false), []);
   const qc = useQueryClient();
+
+  // Deep link from the native lock-screen activity -> open camera directly.
+  useEffect(() => {
+    if (!isEmployee) return;
+    const handle = (url: string | null) => {
+      if (url && url.includes("selfie")) {
+        setCameraRequested(true);
+        qc.invalidateQueries({ queryKey: ["my-session"] });
+      }
+    };
+    Linking.getInitialURL().then(handle).catch(() => undefined);
+    const sub = Linking.addEventListener("url", (e) => handle(e.url));
+    return () => sub.remove();
+  }, [isEmployee, qc]);
 
   const open = useCallback((c: ChallengeInfo) => {
     // Ignore expired triggers that a delayed push might carry
@@ -95,8 +116,8 @@ export function ChallengeProvider({ children }: { children: React.ReactNode }) {
   }, [isEmployee, session]);
 
   const value = useMemo<ChallengeState>(
-    () => ({ active, open, dismiss, markResponded }),
-    [active, open, dismiss, markResponded],
+    () => ({ active, open, dismiss, markResponded, cameraRequested, consumeCameraRequest }),
+    [active, open, dismiss, markResponded, cameraRequested, consumeCameraRequest],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

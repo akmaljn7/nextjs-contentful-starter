@@ -11,7 +11,7 @@ import { coldStartReconcile } from "@/services/reconcile";
 import { drainQueue } from "@/services/syncWorker";
 import { startForegroundWatcher, stopForegroundWatcher } from "@/services/foregroundWatcher";
 import { startLiveLocation } from "@/services/liveLocation";
-import { requestIgnoreBatteryOptimizations, hasPromptedBatteryOptimization } from "@/services/batteryOptimization";
+import { requestIgnoreBatteryOptimizations, hasPromptedBatteryOptimization, requestFullScreenIntentAccess } from "@/services/batteryOptimization";
 import { colors } from "@/theme";
 
 export default function EmployeeHomeScreen() {
@@ -65,6 +65,7 @@ export default function EmployeeHomeScreen() {
     (async () => {
       if (await hasPromptedBatteryOptimization()) return;
       await requestIgnoreBatteryOptimizations().catch(() => undefined);
+      await requestFullScreenIntentAccess().catch(() => undefined);
     })();
   }, [bgPerm]);
 

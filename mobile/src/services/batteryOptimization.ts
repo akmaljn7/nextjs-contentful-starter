@@ -69,3 +69,25 @@ export async function requestIgnoreBatteryOptimizations(): Promise<void> {
     await markPrompted();
   }
 }
+
+const FS_PROMPTED_KEY = "fullscreen_intent_prompted_v1";
+const ACTION_MANAGE_FULL_SCREEN = "android.settings.MANAGE_APP_USE_FULL_SCREEN_INTENT";
+
+/**
+ * Android 14+ (API 34) restricts full-screen intents (the WhatsApp-style
+ * wake-screen selfie page) to apps the user has explicitly allowed. Open that
+ * settings screen once so the user can grant it. No-op below API 34 / on iOS.
+ */
+export async function requestFullScreenIntentAccess(): Promise<void> {
+  if (Platform.OS !== "android") return;
+  if ((Platform.Version as number) < 34) return;
+  if ((await SecureStore.getItemAsync(FS_PROMPTED_KEY).catch(() => null)) === "1") return;
+  const pkg = Application.applicationId ?? "com.geofenceattendance.app";
+  try {
+    await IntentLauncher.startActivityAsync(ACTION_MANAGE_FULL_SCREEN, { data: `package:${pkg}` });
+  } catch {
+    /* not available on this device — the notification degrades to a heads-up */
+  } finally {
+    await SecureStore.setItemAsync(FS_PROMPTED_KEY, "1").catch(() => undefined);
+  }
+}

@@ -76,6 +76,7 @@ async def send_push(
     silent: bool = False,
     channel_id: str = "attendance",
     sound: Optional[str] = None,
+    full_screen: bool = False,
 ) -> dict:
     """Send an FCM push. Returns {ok, reason, [message_id]}.
 
@@ -115,6 +116,17 @@ async def send_push(
         message["apns"]["payload"] = {"aps": {"content-available": 1}}
         message["android"]["priority"] = "normal"
         message["data"]["silent"] = "true"
+    elif full_screen:
+        # WhatsApp-style incoming selfie: Android must receive this as a
+        # DATA-ONLY message so our native SelfieMessagingService.onMessageReceived
+        # fires even when the app is killed/asleep and builds the full-screen
+        # intent (wake screen + lockscreen page). No android.notification block
+        # (that would make FCM auto-display and skip our service when killed).
+        # iOS can't do full-screen, so it still gets a normal loud alert.
+        message["data"].update({"title": title, "body": body, "full_screen": "true"})
+        message["android"].pop("notification", None)
+        aps_sound = sound or "default"
+        message["apns"]["payload"] = {"aps": {"alert": {"title": title, "body": body}, "sound": aps_sound}}
     else:
         message["notification"] = {"title": title, "body": body}
         aps_sound = sound or "default"
@@ -138,12 +150,13 @@ async def send_push(
 
 async def send_push_to_user(db, user_id: str, title: str, body: str,
                             data: Optional[dict] = None, silent: bool = False,
-                            channel_id: str = "attendance", sound: Optional[str] = None) -> list:
+                            channel_id: str = "attendance", sound: Optional[str] = None,
+                            full_screen: bool = False) -> list:
     """Fan-out to every registered device for a user. Returns list of send results."""
     results = []
     async for dev in db.mobile_devices.find({"user_id": user_id, "deleted_at": None, "push_token": {"$ne": None}}):
         res = await send_push(dev["push_token"], title, body, data=data, silent=silent,
-                              channel_id=channel_id, sound=sound)
+                              channel_id=channel_id, sound=sound, full_screen=full_screen)
         results.append({"device_id": dev.get("device_id"), **res})
         if not res.get("ok") and res.get("reason") in {"fcm_404", "fcm_400"}:
             # Token invalidated — mark device for cleanup

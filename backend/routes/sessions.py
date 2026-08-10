@@ -295,7 +295,7 @@ async def _tick_challenge_lifecycle(db, session: dict, settings: dict, now_ms: i
                               "session_id": str(session["_id"]),
                               "for_name": emp_name,
                               "respond_by_ms": str(ch["respond_by_ms"])},
-                        channel_id="selfie_ring", sound="selfie_alert.wav",
+                        channel_id="selfie_ring", sound="selfie_alert.wav", full_screen=True,
                     )
             except Exception as e:
                 logger.error("push_dispatch_error err=%s", e)
@@ -1020,7 +1020,7 @@ async def trigger_challenge_now(
         {"kind": "selfie_challenge", "challenge_id": new_challenge["id"],
          "session_id": str(s["_id"]), "manual": "true", "for_name": emp_name,
          "respond_by_ms": str(new_challenge["respond_by_ms"])},
-        False, "selfie_ring", "selfie_alert.wav",
+        False, "selfie_ring", "selfie_alert.wav", True,
     )
     logger.info("manual_selfie_challenge admin=%s target_user=%s challenge=%s",
                 user.get("email"), user_id, new_challenge["id"])

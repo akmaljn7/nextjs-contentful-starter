@@ -16,7 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 
 import { Screen } from "@/components/Screen";
 import { Button } from "@/components/Button";
-import { requestIgnoreBatteryOptimizations } from "@/services/batteryOptimization";
+import { requestIgnoreBatteryOptimizations, requestFullScreenIntentAccess } from "@/services/batteryOptimization";
 import { colors } from "@/theme";
 
 interface Props {
@@ -109,6 +109,7 @@ export default function PermissionsScreen({ onGranted }: Props) {
       await new Promise((r) => setTimeout(r, 400));
       try {
         await requestIgnoreBatteryOptimizations();
+        await requestFullScreenIntentAccess();
       } catch {
         /* ignore */
       }
