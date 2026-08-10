@@ -44,6 +44,10 @@ STALE_PING_MS = 30 * 60 * 1000  # UI-only "connection lost" badge threshold
 LIVENESS_THRESHOLD = float(os.environ.get("LIVENESS_THRESHOLD", "0.55"))
 LIVENESS_ENFORCE = os.environ.get("LIVENESS_ENFORCE", "false").lower() == "true"
 
+# A selfie challenge allows this many failed attempts (mismatch/liveness)
+# before it is terminally marked "missed" and the session flagged.
+MAX_SELFIE_ATTEMPTS = 5
+
 router = APIRouter(prefix="/api/sessions", tags=["sessions"])
 
 DAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
