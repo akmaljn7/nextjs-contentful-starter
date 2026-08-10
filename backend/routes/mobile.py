@@ -90,7 +90,6 @@ async def register_device(
         "user_id": user["id"],
         "device_id": payload.device_id,
         "platform": payload.platform,
-        "push_token": payload.push_token,
         "app_version": payload.app_version,
         "os_version": payload.os_version,
         "tz": payload.tz,
@@ -101,9 +100,21 @@ async def register_device(
         "user_agent": request.headers.get("user-agent", "")[:200],
         "deleted_at": None,
     }
+    # Only write push_token when the client actually supplies one. The app calls
+    # this endpoint both WITH a token (push registration) and WITHOUT one (the
+    # quiet per-login / per-foreground refresh + attestation). If we always set
+    # push_token we'd wipe a good FCM token on every token-less call — leaving
+    # the device unreachable and every admin push a silent no-op.
+    set_on_insert = {"created_at": now_iso}
+    if payload.push_token:
+        doc["push_token"] = payload.push_token
+        # A fresh valid token clears any prior invalidation marker.
+        doc["push_token_invalid_at"] = None
+    else:
+        set_on_insert["push_token"] = None
     res = await db.mobile_devices.update_one(
         filt,
-        {"$set": doc, "$setOnInsert": {"created_at": now_iso}},
+        {"$set": doc, "$setOnInsert": set_on_insert},
         upsert=True,
     )
     logger.info(

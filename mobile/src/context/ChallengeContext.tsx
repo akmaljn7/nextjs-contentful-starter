@@ -110,10 +110,15 @@ export function ChallengeProvider({ children }: { children: React.ReactNode }) {
     });
   }, [activeChallenge?.id, activeChallenge?.status, activeChallenge?.respond_by_ms, open]);
 
-  // Trigger an immediate poll on foreground so we don't wait up to 12 s
+  // Trigger an immediate poll on foreground so we don't wait up to 12 s, and
+  // re-acquire + re-post the FCM push token (the backend now preserves an
+  // existing token on token-less refreshes, so this can only ADD/refresh it).
   useEffect(() => {
     const sub = AppState.addEventListener("change", (s) => {
-      if (s === "active" && isEmployee) session.refetch();
+      if (s === "active" && isEmployee) {
+        session.refetch();
+        registerForPushAsync().catch(() => undefined);
+      }
     });
     return () => sub.remove();
   }, [isEmployee, session]);

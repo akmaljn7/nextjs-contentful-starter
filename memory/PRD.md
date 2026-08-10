@@ -23,6 +23,14 @@ Multi-tenant enterprise geofenced attendance platform. Organizations sign up, ad
 - PWA installable
 
 ## Implemented (2026-02 → 2026-08)
+### Push never delivered — FCM token wiped on every refresh (FIXED, June 2026)
+- **Symptom**: admin "Send selfie now" and "Notify" reported sent but nothing arrived on the phone.
+- **Root cause**: `POST /api/mobile/register-device` unconditionally `$set` `push_token` from the payload. The app calls this endpoint both WITH a token (`registerForPushAsync`) and WITHOUT one (`registerDeviceQuiet`, which runs on every login AND every app-foreground). The token-less calls overwrote the real FCM token with `null`, so **every `mobile_devices` row had `push_token=null`** → `send_push_to_user` (which filters `push_token != null`) had zero recipients → silent no-op.
+- **Fix (backend `routes/mobile.py`)**: only write `push_token` when the client actually supplies one (via `$set`); token-less refreshes preserve the existing token; a fresh valid token also clears `push_token_invalid_at`. Verified via curl: register-with-token → token-less refresh → token persists.
+- **Fix (mobile `ChallengeContext.tsx`)**: also re-acquire + re-post the FCM token on app-foreground (safe now that the backend preserves it).
+- **Note**: APK points at the same preview backend, so the backend fix is already live — the employee must reopen the app once (and grant notification permission) to capture a fresh token, which now persists.
+
+
 ### Auto-timeout + missed-selfie flag + active liveness (June 2026)
 - **Auto-timeout (mark missed)**: new `POST /api/sessions/challenge/{id}/timeout` — the mobile `ChallengeModal` calls it the moment its countdown hits 0 so the challenge is finalized as `expired`/ignored immediately (flags session + logs a high-severity `selfie_missed` security event), instead of waiting for the next server tick. The server tick (`_tick_challenge_lifecycle`) now ALSO logs that security event on window expiry. The mobile modal shows a "SELFIE MISSED" screen then auto-dismisses; the native Android full-screen `IncomingSelfieActivity` auto-finishes + stops the alarm when `respond_by_ms` elapses (`respond_by_ms` passed through the FCM data + activity extra).
 - **Missed-selfie flag (web roster)**: `_sanitize_session` now returns `missed_selfie` / `missed_selfie_kind` ("ignored"=timed out, "failed"=5 attempts exhausted) / `missed_selfie_count`. Admin dashboard live roster renders a red pulsing badge `⚠ IGNORED SELFIE CALL` / `⚠ FAILED SELFIE CHECK` (`data-testid=live-missed-selfie-{sid}`).
