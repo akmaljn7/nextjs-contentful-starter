@@ -23,6 +23,12 @@ Multi-tenant enterprise geofenced attendance platform. Organizations sign up, ad
 - PWA installable
 
 ## Implemented (2026-02 → 2026-08)
+### "OPEN CAMERA" opened the app but not the selfie camera (FIXED, June 2026)
+- **Symptom**: tapping OPEN CAMERA on the full-screen selfie call opened the app but showed no camera.
+- **Root cause**: the selfie push is DATA-ONLY (handled by the native `SelfieMessagingService`), so the JS layer never learns about the challenge from the push. The deep link (`geofenceattendance://selfie`) only set `cameraRequested`, but the modal renders/opens the camera only when a challenge (`active`) exists — and `active` was populated solely by the 12 s `/sessions/me` poll, which usually hadn't run yet on open → nothing to attach the camera to.
+- **Fix (`ChallengeContext.tsx`)**: on the `selfie` deep link, immediately `GET /sessions/me` and, if there's an `active_challenge`, call `open()` right away (in addition to setting `cameraRequested`). The modal then jumps straight to the 2-step liveness camera. Poll remains as a safety net. Requires a NEW APK build (mobile JS change).
+
+
 ### Push never delivered — FCM token wiped on every refresh (FIXED, June 2026)
 - **Symptom**: admin "Send selfie now" and "Notify" reported sent but nothing arrived on the phone.
 - **Root cause**: `POST /api/mobile/register-device` unconditionally `$set` `push_token` from the payload. The app calls this endpoint both WITH a token (`registerForPushAsync`) and WITHOUT one (`registerDeviceQuiet`, which runs on every login AND every app-foreground). The token-less calls overwrote the real FCM token with `null`, so **every `mobile_devices` row had `push_token=null`** → `send_push_to_user` (which filters `push_token != null`) had zero recipients → silent no-op.

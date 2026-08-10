@@ -49,20 +49,6 @@ export function ChallengeProvider({ children }: { children: React.ReactNode }) {
   const consumeCameraRequest = useCallback(() => setCameraRequested(false), []);
   const qc = useQueryClient();
 
-  // Deep link from the native lock-screen activity -> open camera directly.
-  useEffect(() => {
-    if (!isEmployee) return;
-    const handle = (url: string | null) => {
-      if (url && url.includes("selfie")) {
-        setCameraRequested(true);
-        qc.invalidateQueries({ queryKey: ["my-session"] });
-      }
-    };
-    Linking.getInitialURL().then(handle).catch(() => undefined);
-    const sub = Linking.addEventListener("url", (e) => handle(e.url));
-    return () => sub.remove();
-  }, [isEmployee, qc]);
-
   const open = useCallback((c: ChallengeInfo) => {
     // Ignore expired triggers that a delayed push might carry
     if (c.respond_by_ms && c.respond_by_ms < Date.now()) return;
@@ -75,6 +61,36 @@ export function ChallengeProvider({ children }: { children: React.ReactNode }) {
     qc.invalidateQueries({ queryKey: ["mobile-reconcile"] });
   }, [qc]);
 
+  // Deep link from the native lock-screen activity -> open camera directly.
+  // The selfie push is DATA-ONLY (handled natively), so JS never learns about
+  // the challenge from the push itself. Instead of waiting for the 12 s poll,
+  // fetch the active challenge NOW so `active` is set and the modal can jump
+  // straight to the camera. Without this the app just opens with no camera.
+  useEffect(() => {
+    if (!isEmployee) return;
+    const handle = async (url: string | null) => {
+      if (!url || !url.includes("selfie")) return;
+      setCameraRequested(true);
+      try {
+        const data = (await api.get("/sessions/me")).data;
+        const ac = data?.active_challenge;
+        if (ac?.id) {
+          open({
+            id: ac.id,
+            respond_by_ms: ac.respond_by_ms,
+            manual: !!ac.manual,
+            for_name: ac.for_name,
+            liveness_action: ac.liveness_action,
+          });
+        }
+      } catch { /* poll safety-net will still pick it up */ }
+      qc.invalidateQueries({ queryKey: ["my-session"] });
+    };
+    Linking.getInitialURL().then(handle).catch(() => undefined);
+    const sub = Linking.addEventListener("url", (e) => handle(e.url));
+    return () => sub.remove();
+  }, [isEmployee, qc, open]);
+
   // Push subscription
   useEffect(() => {
     if (!isEmployee) return;
@@ -86,6 +102,7 @@ export function ChallengeProvider({ children }: { children: React.ReactNode }) {
     });
     return unsub;
   }, [isEmployee, open]);
+
 
   // Foreground polling safety-net
   const session = useQuery<any>({
