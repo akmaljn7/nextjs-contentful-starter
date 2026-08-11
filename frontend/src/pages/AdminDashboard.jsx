@@ -305,6 +305,11 @@ export default function AdminDashboard() {
                     <div className="text-white mt-0.5 tabular-nums" data-testid={`live-inside-${s.id}`}>
                       {fmtHMS(liveInsideMs(s, nowMs))}
                     </div>
+                    {s.status === "active" && s.last_fix?.ts_ms && (nowMs - s.last_fix.ts_ms) > LIVE_FRESH_MS && (
+                      <div className="text-amber-400 text-[10px] mt-0.5 leading-tight" data-testid={`live-offline-${s.id}`}>
+                        ● offline — paused, resumes when back online
+                      </div>
+                    )}
                   </div>
                   <div>
                     <div className="text-gray-500">FIX</div>
