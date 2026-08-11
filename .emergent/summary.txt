@@ -1,121 +1,15 @@
-<analysis>**original_problem_statement**: 
-Rebuild an enterprise-grade geofenced attendance platform into a full-stack multi-tenant SaaS. Recent Product Requirements expanded to include building a companion Mobile App (React Native/Expo for iOS & Android). Employees log in once, and the app silently auto-starts/pauses attendance via background geofencing, handles offline synchronization, and prompts random selfie challenges via FCM push notifications. Admins have access to mobile and web dashboards for team management, nudging, and reports.
-
-**User's preferred language**: English
-(INSTRUCT NEXT AGENT: Please respond in English only)
-
-**what currently exists?**: 
-A fully functional React/FastAPI/MongoDB enterprise Geofence Attendance web console and a React Native (Expo SDK 52) mobile app. The mobile app has offline-queueing, background geofencing, and live FCM push notifications. The backend handles WebSocket live map updates, session state management, and cron-triggered deadman checks. Admin UI supports office creation, employee management, and direct employee nudging (push notifications/selfie challenges).
-
-**Last working item**: 
-    - Last item agent was working: Fixing two specific user-reported bugs: 1) Samsung phone-in-pocket bug where the backend incorrectly auto-paused sessions after 3 minutes of GPS ping silence, and 2) Admin UI bugs where Send Selfie/Notify buttons were missing on empty-state dashboards and the office creation map lacked a draggable pin when geolocation was denied.
-    - Status: USER VERIFICATION PENDING
-    - Agent Testing Done: Y
-    - Which testing method agent to use?: NA (testing agent already used successfully in iteration 22)
-    - User Testing Done: N
-
-**All Pending/In progress Issue list**: 
-None currently. Waiting for the user to verify the recently deployed backend auto-pause fix and the Admin UI updates. 
-
-**In progress Task List**: 
-None currently in progress.
-
-**Upcoming and Future Tasks**:
-Upcoming Tasks:
-- Task 1: Custom Selfie Reason: Let admins type a short note before pressing Notify or Send Selfie so employees see why they were pinged (Priority P1)
-- Task 2: Push Delivery Report: Show admins per-employee push delivery status (sent → delivered → read) right in the roster panel / live map drawer (Priority P1)
-- Task 3: Bulk Notify: Add a Notify all idle employees button on the Employees page for shift-start reminders (Priority P1)
-- Task 4: Silent-Push Metric: Track how often the deadman timer saves a stalled session and surface the win rate in Reports (Priority P1)
-
-Future Tasks:
-- Task 5: Web Phase 4 - Bulk employee import via CSV upload () (Priority P2)
-- Task 6: Web Phase 5 - APScheduler / Cron jobs for background tasks (90-day GPS-ping TTL cleanup, session expiry sweeps, refresh-token cleanup) (Priority P2)
-- Task 7: Web Phase 5 - GDPR data export and deletion endpoints (Priority P2)
-- Task 8: Web Phase 5 - Email notifications to org admins upon high-severity security events via Resend (Priority P2)
-
-**Completed work in this session**:
-- Mobile Phase 6: Android boot receiver plugin, Attestation stub endpoint, Server-side deadman timer cron job (DONE)
-- Wired FCM: Added user's  to backend,  /  to mobile. Real pushes are now live (DONE)
-- Fixed Expo/EAS build environment: Downgraded , pinned SDK 52 dependencies, removed unused  that broke Gradle, added , set  (DONE)
-- Fixed Mobile auto-detect: Added , , and forced Android 10+ background location permission checks (DONE)
-- Fixed Backend 3-minute auto-pause bug: Removed  status mutation so background apps aren't wrongly marked as paused just for being silent (DONE)
-- Fixed Admin UI missing buttons/pins: Added PING ANY EMPLOYEE panel to Console empty-state, row buttons on Employees page, and fallback 9.08/8.67 coordinates for office pin dropping (DONE)
-
-**Earlier issues found/mentioned but not fixed**: 
-None.
-
-**Known issue recurrence from previous fork**: 
-  - Issue recurrence in previous fork: NA
-  - Recurrence count: 0
-  - Status: NA
-
-**Code Architecture**:
-
-
-**Key Technical Concepts**: 
-React Native, Expo SDK 52, FastAPI, MongoDB (Motor Async), WebSockets, JWT Auth,  (native geofencing),  (offline queue), Firebase Cloud Messaging (FCM).
-
-**key DB schema**:
-  - : {_id, org_id, email, role, schedule, face_baseline, office_id}
-  - : {_id, user_id, office_id, status, challenges, center, log}
-  - : {_id, user_id, device_id, push_token, platform, last_seen_at}
-  - : {name, run_id, ts}
-
-**changes in tech stack**: 
-- Added  and  to mobile. 
-- Removed . 
-- Pinned  to  and set  for SDK 52 Gradle compatibility.
-
-**All files of reference**: 
-  - : Core session state machine.
-  - : Console dashboard with empty state panel.
-  - : Team roster with Notify/Selfie buttons.
-  - : Handles active-app location watching to bypass native geofence lag.
-  - : Instructions for the user on how to run EAS builds locally.
-
-**Areas that need refactoring**: 
- on the backend is large (900+ lines) and handles complex state transitions, WebSockets, and FCM dispatch. It is currently stable and heavily tested (175 tests), but should be approached carefully.
-
-**key api endpoints**:
-  - : Sends a generic FCM push notification to a user.
-  - : Admin-triggered selfie challenge.
-  - : Crons.yml triggered silent wake for stale devices.
-
-**Critical Info for New Agent**: 
-- **Mobile Dependencies**: The mobile app is strictly **Expo SDK 52**.  must remain  unless updating native modules that fully support Fabric.
-- **Backend Background Tasks**: Do NOT use APScheduler. System tasks (like the deadman timer) use .
-- **Geofence State**: Do not pause sessions based on ping silence. Native geofences only fire on transitions (Enter/Exit). If no exit event is received, assume the user is still inside the office.
-- **Testing Mobile**: The container cannot run  or Android emulators. For mobile structural checks, strictly rely on yarn run v1.22.22
-info Visit https://yarnpkg.com/en/docs/cli/run for documentation about this command. and yarn run v1.22.22
-info Visit https://yarnpkg.com/en/docs/cli/run for documentation about this command..
-
-**documents and test reports created in this job**:
-  - 
-  -  through 
-
-**Last 10 User Messages and any pending HUMAN messages**: 
- - User: App on Samsung detects entry, but pauses session after 3 minutes in pocket. Notification wakes it instantly. Why? (Agent diagnosed incorrect 3-min backend auto-pause logic based on ping silence. Fixed and verified via testing agent).
- - User: Admin has no button to send selfie/notification, and cannot drop map pin when creating office without location permissions. (Agent fixed Admin UI bugs, added fallback coordinates, and added empty-state UI buttons).
- - User: Re-reported missing buttons on the console. (Agent verified UI visually via screenshots and explained the buttons are now on the empty-state console and  route).
-*(No pending human messages. Waiting for user verification on their actual device).*
-
-**Project Health Check**:
-Healthy. 175/175 backend tests passing. Mobile JS bundle exports correctly.
-
-**3rd Party Integrations**:
- - Resend (Email Provider) — Emergent managed / No API key needed.
- - Firebase Cloud Messaging (FCM) — Requires User API Key (User has provided this, and it is successfully wired into ).
-
-**Testing status**:
-  - Testing agent used after significant changes: YES (Heavily utilized up to iteration 22)
-  - Troubleshoot agent used after agent stuck in loop: NO
-  - Test files created: , , , 
-  - Known regressions: None.
-
-**Credentials to test flow**:
-Owner: akmaljn7@gmail.com / GeofenceAdmin123!
-Employee: employee@example.com / Employee123!
-(Check  for full list).
-
-**What agent forgot to execute**:
-No specific regressions, but web backlog tasks (Bulk employee import, APScheduler jobs for TTL cleanup, GDPR export, Resend security events) are still pending from earlier sessions as priority shifted heavily to mobile build infrastructure and bug fixing.</analysis>
+<analysis>HH:MM:SS/sessions/startrespond_challengefirebase-bomfirebase-messagingplugins/withSelfieFullScreen.jsnullHH:MM:SS@ {office name}session_cutoff_ms@router.post(/start)
+/app
+├── backend/
+│   ├── routes/ (auth.py, mobile.py, sessions.py, gaps.py, colleague.py, face.py)
+│   ├── services/ (push.py, face_match.py, active_liveness.py)
+│   ├── tests/
+├── frontend/ 
+│   ├── src/pages/ (AdminDashboard.jsx)
+├── mobile/ (React Native / Expo SDK 52)
+│   ├── plugins/ (withSelfieFullScreen.js - injects dependencies into build.gradle & Manifest)
+│   ├── src/services/ (liveLocation.ts, push.ts)
+│   ├── src/context/ (ChallengeContext.tsx)
+│   ├── src/screens/ (employee/HomeScreen.tsx)
+│   ├── src/components/ (ChallengeModal.tsx)
+sessionsusersmobile_devicesfirebase-messagingexpo-build-properties/app/backend/routes/sessions.py/app/backend/routes/mobile.py/app/mobile/plugins/withSelfieFullScreen.js/app/mobile/src/context/ChallengeContext.tsx/app/mobile/src/components/ChallengeModal.tsx/app/mobile/src/screens/employee/HomeScreen.tsx/app/frontend/src/pages/AdminDashboard.jsxPOST /api/sessions/challenge/{id}/timeoutGET /api/mobile/reconciletotal_inside_mslast_fix_ts_msPOST /api/mobile/location_apply_location_fixroutes/mobile.py/app/test_reports/iteration_27.json/app/test_reports/iteration_28.json/app/memory/PRD.mdsession_cutoff_msbackend/tests/test_selfie_retry_iter27.pybackend/tests/test_active_liveness_unit.py/sessions/startakmaljn7@gmail.comGeofenceAdmin123!employee@example.comEmployee123!musa@gmail.com</analysis>

@@ -40,6 +40,11 @@
       },
       "package": "com.geofenceattendance.app",
       "googleServicesFile": "./config/google-services.json",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyCEm2EyzxEQfkL40ljhwDPBdTJVq957hVA"
+        }
+      },
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
@@ -107,7 +112,7 @@
       ]
     ],
     "extra": {
-      "apiUrl": "https://geofence-admin-1.preview.emergentagent.com"
+      "apiUrl": "https://mobile-roster-3.preview.emergentagent.com"
     },
     "runtimeVersion": {
       "policy": "appVersion"

@@ -343,6 +343,8 @@ Multi-tenant enterprise geofenced attendance platform. Organizations sign up, ad
 - **[5 Aug 2026]** Admin dashboard live rows now expose **Send selfie now** + **End session** buttons and a **STALE · NO PINGS** badge
 - **[5 Aug 2026]** Employees form shows an inline red banner (in addition to toast) when create fails, so the reason cannot be missed
 
+- **[11 Jun 2026]** BUG FIX — Mobile app crashed instantly after **admin** sign-in. Root cause: `AdminHomeScreen`/`OfficesScreen` render `react-native-maps` (Google Maps on Android via `PROVIDER_DEFAULT`), but `app.json` had **no** Google Maps API key, so the Google Maps SDK crashed the app the moment the map mounted. Employee screens have no map → never crashed. Fix: added `android.config.googleMaps.apiKey` to `app.json`; verified via `expo prebuild` that `com.google.android.geo.API_KEY` meta-data is now injected into AndroidManifest. **Requires APK rebuild to take effect.** Note: for the live map tiles to render (vs blank map) the key's Google Cloud project must have "Maps SDK for Android" enabled — if not enabled the map is blank but the app no longer crashes.
+
 ## Deferred / Backlog (P0/P1/P2)
 - **P0** — Wire actual FCM Credentials (Firebase service-account JSON → set FCM_SERVICE_ACCOUNT_JSON env; flips push/deadman from stub to live)
 - **P0** — Mobile Phase 7: Real-device testing on iOS + Android (TestFlight + Play Internal)
