@@ -52,7 +52,7 @@ MAX_SELFIE_ATTEMPTS = 5
 # lives in org settings (`active_liveness`, default True). Blocks presentation
 # attacks (printed photo / screen) that plain face-matching can't catch.
 ACTIVE_LIVENESS_ENFORCE = os.environ.get("ACTIVE_LIVENESS_ENFORCE", "true").lower() == "true"
-LIVENESS_ACTIONS = ["blink", "turn_left", "turn_right"]
+LIVENESS_ACTIONS = ["blink"]
 
 router = APIRouter(prefix="/api/sessions", tags=["sessions"])
 

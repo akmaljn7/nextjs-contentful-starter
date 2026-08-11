@@ -90,8 +90,11 @@ api.interceptors.response.use(
         original.headers.Authorization = `Bearer ${fresh}`;
         return api.request(original);
       }
-      // Refresh failed → wipe tokens so AuthContext gates back to login
-      await clearTokens();
+      // Refresh failed — do NOT wipe tokens or force logout. The failure is
+      // often just transient (offline / server unreachable / access token
+      // briefly expired). Keeping the refresh token lets the very next request
+      // recover automatically. The user stays signed in unless they explicitly
+      // tap Sign out. (See AuthContext: offline falls back to the cached profile.)
     }
     return Promise.reject(error);
   }

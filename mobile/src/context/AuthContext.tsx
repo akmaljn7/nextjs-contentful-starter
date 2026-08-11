@@ -5,8 +5,8 @@ import { Platform, AppState } from "react-native";
 
 import * as authApi from "@/api/auth";
 import { mobile } from "@/api/mobile";
-import { getAccessToken, clearTokens } from "@/api/client";
-import { getDeviceId } from "@/lib/storage";
+import { getAccessToken } from "@/api/client";
+import { getDeviceId, secureGet, secureSet, secureDelete } from "@/lib/storage";
 import { syncOfficeGeofence, stopGeofencing } from "@/services/geofence";
 import { startForegroundWatcher, stopForegroundWatcher } from "@/services/foregroundWatcher";
 import { startLiveLocation, stopLiveLocation, drainLocationQueue } from "@/services/liveLocation";
@@ -28,6 +28,23 @@ interface AuthState {
 }
 
 const AuthContext = createContext<AuthState | null>(null);
+
+// Last-known profile — lets the app stay signed in while offline (data or
+// location turned off) instead of forcing a logout. Never auto-cleared; only
+// wiped on an explicit Sign out.
+const CACHED_USER_KEY = "cached_user";
+async function cacheUser(u: authApi.AuthUser): Promise<void> {
+  try { await secureSet(CACHED_USER_KEY, JSON.stringify(u)); } catch { /* ignore */ }
+}
+async function getCachedUser(): Promise<authApi.AuthUser | null> {
+  try {
+    const s = await secureGet(CACHED_USER_KEY);
+    return s ? (JSON.parse(s) as authApi.AuthUser) : null;
+  } catch { return null; }
+}
+async function clearCachedUser(): Promise<void> {
+  try { await secureDelete(CACHED_USER_KEY); } catch { /* ignore */ }
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<authApi.AuthUser | null>(null);
@@ -65,26 +82,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const token = await getAccessToken();
       if (!token) {
+        // No token at all — genuinely signed out (fresh install or explicit
+        // sign out). Nothing to restore.
+        await clearCachedUser();
         setUser(null);
         return;
       }
-      const me = await authApi.fetchMe();
-      setUser(me);
-      await registerDeviceQuiet();
-      // Kick off employee-only side-effects: geofencing, reconciliation, health loop
-      if (me.role === "employee") {
-        // Fire and forget — these should never block UI hydration
-        coldStartReconcile().catch(() => undefined);
-        startHealthLoop();
-        startLiveLocation().catch(() => undefined);
-        startConnectivityWatcher();
-        drainLocationQueue().catch(() => undefined);
-        purgeOldSynced().catch(() => undefined);
+      // We have a token → resolve the profile. NEVER log out on failure:
+      // if the network is unreachable (data/location off, server hiccup) we
+      // fall back to the last known profile and stay signed in. The session
+      // recovers automatically once connectivity returns.
+      let me: authApi.AuthUser | null = null;
+      try {
+        me = await authApi.fetchMe();
+        await cacheUser(me);
+      } catch {
+        me = await getCachedUser();
       }
-    } catch {
-      // Auth interceptor already wiped tokens on 401 — surface gracefully
-      await clearTokens();
-      setUser(null);
+      setUser(me);
+      if (me) {
+        registerDeviceQuiet();
+        // Kick off employee-only side-effects: geofencing, reconciliation, health loop
+        if (me.role === "employee") {
+          // Fire and forget — these should never block UI hydration
+          coldStartReconcile().catch(() => undefined);
+          startHealthLoop();
+          startLiveLocation().catch(() => undefined);
+          startConnectivityWatcher();
+          drainLocationQueue().catch(() => undefined);
+          purgeOldSynced().catch(() => undefined);
+        }
+      }
     } finally {
       setHydrating(false);
     }
@@ -112,6 +140,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const me = await authApi.login(email, password);
       setUser(me);
+      await cacheUser(me);
       await registerDeviceQuiet();
       if (me.role === "employee") {
         coldStartReconcile().catch(() => undefined);
@@ -133,6 +162,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await stopLiveLocation();
     await stopGeofencing();
     await authApi.logout();
+    await clearCachedUser();
     setUser(null);
   }, []);
 
@@ -140,7 +170,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const me = await authApi.fetchMe();
       setUser(me);
-    } catch { /* keep current */ }
+      await cacheUser(me);
+    } catch { /* keep current — never drop the session on a failed refresh */ }
   }, []);
 
   const value = useMemo<AuthState>(

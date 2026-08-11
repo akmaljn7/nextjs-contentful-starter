@@ -1,0 +1,26 @@
+{
+  "summary": "Iteration 29 — backend-only regression for the mobile blink-only + no-auto-logout session. Created /app/backend/tests/test_iter29_blink_regression.py (8 tests). Results: 7 passed, 1 skipped. Auth regression fully green: owner login, employee login (role=employee), /auth/me for owner (role=org_owner, org_id/org_name/id present), /auth/refresh rotates both access_token and refresh_token. Selfie liveness: LIVENESS_ACTIONS constant asserted == ['blink'] via source read; the admin POST /api/sessions/challenge-now/{user_id} live-path check was SKIPPED because the seeded employee currently has no active session and one cannot be safely bootstrapped from the API without geofence/photo scaffolding — documented as acceptable per the review request. Respond endpoint contract: POST /api/sessions/challenge/{id}/respond returns 4xx (422 on missing/short face_photo via Pydantic; 404 on unknown challenge id with a valid-length payload) — never 500. Employee has no face baseline so the 400 'Liveness check required' branch is not enforced for that account (documented behavior).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": { "ui_bugs": [], "integration_issues": [], "design_issues": [] },
+  "test_report_links": [
+    "/app/backend/tests/test_iter29_blink_regression.py",
+    "/app/test_reports/pytest/iter29.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "routes/sessions.py:55 LIVENESS_ACTIONS=['blink'] is now the single source of truth — both random.choice sites (~219 manual challenge, ~1124 admin challenge-now) pick 'blink' deterministically. Good.",
+    "respond_challenge still requires liveness_frame+liveness_action only when face_baseline is enrolled AND settings.active_liveness=True AND ACTIVE_LIVENESS_ENFORCE is set. Since the test employee has no baseline, the 400 contract path for missing liveness fields cannot be exercised on that account — a dedicated seeded 'faced' employee would enable full HTTP coverage here (unit tests already cover this in test_active_liveness_iter28.py).",
+    "Small nit unchanged from iter28: respond endpoint should short-circuit the contract check above save_session_photo (already the case now at line ~575, before save_session_photo at ~586). Confirmed on re-read — fine.",
+    "action_label map in respond_challenge (~628) still lists turn_left/turn_right labels though those actions are no longer picked. Dead-but-safe branch; consider trimming to blink-only messaging to reduce confusion for future maintainers."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter29_blink_regression.py"
+  ],
+  "success_rate": { "backend": "100% (7/7 executed; 1 environmental skip)", "frontend": "not tested (backend-only per request)" },
+  "test_credentials": "Owner akmaljn7@gmail.com / GeofenceAdmin123!; Employee employee@example.com / Employee123! (no face baseline enrolled).",
+  "seed_data_creation": "None — pure read/regression tests against live deployed backend.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Run with `pytest backend/tests/test_iter29_blink_regression.py -o addopts=''` (pytest.ini has -n auto which is unnecessary here). BASE_URL is read from /app/frontend/.env at import time so it works even when the env var isn't exported into the shell. The admin challenge-now live-path test is auto-skipped when the employee has no active_session — to exercise it, first bootstrap an active session (start_session with valid geofence coords + baseline photo) for employee@example.com then POST /api/sessions/challenge-now/{emp_id} and assert active_challenge.liveness_action=='blink' via /api/sessions/me. The mobile RN changes (ChallengeModal auto-capture blink + no-auto-logout on offline) are not testable from this container.",
+  "rca of the issue": "N/A — backend regression fully green. The blink-only selfie contract is enforced at both admin-triggered and periodic challenge sites (routes/sessions.py:219 and :1124 both use random.choice(LIVENESS_ACTIONS) where LIVENESS_ACTIONS=['blink']). Auth+refresh flows unchanged and correct: refresh rotates both tokens (verified new refresh_token != submitted refresh_token)."
+}

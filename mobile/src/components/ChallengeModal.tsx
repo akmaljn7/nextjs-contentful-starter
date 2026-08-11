@@ -1,18 +1,23 @@
 /**
- * Selfie challenge modal — Phase 3.
+ * Selfie challenge modal — automatic blink capture (no shutter button).
  *
  * Triggered by:
  *   1. FCM push (handled in ChallengeContext)
  *   2. /sessions/me poll returning an `active_challenge`
+ *   3. Native full-screen "OPEN CAMERA" deep link
  *
- * Shows a full-screen camera view, front-facing, with a countdown to
- * `respond_by_ms`. On capture, uploads the base64 photo to
- * /api/sessions/challenge/{id}/respond where server-side dlib verifies
- * against the enrolled face baseline.
+ * Once the camera opens the flow is fully hands-free:
+ *   1. A short "position your face" settle window.
+ *   2. Auto-captures a NEUTRAL frame (eyes open).
+ *   3. Prompts the employee to gently close their eyes and auto-captures the
+ *      BLINK frame while their eyes are shut.
+ *   4. Uploads both to /api/sessions/challenge/{id}/respond, where server-side
+ *      dlib confirms the eye-closure (liveness) and matches the enrolled face.
+ * If a frame fails to verify, it retries automatically (server allows 5 tries).
  */
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  View, Text, StyleSheet, Modal, Pressable, ActivityIndicator, Alert,
+  View, Text, StyleSheet, Modal, Pressable, ActivityIndicator,
 } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as ImageManipulator from "expo-image-manipulator";
@@ -24,26 +29,25 @@ import { api, apiError } from "@/api/client";
 import { startAlarm, stopAlarm } from "@/services/alarm";
 import { colors } from "@/theme";
 
+const MAX_CLIENT_ATTEMPTS = 5;
+const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+type AutoPhase = "idle" | "settle" | "neutral" | "blink" | "uploading" | "retry";
+
 export function ChallengeModal() {
   const { active, dismiss, markResponded, cameraRequested, consumeCameraRequest } = useChallenge();
   const [perm, requestPerm] = useCameraPermissions();
   const camRef = useRef<CameraView | null>(null);
-  const [busy, setBusy] = useState(false);
   const [countdownMs, setCountdownMs] = useState<number>(0);
-  // Two-phase: first an "incoming" ring screen (alarm loud), then the camera.
   const [cameraOpen, setCameraOpen] = useState(false);
-  // Active-liveness 2-step capture: "neutral" (eyes open, facing straight)
-  // then "action" (blink / turn as prompted).
-  const [step, setStep] = useState<"neutral" | "action">("neutral");
-  const neutralRef = useRef<string | null>(null);
+  const [camReady, setCamReady] = useState(false);
+  const [autoPhase, setAutoPhase] = useState<AutoPhase>("idle");
+  const [retryNote, setRetryNote] = useState<string | null>(null);
+  const [attemptNo, setAttemptNo] = useState(1);
   const [missed, setMissed] = useState(false);
   const timeoutFiredRef = useRef(false);
-
-  const livenessAction = active?.liveness_action || "blink";
-  const actionLabel =
-    livenessAction === "turn_left" ? "Turn your head to the LEFT"
-    : livenessAction === "turn_right" ? "Turn your head to the RIGHT"
-    : "Slowly BLINK (close your eyes)";
+  const runningRef = useRef(false);
+  const cancelledRef = useRef(false);
 
   // Reset to the ring phase whenever a new challenge arrives — UNLESS we were
   // launched straight from the native full-screen "OPEN CAMERA" button, in
@@ -56,19 +60,22 @@ export function ChallengeModal() {
     } else {
       setCameraOpen(false);
     }
+    setCamReady(false);
   }, [active?.id, cameraRequested]);
 
-  // Reset the 2-step capture state whenever a new challenge arrives.
+  // Reset the auto-capture state whenever a new challenge arrives.
   useEffect(() => {
-    setStep("neutral");
-    neutralRef.current = null;
+    cancelledRef.current = false;
+    runningRef.current = false;
+    setAutoPhase("idle");
+    setRetryNote(null);
+    setAttemptNo(1);
     setMissed(false);
     timeoutFiredRef.current = false;
+    return () => { cancelledRef.current = true; };
   }, [active?.id]);
 
-  // Loud alarm (looping tone + repeating vibration) rings from the moment the
-  // request appears until the user opens the camera — so a busy/sleeping user
-  // notices. It STOPS as soon as the camera window opens.
+  // Loud alarm rings from the moment the request appears until the camera opens.
   useEffect(() => {
     if (active && !cameraOpen) {
       startAlarm();
@@ -84,13 +91,13 @@ export function ChallengeModal() {
   }, [perm, requestPerm]);
 
   // Countdown ticker — on expiry, tell the server the selfie was ignored so
-  // it's marked MISSED immediately (don't wait for the next server tick), then
-  // show a brief "missed" screen and auto-dismiss.
+  // it's marked MISSED immediately, then show a brief "missed" screen.
   useEffect(() => {
     if (!active) return;
     const onExpire = async () => {
       if (timeoutFiredRef.current) return;
       timeoutFiredRef.current = true;
+      cancelledRef.current = true;
       stopAlarm();
       setMissed(true);
       try { await api.post(`/sessions/challenge/${active.id}/timeout`); } catch { /* server tick will still expire it */ }
@@ -106,8 +113,6 @@ export function ChallengeModal() {
     return () => clearInterval(t);
   }, [active, dismiss]);
 
-  // Camera permission is requested when the user taps "Open camera" (openCamera).
-
   const takeCompressed = useCallback(async (): Promise<string> => {
     if (!camRef.current) throw new Error("camera_not_ready");
     const photo = await camRef.current.takePictureAsync({ quality: 1, skipProcessing: true });
@@ -121,45 +126,101 @@ export function ChallengeModal() {
     return `data:image/jpeg;base64,${manip.base64}`;
   }, []);
 
-  const capture = useCallback(async () => {
-    if (!camRef.current || busy || !active) return;
-    setBusy(true);
+  // Hands-free capture sequence — runs once the camera surface is ready.
+  const runAuto = useCallback(async () => {
+    if (runningRef.current || !active) return;
+    runningRef.current = true;
+    stopAlarm();
     try {
-      // Step 1 — neutral frame (eyes open, facing straight). Store and advance
-      // to the action step; the alarm keeps quiet from here.
-      if (step === "neutral") {
-        stopAlarm();
-        neutralRef.current = await takeCompressed();
-        setStep("action");
-        setBusy(false);
-        return;
+      for (let attempt = 1; attempt <= MAX_CLIENT_ATTEMPTS; attempt++) {
+        if (cancelledRef.current) break;
+        setAttemptNo(attempt);
+        setRetryNote(null);
+
+        // 1) settle — let the employee frame their face
+        setAutoPhase("settle");
+        await wait(1300);
+        if (cancelledRef.current) break;
+
+        // 2) neutral frame (eyes open)
+        setAutoPhase("neutral");
+        await wait(250);
+        let neutral: string;
+        try {
+          neutral = await takeCompressed();
+        } catch {
+          setRetryNote("Camera wasn't ready — trying again.");
+          setAutoPhase("retry");
+          await wait(1200);
+          continue;
+        }
+        if (cancelledRef.current) break;
+
+        // 3) blink frame — ask them to close their eyes and hold briefly
+        setAutoPhase("blink");
+        await wait(1900);
+        if (cancelledRef.current) break;
+        let blink: string;
+        try {
+          blink = await takeCompressed();
+        } catch {
+          setRetryNote("Camera wasn't ready — trying again.");
+          setAutoPhase("retry");
+          await wait(1200);
+          continue;
+        }
+        if (cancelledRef.current) break;
+
+        // 4) upload — server confirms the eye-closure + face match
+        setAutoPhase("uploading");
+        try {
+          await api.post(`/sessions/challenge/${active.id}/respond`, {
+            face_photo: neutral,
+            liveness_frame: blink,
+            liveness_action: "blink",
+          });
+          if (!cancelledRef.current) markResponded();
+          return;
+        } catch (e) {
+          const msg = apiError(e);
+          // Terminal states — stop retrying and let the countdown/miss flow take over.
+          if (/already|missed|no active session|window expired/i.test(msg)) {
+            setRetryNote(msg);
+            setAutoPhase("retry");
+            return;
+          }
+          setRetryNote(msg);
+          setAutoPhase("retry");
+          await wait(1700);
+        }
       }
-      // Step 2 — action frame (blink / turn). Upload both frames for the
-      // server-side active-liveness + face-match check.
-      const actionFrame = await takeCompressed();
-      await api.post(`/sessions/challenge/${active.id}/respond`, {
-        face_photo: neutralRef.current,
-        liveness_frame: actionFrame,
-        liveness_action: livenessAction,
-      });
-      markResponded();
-      Alert.alert("✅ Confirmed", "Selfie check-in accepted.");
-    } catch (e) {
-      // A failed match/liveness attempt returns 403 — let the user retake from
-      // the neutral step (the server keeps the challenge open up to 5 tries).
-      neutralRef.current = null;
-      setStep("neutral");
-      Alert.alert("Couldn't verify", apiError(e));
     } finally {
-      setBusy(false);
+      runningRef.current = false;
     }
-  }, [busy, active, step, takeCompressed, livenessAction, markResponded]);
+  }, [active, takeCompressed, markResponded]);
+
+  // Kick off the sequence as soon as the camera is open + ready + permitted.
+  useEffect(() => {
+    if (cameraOpen && camReady && perm?.granted && active && !missed && autoPhase === "idle") {
+      runAuto();
+    }
+  }, [cameraOpen, camReady, perm?.granted, active?.id, missed, autoPhase, runAuto]);
 
   if (!active) return null;
 
   const mm = Math.floor(countdownMs / 60000);
   const ss = Math.floor((countdownMs % 60000) / 1000).toString().padStart(2, "0");
   const dangerZone = countdownMs < 60_000;
+
+  const statusText =
+    autoPhase === "settle" ? "Position your face in the frame…"
+    : autoPhase === "neutral" ? "Hold still — capturing…"
+    : autoPhase === "blink" ? "Now gently CLOSE your eyes and hold"
+    : autoPhase === "uploading" ? "Verifying your face…"
+    : autoPhase === "retry" ? (retryNote || "Let's try that again…")
+    : "Getting ready…";
+
+  const isBusy = autoPhase === "uploading";
 
   return (
     <Modal
@@ -170,7 +231,6 @@ export function ChallengeModal() {
     >
       <View style={styles.container}>
         {missed ? (
-          // Auto-timeout — selfie went unanswered; reported to admin.
           <View style={styles.ringScreen} testID="challenge-missed">
             <View style={[styles.ringPulse, { backgroundColor: colors.red }]}>
               <Ionicons name="close" size={54} color="#fff" />
@@ -195,20 +255,24 @@ export function ChallengeModal() {
             </Text>
             <Text style={[styles.countdown, dangerZone && { color: colors.red }]}>{mm}:{ss}</Text>
             <Text style={styles.ringHint}>
-              {active.for_name
-                ? `${active.for_name} must take a live selfie to confirm they're at the office.`
-                : "Take a live selfie to confirm you're at the office."}
+              Just look at the camera and blink when asked — it captures automatically.
             </Text>
             <Pressable testID="challenge-open-camera" onPress={openCamera} style={styles.openBtn}>
               <Ionicons name="camera" size={18} color="#000" />
-              <Text style={styles.openBtnText}>Open camera</Text>
+              <Text style={styles.openBtnText}>Start selfie</Text>
             </Pressable>
           </View>
         ) : (
-          // Phase 2 — camera (alarm stopped)
+          // Phase 2 — camera (automatic capture)
           <>
             {perm?.granted ? (
-              <CameraView ref={(r) => { camRef.current = r; }} style={styles.cam} facing="front" mode="picture" />
+              <CameraView
+                ref={(r) => { camRef.current = r; }}
+                style={styles.cam}
+                facing="front"
+                mode="picture"
+                onCameraReady={() => setCamReady(true)}
+              />
             ) : (
               <View style={[styles.cam, styles.permPrompt]}>
                 <Ionicons name="camera" size={44} color={colors.textDim} />
@@ -223,34 +287,33 @@ export function ChallengeModal() {
               <View style={styles.badgeRow}>
                 <View style={styles.pulseDot} />
                 <Text style={styles.badgeText}>
-                  {active.manual ? "ADMIN-REQUESTED SELFIE" : "RANDOM SELFIE CHECK-IN"}
+                  {active.manual ? "ADMIN-REQUESTED SELFIE" : "AUTOMATIC SELFIE CHECK-IN"}
                 </Text>
               </View>
               {active.for_name ? (
                 <Text style={styles.forName}>This selfie is for {active.for_name}</Text>
               ) : null}
               <Text style={[styles.countdown, dangerZone && { color: colors.red }]}>{mm}:{ss}</Text>
-              <View style={styles.stepChip}>
-                <Text style={styles.stepChipText}>STEP {step === "neutral" ? "1" : "2"} OF 2 · LIVENESS</Text>
-              </View>
-              <Text style={styles.hint}>
-                {step === "neutral"
-                  ? "Look straight at the camera with your eyes open, then capture."
-                  : `Now ${actionLabel.toLowerCase()} while facing the camera, then capture.`}
-              </Text>
             </View>
 
-            <View style={styles.overlayBottom}>
-              <Pressable
-                testID="challenge-capture"
-                onPress={capture}
-                disabled={busy || !perm?.granted}
-                style={[styles.shutter, (busy || !perm?.granted) && { opacity: 0.5 }]}
-              >
-                {busy ? <ActivityIndicator color="#000" /> : <View style={styles.shutterInner} />}
-              </Pressable>
-              <Text style={styles.shutterHint}>
-                {busy ? "Verifying…" : step === "neutral" ? "Capture · look straight" : `Capture · ${actionLabel}`}
+            {/* Big hands-free instruction — the eye is the star during the blink step */}
+            <View style={styles.overlayBottom} testID="challenge-auto-status">
+              {autoPhase === "blink" ? (
+                <View style={[styles.autoIcon, { borderColor: colors.green }]}>
+                  <Ionicons name="eye-off" size={40} color={colors.green} />
+                </View>
+              ) : isBusy ? (
+                <ActivityIndicator color={colors.green} size="large" />
+              ) : (
+                <View style={[styles.autoIcon, { borderColor: colors.text }]}>
+                  <Ionicons name="scan" size={36} color={colors.text} />
+                </View>
+              )}
+              <Text style={[styles.autoStatus, autoPhase === "blink" && { color: colors.green }]}>
+                {statusText}
+              </Text>
+              <Text style={styles.autoSub}>
+                {camReady ? `Hands-free · attempt ${attemptNo} of ${MAX_CLIENT_ATTEMPTS}` : "Starting camera…"}
               </Text>
             </View>
           </>
@@ -288,26 +351,20 @@ const styles = StyleSheet.create({
     color: colors.text, fontSize: 44, fontWeight: "700",
     fontVariant: ["tabular-nums"], letterSpacing: 2,
   },
-  hint: { color: colors.textDim, fontSize: 13, textAlign: "center", marginTop: 4 },
-  stepChip: {
-    marginTop: 6, backgroundColor: colors.green, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999,
-  },
-  stepChipText: { color: "#000", fontSize: 10, fontWeight: "800", letterSpacing: 1.5 },
   overlayBottom: {
     position: "absolute", bottom: 0, left: 0, right: 0,
-    padding: 24, paddingBottom: 48, backgroundColor: "rgba(0,0,0,0.55)",
+    padding: 24, paddingBottom: 48, backgroundColor: "rgba(0,0,0,0.6)",
     alignItems: "center", gap: 12,
   },
-  shutter: {
-    width: 82, height: 82, borderRadius: 41,
-    backgroundColor: "#fff", alignItems: "center", justifyContent: "center",
-    borderWidth: 4, borderColor: colors.green,
+  autoIcon: {
+    width: 82, height: 82, borderRadius: 41, borderWidth: 3,
+    alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,0.4)",
   },
-  shutterInner: {
-    width: 64, height: 64, borderRadius: 32, backgroundColor: "#fff",
+  autoStatus: {
+    color: colors.text, fontSize: 18, fontWeight: "800", textAlign: "center", letterSpacing: 0.3,
   },
-  shutterHint: {
-    color: colors.text, fontSize: 12, letterSpacing: 1.5, fontWeight: "600",
+  autoSub: {
+    color: colors.textDim, fontSize: 12, letterSpacing: 1, fontWeight: "600",
   },
   ringScreen: {
     flex: 1, alignItems: "center", justifyContent: "center", padding: 32, gap: 16,
