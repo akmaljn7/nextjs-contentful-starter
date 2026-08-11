@@ -10,6 +10,7 @@ import { ChallengeProvider } from "@/context/ChallengeContext";
 import { RootNavigator } from "@/navigation/RootNavigator";
 import { ChallengeModal } from "@/components/ChallengeModal";
 import { queryClient } from "@/lib/queryClient";
+import { FaceDetectionProvider } from "@infinitered/react-native-mlkit-face-detection";
 // Side-effect imports: register global TaskManager tasks at cold-start so
 // the OS can wake them from geofence transitions AND from BOOT_COMPLETED.
 import "@/services/geofence";
@@ -23,18 +24,27 @@ import "@/services/bootTask";
  * the EmployeeRoot / AdminStack based on `useAuth()` role.
  * ChallengeModal sits above the navigator so it can appear over any screen.
  */
+const FACE_DETECTION_OPTIONS = {
+  performanceMode: "fast",
+  classificationMode: true, // required for leftEyeOpenProbability / blink detection
+  landmarkMode: false,
+  contourMode: false,
+};
+
 export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: "#0a0a0a" }}>
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
-          <AuthProvider>
-            <ChallengeProvider>
-              <StatusBar style="light" />
-              <RootNavigator />
-              <ChallengeModal />
-            </ChallengeProvider>
-          </AuthProvider>
+          <FaceDetectionProvider options={FACE_DETECTION_OPTIONS}>
+            <AuthProvider>
+              <ChallengeProvider>
+                <StatusBar style="light" />
+                <RootNavigator />
+                <ChallengeModal />
+              </ChallengeProvider>
+            </AuthProvider>
+          </FaceDetectionProvider>
         </QueryClientProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

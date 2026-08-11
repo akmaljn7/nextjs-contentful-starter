@@ -1,32 +1,33 @@
 /**
  * Mandatory face enrollment — shown the first time an employee logs in after
- * an office has been assigned, before they can use the app. Captures a clear
- * front-facing photo and posts it to /api/face/enroll to store the baseline
- * embedding used for all future selfie verification (incl. proxy selfies).
+ * an office has been assigned, before they can use the app. Uses the SAME
+ * face-detect + blink-to-capture flow as the selfie challenge (LivenessCamera),
+ * so a live face is proven at enrollment too. The eyes-open (neutral) frame is
+ * posted to /api/face/enroll to store the baseline embedding used for all
+ * future selfie verification.
  */
 import React, { useCallback, useState } from "react";
-import { View, Text, StyleSheet, Alert, ScrollView } from "react-native";
+import { View, Text, StyleSheet, ScrollView } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Screen } from "@/components/Screen";
-import { CameraCapture } from "@/components/CameraCapture";
+import { LivenessCamera, LiveVerifyResult } from "@/components/LivenessCamera";
 import { useAuth } from "@/context/AuthContext";
 import { api, apiError } from "@/api/client";
 import { colors } from "@/theme";
 
 export default function FaceEnrollScreen() {
   const { refresh, signOut } = useAuth();
-  const [busy, setBusy] = useState(false);
+  const [verify, setVerify] = useState<LiveVerifyResult>({ kind: "idle" });
 
-  const onCapture = useCallback(async (dataUrl: string) => {
-    setBusy(true);
+  const onCapture = useCallback(async (neutralB64: string, _blinkB64: string) => {
+    setVerify({ kind: "verifying" });
     try {
-      await api.post("/face/enroll", { face_photo: dataUrl });
-      Alert.alert("✅ Face enrolled", "Your identity is now set up. Welcome!");
-      await refresh();
+      // Blink already proved liveness on-device; store the clean eyes-open frame.
+      await api.post("/face/enroll", { face_photo: neutralB64 });
+      setVerify({ kind: "verified" });
+      setTimeout(() => { refresh(); }, 1200);
     } catch (e) {
-      Alert.alert("Couldn't enroll", apiError(e));
-    } finally {
-      setBusy(false);
+      setVerify({ kind: "failed", message: apiError(e) });
     }
   }, [refresh]);
 
@@ -37,17 +38,16 @@ export default function FaceEnrollScreen() {
           <Ionicons name="scan-circle" size={40} color={colors.green} />
           <Text style={styles.title}>Verify your identity</Text>
           <Text style={styles.sub}>
-            Before you start, enroll your face. This is required once and is used to confirm
-            it's really you during random selfie check-ins.
+            Enroll your face once. Look at the camera and blink — it captures automatically and
+            is used to confirm it's really you during random selfie check-ins.
           </Text>
         </View>
 
-        <CameraCapture
+        <LivenessCamera
           onCapture={onCapture}
-          busy={busy}
-          hint="Center your face, good lighting, look straight at the camera."
-          captureLabel="Enroll my face"
-          testID="face-enroll-capture"
+          result={verify}
+          headline="Face enrollment"
+          testID="face-enroll-liveness-camera"
         />
 
         <Text style={styles.footer}>
