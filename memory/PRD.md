@@ -23,6 +23,12 @@ Multi-tenant enterprise geofenced attendance platform. Organizations sign up, ad
 - PWA installable
 
 ## Implemented (2026-02 → 2026-08)
+### Employee live on-site clock + offline note (June 2026)
+- **Employee mobile HomeScreen** now shows an "ON-SITE TODAY" live `HH:MM:SS` clock (`employee-inside-clock`) that ticks every second while active, mirroring the admin roster's INSIDE counter — same freeze-on-gap logic (`LIVE_FRESH_MS = 60s`, clock-skew corrected via reconcile `server_ts_ms`/`dataUpdatedAt`).
+- **Offline/paused note**: while counting → green "Counting live"; active but no fix for >60s → amber `employee-offline-note` "You're offline — your on-site timer is paused and will continue when you're back online."; status paused (walked out) → `employee-paused-note`.
+- **Backend**: `/api/mobile/reconcile` `session` view now includes `total_inside_ms` and `last_fix_ts_ms` (needed by the mobile clock). Verified via curl. This backend change is live on preview; the mobile UI change ships in the next APK build.
+
+
 ### "OPEN CAMERA" opened the app but not the selfie camera (FIXED, June 2026)
 - **Symptom**: tapping OPEN CAMERA on the full-screen selfie call opened the app but showed no camera.
 - **Root cause**: the selfie push is DATA-ONLY (handled by the native `SelfieMessagingService`), so the JS layer never learns about the challenge from the push. The deep link (`geofenceattendance://selfie`) only set `cameraRequested`, but the modal renders/opens the camera only when a challenge (`active`) exists — and `active` was populated solely by the 12 s `/sessions/me` poll, which usually hadn't run yet on open → nothing to attach the camera to.

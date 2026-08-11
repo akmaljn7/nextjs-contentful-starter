@@ -14,10 +14,31 @@ import { startLiveLocation } from "@/services/liveLocation";
 import { requestIgnoreBatteryOptimizations, hasPromptedBatteryOptimization, requestFullScreenIntentAccess } from "@/services/batteryOptimization";
 import { colors } from "@/theme";
 
+// Live elapsed as HH:MM:SS (zero-padded).
+function fmtHMS(ms: number) {
+  const total = Math.max(0, Math.floor((ms || 0) / 1000));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${p(h)}:${p(m)}:${p(s)}`;
+}
+
+// Freeze the live ticker if no fix has arrived for longer than this — the
+// device has gone offline (coverage gap) and the server stops counting.
+const LIVE_FRESH_MS = 60_000;
+
 export default function EmployeeHomeScreen() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const [bgPerm, setBgPerm] = React.useState<"granted" | "missing" | "checking">("checking");
+
+  // 1 Hz ticker so the on-site clock counts up live between reconcile polls.
+  const [nowMs, setNowMs] = React.useState(() => Date.now());
+  React.useEffect(() => {
+    const t = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
 
   const rec = useQuery({
     queryKey: ["mobile-reconcile"],
@@ -90,6 +111,19 @@ export default function EmployeeHomeScreen() {
     : session?.status === "paused" ? colors.amber
     : colors.textMute;
 
+  // Server-accurate live on-site time. Correct for device/server clock skew
+  // using the server_ts_ms captured with the last reconcile response. Only
+  // extrapolate while active AND still receiving fixes — otherwise freeze
+  // (device offline / walked out) so we never invent minutes.
+  const clockOffset = rec.data?.server_ts_ms && rec.dataUpdatedAt
+    ? rec.data.server_ts_ms - rec.dataUpdatedAt : 0;
+  const serverNow = nowMs + clockOffset;
+  const lastTs = session?.last_fix_ts_ms ?? null;
+  const sincePing = lastTs != null ? serverNow - lastTs : Infinity;
+  const counting = session?.status === "active" && lastTs != null && sincePing >= 0 && sincePing <= LIVE_FRESH_MS;
+  const insideMs = (session?.total_inside_ms || 0) + (counting ? sincePing : 0);
+  const offlineWhileActive = session?.status === "active" && !counting;
+
   return (
     <Screen>
       <ScrollView
@@ -130,6 +164,29 @@ export default function EmployeeHomeScreen() {
                   ? "You're checked in. Walk out of the office to pause."
                   : "Paused. Walk back into the office to resume."}
               </Text>
+
+              <View style={styles.insideBlock}>
+                <Text style={styles.insideLabel}>ON-SITE TODAY</Text>
+                <Text style={styles.insideClock} testID="employee-inside-clock">{fmtHMS(insideMs)}</Text>
+                {counting ? (
+                  <View style={styles.liveRow}>
+                    <View style={styles.liveDot} />
+                    <Text style={styles.liveText} testID="employee-inside-live">Counting live</Text>
+                  </View>
+                ) : offlineWhileActive ? (
+                  <View style={styles.liveRow}>
+                    <View style={[styles.liveDot, { backgroundColor: colors.amber }]} />
+                    <Text style={styles.offlineText} testID="employee-offline-note">
+                      You're offline — your on-site timer is paused and will continue when you're back online.
+                    </Text>
+                  </View>
+                ) : session.status === "paused" ? (
+                  <Text style={styles.offlineText} testID="employee-paused-note">
+                    Paused — the timer resumes automatically when you walk back into the office.
+                  </Text>
+                ) : null}
+              </View>
+
               {session.remaining_ms > 0 && (
                 <Text style={styles.cardMeta}>
                   {Math.round(session.remaining_ms / 60000)} min remaining in today's shift
@@ -185,6 +242,18 @@ const styles = StyleSheet.create({
   status: { fontSize: 12, letterSpacing: 3, fontWeight: "700" },
   cardBody: { color: colors.text, fontSize: 14, lineHeight: 20, marginTop: 10 },
   cardMeta: { color: colors.textDim, fontSize: 12, marginTop: 6, fontFamily: "Menlo" },
+  insideBlock: {
+    marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: colors.border,
+  },
+  insideLabel: { color: colors.textDim, fontSize: 10, letterSpacing: 2, fontWeight: "600" },
+  insideClock: {
+    color: colors.text, fontSize: 40, fontWeight: "700", fontFamily: "Menlo",
+    marginTop: 6, letterSpacing: 1,
+  },
+  liveRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8 },
+  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.green },
+  liveText: { color: colors.green, fontSize: 12, fontWeight: "600", letterSpacing: 0.5 },
+  offlineText: { color: colors.amber, fontSize: 12, lineHeight: 17, flex: 1 },
   cardLabel: { color: colors.textDim, fontSize: 10, letterSpacing: 2, marginBottom: 8, fontWeight: "600" },
   officeName: { color: colors.text, fontSize: 18, fontWeight: "600" },
   officeCoords: { color: colors.textDim, fontFamily: "Menlo", fontSize: 12, marginTop: 6 },

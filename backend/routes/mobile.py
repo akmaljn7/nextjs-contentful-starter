@@ -921,6 +921,8 @@ async def reconcile_state(user: dict = Depends(get_current_user)):
             "status": session["status"],
             "start_time_ms": session.get("start_time_ms"),
             "remaining_ms": session.get("remaining_ms"),
+            "total_inside_ms": session.get("total_inside_ms", 0),
+            "last_fix_ts_ms": (session.get("last_fix") or {}).get("ts_ms"),
             "center": session.get("center"),
             "flagged": session.get("flagged", False),
         }

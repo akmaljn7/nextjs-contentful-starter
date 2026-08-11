@@ -28,7 +28,8 @@ export interface RegisterDevicePayload {
 export interface ReconcileState {
   office: { id: string; name: string; lat: number; lng: number; radius_meters: number } | null;
   session: { id: string; status: string; start_time_ms: number;
-             remaining_ms: number; center: any; flagged: boolean } | null;
+             remaining_ms: number; total_inside_ms: number;
+             last_fix_ts_ms: number | null; center: any; flagged: boolean } | null;
   last_event: { type: string; ts_ms: number; client_event_id: string; outcome: string | null } | null;
   server_ts_ms: number;
 }
