@@ -222,6 +222,21 @@ async def _apply_geofence_event(db, user: dict, event: MobileGeofenceEvent) -> d
     office_lat = office["location"]["coordinates"][1]
     office_lng = office["location"]["coordinates"][0]
 
+    # Session boundary watermark — when an admin force-ends a session or moves
+    # the employee to another office, `session_cutoff_ms` is stamped on the
+    # user. Any queued/offline event captured at/before that instant belongs to
+    # the OLD (already-closed) attendance record and must NOT start or mutate a
+    # new live session. Drop it here so a fresh session stays clean.
+    try:
+        _udoc = await db.users.find_one({"_id": ObjectId(user["id"])}, {"session_cutoff_ms": 1})
+        _cutoff = int((_udoc or {}).get("session_cutoff_ms") or 0)
+    except Exception:
+        _cutoff = 0
+    if _cutoff and event.ts_ms <= _cutoff:
+        logger.info("mobile_event_pre_cutoff user=%s event=%s ts=%s cutoff=%s",
+                    user.get("email"), event.client_event_id, event.ts_ms, _cutoff)
+        return {"outcome": "stale_pre_cutoff"}
+
     # Flag mock location as soft security event (Phase 6 will make this stricter)
     if event.mock_location:
         await log_security_event(
@@ -517,6 +532,11 @@ async def _apply_location_fix(db, user: dict, fix: MobileLocationFix) -> dict:
 
     settings = await _get_org_settings(db, user["org_id"])
     now_ms = fix.ts_ms or _now_ms()
+    # Drop fixes captured at/before an admin session-cutoff (force-end / office
+    # reassignment) — they belong to the closed record, not a new session.
+    _cutoff = int((user_doc or {}).get("session_cutoff_ms") or 0)
+    if _cutoff and now_ms <= _cutoff:
+        return {"outcome": "stale_pre_cutoff"}
     office_lat = office["location"]["coordinates"][1]
     office_lng = office["location"]["coordinates"][0]
     radius = office["radius_meters"]

@@ -139,6 +139,25 @@ async def update_employee(employee_id: str, payload: EmployeeUpdate, request: Re
         update["logout_enabled"] = bool(payload.logout_enabled)
     if update:
         await db.users.update_one({"_id": eid}, {"$set": update})
+
+    # Office reassignment: the employee's active session belongs to the OLD
+    # office. Close it out into an immutable attendance record and stamp a
+    # session cutoff so queued/offline events from the old office can't bleed
+    # into a fresh session at the new office.
+    office_changed = "office_id" in update and update["office_id"] != existing.get("office_id")
+    if office_changed:
+        import time as _time
+        from routes.sessions import _write_attendance_record, _broadcast_session
+        now_ms = int(_time.time() * 1000)
+        s = await db.active_sessions.find_one({"user_id": employee_id, "org_id": user["org_id"]})
+        if s:
+            await _write_attendance_record(db, s, "office_reassigned", now_ms)
+            await db.active_sessions.delete_one({"_id": s["_id"]})
+            await _broadcast_session(db, s, ended=True, outcome="office_reassigned")
+        await db.users.update_one({"_id": eid}, {"$set": {"session_cutoff_ms": now_ms}})
+        logger.info("employee_office_reassigned admin=%s target=%s closed_session=%s",
+                    user.get("email"), employee_id, bool(s))
+
     new_doc = await db.users.find_one({"_id": eid})
     await log_admin_action(
         user["org_id"], user["id"],

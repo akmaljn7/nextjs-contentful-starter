@@ -23,6 +23,14 @@ Multi-tenant enterprise geofenced attendance platform. Organizations sign up, ad
 - PWA installable
 
 ## Implemented (2026-02 → 2026-08)
+### Office name in in/out log + stale-event isolation on end/reassign (June 2026)
+- **#1 Office name in the admin IN/OUT log**: each crossing (and coverage-gap) row on the LIVE SESSIONS roster now shows `@ {office name}` in front (sky-blue), resolved from an `officeById` map of `/offices` keyed on the session's `office_id`. Test id `inout-office-{sid}-{idx}`.
+- **#2 Stale pending events no longer pollute a new session**: added a per-user `session_cutoff_ms` watermark.
+  - `POST /sessions/force-expire/{id}` and employee **office reassignment** (`PATCH /employees/{id}` with a changed `office_id`) now: write the immutable attendance record for the current session, delete the live session, and stamp `session_cutoff_ms = now` on the user. Office reassignment closes the old-office session with outcome `office_reassigned`.
+  - Mobile ingest (`_apply_geofence_event` and `_apply_location_fix`) drops any event/fix whose client `ts_ms <= session_cutoff_ms` → returns `stale_pre_cutoff` instead of auto-starting/mutating a session. So queued/offline events from before the admin action stay with the already-written attendance record and never spin up or contaminate a fresh session.
+- **Verified via curl+DB**: pre-cutoff enter → `stale_pre_cutoff` (no session); post-cutoff enter → `session_started`; force-expire stamps cutoff + writes `force_expired` record; office reassign closes session (count 0), updates office, stamps cutoff, writes `office_reassigned` record. Frontend compiled clean. (Attendance records are hash-chained/immutable, so stale events are dropped from live rather than appended.)
+
+
 ### Employee live on-site clock + offline note (June 2026)
 - **Employee mobile HomeScreen** now shows an "ON-SITE TODAY" live `HH:MM:SS` clock (`employee-inside-clock`) that ticks every second while active, mirroring the admin roster's INSIDE counter — same freeze-on-gap logic (`LIVE_FRESH_MS = 60s`, clock-skew corrected via reconcile `server_ts_ms`/`dataUpdatedAt`).
 - **Offline/paused note**: while counting → green "Counting live"; active but no fix for >60s → amber `employee-offline-note` "You're offline — your on-site timer is paused and will continue when you're back online."; status paused (walked out) → `employee-paused-note`.

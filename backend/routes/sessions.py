@@ -1165,6 +1165,13 @@ async def force_expire(user_id: str, request: Request, user: dict = Depends(requ
         raise HTTPException(status_code=404, detail="No active session")
     await _write_attendance_record(db, s, "force_expired", _now_ms())
     await db.active_sessions.delete_one({"_id": s["_id"]})
+    # Stamp a session cutoff so any queued/offline events from the app that
+    # predate this action can't spin up or pollute a brand-new session — they
+    # belong to the record we just wrote.
+    try:
+        await db.users.update_one({"_id": ObjectId(user_id)}, {"$set": {"session_cutoff_ms": _now_ms()}})
+    except Exception:
+        pass
     await _broadcast_session(db, s, ended=True, outcome="force_expired")
     from services.audit import log_admin_action
     await log_admin_action(

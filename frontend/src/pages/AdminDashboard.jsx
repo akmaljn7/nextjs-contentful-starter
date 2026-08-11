@@ -119,6 +119,10 @@ export default function AdminDashboard() {
     queryKey: ["offices"],
     queryFn: async () => (await api.get("/offices")).data,
   });
+  const officeById = useMemo(
+    () => Object.fromEntries((offices || []).map((o) => [o.id, o.name])),
+    [offices],
+  );
 
   const { data: live = [] } = useQuery({
     queryKey: ["live"],
@@ -321,6 +325,7 @@ export default function AdminDashboard() {
                 {(() => {
                   const moves = inOutLog(s.log);
                   if (!moves.length) return null;
+                  const officeName = officeById[s.office_id] || "Unknown office";
                   return (
                     <div className="mt-3 border-t border-white/5 pt-2" data-testid={`inout-log-${s.id}`}>
                       <div className="flex items-center justify-between mb-1.5">
@@ -338,6 +343,7 @@ export default function AdminDashboard() {
                               <span className="inline-flex items-center gap-1 text-red-400 flex-none">
                                 <AlertTriangle size={11} /> GAP {fmtGap(m.gap_ms)}
                               </span>
+                              <span className="text-sky-300/90 flex-none truncate max-w-[110px]" title={officeName} data-testid={`inout-office-${s.id}-${idx}`}>@ {officeName}</span>
                               <span className="text-gray-300 flex-none">
                                 <span className="text-red-400/70">OFF</span> {fmtClock(m.from_ms)}
                                 <span className="text-green-400/70 ml-1.5">ON</span> {fmtClock(m.to_ms)}
@@ -361,6 +367,7 @@ export default function AdminDashboard() {
                                   <LogOut size={11} /> OUT
                                 </span>
                               )}
+                              <span className="text-sky-300/90 flex-none truncate max-w-[110px]" title={officeName} data-testid={`inout-office-${s.id}-${idx}`}>@ {officeName}</span>
                               <span className="text-gray-300 flex-none">{fmtClock(m.ts_ms)}</span>
                               <span className="text-gray-500 truncate ml-auto">
                                 {m.lat != null && m.lng != null
