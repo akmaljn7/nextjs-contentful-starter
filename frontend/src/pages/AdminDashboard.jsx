@@ -1,10 +1,10 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, BACKEND, toApiError } from "@/lib/api";
 import { AppShell } from "@/components/AppShell";
 import { MapView } from "@/components/MapView";
 import { StatusChip } from "@/components/StatusChip";
-import { fmtCoord, fmtDateTime, fmtMinutes, STATUS_LABEL } from "@/lib/format";
+import { fmtCoord, fmtDateTime, STATUS_LABEL } from "@/lib/format";
 import { useLiveSessions } from "@/hooks/useLiveSessions";
 import { toast } from "sonner";
 import { Building2, Users, Activity, PauseCircle, Database, ShieldAlert, Wifi, Camera, Bell, X, LogIn, LogOut, AlertTriangle } from "lucide-react";
@@ -32,6 +32,35 @@ function fmtClock(ms) {
   try {
     return new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
   } catch { return "—"; }
+}
+
+// Live elapsed as HH:MM:SS (zero-padded).
+function fmtHMS(ms) {
+  const total = Math.max(0, Math.floor((ms || 0) / 1000));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  const p = (n) => String(n).padStart(2, "0");
+  return `${p(h)}:${p(m)}:${p(s)}`;
+}
+
+// How long after the last fix we keep extrapolating the INSIDE counter. Live
+// fixes arrive every ~15 s; if none arrive for longer than this the device has
+// gone dark (coverage gap / connection lost) — the server stops counting that
+// time, so the live ticker must freeze too instead of inventing minutes.
+const LIVE_FRESH_MS = 60 * 1000;
+
+// Server-accurate live INSIDE time: the stored total (accrued up to the last
+// fix) plus the seconds since that fix ONLY while the session is active AND
+// still receiving fixes. Frozen during gaps; recalculates automatically once
+// fixes resume (or once an admin approves a gap and the server re-credits it).
+function liveInsideMs(s, nowMs) {
+  const base = s.total_inside_ms || 0;
+  const lastTs = s.last_fix?.ts_ms;
+  if (s.status !== "active" || !lastTs) return base;
+  const since = nowMs - lastTs;
+  if (since < 0 || since > LIVE_FRESH_MS) return base;
+  return base + since;
 }
 
 function fmtGap(ms) {
@@ -77,6 +106,14 @@ export default function AdminDashboard() {
   // Open the live WebSocket — pushes into the ["live"] cache in real time.
   useLiveSessions(true);
   const qc = useQueryClient();
+
+  // 1 Hz ticker so each active session's INSIDE time counts up live between
+  // the periodic /sessions/live refreshes.
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
 
   const { data: offices = [] } = useQuery({
     queryKey: ["offices"],
@@ -265,7 +302,9 @@ export default function AdminDashboard() {
                   </div>
                   <div>
                     <div className="text-gray-500">INSIDE</div>
-                    <div className="text-white mt-0.5">{fmtMinutes(s.total_inside_ms)}</div>
+                    <div className="text-white mt-0.5 tabular-nums" data-testid={`live-inside-${s.id}`}>
+                      {fmtHMS(liveInsideMs(s, nowMs))}
+                    </div>
                   </div>
                   <div>
                     <div className="text-gray-500">FIX</div>
