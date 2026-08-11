@@ -1,9 +1,10 @@
 """Regression tests for inside-time double-count fix.
 
-BEHAVIOR: a SINGLE outside live-location fix pauses the session immediately
-(outcome 'session_paused') — the 3-minute exit debounce has been removed so
-exits are logged with no delay. Only the impossible-speed filter suppresses
-GPS teleport spikes. Inside time is accrued incrementally (no double count).
+BEHAVIOR: exits/enters use hysteresis — an outside fix does NOT pause
+immediately; it must be sustained across EXIT_CONFIRM_FIXES(3) fixes AND
+EXIT_CONFIRM_MS(45s) before committing (enter: 2 fixes / 20s). No inside time
+is accrued during the uncertain hold, and the pause is backdated to the first
+outside fix, so there is no double count and outside time is never billed.
 """
 import os
 import time
@@ -95,8 +96,9 @@ def _get_live_session(admin_tok):
 
 
 class TestActiveInsideAccrualNoDoubleCount:
-    """3 inside fixes then a single outside fix (pauses immediately) must
-    produce total_inside_ms == 30000 (delta between inside fixes only)."""
+    """3 inside fixes then a sustained outside exit must produce
+    total_inside_ms == 30000 (delta between inside fixes only) — no time is
+    counted during the pending-exit hold or across the exit."""
 
     def test_no_double_count_on_outside_pause(self, admin_tok, emp_tok):
         _force_expire(admin_tok)
@@ -107,10 +109,12 @@ class TestActiveInsideAccrualNoDoubleCount:
         _post_fix(emp_tok, device_id, OFFICE_LAT, OFFICE_LNG, now + 15_000)
         _post_fix(emp_tok, device_id, OFFICE_LAT, OFFICE_LNG, now + 30_000)
 
-        # Single outside fix -> pauses immediately (no debounce)
-        p1 = _post_fix(emp_tok, device_id, *FAR_OUTSIDE, now + 45_000)
-        assert p1.get("outcome") == "session_paused", p1
-        assert p1.get("status") == "paused", p1
+        # Sustained outside exit (3 fixes / >=45s) -> commits pause
+        _post_fix(emp_tok, device_id, *FAR_OUTSIDE, now + 45_000)
+        _post_fix(emp_tok, device_id, *FAR_OUTSIDE, now + 61_000)
+        p3 = _post_fix(emp_tok, device_id, *FAR_OUTSIDE, now + 92_000)
+        assert p3.get("outcome") == "session_paused", p3
+        assert p3.get("status") == "paused", p3
 
         s = _get_live_session(admin_tok)
         assert s is not None
@@ -129,16 +133,19 @@ class TestActiveInsideAccrualNoDoubleCount:
         _post_fix(emp_tok, device_id, OFFICE_LAT, OFFICE_LNG, now + 15_000)
         _post_fix(emp_tok, device_id, OFFICE_LAT, OFFICE_LNG, now + 30_000)
 
-        # Single outside fix -> pause immediately
+        # Sustained outside exit -> pause (backdated to first outside = +45s)
         _post_fix(emp_tok, device_id, *FAR_OUTSIDE, now + 45_000)
+        _post_fix(emp_tok, device_id, *FAR_OUTSIDE, now + 61_000)
+        _post_fix(emp_tok, device_id, *FAR_OUTSIDE, now + 92_000)
 
-        base = now + 45_000
-        # Resume inside
-        r1 = _post_fix(emp_tok, device_id, OFFICE_LAT, OFFICE_LNG, base + 15_000)
-        assert r1.get("status") == "active", r1
-        # +15s inside -> +15000 accrual
-        r2 = _post_fix(emp_tok, device_id, OFFICE_LAT, OFFICE_LNG, base + 30_000)
-        assert r2.get("status") == "active", r2
+        # Confirmed re-entry (2 fixes / >=20s) -> resume, backdated to first inside
+        e1 = _post_fix(emp_tok, device_id, OFFICE_LAT, OFFICE_LNG, now + 110_000)
+        assert e1.get("outcome") == "pending_enter", e1
+        e2 = _post_fix(emp_tok, device_id, OFFICE_LAT, OFFICE_LNG, now + 131_000)
+        assert e2.get("outcome") == "session_resumed", e2
+        # +15s inside after resume -> +15000 accrual
+        r3 = _post_fix(emp_tok, device_id, OFFICE_LAT, OFFICE_LNG, now + 146_000)
+        assert r3.get("status") == "active", r3
 
         s = _get_live_session(admin_tok)
         assert s is not None
@@ -150,8 +157,8 @@ class TestActiveInsideAccrualNoDoubleCount:
 
 
 class TestOfflineBatchReplayAccrual:
-    """/location-sync batch drains through the same immediate-pause/speed
-    logic. The first outside fix in the ordered batch pauses the session."""
+    """/location-sync batch drains through the same hysteresis. Three sustained
+    outside fixes in the ordered batch commit the pause; replay is idempotent."""
 
     def test_batch_accrual_and_idempotent_replay(self, admin_tok, emp_tok):
         _force_expire(admin_tok)
@@ -164,20 +171,20 @@ class TestOfflineBatchReplayAccrual:
              "accuracy": 8, "ts_ms": now + 60_000, "battery": 0.9},
             {"device_id": device_id, "lat": OFFICE_LAT, "lng": OFFICE_LNG,
              "accuracy": 8, "ts_ms": now + 120_000, "battery": 0.9},
-            # first outside -> pauses immediately
+            # sustained outside exit (3 fixes / >=45s) -> commits pause
             {"device_id": device_id, "lat": FAR_OUTSIDE[0], "lng": FAR_OUTSIDE[1],
              "accuracy": 8, "ts_ms": now + 180_000, "battery": 0.9},
-            # still outside while paused -> stays paused, moves pin
             {"device_id": device_id, "lat": FAR_OUTSIDE[0], "lng": FAR_OUTSIDE[1],
              "accuracy": 8, "ts_ms": now + 240_000, "battery": 0.9},
+            {"device_id": device_id, "lat": FAR_OUTSIDE[0], "lng": FAR_OUTSIDE[1],
+             "accuracy": 8, "ts_ms": now + 300_000, "battery": 0.9},
         ]
         r = requests.post(f"{BASE}/api/mobile/location-sync",
                           headers=_h(emp_tok), json={"fixes": fixes}, timeout=30)
         assert r.status_code == 200, r.text
         outs = r.json().get("outcomes", [])
-        # first three: auto-start then active accrual
-        assert outs[-2] == "session_paused", outs
-        assert outs[-1] == "still_paused", outs
+        assert outs[-1] == "session_paused", outs
+        assert outs.count("pending_exit") == 2, outs
 
         s = _get_live_session(admin_tok)
         assert s is not None

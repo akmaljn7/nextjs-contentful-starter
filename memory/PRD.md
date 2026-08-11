@@ -23,6 +23,15 @@ Multi-tenant enterprise geofenced attendance platform. Organizations sign up, ad
 - PWA installable
 
 ## Implemented (2026-02 → 2026-08)
+### GPS jitter false IN/OUT — robust hysteresis fix (June 2026)
+- **Root cause**: the live path had only an impossible-speed filter (>55 m/s). At the 15 s cadence that only rejects >825 m teleports; the common 100–800 m jitter blip (phone on desk) has low implied speed, passed the filter, and — since the exit debounce had been removed — a single stray fix `definitely_outside` **paused the session instantly**, logging a false OUT then IN.
+- **Fix (`routes/mobile.py` `_apply_location_fix`)**: added **crossing hysteresis** — a boundary crossing is only committed once SUSTAINED across `EXIT_CONFIRM_FIXES=3` fixes AND `EXIT_CONFIRM_MS=45s` (enter: `2` fixes / `20s`). During the uncertain hold the session stays put, no inside time is accrued, and if the fix comes back before confirmation it's recorded as a non-crossing `jitter_ignored` breadcrumb (never an OUT/IN). A confirmed exit is **backdated to the first outside fix**. Added **accuracy gating** (low-confidence fixes can't trigger a crossing) and kept the impossible-speed teleport reject. Pending state stored on the session (`pending_exit_since_ms/count`, `pending_enter_since_ms/count`).
+- **Also fixed a regression**: the `@router.post("/start")` decorator on `start_session` had been accidentally dropped during the earlier `/challenge/{id}/timeout` edit — `/api/sessions/start` was 404. Restored.
+- **Session-cutoff grace**: added `CUTOFF_GRACE_MS=10s` so a genuine re-check-in right after an admin end/reassign isn't dropped as stale (only meaningfully-older queued events are).
+- **Verified**: full backend suite **237 passed / 1 skipped**. New/updated tests: `test_gps_jitter_suppression.py` (blip out-and-back logs nothing; sustained exit commits backdated; enter confirmation; teleport reject), `test_inside_time_double_count_fix.py` (no double-count under hysteresis + offline batch), `test_mobile_phase0.py` aligned.
+- **Note**: the raw map dot can still briefly show GPS noise (we don't fabricate positions), but no false IN/OUT is logged.
+
+
 ### Office name in in/out log + stale-event isolation on end/reassign (June 2026)
 - **#1 Office name in the admin IN/OUT log**: each crossing (and coverage-gap) row on the LIVE SESSIONS roster now shows `@ {office name}` in front (sky-blue), resolved from an `officeById` map of `/offices` keyed on the session's `office_id`. Test id `inout-office-{sid}-{idx}`.
 - **#2 Stale pending events no longer pollute a new session**: added a per-user `session_cutoff_ms` watermark.

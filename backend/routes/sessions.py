@@ -692,6 +692,9 @@ async def timeout_challenge(challenge_id: str, user: dict = Depends(get_current_
     new_s = await db.active_sessions.find_one({"_id": s["_id"]})
     await _broadcast_session(db, new_s)
     return _sanitize_session(new_s)
+
+
+@router.post("/start")
 async def start_session(payload: SessionStart, request: Request, user: dict = Depends(get_current_user)):
     if user["role"] != "employee":
         raise HTTPException(status_code=403, detail="Only employees can start sessions")

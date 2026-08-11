@@ -1,14 +1,13 @@
 """GPS jitter suppression tests.
 
-After removing the 3-minute exit debounce, _apply_location_fix keeps ONE
-jitter mechanism:
-  IMPOSSIBLE-SPEED FILTER — a fix implying >55 m/s over <=120s with
-  >=100m displacement is discarded (outcome 'rejected_gps_glitch') —
-  state does not change, no log entry, no gps_ping written.
-
-A real (plausible-speed) outside fix now pauses the session IMMEDIATELY
-(outcome 'session_paused', one pause_live crossing at the fix ts). Returning
-inside resumes right away. Exits are logged with no delay.
+_apply_location_fix now suppresses jitter with TWO layers:
+  1. IMPOSSIBLE-SPEED FILTER — a fix implying >55 m/s over <=120s with
+     >=100m displacement is discarded outright (outcome 'rejected_gps_glitch').
+  2. CROSSING HYSTERESIS — a boundary crossing is only committed once it is
+     SUSTAINED across EXIT_CONFIRM_FIXES(3) fixes AND EXIT_CONFIRM_MS(45s)
+     (enter: 2 fixes / 20s). A single/brief out-and-back blip logs NO in/out
+     (a non-crossing 'jitter_ignored' breadcrumb is recorded instead). This is
+     what stops a stationary on-desk phone from flapping false OUT/IN.
 """
 import os
 import time
@@ -111,49 +110,73 @@ def _pause_live_entries(session):
     return [e for e in (session or {}).get("log", []) if e.get("event") == "pause_live"]
 
 
-class TestExitPausesImmediately:
-    """A real outside fix pauses the session immediately (no debounce). The
-    pause_live crossing is logged at the outside-fix ts (not backdated)."""
+def _events(session):
+    return [e.get("event") for e in (session or {}).get("log", [])]
 
-    def test_outside_pauses_now(self, admin_tok, emp_tok):
+
+class TestExitHysteresis:
+    """A single/brief outside blip (GPS jitter) must NOT log a false OUT.
+    Only an exit sustained across EXIT_CONFIRM_FIXES fixes AND EXIT_CONFIRM_MS
+    commits a pause_live, backdated to the first outside fix."""
+
+    def test_jitter_blip_out_and_back_logs_no_crossing(self, admin_tok, emp_tok):
         _force_expire(admin_tok)
-        device_id = "testdev-" + uuid.uuid4().hex[:8]
+        dev = "testdev-" + uuid.uuid4().hex[:8]
         now = int(time.time() * 1000)
+        assert _post_fix(emp_tok, dev, OFFICE_LAT, OFFICE_LNG, now)["outcome"] == "session_started"
 
-        r1 = _post_fix(emp_tok, device_id, OFFICE_LAT, OFFICE_LNG, now)
-        assert r1.get("outcome") == "session_started", r1
-        _post_fix(emp_tok, device_id, OFFICE_LAT, OFFICE_LNG, now + 30_000)
+        blip = _post_fix(emp_tok, dev, *FAR_OUTSIDE, now + 15_000)
+        assert blip["outcome"] == "pending_exit", f"blip should be held, not paused: {blip}"
 
-        out_ts = now + 90_000
-        out = _post_fix(emp_tok, device_id, *FAR_OUTSIDE, out_ts)
-        assert out.get("outcome") == "session_paused", f"expected immediate pause, got {out}"
-        assert out.get("status") == "paused", out
+        back = _post_fix(emp_tok, dev, OFFICE_LAT, OFFICE_LNG, now + 30_000)
+        assert back["outcome"] == "active", f"jitter should resolve back to active: {back}"
 
         s = _get_live_session(admin_tok)
-        assert s is not None
-        assert s.get("status") == "paused", s
-        pauses = _pause_live_entries(s)
-        assert len(pauses) == 1, f"expected exactly one pause_live, got {pauses}"
-        assert pauses[0]["ts_ms"] == out_ts, (
-            f"pause_live should be at the outside-fix ts (not backdated/delayed): "
-            f"{pauses[0]['ts_ms']} != {out_ts}"
-        )
-        # pre-exit inside delta only (~30s); outside time not counted
-        total = s.get("total_inside_ms", -1)
-        assert 29_000 <= total <= 31_000, f"total_inside_ms={total} (expected ~30000)"
+        assert s is not None and s.get("status") == "active", s
+        assert _pause_live_entries(s) == [], f"NO false OUT expected, got {s.get('log')}"
+        assert "jitter_ignored" in _events(s), f"expected a jitter_ignored breadcrumb: {s.get('log')}"
 
-    def test_return_inside_resumes(self, admin_tok, emp_tok):
+    def test_sustained_exit_commits_after_confirmation(self, admin_tok, emp_tok):
         _force_expire(admin_tok)
-        device_id = "testdev-" + uuid.uuid4().hex[:8]
+        dev = "testdev-" + uuid.uuid4().hex[:8]
         now = int(time.time() * 1000)
+        assert _post_fix(emp_tok, dev, OFFICE_LAT, OFFICE_LNG, now)["outcome"] == "session_started"
 
-        _post_fix(emp_tok, device_id, OFFICE_LAT, OFFICE_LNG, now)
-        out = _post_fix(emp_tok, device_id, *FAR_OUTSIDE, now + 30_000)
-        assert out.get("outcome") == "session_paused", out
+        first_out = now + 15_000
+        r1 = _post_fix(emp_tok, dev, *FAR_OUTSIDE, first_out)
+        assert r1["outcome"] == "pending_exit" and r1["outside_fixes"] == 1, r1
+        r2 = _post_fix(emp_tok, dev, *FAR_OUTSIDE, now + 31_000)
+        assert r2["outcome"] == "pending_exit" and r2["outside_fixes"] == 2, r2
+        r3 = _post_fix(emp_tok, dev, *FAR_OUTSIDE, now + 62_000)   # 3rd fix, sustained 47s
+        assert r3["outcome"] == "session_paused", f"exit should now commit: {r3}"
 
-        back = _post_fix(emp_tok, device_id, OFFICE_LAT, OFFICE_LNG, now + 60_000)
-        assert back.get("outcome") == "session_resumed", back
-        assert back.get("status") == "active", back
+        s = _get_live_session(admin_tok)
+        assert s is not None and s.get("status") == "paused", s
+        pauses = _pause_live_entries(s)
+        assert len(pauses) == 1, f"exactly one pause_live expected, got {pauses}"
+        assert pauses[0]["ts_ms"] == first_out, (
+            f"pause_live must be backdated to the first outside fix: {pauses[0]['ts_ms']} != {first_out}"
+        )
+
+
+class TestEnterHysteresis:
+    """Returning inside is also confirmed (ENTER_CONFIRM_FIXES/MS) so a jitter
+    blip back inside can't create a phantom resume."""
+
+    def test_reentry_requires_confirmation(self, admin_tok, emp_tok):
+        _force_expire(admin_tok)
+        dev = "testdev-" + uuid.uuid4().hex[:8]
+        now = int(time.time() * 1000)
+        assert _post_fix(emp_tok, dev, OFFICE_LAT, OFFICE_LNG, now)["outcome"] == "session_started"
+        # Sustained exit -> paused
+        _post_fix(emp_tok, dev, *FAR_OUTSIDE, now + 15_000)
+        _post_fix(emp_tok, dev, *FAR_OUTSIDE, now + 31_000)
+        assert _post_fix(emp_tok, dev, *FAR_OUTSIDE, now + 62_000)["outcome"] == "session_paused"
+
+        e1 = _post_fix(emp_tok, dev, OFFICE_LAT, OFFICE_LNG, now + 80_000)
+        assert e1["outcome"] == "pending_enter", f"first inside fix should be held: {e1}"
+        e2 = _post_fix(emp_tok, dev, OFFICE_LAT, OFFICE_LNG, now + 101_000)  # 2nd fix, 21s later
+        assert e2["outcome"] == "session_resumed", f"re-entry should now commit: {e2}"
 
         s = _get_live_session(admin_tok)
         assert s is not None and s.get("status") == "active", s

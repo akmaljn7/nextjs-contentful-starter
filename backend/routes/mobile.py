@@ -56,6 +56,22 @@ MAX_PLAUSIBLE_SPEED_MPS = 55.0        # ~198 km/h
 GLITCH_MIN_DISPLACEMENT_M = 100.0     # ignore small jitter within accuracy
 GLITCH_MAX_DT_S = 120.0               # only judge speed on closely-spaced fixes
 
+# Crossing hysteresis — a single stray GPS fix must NEVER flip the session.
+# A boundary crossing is only committed once it's SUSTAINED across several
+# consecutive fixes AND a minimum wall-clock window. This absorbs the common
+# out-and-back GPS jitter (phone on a desk that briefly reads 200-400 m away)
+# that plain speed filtering can't catch, because such a blip at the 15 s live
+# cadence is only ~13-25 m/s — well under the impossible-speed threshold.
+EXIT_CONFIRM_FIXES = 3                 # need this many outside fixes in a row
+EXIT_CONFIRM_MS = 45_000              # AND sustained outside for this long
+ENTER_CONFIRM_FIXES = 2                # returning inside is confirmed faster
+ENTER_CONFIRM_MS = 20_000
+
+# Events within this window of an admin session-cutoff are treated as
+# concurrent (a genuine re-check-in right after the action), not stale. Only
+# events meaningfully OLDER than the cutoff (queued/offline drains) are dropped.
+CUTOFF_GRACE_MS = 10_000
+
 
 def _coverage_gap_entry(gap_id: str, from_ms: int, to_ms: int, battery_before, battery_after) -> dict:
     return {
@@ -232,7 +248,7 @@ async def _apply_geofence_event(db, user: dict, event: MobileGeofenceEvent) -> d
         _cutoff = int((_udoc or {}).get("session_cutoff_ms") or 0)
     except Exception:
         _cutoff = 0
-    if _cutoff and event.ts_ms <= _cutoff:
+    if _cutoff and event.ts_ms < _cutoff - CUTOFF_GRACE_MS:
         logger.info("mobile_event_pre_cutoff user=%s event=%s ts=%s cutoff=%s",
                     user.get("email"), event.client_event_id, event.ts_ms, _cutoff)
         return {"outcome": "stale_pre_cutoff"}
@@ -535,7 +551,7 @@ async def _apply_location_fix(db, user: dict, fix: MobileLocationFix) -> dict:
     # Drop fixes captured at/before an admin session-cutoff (force-end / office
     # reassignment) — they belong to the closed record, not a new session.
     _cutoff = int((user_doc or {}).get("session_cutoff_ms") or 0)
-    if _cutoff and now_ms <= _cutoff:
+    if _cutoff and now_ms < _cutoff - CUTOFF_GRACE_MS:
         return {"outcome": "stale_pre_cutoff"}
     office_lat = office["location"]["coordinates"][1]
     office_lng = office["location"]["coordinates"][0]
@@ -665,34 +681,78 @@ async def _apply_location_fix(db, user: dict, fix: MobileLocationFix) -> dict:
     })
 
     if status == "active":
-        if definitely_outside:
-            # Crossing OUT — pause immediately and log the crossing. Teleport
-            # spikes are already filtered out above by the impossible-speed
-            # check, so a real outside fix here is trusted. Incremental accrual
-            # (below) means we must NOT re-add bout time here.
-            update = {"status": "paused", "paused_at": now_ms, "last_fix": last_fix,
-                      "last_live_ts_ms": now_ms, "last_battery": fix.battery}
-            await db.active_sessions.update_one(
-                {"_id": session["_id"]},
-                {"$set": update, "$push": {"log": {"event": "pause_live", "ts_ms": now_ms,
-                                                    "distance_m": int(dist)}}},
-            )
-            new_s = await db.active_sessions.find_one({"_id": session["_id"]})
-            await _broadcast_session(db, new_s)
-            return {"outcome": "session_paused", "status": "paused"}
-        # Inside (or ambiguous) -> accrue time incrementally, EXCEPT across a
-        # coverage gap (device was dark — don't count it).
+        # A fix is only trusted to move the session across the boundary when
+        # its reported accuracy is decent. Low-confidence fixes still move the
+        # pin and keep accruing (benefit of the doubt) but never trigger an
+        # exit — this alone kills most jitter-driven false OUTs.
+        confident = (fix.accuracy is None) or (fix.accuracy <= accuracy_tol)
+        pend_since = session.get("pending_exit_since_ms")
+        pend_count = int(session.get("pending_exit_count") or 0)
+
+        if definitely_outside and confident:
+            # Tentative exit — require it to persist before committing, so a
+            # single (or brief) outside blip can't log a false OUT/IN.
+            since = pend_since or now_ms
+            count = pend_count + 1
+            confirmed = count >= EXIT_CONFIRM_FIXES and (now_ms - since) >= EXIT_CONFIRM_MS
+            if confirmed:
+                # Commit the exit, back-dated to the FIRST outside fix so the
+                # pause time and map reflect reality. No time is accrued for
+                # the (uncertain) window we held.
+                update = {"status": "paused", "paused_at": since, "last_fix": last_fix,
+                          "last_live_ts_ms": now_ms, "last_battery": fix.battery,
+                          "pending_exit_since_ms": None, "pending_exit_count": 0}
+                await db.active_sessions.update_one(
+                    {"_id": session["_id"]},
+                    {"$set": update, "$push": {"log": {
+                        "event": "pause_live", "ts_ms": since, "distance_m": int(dist),
+                        "confirmed_fixes": count, "sustained_ms": now_ms - since}}},
+                )
+                logger.info("exit_confirmed user=%s dist=%dm fixes=%d sustained=%.0fs",
+                            user.get("email"), int(dist), count, (now_ms - since) / 1000)
+                new_s = await db.active_sessions.find_one({"_id": session["_id"]})
+                await _broadcast_session(db, new_s)
+                return {"outcome": "session_paused", "status": "paused"}
+            # Hold: stay active, move the pin, record the pending exit. Do NOT
+            # accrue this uncertain interval.
+            update = {"last_fix": last_fix, "last_live_ts_ms": now_ms, "last_battery": fix.battery,
+                      "pending_exit_since_ms": since, "pending_exit_count": count}
+            await db.active_sessions.update_one({"_id": session["_id"]}, {"$set": update})
+            merged = {**session, **update}
+            await _broadcast_session(db, merged)
+            return {"outcome": "pending_exit", "outside_fixes": count,
+                    "sustained_ms": now_ms - since}
+
+        # Inside, ambiguous, or a low-confidence "outside" reading -> treat as
+        # still inside (jitter). Clear any pending exit that was building.
         remaining = session.get("remaining_ms", 0)
         total_inside = session.get("total_inside_ms", 0)
-        if last.get("ts_ms") and inside and not gap_detected:
+        set_fields = {"last_fix": last_fix, "last_live_ts_ms": now_ms, "last_battery": fix.battery}
+        push = None
+        if pend_since:
+            # Came back before the exit confirmed -> it was jitter. Drop it
+            # (never logged as OUT) and leave a non-crossing breadcrumb.
+            set_fields["pending_exit_since_ms"] = None
+            set_fields["pending_exit_count"] = 0
+            push = {"event": "jitter_ignored", "ts_ms": now_ms, "distance_m": int(dist),
+                    "outside_fixes": pend_count}
+            logger.info("gps_jitter_ignored user=%s peak_dist=%dm blip_fixes=%d",
+                        user.get("email"), int(dist), pend_count)
+        # Accrue on-site time when genuinely inside (or a low-confidence fix we
+        # gave the benefit of the doubt), never across a coverage gap.
+        countable = (inside or (definitely_outside and not confident)) and not gap_detected
+        if last.get("ts_ms") and countable:
             dt = now_ms - last["ts_ms"]
             if dt > 0:
                 remaining = max(0, remaining - dt)
                 total_inside += dt
-        update = {"remaining_ms": remaining, "total_inside_ms": total_inside, "last_fix": last_fix,
-                  "last_live_ts_ms": now_ms, "last_battery": fix.battery}
-        await db.active_sessions.update_one({"_id": session["_id"]}, {"$set": update})
-        merged = {**session, **update}
+        set_fields["remaining_ms"] = remaining
+        set_fields["total_inside_ms"] = total_inside
+        write = {"$set": set_fields}
+        if push:
+            write["$push"] = {"log": push}
+        await db.active_sessions.update_one({"_id": session["_id"]}, write)
+        merged = {**session, **set_fields}
         if remaining <= 0:
             await _write_attendance_record(db, merged, "completed", now_ms)
             await db.active_sessions.delete_one({"_id": session["_id"]})
@@ -703,7 +763,10 @@ async def _apply_location_fix(db, user: dict, fix: MobileLocationFix) -> dict:
         return {"outcome": "active", "status": "active"}
 
     if status == "paused":
-        if inside:
+        confident = (fix.accuracy is None) or (fix.accuracy <= accuracy_tol)
+        pend_since = session.get("pending_enter_since_ms")
+        pend_count = int(session.get("pending_enter_count") or 0)
+        if inside and confident:
             resume_window_h = int(settings.get("resume_window_hours", 10))
             paused_at = session.get("paused_at")
             if paused_at and (now_ms - paused_at) > resume_window_h * 3600 * 1000:
@@ -711,22 +774,39 @@ async def _apply_location_fix(db, user: dict, fix: MobileLocationFix) -> dict:
                 await db.active_sessions.delete_one({"_id": session["_id"]})
                 await _broadcast_session(db, session, ended=True, outcome="expired")
                 return {"outcome": "session_expired"}
-            update = {"status": "active", "current_bout_start_ms": now_ms, "paused_at": None,
-                      "last_fix": last_fix, "last_live_ts_ms": now_ms, "last_battery": fix.battery}
-            await db.active_sessions.update_one(
-                {"_id": session["_id"]},
-                {"$set": update, "$inc": {"bout_count": 1},
-                 "$push": {"log": {"event": "resume_live", "ts_ms": now_ms}}},
-            )
-            new_s = await db.active_sessions.find_one({"_id": session["_id"]})
-            await _broadcast_session(db, new_s)
-            return {"outcome": "session_resumed", "status": "active"}
-        # still outside — just move the pin so the admin sees live movement
-        await db.active_sessions.update_one(
-            {"_id": session["_id"]},
-            {"$set": {"last_fix": last_fix, "last_live_ts_ms": now_ms, "last_battery": fix.battery}},
-        )
-        merged = {**session, "last_fix": last_fix}
+            # Confirm re-entry before logging IN, mirroring the exit debounce so
+            # a jitter blip back inside can't create a phantom resume.
+            since = pend_since or now_ms
+            count = pend_count + 1
+            confirmed = count >= ENTER_CONFIRM_FIXES and (now_ms - since) >= ENTER_CONFIRM_MS
+            if confirmed:
+                update = {"status": "active", "current_bout_start_ms": since, "paused_at": None,
+                          "last_fix": last_fix, "last_live_ts_ms": now_ms, "last_battery": fix.battery,
+                          "pending_enter_since_ms": None, "pending_enter_count": 0}
+                await db.active_sessions.update_one(
+                    {"_id": session["_id"]},
+                    {"$set": update, "$inc": {"bout_count": 1},
+                     "$push": {"log": {"event": "resume_live", "ts_ms": since,
+                                       "confirmed_fixes": count}}},
+                )
+                new_s = await db.active_sessions.find_one({"_id": session["_id"]})
+                await _broadcast_session(db, new_s)
+                return {"outcome": "session_resumed", "status": "active"}
+            # Hold — inside but not yet confirmed. Move pin, record pending.
+            update = {"last_fix": last_fix, "last_live_ts_ms": now_ms, "last_battery": fix.battery,
+                      "pending_enter_since_ms": since, "pending_enter_count": count}
+            await db.active_sessions.update_one({"_id": session["_id"]}, {"$set": update})
+            merged = {**session, **update}
+            await _broadcast_session(db, merged)
+            return {"outcome": "pending_enter", "inside_fixes": count}
+        # Still outside (or low-confidence inside) — move the pin, drop any
+        # half-built re-entry.
+        set_fields = {"last_fix": last_fix, "last_live_ts_ms": now_ms, "last_battery": fix.battery}
+        if pend_since:
+            set_fields["pending_enter_since_ms"] = None
+            set_fields["pending_enter_count"] = 0
+        await db.active_sessions.update_one({"_id": session["_id"]}, {"$set": set_fields})
+        merged = {**session, **set_fields}
         await _broadcast_session(db, merged)
         return {"outcome": "still_paused", "status": "paused"}
 

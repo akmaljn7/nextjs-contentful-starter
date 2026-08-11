@@ -214,7 +214,7 @@ async def test_bulk_sync_orders_events_by_ts_ms():
             "app_version": "1.0.0", "push_token": "tok_sync",
         })
 
-        base = int(time.time() * 1000) - 60_000
+        base = int(time.time() * 1000) - 5_000
         enter_ev = {
             "client_event_id": f"cid-{uuid.uuid4().hex[:10]}", "device_id": dev_id,
             "type": "enter", "ts_ms": base,
