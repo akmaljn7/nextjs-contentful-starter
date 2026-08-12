@@ -86,15 +86,16 @@ export function ChallengeModal() {
     return () => clearInterval(t);
   }, [active, dismiss]);
 
-  // Blink captured → verify against the enrolled baseline.
-  const onCapture = useCallback(async (neutralB64: string, blinkB64: string) => {
+  // Blink captured → verify against the enrolled baseline. Liveness was proven
+  // on-device (real-time blink detection), so we send a single selfie frame.
+  const onCapture = useCallback(async (selfieB64: string) => {
     if (!active) return;
     setVerify({ kind: "verifying" });
     try {
       await api.post(`/sessions/challenge/${active.id}/respond`, {
-        face_photo: neutralB64,
-        liveness_frame: blinkB64,
+        face_photo: selfieB64,
         liveness_action: "blink",
+        client_liveness: true,
       });
       setVerify({ kind: "verified" });
       setTimeout(() => markResponded(), 1300);

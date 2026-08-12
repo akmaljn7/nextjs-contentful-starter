@@ -19,11 +19,11 @@ export default function FaceEnrollScreen() {
   const { refresh, signOut } = useAuth();
   const [verify, setVerify] = useState<LiveVerifyResult>({ kind: "idle" });
 
-  const onCapture = useCallback(async (neutralB64: string, _blinkB64: string) => {
+  const onCapture = useCallback(async (selfieB64: string) => {
     setVerify({ kind: "verifying" });
     try {
       // Blink already proved liveness on-device; store the clean eyes-open frame.
-      await api.post("/face/enroll", { face_photo: neutralB64 });
+      await api.post("/face/enroll", { face_photo: selfieB64 });
       setVerify({ kind: "verified" });
       setTimeout(() => { refresh(); }, 1200);
     } catch (e) {

@@ -102,6 +102,14 @@
       ],
       "./plugins/withAndroidBootReceiver.js",
       "./plugins/withSelfieFullScreen.js",
+      [
+        "react-native-vision-camera",
+        {
+          "cameraPermissionText": "This app uses your camera for random selfie check-ins during your shift, which your organization uses to verify your identity at work.",
+          "enableCodeScanner": false,
+          "enableMicrophonePermission": false
+        }
+      ],
       "expo-font",
       "expo-sqlite",
       [

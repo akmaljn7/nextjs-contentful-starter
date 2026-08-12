@@ -201,9 +201,13 @@ class ChallengeResponse(BaseModel):
     face_photo: str = Field(min_length=100, max_length=6_000_000)
     # Active-liveness second frame + which action the user was asked to perform.
     # Required when the org has active liveness enabled (default) and the user
-    # has an enrolled face baseline.
+    # has an enrolled face baseline — UNLESS the client proved liveness on-device
+    # (real-time blink detection) and sets client_liveness=True, in which case a
+    # single well-timed selfie frame is accepted and the server runs face-match
+    # plus passive liveness only.
     liveness_frame: Optional[str] = Field(default=None, max_length=6_000_000)
     liveness_action: Optional[Literal["blink", "turn_left", "turn_right"]] = None
+    client_liveness: bool = False
 
 
 # ---------- Mobile app models (Phase 0) ----------

@@ -572,7 +572,13 @@ async def respond_challenge(challenge_id: str, payload: ChallengeResponse, user:
     baseline = user.get("face_baseline")
     settings = await _get_org_settings(db, user["org_id"]) if baseline else {}
     enforce_liveness = bool(baseline) and ACTIVE_LIVENESS_ENFORCE and settings.get("active_liveness", True)
-    if enforce_liveness and (not payload.liveness_frame or not payload.liveness_action):
+    # The mobile app now proves liveness on-device via real-time blink detection
+    # (ML Kit frame stream) and sends a single well-timed selfie with
+    # client_liveness=True. In that case we don't require the 2-frame server
+    # check — we still run face-match + passive liveness on the frame below.
+    # Legacy clients that send a liveness_frame keep the stricter 2-frame path.
+    need_two_frame = enforce_liveness and not payload.client_liveness
+    if need_two_frame and (not payload.liveness_frame or not payload.liveness_action):
         raise HTTPException(
             status_code=400,
             detail="Liveness check required: submit your neutral selfie plus the requested blink/turn frame.",
@@ -617,7 +623,8 @@ async def respond_challenge(challenge_id: str, payload: ChallengeResponse, user:
 
         # Active liveness (2-frame blink / head-turn) — defeats a printed photo
         # or a static face on a screen, which can't blink or turn on demand.
-        if enforce_liveness:
+        # Skipped when the client already proved liveness on-device (client_liveness).
+        if need_two_frame:
             from services.active_liveness import analyze_frames
             live = await asyncio.to_thread(
                 analyze_frames, baseline, payload.face_photo,
