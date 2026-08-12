@@ -12,7 +12,7 @@
  * /api/sessions/challenge/{id}/respond, and the missed/verified states.
  */
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { View, Text, StyleSheet, Modal, Pressable } from "react-native";
+import { View, Text, StyleSheet, Pressable } from "react-native";
 import { useCameraPermissions } from "expo-camera";
 import * as Notifications from "expo-notifications";
 import { Ionicons } from "@expo/vector-icons";
@@ -119,12 +119,7 @@ export function ChallengeModal() {
   const dangerZone = countdownMs < 60_000;
 
   return (
-    <Modal
-      visible
-      animationType="slide"
-      onRequestClose={() => { /* not dismissible by back-button */ }}
-      statusBarTranslucent
-    >
+    <View style={styles.overlayRoot}>
       <View style={styles.container}>
         {missed ? (
           <View style={styles.ringScreen} testID="challenge-missed">
@@ -183,11 +178,15 @@ export function ChallengeModal() {
           </View>
         )}
       </View>
-    </Modal>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  overlayRoot: {
+    position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+    zIndex: 9999, elevation: 9999, backgroundColor: "#0a0a0a",
+  },
   container: { flex: 1, backgroundColor: "#0a0a0a" },
   cameraPhase: { flex: 1, paddingHorizontal: 20, paddingTop: 60, gap: 20 },
   topRow: { alignItems: "center", gap: 8 },
