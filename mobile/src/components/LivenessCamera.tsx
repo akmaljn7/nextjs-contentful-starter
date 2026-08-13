@@ -1,26 +1,27 @@
 /**
- * LivenessCamera — real-time face + blink detection (no shutter spam).
+ * LivenessCamera — real-time face + blink detection (no shutter spam, no Skia).
  *
- * Uses react-native-vision-camera with a face-detector FRAME PROCESSOR, which
- * reads the live preview stream at high fps WITHOUT taking any photos — so
- * there's no repeated "ka-chak" shutter sound and blinks are detected instantly.
- * A single silent photo is captured only once a full blink (eyes open → closed
- * → open) is confirmed, then handed to the parent for face matching.
+ * Uses react-native-vision-camera with a REGULAR frame processor (NOT the Skia
+ * wrapper — that one lazily requires @shopify/react-native-skia and crashes when
+ * it isn't installed). Face detection runs on the frame stream via
+ * useFaceDetector().detectFaces(frame); results are marshalled back to JS with
+ * Worklets.createRunOnJS. Detection is throttled to ~5fps with runAtTargetFps.
  *
- * Flow shown to the user:
- *   Face not detected → Face detected ✓ → Blink to capture → (blink!) →
- *   Verifying… → Verified ✓ / Face didn't match (auto re-arms on failure).
- *
+ * Flow: Face not detected → Face detected ✓ → Blink to capture → (blink!) →
+ * one silent takePhoto → parent verifies (Verifying → Verified / Face didn't match).
  * Shared by the selfie challenge, first-time enrollment, and re-enrollment.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, StyleSheet, Pressable, ActivityIndicator } from "react-native";
 import {
-  Camera as VisionCamera,
+  Camera,
   useCameraDevice,
   useCameraPermission,
+  useFrameProcessor,
+  runAtTargetFps,
 } from "react-native-vision-camera";
-import { Camera, Face, FaceDetectionOptions } from "react-native-vision-camera-face-detector";
+import { useFaceDetector, FaceDetectionOptions, Face } from "react-native-vision-camera-face-detector";
+import { Worklets } from "react-native-worklets-core";
 import * as ImageManipulator from "expo-image-manipulator";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "@/theme";
@@ -32,7 +33,6 @@ export type LiveVerifyResult =
   | { kind: "failed"; message?: string };
 
 interface Props {
-  /** Fired once per confirmed blink with a single eyes-open selfie (base64 data URL). */
   onCapture: (selfieB64: string) => void;
   result: LiveVerifyResult;
   headline?: string;
@@ -41,17 +41,25 @@ interface Props {
 
 type UiPhase = "searching" | "blink" | "closing" | "captured";
 
-const EYE_OPEN = 0.6;    // avg eye-open probability to count as "eyes open"
-const EYE_CLOSED = 0.3;  // avg eye-open probability to count as "eyes closed"
+const EYE_OPEN = 0.6;
+const EYE_CLOSED = 0.3;
 
 export function LivenessCamera({ onCapture, result, headline, testID }: Props) {
   const { hasPermission, requestPermission } = useCameraPermission();
   const device = useCameraDevice("front");
-  const camRef = useRef<VisionCamera>(null);
+  const camRef = useRef<Camera>(null);
+
+  const faceDetectionOptions = useMemo<FaceDetectionOptions>(() => ({
+    performanceMode: "fast",
+    classificationMode: "all", // eye-open probabilities for blink detection
+    landmarkMode: "none",
+    contourMode: "none",
+    trackingEnabled: false,
+  }), []);
+  const { detectFaces } = useFaceDetector(faceDetectionOptions);
 
   const [uiPhase, setUiPhase] = useState<UiPhase>("searching");
 
-  // Blink state-machine (refs — updated on every frame, no re-render spam).
   const sawOpenRef = useRef(false);
   const sawClosedRef = useRef(false);
   const capturingRef = useRef(false);
@@ -59,13 +67,9 @@ export function LivenessCamera({ onCapture, result, headline, testID }: Props) {
   const resultRef = useRef(result);
   resultRef.current = result;
 
-  useEffect(() => {
-    if (!hasPermission) requestPermission();
-  }, [hasPermission, requestPermission]);
-
+  useEffect(() => { if (!hasPermission) requestPermission(); }, [hasPermission, requestPermission]);
   useEffect(() => () => { mountedRef.current = false; }, []);
 
-  // Re-arm on failure / idle so a fresh blink starts a new attempt.
   useEffect(() => {
     if (result.kind === "failed" || result.kind === "idle") {
       sawOpenRef.current = false;
@@ -74,15 +78,6 @@ export function LivenessCamera({ onCapture, result, headline, testID }: Props) {
       if (mountedRef.current) setUiPhase("searching");
     }
   }, [result.kind]);
-
-  const faceDetectionOptions = useMemo<FaceDetectionOptions>(() => ({
-    performanceMode: "fast",
-    classificationMode: "all", // enables leftEyeOpenProbability / rightEyeOpenProbability
-    landmarkMode: "none",
-    contourMode: "none",
-    trackingEnabled: false,
-    minFaceSize: 0.15,
-  }), []);
 
   const setPhase = useCallback((p: UiPhase) => {
     if (mountedRef.current) setUiPhase((prev) => (prev === p ? prev : p));
@@ -100,17 +95,15 @@ export function LivenessCamera({ onCapture, result, headline, testID }: Props) {
         [{ resize: { width: 512 } }],
         { compress: 0.6, format: ImageManipulator.SaveFormat.JPEG, base64: true },
       );
-      if (manip.base64 && mountedRef.current) {
-        onCapture(`data:image/jpeg;base64,${manip.base64}`);
-      } else {
-        capturingRef.current = false;
-      }
+      if (manip.base64 && mountedRef.current) onCapture(`data:image/jpeg;base64,${manip.base64}`);
+      else capturingRef.current = false;
     } catch {
-      capturingRef.current = false; // allow another blink attempt
+      capturingRef.current = false;
     }
   }, [onCapture]);
 
-  const onFaces = useCallback((faces: Face[]) => {
+  // Runs on the JS thread with each frame's detected faces.
+  const handleFaces = useCallback((faces: Face[]) => {
     const r = resultRef.current;
     if (r.kind === "verifying" || r.kind === "verified" || capturingRef.current) return;
     if (!faces || faces.length === 0) {
@@ -126,7 +119,6 @@ export function LivenessCamera({ onCapture, result, headline, testID }: Props) {
 
     if (eyes >= EYE_OPEN) {
       if (sawOpenRef.current && sawClosedRef.current) {
-        // open → closed → open == a real blink. Capture now (eyes open = good for matching).
         capturingRef.current = true;
         setPhase("captured");
         doCapture();
@@ -142,7 +134,21 @@ export function LivenessCamera({ onCapture, result, headline, testID }: Props) {
     }
   }, [doCapture, setPhase]);
 
-  // ---- UI ----
+  const handleFacesJS = useMemo(() => Worklets.createRunOnJS(handleFaces), [handleFaces]);
+
+  const frameProcessor = useFrameProcessor((frame) => {
+    "worklet";
+    runAtTargetFps(5, () => {
+      "worklet";
+      try {
+        const faces = detectFaces(frame);
+        handleFacesJS(faces);
+      } catch (e) {
+        // ignore transient frame errors
+      }
+    });
+  }, [handleFacesJS, detectFaces]);
+
   const statusText =
     result.kind === "verifying" ? "Verifying…"
     : result.kind === "verified" ? "Verified ✓"
@@ -185,8 +191,7 @@ export function LivenessCamera({ onCapture, result, headline, testID }: Props) {
           device={device}
           isActive={result.kind !== "verified"}
           photo
-          faceDetectionOptions={faceDetectionOptions}
-          faceDetectionCallback={onFaces}
+          frameProcessor={frameProcessor}
         />
         <View pointerEvents="none" style={[styles.guide, { borderColor: accent }]} />
       </View>
