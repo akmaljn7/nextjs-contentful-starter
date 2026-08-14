@@ -1,7 +1,7 @@
 import React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { LogOut, Radar, Building2, Users, ClipboardList, ShieldAlert, FileBarChart, Settings, User, CalendarOff, AlertTriangle } from "lucide-react";
+import { LogOut, Radar, Building2, Users, ClipboardList, ShieldAlert, FileBarChart, Settings, User, CalendarOff, AlertTriangle, Camera } from "lucide-react";
 
 const ADMIN_NAV = [
   { to: "/admin", label: "Console", icon: Radar, testid: "nav-console" },
@@ -10,6 +10,7 @@ const ADMIN_NAV = [
   { to: "/admin/time-off", label: "Time Off", icon: CalendarOff, testid: "nav-time-off" },
   { to: "/admin/attendance", label: "Attendance", icon: ClipboardList, testid: "nav-attendance" },
   { to: "/admin/gaps", label: "Gaps", icon: AlertTriangle, testid: "nav-gaps" },
+  { to: "/admin/offline-selfies", label: "Selfies", icon: Camera, testid: "nav-offline-selfies" },
   { to: "/admin/reports", label: "Reports", icon: FileBarChart, testid: "nav-reports" },
   { to: "/admin/audit", label: "Audit Log", icon: ClipboardList, testid: "nav-audit" },
   { to: "/admin/security", label: "Security", icon: ShieldAlert, testid: "nav-security" },

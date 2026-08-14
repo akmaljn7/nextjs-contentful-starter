@@ -9,6 +9,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/api/client";
 import { subscribeChallenges, registerForPushAsync } from "@/services/push";
 import { useAuth } from "@/context/AuthContext";
+import { dueScheduledSelfie, markSelfieCaptured } from "@/services/offlineQueue";
+import { drainSelfieDrafts, sweepOfflineSelfies, currentBattery } from "@/services/offlineSelfie";
 
 interface ChallengeInfo {
   id: string;
@@ -17,6 +19,7 @@ interface ChallengeInfo {
   manual?: boolean;
   for_name?: string;
   liveness_action?: string;
+  offline?: boolean;
 }
 
 interface ChallengeState {
@@ -26,6 +29,7 @@ interface ChallengeState {
   markResponded: () => void;
   cameraRequested: boolean;
   consumeCameraRequest: () => void;
+  captureOfflineSelfie: (b64: string) => Promise<void>;
 }
 
 const Ctx = createContext<ChallengeState | null>(null);
@@ -60,6 +64,47 @@ export function ChallengeProvider({ children }: { children: React.ReactNode }) {
     qc.invalidateQueries({ queryKey: ["my-session"] });
     qc.invalidateQueries({ queryKey: ["mobile-reconcile"] });
   }, [qc]);
+
+  // Store an OFFLINE-captured selfie as a draft (no network needed). The
+  // authoritative face-match runs server-side when the draft is synced.
+  const captureOfflineSelfie = useCallback(async (b64: string) => {
+    if (!active?.offline) return;
+    const battery = await currentBattery();
+    await markSelfieCaptured(active.id, b64, Date.now(), battery);
+    drainSelfieDrafts().catch(() => undefined); // fire-and-forget (works when online)
+    setActive(null);
+  }, [active]);
+
+  // Locally-scheduled offline selfie detector. The phone fires its own selfie
+  // prompts (planned in offlineSelfie.ts) even with zero network. We surface a
+  // due one as an `active` challenge so the SAME modal opens; on capture it's
+  // stored as a draft instead of POSTed.
+  const offlineSeenRef = useRef<string | null>(null);
+  const checkDueOfflineSelfie = useCallback(async () => {
+    if (!isEmployee) return;
+    try {
+      await sweepOfflineSelfies();
+      const due = await dueScheduledSelfie(Date.now());
+      if (due && offlineSeenRef.current !== due.client_selfie_id) {
+        offlineSeenRef.current = due.client_selfie_id;
+        // Don't override a live server challenge if one is already showing.
+        setActive((cur) => cur ? cur : {
+          id: due.client_selfie_id,
+          respond_by_ms: due.respond_by_ms,
+          offline: true,
+          for_name: user?.name,
+          liveness_action: "blink",
+        });
+      }
+    } catch { /* best-effort */ }
+  }, [isEmployee, user?.name]);
+
+  useEffect(() => {
+    if (!isEmployee) return;
+    checkDueOfflineSelfie();
+    const t = setInterval(checkDueOfflineSelfie, 15_000);
+    return () => clearInterval(t);
+  }, [isEmployee, checkDueOfflineSelfie]);
 
   // Deep link from the native lock-screen activity -> open camera directly.
   // The selfie push is DATA-ONLY (handled natively), so JS never learns about
@@ -135,14 +180,15 @@ export function ChallengeProvider({ children }: { children: React.ReactNode }) {
       if (s === "active" && isEmployee) {
         session.refetch();
         registerForPushAsync().catch(() => undefined);
+        checkDueOfflineSelfie();
       }
     });
     return () => sub.remove();
   }, [isEmployee, session]);
 
   const value = useMemo<ChallengeState>(
-    () => ({ active, open, dismiss, markResponded, cameraRequested, consumeCameraRequest }),
-    [active, open, dismiss, markResponded, cameraRequested, consumeCameraRequest],
+    () => ({ active, open, dismiss, markResponded, cameraRequested, consumeCameraRequest, captureOfflineSelfie }),
+    [active, open, dismiss, markResponded, cameraRequested, consumeCameraRequest, captureOfflineSelfie],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

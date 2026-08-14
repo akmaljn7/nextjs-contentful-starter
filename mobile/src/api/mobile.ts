@@ -25,13 +25,34 @@ export interface RegisterDevicePayload {
   model?: string;
 }
 
+export interface SelfieConfig {
+  challenges_per_shift: number;
+  response_window_minutes: number;
+  mode: "random" | "fixed";
+  fixed_times: string[];
+  active_liveness: boolean;
+}
+
 export interface ReconcileState {
   office: { id: string; name: string; lat: number; lng: number; radius_meters: number } | null;
   session: { id: string; status: string; start_time_ms: number;
              remaining_ms: number; total_inside_ms: number;
              last_fix_ts_ms: number | null; center: any; flagged: boolean } | null;
   last_event: { type: string; ts_ms: number; client_event_id: string; outcome: string | null } | null;
+  selfie_config?: SelfieConfig;
+  schedule?: any;
   server_ts_ms: number;
+}
+
+export interface SelfieDraftPayload {
+  client_selfie_id: string;
+  scheduled_ms: number;
+  respond_by_ms: number;
+  captured_ms?: number;
+  outcome: "captured" | "missed";
+  face_photo?: string;
+  client_liveness?: boolean;
+  battery?: number;
 }
 
 export const mobile = {
@@ -54,6 +75,8 @@ export const mobile = {
                          permission_state?: string; last_geofence_event_ms?: number }) =>
     api.post("/mobile/heartbeat", payload).then((r) => r.data),
   reconcile: (): Promise<ReconcileState> => api.get("/mobile/reconcile").then((r) => r.data),
+  selfieSync: (drafts: SelfieDraftPayload[]) =>
+    api.post("/mobile/selfie-sync", { drafts }).then((r) => r.data),
   attestation: (payload: { device_id: string; platform: "ios" | "android";
                            token: string; nonce: string; ts_ms: number;
                            client_event_id?: string }) =>

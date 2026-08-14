@@ -317,6 +317,31 @@ class MobileLocationBulk(BaseModel):
 
 
 
+class MobileSelfieDraft(BaseModel):
+    """An offline-scheduled selfie captured on-device while the phone had no
+    network. The phone fires the selfie prompt locally at an unpredictable
+    time, proves a live person on-device (blink), and stores the frame as a
+    draft. On reconnect these are replayed here where the server runs the
+    authoritative face-match against the enrolled baseline.
+
+    outcome="missed" means the employee wasn't present to complete the selfie
+    within the response window (no photo) — surfaced to admins as a red flag.
+    """
+    client_selfie_id: str = Field(min_length=6, max_length=64)
+    scheduled_ms: int = Field(ge=0)
+    respond_by_ms: int = Field(ge=0)
+    captured_ms: Optional[int] = Field(default=None, ge=0)
+    outcome: Literal["captured", "missed"]
+    face_photo: Optional[str] = Field(default=None, max_length=6_000_000)
+    client_liveness: bool = False
+    battery: Optional[float] = Field(default=None, ge=0, le=1)
+
+
+class MobileSelfieSync(BaseModel):
+    """Bulk replay of offline-captured selfie drafts on reconnect."""
+    drafts: List[MobileSelfieDraft] = Field(min_length=1, max_length=50)
+
+
 # ---------- Colleague proxy actions (phone unavailable) ----------
 class ColleagueCheckin(BaseModel):
     """Proxy check-in for an absent employee via a colleague's phone."""

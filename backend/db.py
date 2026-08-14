@@ -59,3 +59,7 @@ async def ensure_indexes():
     # Phase 6: cron run history for the deadman-tick idempotency check
     await db.cron_runs.create_index([("name", 1), ("run_id", 1)], unique=True)
     await db.cron_runs.create_index("ts", expireAfterSeconds=60 * 60 * 24 * 14)
+    # Offline scheduled selfies (captured on-device while offline, verified on sync)
+    await db.offline_selfies.create_index([("user_id", 1), ("client_selfie_id", 1)], unique=True)
+    await db.offline_selfies.create_index([("org_id", 1), ("created_at", -1)])
+    await db.offline_selfies.create_index([("org_id", 1), ("status", 1)])

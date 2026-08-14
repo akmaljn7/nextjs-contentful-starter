@@ -24,7 +24,7 @@ import { LivenessCamera, LiveVerifyResult } from "@/components/LivenessCamera";
 import { colors } from "@/theme";
 
 export function ChallengeModal() {
-  const { active, dismiss, markResponded, cameraRequested, consumeCameraRequest } = useChallenge();
+  const { active, dismiss, markResponded, cameraRequested, consumeCameraRequest, captureOfflineSelfie } = useChallenge();
   const [perm, requestPerm] = useCameraPermissions();
   const [countdownMs, setCountdownMs] = useState<number>(0);
   const [cameraOpen, setCameraOpen] = useState(false);
@@ -73,7 +73,11 @@ export function ChallengeModal() {
       timeoutFiredRef.current = true;
       stopAlarm();
       setMissed(true);
-      try { await api.post(`/sessions/challenge/${active.id}/timeout`); } catch { /* server tick will still expire it */ }
+      // Offline challenges are finalized on-device (the sweep marks them MISSED
+      // and they sync later) — no server call while we may be offline.
+      if (!active.offline) {
+        try { await api.post(`/sessions/challenge/${active.id}/timeout`); } catch { /* server tick will still expire it */ }
+      }
       setTimeout(() => dismiss(), 2500);
     };
     const tick = () => {
@@ -91,6 +95,19 @@ export function ChallengeModal() {
   const onCapture = useCallback(async (selfieB64: string) => {
     if (!active) return;
     setVerify({ kind: "verifying" });
+    // OFFLINE: store the frame as a draft; the server verifies it on reconnect.
+    // We can't confirm identity on-device, so we accept the live capture here
+    // and show a "saved" confirmation.
+    if (active.offline) {
+      try {
+        await captureOfflineSelfie(selfieB64);
+        setVerify({ kind: "verified" });
+        setTimeout(() => dismiss(), 1300);
+      } catch {
+        setVerify({ kind: "failed", message: "Couldn't save the selfie — please retry." });
+      }
+      return;
+    }
     try {
       await api.post(`/sessions/challenge/${active.id}/respond`, {
         face_photo: selfieB64,
@@ -110,7 +127,7 @@ export function ChallengeModal() {
         setVerify({ kind: "failed", message: msg });
       }
     }
-  }, [active, markResponded, dismiss]);
+  }, [active, markResponded, dismiss, captureOfflineSelfie]);
 
   if (!active) return null;
 

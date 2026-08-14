@@ -15,6 +15,7 @@ import { drainQueue } from "@/services/syncWorker";
 import { startHealthLoop, stopHealthLoop } from "@/services/health";
 import { startConnectivityWatcher, stopConnectivityWatcher } from "@/services/connectivity";
 import { purgeOldSynced } from "@/services/offlineQueue";
+import { planTodaysSelfies, sweepOfflineSelfies } from "@/services/offlineSelfie";
 import { submitAttestation } from "@/services/attestation";
 
 interface AuthState {
@@ -111,6 +112,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           startConnectivityWatcher();
           drainLocationQueue().catch(() => undefined);
           purgeOldSynced().catch(() => undefined);
+          planTodaysSelfies().catch(() => undefined);
+          sweepOfflineSelfies().catch(() => undefined);
         }
       }
     } finally {
@@ -130,6 +133,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         syncOfficeGeofence().catch(() => undefined);
         startForegroundWatcher().catch(() => undefined);
         startLiveLocation().catch(() => undefined);
+        planTodaysSelfies().catch(() => undefined);
+        sweepOfflineSelfies().catch(() => undefined);
       }
     });
     return () => sub.remove();
@@ -147,6 +152,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         startHealthLoop();
         startLiveLocation().catch(() => undefined);
         startConnectivityWatcher();
+        planTodaysSelfies().catch(() => undefined);
+        sweepOfflineSelfies().catch(() => undefined);
       }
     } catch (e: any) {
       const msg = e?.response?.data?.detail || e?.message || "Login failed";

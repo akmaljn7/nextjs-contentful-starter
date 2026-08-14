@@ -24,6 +24,7 @@ from models import (
     MobileLocationFix,
     MobileLocationBulk,
     MobileDeviceBind,
+    MobileSelfieSync,
 )
 
 logger = logging.getLogger(__name__)
@@ -1038,9 +1039,158 @@ async def reconcile_state(user: dict = Depends(get_current_user)):
             "client_event_id": last_event["client_event_id"],
             "outcome": last_event.get("session_outcome"),
         }
+    # Org selfie config — the app caches this so it can SCHEDULE selfies
+    # on-device (at unpredictable times) and fire them even with zero network.
+    from routes.sessions import _get_org_settings
+    settings = await _get_org_settings(db, user["org_id"])
+    selfie_config = {
+        "challenges_per_shift": int(settings.get("selfie_challenges_per_shift", 0) or 0),
+        "response_window_minutes": int(settings.get("selfie_response_window_minutes", 5) or 5),
+        "mode": settings.get("selfie_mode", "random"),
+        "fixed_times": settings.get("selfie_fixed_times") or [],
+        "active_liveness": bool(settings.get("active_liveness", True)),
+    }
+    # Raw schedule lets the app know today's on-shift window so it can spread
+    # the random selfie times across the actual working hours.
+    schedule = (user_doc or {}).get("schedule") or {"mode": "any"}
     return {
         "office": office,
         "session": session_view,
         "last_event": last_event_view,
+        "selfie_config": selfie_config,
+        "schedule": schedule,
         "server_ts_ms": _now_ms(),
     }
+
+
+@router.post("/selfie-sync")
+async def selfie_sync(payload: MobileSelfieSync, user: dict = Depends(get_current_user)):
+    """Replay offline-captured (or missed) selfie drafts on reconnect.
+
+    The phone schedules and fires selfies locally while offline. When network
+    returns it uploads each draft here. This endpoint runs the authoritative
+    server-side face-match on captured drafts, records the verdict in the
+    `offline_selfies` collection, and flags a live session / logs a security
+    event on a mismatch or a missed selfie — exactly like an online challenge.
+
+    Idempotent on (user_id, client_selfie_id): a re-sent draft returns its
+    already-recorded verdict and never re-processes.
+    """
+    db = get_db()
+    baseline = user.get("face_baseline")
+    from services.audit import log_security_event
+    from services.photos import save_session_photo
+    active_session = await db.active_sessions.find_one(
+        {"user_id": user["id"], "org_id": user["org_id"]})
+    results = []
+    session_flag_reasons: list[dict] = []
+    for d in payload.drafts:
+        existing = await db.offline_selfies.find_one(
+            {"user_id": user["id"], "client_selfie_id": d.client_selfie_id})
+        if existing:
+            results.append({"client_selfie_id": d.client_selfie_id,
+                            "status": existing.get("status"), "duplicate": True})
+            continue
+
+        doc_id = uuid.uuid4().hex
+        status = "missed"
+        similarity = None
+        match = None
+        has_photo = False
+        severity = None
+
+        if d.outcome == "captured" and d.face_photo:
+            saved = await save_session_photo(
+                f"offline-selfie::{doc_id}", user["org_id"], user["id"], d.face_photo)
+            has_photo = bool(saved)
+            if not baseline:
+                status = "no_baseline"
+            elif not saved:
+                status = "invalid_photo"
+                severity = "medium"
+            else:
+                import asyncio as _asyncio
+                from services.face_match import analyze
+                res = await _asyncio.to_thread(analyze, baseline, d.face_photo)
+                similarity = res.get("similarity")
+                if not res.get("ok"):
+                    status = "no_face"
+                    match = False
+                    severity = "high"
+                elif res.get("match"):
+                    status = "verified"
+                    match = True
+                elif res.get("reason") == "no_face_detected":
+                    status = "no_face"
+                    match = False
+                    severity = "high"
+                else:
+                    status = "mismatch"
+                    match = False
+                    severity = "high"
+        else:
+            # Employee never completed the offline selfie in time.
+            status = "missed"
+            severity = "high"
+
+        rec = {
+            "id": doc_id,
+            "org_id": user["org_id"],
+            "user_id": user["id"],
+            "client_selfie_id": d.client_selfie_id,
+            "scheduled_ms": d.scheduled_ms,
+            "respond_by_ms": d.respond_by_ms,
+            "captured_ms": d.captured_ms,
+            "outcome": d.outcome,
+            "status": status,
+            "similarity": similarity,
+            "match": match,
+            "has_photo": has_photo,
+            "battery": d.battery,
+            "client_liveness": d.client_liveness,
+            "session_id": str(active_session["_id"]) if active_session else None,
+            "reviewed": False,
+            "reviewed_by": None,
+            "reviewed_at": None,
+            "created_at": _now_iso(),
+            "synced_at_ms": _now_ms(),
+        }
+        try:
+            await db.offline_selfies.insert_one(rec)
+        except DuplicateKeyError:
+            existing = await db.offline_selfies.find_one(
+                {"user_id": user["id"], "client_selfie_id": d.client_selfie_id})
+            results.append({"client_selfie_id": d.client_selfie_id,
+                            "status": (existing or {}).get("status"), "duplicate": True})
+            continue
+
+        if severity:
+            reason = "offline_selfie_missed" if status == "missed" else f"offline_selfie_{status}"
+            await log_security_event(
+                "selfie_missed" if status == "missed" else "face_mismatch",
+                severity, "",
+                {"offline_selfie_id": doc_id, "client_selfie_id": d.client_selfie_id,
+                 "scheduled_ms": d.scheduled_ms, "reason": reason,
+                 "similarity": similarity},
+                org_id=user["org_id"], user_id=user["id"],
+            )
+            session_flag_reasons.append({"status": status, "id": doc_id, "ms": d.scheduled_ms})
+
+        results.append({"client_selfie_id": d.client_selfie_id, "status": status,
+                        "similarity": similarity})
+
+    # Flag the current live session (if any) so the admin roster surfaces the
+    # offline miss/mismatch just like an online missed selfie.
+    if active_session and session_flag_reasons:
+        log_entries = list(active_session.get("log", []))
+        now_ms = _now_ms()
+        for r in session_flag_reasons:
+            log_entries.append({"event": "offline_selfie_flag", "ts_ms": now_ms,
+                                "offline_selfie_id": r["id"], "selfie_status": r["status"],
+                                "scheduled_ms": r["ms"]})
+        await db.active_sessions.update_one(
+            {"_id": active_session["_id"]},
+            {"$set": {"flagged": True, "log": log_entries[-500:]}},
+        )
+
+    return {"ok": True, "processed": len(results), "results": results}

@@ -9,6 +9,7 @@
 import NetInfo from "@react-native-community/netinfo";
 import { drainQueue } from "@/services/syncWorker";
 import { drainLocationQueue } from "@/services/liveLocation";
+import { drainSelfieDrafts } from "@/services/offlineSelfie";
 
 let unsubscribe: (() => void) | null = null;
 let wasConnected = true;
@@ -22,6 +23,7 @@ export function startConnectivityWatcher(): void {
       console.info("[connectivity] network back — draining offline queues");
       drainLocationQueue().catch(() => undefined);
       drainQueue().catch(() => undefined);
+      drainSelfieDrafts().catch(() => undefined);
     }
     wasConnected = connected;
   });

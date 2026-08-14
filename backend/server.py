@@ -25,7 +25,7 @@ from routes.face import router as face_router
 from routes.mobile import router as mobile_router
 from routes.cron import router as cron_router
 from routes.colleague import router as colleague_router
-from routes.gaps import router as gaps_router
+from routes.gaps import router as gaps_router, offline_selfie_router
 from seed import seed_demo
 
 logging.basicConfig(
@@ -80,3 +80,4 @@ app.include_router(mobile_router)
 app.include_router(cron_router)
 app.include_router(colleague_router)
 app.include_router(gaps_router)
+app.include_router(offline_selfie_router)

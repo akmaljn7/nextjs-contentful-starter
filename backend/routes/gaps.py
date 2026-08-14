@@ -127,3 +127,79 @@ async def gap_evidence_photo(gap_id: str, user: dict = Depends(require_admin)):
         raise HTTPException(status_code=404, detail="No evidence photo for this gap")
     body, mime = result
     return Response(content=body, media_type=mime, headers={"Cache-Control": "private, max-age=300"})
+
+
+# ---------------------------------------------------------------------------
+# Offline scheduled selfies — admin review
+# ---------------------------------------------------------------------------
+offline_selfie_router = APIRouter(prefix="/api/offline-selfies", tags=["offline-selfies"])
+
+
+@offline_selfie_router.get("")
+async def list_offline_selfies(status: str = "all", user: dict = Depends(require_admin)):
+    """Offline-captured selfies (fired on-device while the phone had no network).
+
+    verified = face matched on sync; mismatch/no_face = wrong or no face;
+    missed = employee wasn't present to complete it in time.
+    """
+    db = get_db()
+    q = {"org_id": user["org_id"]}
+    if status and status != "all":
+        if status == "flagged":
+            q["status"] = {"$in": ["mismatch", "no_face", "missed", "invalid_photo"]}
+        else:
+            q["status"] = status
+    out = []
+    async for s in db.offline_selfies.find(q, sort=[("scheduled_ms", -1)]).limit(200):
+        try:
+            emp = await db.users.find_one({"_id": ObjectId(s["user_id"])}, {"name": 1, "email": 1})
+        except Exception:
+            emp = None
+        out.append({
+            "id": s["id"],
+            "client_selfie_id": s.get("client_selfie_id"),
+            "user_id": s["user_id"],
+            "employee_name": (emp or {}).get("name", "Unknown"),
+            "employee_email": (emp or {}).get("email", ""),
+            "scheduled_ms": s.get("scheduled_ms"),
+            "respond_by_ms": s.get("respond_by_ms"),
+            "captured_ms": s.get("captured_ms"),
+            "outcome": s.get("outcome"),
+            "status": s.get("status"),
+            "similarity": s.get("similarity"),
+            "match": s.get("match"),
+            "has_photo": s.get("has_photo", False),
+            "battery": s.get("battery"),
+            "client_liveness": s.get("client_liveness"),
+            "reviewed": s.get("reviewed", False),
+            "reviewed_by": s.get("reviewed_by"),
+            "reviewed_at": s.get("reviewed_at"),
+            "created_at": s.get("created_at"),
+        })
+    return out
+
+
+@offline_selfie_router.get("/{selfie_id}/photo")
+async def offline_selfie_photo(selfie_id: str, user: dict = Depends(require_admin)):
+    result = await get_photo(f"offline-selfie::{selfie_id}", user["org_id"])
+    if not result:
+        raise HTTPException(status_code=404, detail="No photo for this offline selfie")
+    body, mime = result
+    return Response(content=body, media_type=mime, headers={"Cache-Control": "private, max-age=300"})
+
+
+@offline_selfie_router.post("/{selfie_id}/review")
+async def review_offline_selfie(selfie_id: str, request: Request, user: dict = Depends(require_admin)):
+    """Mark an offline selfie as reviewed/acknowledged by the admin."""
+    db = get_db()
+    from services.audit import log_admin_action
+    doc = await db.offline_selfies.find_one({"org_id": user["org_id"], "id": selfie_id})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Offline selfie not found")
+    await db.offline_selfies.update_one(
+        {"_id": doc["_id"]},
+        {"$set": {"reviewed": True, "reviewed_by": user.get("email"), "reviewed_at": _now_iso()}},
+    )
+    await log_admin_action(user["org_id"], user["id"], "offline_selfie.review", "offline_selfie", selfie_id,
+                           ip=client_ip(request), user_agent=request.headers.get("user-agent", ""))
+    return {"ok": True, "id": selfie_id, "reviewed": True}

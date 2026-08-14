@@ -21,6 +21,7 @@ import OrgSettings from "@/pages/OrgSettings";
 import EmployeeProfile from "@/pages/EmployeeProfile";
 import TimeOff from "@/pages/TimeOff";
 import GapReviews from "@/pages/GapReviews";
+import OfflineSelfies from "@/pages/OfflineSelfies";
 
 function RootRedirect() {
   const { user } = useAuth();
@@ -48,6 +49,7 @@ function App() {
             <Route path="/admin/employees" element={<ProtectedRoute roles={["org_owner", "admin"]}><EmployeesManage /></ProtectedRoute>} />
             <Route path="/admin/attendance" element={<ProtectedRoute roles={["org_owner", "admin"]}><AttendanceHistory /></ProtectedRoute>} />
             <Route path="/admin/gaps" element={<ProtectedRoute roles={["org_owner", "admin"]}><GapReviews /></ProtectedRoute>} />
+            <Route path="/admin/offline-selfies" element={<ProtectedRoute roles={["org_owner", "admin"]}><OfflineSelfies /></ProtectedRoute>} />
             <Route path="/admin/reports" element={<ProtectedRoute roles={["org_owner", "admin"]}><Reports /></ProtectedRoute>} />
             <Route path="/admin/audit" element={<ProtectedRoute roles={["org_owner", "admin"]}><AuditLog /></ProtectedRoute>} />
             <Route path="/admin/security" element={<ProtectedRoute roles={["org_owner", "admin"]}><SecurityEvents /></ProtectedRoute>} />

@@ -71,6 +71,23 @@ async function db(): Promise<SQLite.SQLiteDatabase> {
     );
     CREATE INDEX IF NOT EXISTS idx_locfix_unsynced
       ON mobile_location_fixes (synced_at, ts_ms);
+    CREATE TABLE IF NOT EXISTS offline_selfies (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      client_selfie_id TEXT NOT NULL UNIQUE,
+      day_key TEXT NOT NULL,
+      scheduled_ms INTEGER NOT NULL,
+      respond_by_ms INTEGER NOT NULL,
+      captured_ms INTEGER,
+      outcome TEXT,
+      photo TEXT,
+      client_liveness INTEGER NOT NULL DEFAULT 0,
+      battery REAL,
+      status TEXT NOT NULL DEFAULT 'scheduled',
+      synced_at INTEGER,
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_selfie_status
+      ON offline_selfies (status, scheduled_ms);
   `);
   return _db;
 }
@@ -250,4 +267,134 @@ export async function purgeOldLocationFixes(): Promise<number> {
     [cutoff],
   );
   return res.changes ?? 0;
+}
+
+// ---------------------------------------------------------------------------
+// Offline scheduled selfies (fire + capture on-device with zero network,
+// verified server-side on reconnect).
+// status: 'scheduled' → 'captured' | 'missed' → (uploaded) 'synced'
+// ---------------------------------------------------------------------------
+export interface OfflineSelfieRow {
+  id?: number;
+  client_selfie_id: string;
+  day_key: string;
+  scheduled_ms: number;
+  respond_by_ms: number;
+  captured_ms?: number | null;
+  outcome?: "captured" | "missed" | null;
+  photo?: string | null;
+  client_liveness?: boolean;
+  battery?: number | null;
+  status: "scheduled" | "captured" | "missed" | "synced";
+}
+
+/** Insert a planned selfie (status='scheduled'). No-op if already planned. */
+export async function insertScheduledSelfie(row: {
+  client_selfie_id: string; day_key: string; scheduled_ms: number; respond_by_ms: number;
+}): Promise<void> {
+  const d = await db();
+  await d.runAsync(
+    `INSERT OR IGNORE INTO offline_selfies
+     (client_selfie_id, day_key, scheduled_ms, respond_by_ms, client_liveness, status, created_at)
+     VALUES (?, ?, ?, ?, 0, 'scheduled', ?)`,
+    [row.client_selfie_id, row.day_key, row.scheduled_ms, row.respond_by_ms, Date.now()],
+  );
+}
+
+/** True if selfies were already planned for this local day. */
+export async function hasPlannedForDay(dayKey: string): Promise<boolean> {
+  const d = await db();
+  const row = await d.getFirstAsync<{ n: number }>(
+    `SELECT COUNT(*) as n FROM offline_selfies WHERE day_key = ?`, [dayKey],
+  );
+  return (row?.n ?? 0) > 0;
+}
+
+/** The single selfie whose window is open right now (scheduled + not past). */
+export async function dueScheduledSelfie(now: number): Promise<OfflineSelfieRow | null> {
+  const d = await db();
+  const r = await d.getFirstAsync<any>(
+    `SELECT * FROM offline_selfies
+     WHERE status = 'scheduled' AND scheduled_ms <= ? AND respond_by_ms >= ?
+     ORDER BY scheduled_ms ASC LIMIT 1`,
+    [now, now],
+  );
+  return r ? mapSelfie(r) : null;
+}
+
+/** Store the captured frame for a due selfie. */
+export async function markSelfieCaptured(
+  clientSelfieId: string, photo: string, capturedMs: number, battery?: number | null,
+): Promise<void> {
+  const d = await db();
+  await d.runAsync(
+    `UPDATE offline_selfies
+     SET status = 'captured', outcome = 'captured', photo = ?, captured_ms = ?,
+         client_liveness = 1, battery = ?
+     WHERE client_selfie_id = ?`,
+    [photo, capturedMs, battery ?? null, clientSelfieId],
+  );
+}
+
+/** Any scheduled selfie whose response window has fully elapsed → 'missed'. */
+export async function expireOverdueSelfies(now: number): Promise<number> {
+  const d = await db();
+  const res = await d.runAsync(
+    `UPDATE offline_selfies SET status = 'missed', outcome = 'missed'
+     WHERE status = 'scheduled' AND respond_by_ms < ?`,
+    [now],
+  );
+  return res.changes ?? 0;
+}
+
+/** Drafts ready to upload (captured or missed, not yet synced). */
+export async function pendingSelfieDrafts(limit = 25): Promise<OfflineSelfieRow[]> {
+  const d = await db();
+  const rows = await d.getAllAsync<any>(
+    `SELECT * FROM offline_selfies
+     WHERE status IN ('captured', 'missed') AND synced_at IS NULL
+     ORDER BY scheduled_ms ASC LIMIT ?`,
+    [limit],
+  );
+  return rows.map(mapSelfie);
+}
+
+export async function markSelfieDraftsSynced(clientSelfieIds: string[]): Promise<void> {
+  if (!clientSelfieIds.length) return;
+  const d = await db();
+  const now = Date.now();
+  const ph = clientSelfieIds.map(() => "?").join(",");
+  await d.runAsync(
+    `UPDATE offline_selfies SET status = 'synced', synced_at = ?, photo = NULL
+     WHERE client_selfie_id IN (${ph})`,
+    [now, ...clientSelfieIds],
+  );
+}
+
+/** Delete synced/old selfies older than 3 days. */
+export async function purgeOldSelfies(): Promise<number> {
+  const d = await db();
+  const cutoff = Date.now() - 3 * 24 * 3600 * 1000;
+  const res = await d.runAsync(
+    `DELETE FROM offline_selfies
+     WHERE (synced_at IS NOT NULL AND synced_at < ?) OR created_at < ?`,
+    [cutoff, cutoff],
+  );
+  return res.changes ?? 0;
+}
+
+function mapSelfie(r: any): OfflineSelfieRow {
+  return {
+    id: r.id,
+    client_selfie_id: r.client_selfie_id,
+    day_key: r.day_key,
+    scheduled_ms: r.scheduled_ms,
+    respond_by_ms: r.respond_by_ms,
+    captured_ms: r.captured_ms ?? null,
+    outcome: r.outcome ?? null,
+    photo: r.photo ?? null,
+    client_liveness: !!r.client_liveness,
+    battery: r.battery ?? null,
+    status: r.status,
+  };
 }
