@@ -12,7 +12,7 @@
  * /api/sessions/challenge/{id}/respond, and the missed/verified states.
  */
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { View, Text, StyleSheet, Pressable } from "react-native";
+import { View, Text, StyleSheet, Pressable, Vibration } from "react-native";
 import { useCameraPermissions } from "expo-camera";
 import * as Notifications from "expo-notifications";
 import { Ionicons } from "@expo/vector-icons";

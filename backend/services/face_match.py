@@ -66,7 +66,7 @@ def similarity(a: list[float], b: list[float]) -> float:
     return float(np.dot(va, vb) / (na * nb))
 
 
-def verify(baseline: list[float], challenge_photo_b64: str, threshold: float = 0.90) -> dict:
+def verify(baseline: list[float], challenge_photo_b64: str, threshold: float = 0.93) -> dict:
     """Return {match: bool, similarity: float, reason?: str}.
 
     face_recognition embeddings are already L2-normalized-ish; a cosine of 0.90
@@ -80,7 +80,7 @@ def verify(baseline: list[float], challenge_photo_b64: str, threshold: float = 0
     return {"match": sim >= threshold, "similarity": sim}
 
 
-def analyze(baseline: list[float], photo_b64: str, threshold: float = 0.90) -> dict:
+def analyze(baseline: list[float], photo_b64: str, threshold: float = 0.93) -> dict:
     """One-pass selfie analysis: face-match + passive liveness (single face
     detection). CPU-bound — call via asyncio.to_thread.
 

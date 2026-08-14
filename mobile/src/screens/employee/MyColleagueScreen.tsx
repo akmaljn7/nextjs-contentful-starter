@@ -17,6 +17,7 @@ import { Screen } from "@/components/Screen";
 import { Input } from "@/components/Input";
 import { Button } from "@/components/Button";
 import { CameraCapture } from "@/components/CameraCapture";
+import { LivenessCamera, LiveVerifyResult } from "@/components/LivenessCamera";
 import { colleague } from "@/api/colleague";
 import { apiError } from "@/api/client";
 import { colors } from "@/theme";
@@ -33,10 +34,11 @@ export default function MyColleagueScreen() {
   const [targetName, setTargetName] = useState<string>("");
   const [step, setStep] = useState<Step>("form");
   const [gapSelfie, setGapSelfie] = useState<string | null>(null);
+  const [verify, setVerify] = useState<LiveVerifyResult>({ kind: "idle" });
 
   const reset = () => {
     setEmailOrId(""); setReason(""); setChallengeId(null); setTargetName("");
-    setStep("form"); setGapSelfie(null);
+    setStep("form"); setGapSelfie(null); setVerify({ kind: "idle" });
   };
 
   // ---- Check-in flow ----
@@ -68,19 +70,20 @@ export default function MyColleagueScreen() {
   }, [emailOrId, reason]);
 
   const submitSelfie = useCallback(async (dataUrl: string) => {
-    setBusy(true);
+    setVerify({ kind: "verifying" });
     try {
       const res = await colleague.selfie({
         email_or_id: emailOrId.trim(),
         challenge_id: challengeId || undefined,
         face_photo: dataUrl,
       });
-      Alert.alert("✅ Checked in", `${targetName} was checked in and their selfie verified (match ${(res.similarity ?? 0).toFixed(2)}).`);
-      reset();
+      setVerify({ kind: "verified" });
+      setTimeout(() => {
+        Alert.alert("✅ Checked in", `${targetName} was checked in and their selfie verified (match ${(res.similarity ?? 0).toFixed(2)}).`);
+        reset();
+      }, 900);
     } catch (e) {
-      Alert.alert("Selfie not accepted", apiError(e));
-    } finally {
-      setBusy(false);
+      setVerify({ kind: "failed", message: apiError(e) });
     }
   }, [emailOrId, challengeId, targetName]);
 
@@ -116,15 +119,16 @@ export default function MyColleagueScreen() {
   // ---- Proxy check-OUT flow ---- (selfie confirms the real person is ending their shift)
   const submitCheckout = useCallback(async (selfie: string) => {
     if (!emailOrId.trim()) return Alert.alert("Missing", "Enter the employee's email or ID.");
-    setBusy(true);
+    setVerify({ kind: "verifying" });
     try {
       const res = await colleague.checkout({ email_or_id: emailOrId.trim(), face_photo: selfie });
-      Alert.alert("✅ Checked out", `${res.target_name} is checked out. Time on shift: ${res.inside_minutes} min.`);
-      reset();
+      setVerify({ kind: "verified" });
+      setTimeout(() => {
+        Alert.alert("✅ Checked out", `${res.target_name} is checked out. Time on shift: ${res.inside_minutes} min.`);
+        reset();
+      }, 900);
     } catch (e) {
-      Alert.alert("Couldn't check out", apiError(e));
-    } finally {
-      setBusy(false);
+      setVerify({ kind: "failed", message: apiError(e) });
     }
   }, [emailOrId]);
 
@@ -225,12 +229,11 @@ export default function MyColleagueScreen() {
         {step === "camera" && (
           <View style={{ gap: 12 }}>
             <Text style={styles.camTitle}>Take {targetName}'s selfie</Text>
-            <CameraCapture
+            <LivenessCamera
               onCapture={submitSelfie}
-              busy={busy}
-              hint="The colleague must face the camera — it's matched to their enrolled photo."
-              captureLabel="Capture selfie"
-              testID="colleague-selfie-capture"
+              result={verify}
+              headline={`${targetName} — check in`}
+              testID="colleague-selfie-liveness"
             />
             <Button label="Cancel" variant="ghost" onPress={reset} testID="colleague-cancel-btn" />
           </View>
@@ -239,13 +242,11 @@ export default function MyColleagueScreen() {
         {step === "checkout-selfie" && (
           <View style={{ gap: 12 }}>
             <Text style={styles.camTitle}>Take {emailOrId.trim()}'s selfie to check out</Text>
-            <CameraCapture
+            <LivenessCamera
               onCapture={submitCheckout}
-              busy={busy}
-              facing="front"
-              hint="The colleague must face the camera — it's matched to their enrolled photo before ending the shift."
-              captureLabel="Capture selfie & check out"
-              testID="colleague-checkout-capture"
+              result={verify}
+              headline="Check out"
+              testID="colleague-checkout-liveness"
             />
             <Button label="Cancel" variant="ghost" onPress={reset} testID="colleague-checkout-cancel-btn" />
           </View>
@@ -254,13 +255,11 @@ export default function MyColleagueScreen() {
         {step === "gap-selfie" && (
           <View style={{ gap: 12 }}>
             <Text style={styles.camTitle}>Take your selfie (identity proof)</Text>
-            <CameraCapture
+            <LivenessCamera
               onCapture={onGapSelfie}
-              busy={busy}
-              facing="front"
-              hint="Face the camera — this confirms it's really you submitting the reason."
-              captureLabel="Capture selfie"
-              testID="colleague-gap-selfie-capture"
+              result={verify}
+              headline="Identity proof"
+              testID="colleague-gap-selfie-liveness"
             />
             <Button label="Cancel" variant="ghost" onPress={reset} testID="colleague-gap-cancel-btn" />
           </View>
