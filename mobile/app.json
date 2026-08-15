@@ -103,6 +103,7 @@
       "./plugins/withAndroidBootReceiver.js",
       "./plugins/withSelfieFullScreen.js",
       "./plugins/withFmtConstevalFix.js",
+      "./plugins/withExpoLocalizationFix.js",
       [
         "react-native-vision-camera",
         {
