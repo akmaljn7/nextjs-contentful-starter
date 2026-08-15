@@ -58,7 +58,7 @@ function writeBootReceiverKotlin(config) {
     "android",
     async (cfg) => {
       const projectRoot = cfg.modRequest.platformProjectRoot;
-      const pkg = (cfg.android && cfg.android.package) || "com.geofenceattendance.app";
+      const pkg = (cfg.android && cfg.android.package) || "com.staypin.app";
       const pkgPath = pkg.split(".").join("/");
       const dir = path.join(projectRoot, "app/src/main/java", pkgPath);
       fs.mkdirSync(dir, { recursive: true });

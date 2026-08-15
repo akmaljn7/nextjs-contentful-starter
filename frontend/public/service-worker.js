@@ -1,5 +1,5 @@
 /* Minimal service worker — offline shell + cache-first for static assets */
-const CACHE = "geofence-v1";
+const CACHE = "staypin-v1";
 const OFFLINE_URLS = ["/", "/index.html", "/manifest.json"];
 
 self.addEventListener("install", (event) => {

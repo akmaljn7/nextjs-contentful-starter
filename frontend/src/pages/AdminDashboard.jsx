@@ -146,7 +146,7 @@ export default function AdminDashboard() {
     mutationFn: async (userId) =>
       (await api.post(`/sessions/nudge/${userId}`, {
         title: "Check-in reminder",
-        body: "Please open Attendance Console and start your shift.",
+        body: "Please open StayPin and start your shift.",
       })).data,
     onSuccess: (data) => toast.success(`Reminder sent to ${data.sent_to || "employee"}`),
     onError: (e) => toast.error(toApiError(e)),

@@ -938,7 +938,7 @@ async def ping_session(payload: SessionPing, request: Request, user: dict = Depe
                      f"Response window: {resp_window_min} minutes",
                      "The employee did not respond to a random selfie challenge in time — session flagged."],
                 )
-                await send_email(owner["email"], "Geofence Console — missed selfie challenge", html)
+                await send_email(owner["email"], "StayPin — missed selfie challenge", html)
     update["challenges"] = challenges
     update["log"] = log_entries[-500:]
 
@@ -962,7 +962,7 @@ async def ping_session(payload: SessionPing, request: Request, user: dict = Depe
                         f"Speed: {analysis['speed_kmh']:.1f} km/h" if analysis["speed_kmh"] else "",
                     ],
                 )
-                await send_email(owner["email"], "Geofence Console — spoof detection", html)
+                await send_email(owner["email"], "StayPin — spoof detection", html)
 
     # Store ping
     await db.gps_pings.insert_one({

@@ -154,7 +154,7 @@ async def export_pdf(
     buf = io.BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=landscape(letter))
     styles = getSampleStyleSheet()
-    story = [Paragraph("<b>Geofence Console — Attendance Report</b>", styles["Title"]), Spacer(1, 12)]
+    story = [Paragraph("<b>StayPin — Attendance Report</b>", styles["Title"]), Spacer(1, 12)]
     story.append(Paragraph(f"Generated {datetime.now(timezone.utc).isoformat()}", styles["Normal"]))
     story.append(Spacer(1, 12))
     data = [["Employee", "Office", "Started", "Ended", "Outcome", "Minutes", "Bouts", "Flagged"]]

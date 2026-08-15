@@ -52,7 +52,7 @@ async function markPrompted(): Promise<void> {
  */
 export async function requestIgnoreBatteryOptimizations(): Promise<void> {
   if (Platform.OS !== "android") return;
-  const pkg = Application.applicationId ?? "com.geofenceattendance.app";
+  const pkg = Application.applicationId ?? "com.staypin.app";
   try {
     await IntentLauncher.startActivityAsync(ACTION_REQUEST_IGNORE, {
       data: `package:${pkg}`,
@@ -82,7 +82,7 @@ export async function requestFullScreenIntentAccess(): Promise<void> {
   if (Platform.OS !== "android") return;
   if ((Platform.Version as number) < 34) return;
   if ((await SecureStore.getItemAsync(FS_PROMPTED_KEY).catch(() => null)) === "1") return;
-  const pkg = Application.applicationId ?? "com.geofenceattendance.app";
+  const pkg = Application.applicationId ?? "com.staypin.app";
   try {
     await IntentLauncher.startActivityAsync(ACTION_MANAGE_FULL_SCREEN, { data: `package:${pkg}` });
   } catch {

@@ -35,7 +35,7 @@ export default function LoginPage() {
         <div className="absolute inset-0 opacity-[0.15]" style={{ backgroundImage: "linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)", backgroundSize: "48px 48px" }} />
         <div className="relative z-10 p-14 h-full flex flex-col justify-between">
           <div>
-            <div className="label-uppercase" style={{ letterSpacing: "0.28em" }}>GEOFENCE CONSOLE</div>
+            <div className="label-uppercase" style={{ letterSpacing: "0.28em" }}>STAYPIN</div>
             <h1 className="mt-3 text-4xl xl:text-5xl font-semibold tracking-tight text-white">Verified<br />on-site presence.</h1>
             <p className="mt-4 text-gray-400 max-w-md text-sm leading-relaxed">Server-authoritative geofenced attendance. Live satellite pins, immutable audit history, anti-spoof engine — for teams that need proof, not promises.</p>
           </div>

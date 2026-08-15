@@ -47,7 +47,7 @@ export function ChallengeProvider({ children }: { children: React.ReactNode }) {
   const { user, isEmployee } = useAuth();
   const [active, setActive] = useState<ChallengeInfo | null>(null);
   // Set when the native full-screen "OPEN CAMERA" button deep-links us in
-  // (geofenceattendance://selfie) — tells the modal to skip its ring screen and
+  // (staypin://selfie) — tells the modal to skip its ring screen and
   // jump straight to the camera.
   const [cameraRequested, setCameraRequested] = useState(false);
   const consumeCameraRequest = useCallback(() => setCameraRequested(false), []);

@@ -42,8 +42,8 @@ export default function LoginScreen() {
       >
         <View style={styles.brand}>
           <View style={styles.logoDot} />
-          <Text style={styles.brandText}>ATTENDANCE</Text>
-          <Text style={styles.brandSubtle}>CONSOLE</Text>
+          <Text style={styles.brandText}>STAYPIN</Text>
+          <Text style={styles.brandSubtle}>ATTENDANCE</Text>
         </View>
 
         <Text style={styles.heading}>Sign in</Text>

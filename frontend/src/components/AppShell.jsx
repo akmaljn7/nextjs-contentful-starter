@@ -40,8 +40,8 @@ export function AppShell({ children }) {
                 <div className="live-pin pin-active" style={{ width: 6, height: 6 }} />
               </div>
               <div>
-                <div className="label-uppercase" style={{ letterSpacing: "0.24em", fontSize: 10 }}>GEOFENCE</div>
-                <div className="text-sm font-medium leading-tight">Attendance Console</div>
+                <div className="label-uppercase" style={{ letterSpacing: "0.24em", fontSize: 10 }}>STAYPIN</div>
+                <div className="text-sm font-medium leading-tight">Attendance</div>
               </div>
             </Link>
             <div className="hidden md:block h-8 w-px bg-white/10" />

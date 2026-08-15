@@ -131,7 +131,7 @@ export default function PermissionsScreen({ onGranted }: Props) {
       <View style={{ paddingTop: 48 }}>
         <Text style={styles.h1}>Let's set things up</Text>
         <Text style={styles.sub}>
-          Attendance Console needs a few permissions to work in the background.
+          StayPin needs a few permissions to work in the background.
           You always keep full control — nothing is shared beyond your employer.
         </Text>
 

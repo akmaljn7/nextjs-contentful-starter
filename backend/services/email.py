@@ -47,7 +47,7 @@ def render_reset_email(reset_url: str, name: str) -> str:
   <tr><td align="center">
     <table cellpadding="0" cellspacing="0" width="480" style="background:#121212;border:1px solid #262626;">
       <tr><td style="padding:32px 32px 16px 32px;">
-        <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:0.24em;color:#9CA3AF;text-transform:uppercase;">Geofence Console</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:0.24em;color:#9CA3AF;text-transform:uppercase;">StayPin</div>
         <h1 style="margin:16px 0 8px 0;color:#F9FAFB;font-size:22px;font-weight:600;">Reset your password</h1>
         <p style="color:#9CA3AF;font-size:14px;line-height:1.6;">Hi {name}, click the button below to set a new password. This link expires in 1 hour.</p>
       </td></tr>

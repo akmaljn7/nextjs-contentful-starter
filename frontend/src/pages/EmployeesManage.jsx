@@ -271,7 +271,7 @@ export default function EmployeesManage() {
                         <Camera size={12} /> Send selfie
                       </button>
                       <button
-                        onClick={() => nudge.mutate({ userId: e.id, title: "Check-in reminder", body: `Please open Attendance Console and start your shift.` })}
+                        onClick={() => nudge.mutate({ userId: e.id, title: "Check-in reminder", body: `Please open StayPin and start your shift.` })}
                         disabled={nudge.isPending}
                         data-testid={`emp-nudge-${e.id}`}
                         title="Send a push notification to remind this employee to open the app"

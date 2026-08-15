@@ -6,7 +6,7 @@
  * FirebaseMessagingService posts a full-screen-intent notification that wakes
  * the screen and launches IncomingSelfieActivity OVER the lock screen, ringing
  * loudly. The activity shows "Selfie for {name}" + a single "OPEN CAMERA" button
- * that deep-links into the RN app (geofenceattendance://selfie) to open the
+ * that deep-links into the RN app (staypin://selfie) to open the
  * selfie camera, then stops the ring.
  *
  * Non-selfie pushes are delegated to expo-notifications' own handling (our
@@ -17,7 +17,7 @@ const { withAndroidManifest, withDangerousMod, withAppBuildGradle, AndroidConfig
 const fs = require("fs");
 const path = require("path");
 
-const PKG_DEFAULT = "com.geofenceattendance.app";
+const PKG_DEFAULT = "com.staypin.app";
 const EXPO_FCM_SERVICE = "expo.modules.notifications.service.ExpoFirebaseMessagingService";
 const OUR_SERVICE = ".SelfieMessagingService";
 const OUR_ACTIVITY = ".IncomingSelfieActivity";
@@ -244,7 +244,7 @@ class IncomingSelfieActivity : Activity() {
             (getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager)?.cancel(SELFIE_NOTIF_ID)
         } catch (_: Exception) {}
         try {
-            val launch = Intent(Intent.ACTION_VIEW, Uri.parse("geofenceattendance://selfie"))
+            val launch = Intent(Intent.ACTION_VIEW, Uri.parse("staypin://selfie"))
             launch.setPackage(packageName)
             launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             startActivity(launch)

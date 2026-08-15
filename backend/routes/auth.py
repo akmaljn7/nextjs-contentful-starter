@@ -345,7 +345,7 @@ async def forgot_password(payload: ForgotPasswordRequest, request: Request):
         frontend = os.environ.get("FRONTEND_URL", "").rstrip("/")
         reset_url = f"{frontend}/reset-password?token={token}"
         html = render_reset_email(reset_url, user.get("name", "there"))
-        await send_email(email, "Reset your Geofence Console password", html)
+        await send_email(email, "Reset your StayPin password", html)
     return {"ok": True}
 
 
