@@ -1,0 +1,21 @@
+{
+  "summary": "Regression check after mobile-only removal of react-native-reanimated + expo-router. Verified backend /api/auth/login (owner, employee, wrong password) and web login UI (invalid credentials error + valid owner login lands on /admin dashboard). All shared auth paths still work; no backend or web frontend files were modified by E1 and none were touched here. Mobile iOS keyboard crash NOT testable in this environment (requires TestFlight build).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_auth_regression_iter31.py",
+    "/app/test_reports/pytest/iter31_auth.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "POST /api/auth/login response body contains only access_token/refresh_token (no user object). If the mobile/web clients ever need role at login without a second /api/auth/me round-trip, consider embedding it — currently harmless because both clients call /me right after login."
+  ],
+  "updated_files": ["/app/backend/tests/test_auth_regression_iter31.py"],
+  "success_rate": {"backend": "100% (3/3)", "frontend": "100% (web login regression: invalid + valid owner)"},
+  "test_credentials": "Read from /app/memory/test_credentials.md (present & populated). Owner akmaljn7@gmail.com / GeofenceAdmin123!, Employee employee@example.com / Employee123!.",
+  "seed_data_creation": "None.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iter 31 was a narrow regression around the mobile reanimated/expo-router removal. Backend auth + web login are healthy. The actual iOS keyboard-focus crash cannot be verified from this sandbox — it requires a physical iPhone and a rebuilt TestFlight binary; user must confirm on device.",
+  "rca of the issue": "Original bug (mobile only, out of scope for this env): react-native-reanimated (transitively pulled in by unused expo-router) installed an iOS keyboard-event hook that crashed on first focus of the TextInput. Fix: removed both packages from /app/mobile (package.json), the reanimated babel plugin, and the expo-router plugin from app.json. Since both packages were completely unused, there is zero functional impact on the app; the shared REST auth path (verified above) is unaffected."
+}
