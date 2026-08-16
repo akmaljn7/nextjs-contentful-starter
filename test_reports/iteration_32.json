@@ -1,0 +1,27 @@
+{
+  "summary": "Backend regression for BUG #1 (proxy-session freshness). Created pytest suite /app/backend/tests/test_proxy_session_refresh.py with 8 tests covering: admin login, proxy check-in of two colleagues via a lending phone, duplicate check-in 409, the CORE FIX (one /api/mobile/location from lender bumps last_live_ts_ms on BOTH proxied sessions), isolation (different user's fix does NOT refresh those proxy sessions), regression on own-session live-location update, and admin /api/sessions/live view showing both proxies fresh & not stale. All 8 tests PASS.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_proxy_session_refresh.py",
+    "/app/test_reports/pytest/proxy_refresh_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "mobile.py update_many correctly filters by org_id + source='proxy_checkin' + proxy_by == user.email + status='active' — safe against cross-org leakage and paused sessions.",
+    "Note: the proxy update_many runs BEFORE the stale_replay watermark check. That's intentional (proxy sessions have their own watermark implicitly via last_live_ts_ms $set), but a very old replayed fix (offline batch) could still refresh proxy sessions to that older ts. Consider guarding update_many with `last_live_ts_ms: {$lt: now_ms}` to make offline replay idempotent for proxies too — minor edge case, not user-visible for the current live-stream path.",
+    "_sanitize_session does not expose last_live_ts_ms directly to admins; last_fix.ts_ms serves as the observable freshness proxy — acceptable but worth surfacing explicitly if the admin UI ever needs the exact watermark.",
+    "colleague/checkin sets last_live_ts_ms=now_ms at creation, so proxied sessions are 'fresh' immediately — the fix now keeps them fresh across subsequent location fixes from the lender. Verified end-to-end."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (8/8)", "frontend": "N/A (skipped per request)"},
+  "test_credentials": "admin akmaljn7@gmail.com / GeofenceAdmin123! (from /app/memory/test_credentials.md). Test users created dynamically: test_proxy_a_*, test_proxy_b_*, test_proxy_lender_*, test_proxy_other_* with password TestPass123!. Face baselines injected directly in DB (dummy 128-dim vector) since colleague/checkin only checks truthiness.",
+  "seed_data_creation": "Created 4 test employees per run (emp_a, emp_b, lender, other_lender) assigned to the first existing office. Soft-deleted at end via deleted_at='cleanup'. Face baselines seeded directly in MongoDB to bypass dlib face-detection requirement (only truthy check enforced by backend).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "The regression file is reusable: /app/backend/tests/test_proxy_session_refresh.py. It handles the case where prior 'test_proxy_*' users exist (resets password + office + face baseline). If face_baseline check ever tightens (e.g. must be a real dlib embedding), the DB-seeding of [0.01]*128 will need to be replaced with a real enrolled face via POST /api/face/enroll. Also documented: _sanitize_session omits last_live_ts_ms; use last_fix.ts_ms as the admin-visible freshness signal.",
+  "rca of the issue": "BUG #1 RCA — In /api/mobile/location the handler only refreshed last_live_ts_ms on the streaming user's OWN active_session (matched by user_id). Proxy sessions live under the ABSENT colleague's user_id with source='proxy_checkin' and proxy_by=<lender email>, so they never received a refresh from the lender's location stream and went stale (~STALE_PING_MS) → 'offline' in admin dashboard. Checking in a 2nd colleague on the same lending phone did NOT re-refresh the first. FIX (line ~579-585 of mobile.py) adds a db.active_sessions.update_many that sets last_live_ts_ms + last_fix on every active proxy_checkin session vouched by the streaming user's email. Verified: BEFORE emp_a/emp_b last_live_ts_ms == check-in time; after one location fix, BOTH are bumped to the fix's now_ms (strictly greater, and >= now_ms-500). Isolation verified: a different user's location fix leaves emp_a/emp_b unchanged. Own-session regression verified: streaming user's own session's last_live_ts_ms still advances. Duplicate check-in still 409."
+}

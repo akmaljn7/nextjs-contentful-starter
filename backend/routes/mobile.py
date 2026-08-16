@@ -568,6 +568,22 @@ async def _apply_location_fix(db, user: dict, fix: MobileLocationFix) -> dict:
         )
 
     last_fix = {"lat": fix.lat, "lng": fix.lng, "accuracy": fix.accuracy, "ts_ms": now_ms}
+
+    # Keep PROXY check-in sessions online. The lending phone streams live
+    # location under its OWNER's user_id, so any colleague it checked in
+    # (proxy_by == owner email) would otherwise never receive a live refresh
+    # and silently drop to "offline" shortly after check-in — and checking a
+    # second colleague in never touched the first. Refresh every active proxy
+    # session vouched by this device so multiple proxied colleagues on one
+    # lending phone all stay online together.
+    _proxier = user.get("email")
+    if _proxier:
+        await db.active_sessions.update_many(
+            {"org_id": user["org_id"], "source": "proxy_checkin",
+             "proxy_by": _proxier, "status": "active"},
+            {"$set": {"last_live_ts_ms": now_ms, "last_fix": last_fix}},
+        )
+
     session = await db.active_sessions.find_one({"user_id": user["id"], "org_id": user["org_id"]})
 
     # Idempotency watermark — skip any fix at/behind the newest one we've

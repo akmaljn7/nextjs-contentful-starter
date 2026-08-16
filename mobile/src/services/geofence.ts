@@ -17,6 +17,7 @@
 import * as Location from "expo-location";
 import * as TaskManager from "expo-task-manager";
 import * as Notifications from "expo-notifications";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
 
 import { enqueueAndSync } from "@/services/syncWorker";
@@ -88,15 +89,28 @@ TaskManager.defineTask(GEOFENCE_TASK, async ({ data, error }) => {
     device_id: deviceId,
   });
 
-  // Local notification so the user sees confirmation even if the app is closed
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      title: kind === "enter" ? "✅ Attendance started" : "⏸ Attendance paused",
-      body: kind === "enter" ? "Welcome to the office." : "See you next time.",
-      sound: "default",
-    },
-    trigger: null,
-  });
+  // Local notification — but ONLY on a REAL transition. iOS re-fires ENTER
+  // whenever the geofence is re-registered (app open, "reactivate" tap, cold
+  // start) even while already inside, which spammed "Welcome to the office"
+  // repeatedly. We persist the last presence and only notify when it actually
+  // flips, so you get one notice on arrival and one when you go offline.
+  const PRESENCE_KEY = "gfattend.presence";
+  const nextState = kind === "enter" ? "inside" : "outside";
+  let prevState: string | null = null;
+  try { prevState = await AsyncStorage.getItem(PRESENCE_KEY); } catch { /* ignore */ }
+  if (prevState !== nextState) {
+    try { await AsyncStorage.setItem(PRESENCE_KEY, nextState); } catch { /* ignore */ }
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: kind === "enter" ? "✅ You are in office" : "⏸ You are offline",
+        body: kind === "enter"
+          ? "Attendance is now being recorded."
+          : "You left the office — attendance is paused.",
+        sound: "default",
+      },
+      trigger: null,
+    });
+  }
 });
 
 // -----------------------------------------------------------------------------

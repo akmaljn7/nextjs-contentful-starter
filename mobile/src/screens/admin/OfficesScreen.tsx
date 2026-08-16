@@ -154,15 +154,19 @@ function OfficeEditModal({ draft, onClose, onSave, onDelete, busy }: OfficeEditP
   const [local, setLocal] = useState<OfficeDraft | null>(draft);
   React.useEffect(() => { setLocal(draft); }, [draft?.id, draft?.name]);
 
-  if (!draft || !local) return null;
-  const isNew = !local.id;
-
+  // NOTE: all hooks MUST run before any early return. Previously `useMemo` sat
+  // AFTER `if (!draft) return null`, so opening the modal (draft null -> set)
+  // changed the hook count and crashed with "Rendered more hooks than during
+  // the previous render." — this was the create-office crash.
   const initial = useMemo(() => ({
-    latitude: local.lat ?? 0,
-    longitude: local.lng ?? 0,
+    latitude: local?.lat ?? 0,
+    longitude: local?.lng ?? 0,
     latitudeDelta: 0.01,
     longitudeDelta: 0.01,
-  }), [local.id]);
+  }), [local?.id]);
+
+  if (!draft || !local) return null;
+  const isNew = !local.id;
 
   const onMapTap = (e: MapPressEvent) => {
     const c: LatLng = e.nativeEvent.coordinate;

@@ -64,7 +64,7 @@ export function HealthChip({ onTap, testID }: Props) {
     ? "GRANT BACKGROUND"
     : snap.permission === "when_in_use"
     ? "FOREGROUND ONLY"
-    : "TRACKING ACTIVE";
+    : "YOU ARE IN OFFICE";
 
   return (
     <Pressable
