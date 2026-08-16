@@ -22,7 +22,7 @@
       }
     },
     "production": {
-      "autoIncrement": true,
+      "autoIncrement": false,
       "channel": "production",
       "node": "20.19.4",
       "ios": {

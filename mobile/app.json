@@ -15,6 +15,7 @@
     },
     "ios": {
       "supportsTablet": true,
+      "buildNumber": "3",
       "bundleIdentifier": "com.staypin.app",
       "googleServicesFile": "./config/GoogleService-Info.plist",
       "infoPlist": {
@@ -39,6 +40,7 @@
         "backgroundColor": "#0a0a0a"
       },
       "package": "com.staypin.app",
+      "versionCode": 3,
       "googleServicesFile": "./config/google-services.json",
       "config": {
         "googleMaps": {
