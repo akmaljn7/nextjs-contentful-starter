@@ -21,7 +21,11 @@ export function Screen({ children, scroll, style, contentStyle, testID }: Props)
   return (
     <SafeAreaView edges={["top", "bottom"]} style={[styles.safe, style]} testID={testID}>
       {scroll ? (
-        <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1 }}
+          keyboardShouldPersistTaps="handled"
+          automaticallyAdjustKeyboardInsets
+        >
           {Inner}
         </ScrollView>
       ) : (

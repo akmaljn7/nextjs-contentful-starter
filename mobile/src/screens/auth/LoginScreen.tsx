@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import {
-  Text, View, StyleSheet, Pressable, KeyboardAvoidingView, Platform, Image,
+  Text, View, StyleSheet, Pressable,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Screen } from "@/components/Screen";
@@ -36,8 +36,7 @@ export default function LoginScreen() {
 
   return (
     <Screen scroll>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      <View
         style={{ flex: 1, justifyContent: "center", paddingVertical: 24 }}
       >
         <View style={styles.brand}>
@@ -110,7 +109,7 @@ export default function LoginScreen() {
             Location is only used to record attendance.
           </Text>
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </Screen>
   );
 }
