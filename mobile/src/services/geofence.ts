@@ -102,10 +102,8 @@ TaskManager.defineTask(GEOFENCE_TASK, async ({ data, error }) => {
     try { await AsyncStorage.setItem(PRESENCE_KEY, nextState); } catch { /* ignore */ }
     await Notifications.scheduleNotificationAsync({
       content: {
-        title: kind === "enter" ? "✅ You are in office" : "⏸ You are offline",
-        body: kind === "enter"
-          ? "Attendance is now being recorded."
-          : "You left the office — attendance is paused.",
+        title: kind === "enter" ? "✅ Attendance started" : "⏸ Attendance paused",
+        body: kind === "enter" ? "Welcome to the office." : "See you next time.",
         sound: "default",
       },
       trigger: null,
