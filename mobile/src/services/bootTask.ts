@@ -16,6 +16,7 @@ import { drainQueue } from "@/services/syncWorker";
 import { sendHeartbeat } from "@/services/health";
 import { coldStartReconcile } from "@/services/reconcile";
 import { startLiveLocation, drainLocationQueue } from "@/services/liveLocation";
+import { logWake } from "@/services/wakeLog";
 
 export const BOOT_TASK_NAME = "gfattend.boot";
 
@@ -25,6 +26,7 @@ TaskManager.defineTask(BOOT_TASK_NAME, async ({ error }) => {
     return;
   }
   try {
+    logWake("boot").catch(() => undefined);
     // Order matters: reconcile pulls state from server → registers geofence
     // with the latest office coords/radius → drains queue → heartbeat.
     // coldStartReconcile() already calls syncOfficeGeofence internally,

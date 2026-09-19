@@ -26,7 +26,7 @@ async function processVisit(v: VisitEvent): Promise<void> {
     lng: v.longitude,
     accuracy: v.accuracy > 0 ? v.accuracy : 150,
     ts_ms: Math.round(ts),
-  }]);
+  }], "visit");
 }
 
 /** Start (or re-arm) visit monitoring. Idempotent; no-op off iOS. */

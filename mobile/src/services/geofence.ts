@@ -25,9 +25,17 @@ import { enqueueAndSync, drainQueue } from "@/services/syncWorker";
 import { drainLocationQueue } from "@/services/liveLocation";
 import { enqueueLocationFix } from "@/services/offlineQueue";
 import { getDeviceId } from "@/lib/storage";
-import { mobile } from "@/api/mobile";
+import { mobile, WakeSource } from "@/api/mobile";
+import { logWake } from "@/services/wakeLog";
 
 export const GEOFENCE_TASK = "gfattend.geofence";
+// Suffix marking the outer "approach ring" region (wake-only, not attendance).
+export const RING_SUFFIX = "::ring";
+// The ring is a concentric geofence this many times the office radius (capped),
+// so the app wakes / re-arms as the employee nears the office, earlier than the
+// precise core boundary or an SLC tower change would fire.
+const RING_MULTIPLIER = 3;
+const RING_MAX_RADIUS_M = 2000;
 // iOS Resurrection Layer — Significant Location Change. Registered as a
 // location-updates task (see registerOfficeGeofence). Wakes the app roughly on
 // every cell-tower change, even after the user force-quits it.
@@ -64,6 +72,28 @@ TaskManager.defineTask(GEOFENCE_TASK, async ({ data, error }) => {
     : null;
   if (!kind) return;
 
+  // Outer approach-ring crossings are WAKE-ONLY — they must NOT be recorded as
+  // an attendance enter/exit (that would check the employee in before they
+  // reach the office). We use the ring purely to resurrect earlier than SLC:
+  // re-arm geofences, capture a fresh fix, drain the queues.
+  if (region.identifier && region.identifier.endsWith(RING_SUFFIX)) {
+    let fix: ResurrectFix | null = null;
+    try {
+      const loc = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      fix = {
+        lat: loc.coords.latitude,
+        lng: loc.coords.longitude,
+        accuracy: loc.coords.accuracy ?? 100,
+        ts_ms: Date.now(),
+        mock: (loc as any).mocked === true,
+      };
+    } catch { /* no fix — still worth re-arming */ }
+    await backgroundResurrect(fix ? [fix] : [], "geofence_ring");
+    return;
+  }
+
   const deviceId = await getDeviceId();
   const clientEventId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 
@@ -95,6 +125,8 @@ TaskManager.defineTask(GEOFENCE_TASK, async ({ data, error }) => {
     from_boot: false,
     device_id: deviceId,
   });
+
+  logWake("geofence", { lat, lng }).catch(() => undefined);
 
   // Local notification — but ONLY on a REAL transition. iOS re-fires ENTER
   // whenever the geofence is re-registered (app open, "reactivate" tap, cold
@@ -145,7 +177,11 @@ export interface ResurrectFix {
  * Executes in a stripped-down background JS context — keep it minimal and
  * failure-tolerant.
  */
-export async function backgroundResurrect(fixes: ResurrectFix[]): Promise<void> {
+export async function backgroundResurrect(fixes: ResurrectFix[], source: WakeSource = "slc"): Promise<void> {
+  // Record what woke us (best-effort field telemetry).
+  logWake(source, fixes[0] ? { lat: fixes[0].lat, lng: fixes[0].lng } : undefined)
+    .catch(() => undefined);
+
   // 1) Re-arm geofences that a force-quit may have torn down.
   await syncOfficeGeofence().catch(() => undefined);
 
@@ -202,6 +238,7 @@ TaskManager.defineTask(SLC_TASK, async ({ data, error }) => {
       speed: loc.coords.speed ?? undefined,
       mock: (loc as any).mocked === true,
     })),
+    "slc",
   );
 });
 
@@ -228,11 +265,26 @@ export async function registerOfficeGeofence(office: Office): Promise<void> {
     console.info("[geofence] skipping — no background permission");
     return;
   }
-  const region: Location.LocationRegion = {
+  const core: Location.LocationRegion = {
     identifier: office.id,
     latitude: office.lat,
     longitude: office.lng,
     radius: Math.max(50, office.radius_meters), // iOS ignores < 50 m
+    notifyOnEnter: true,
+    notifyOnExit: true,
+  };
+  // Outer "approach ring" — a larger concentric geofence that wakes / re-arms
+  // the app as the employee nears the office, earlier than the precise core
+  // boundary. Wake-only (see GEOFENCE_TASK ring branch).
+  const ringRadius = Math.min(
+    RING_MAX_RADIUS_M,
+    Math.max(150, office.radius_meters * RING_MULTIPLIER),
+  );
+  const ring: Location.LocationRegion = {
+    identifier: `${office.id}${RING_SUFFIX}`,
+    latitude: office.lat,
+    longitude: office.lng,
+    radius: ringRadius,
     notifyOnEnter: true,
     notifyOnExit: true,
   };
@@ -243,7 +295,7 @@ export async function registerOfficeGeofence(office: Office): Promise<void> {
       await Location.stopGeofencingAsync(GEOFENCE_TASK);
     }
   } catch { /* ignore */ }
-  await Location.startGeofencingAsync(GEOFENCE_TASK, [region]);
+  await Location.startGeofencingAsync(GEOFENCE_TASK, [core, ring]);
 
   // iOS-only SLC fallback (fires roughly on every cell tower change).
   if (Platform.OS === "ios") {

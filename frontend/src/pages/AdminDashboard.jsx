@@ -27,6 +27,96 @@ const IN_EVENTS = new Set([
 ]);
 const OUT_EVENTS = new Set(["pause_exit", "pause_mobile", "pause_live"]);
 
+// --- Wake diagnostics (what background trigger keeps each app alive) --------
+const WAKE_LABEL = {
+  geofence: "Geofence",
+  geofence_ring: "Approach ring",
+  slc: "iOS SLC",
+  visit: "iOS Visit",
+  boot: "Reboot",
+  rearm: "Re-arm",
+  cold_start: "App open",
+  foreground: "Foreground",
+};
+const WAKE_COLOR = {
+  geofence: "text-green-400 border-green-500/40 bg-green-500/10",
+  geofence_ring: "text-teal-400 border-teal-500/40 bg-teal-500/10",
+  slc: "text-blue-400 border-blue-500/40 bg-blue-500/10",
+  visit: "text-purple-400 border-purple-500/40 bg-purple-500/10",
+  boot: "text-amber-400 border-amber-500/40 bg-amber-500/10",
+  rearm: "text-cyan-400 border-cyan-500/40 bg-cyan-500/10",
+  cold_start: "text-gray-400 border-white/20 bg-white/5",
+  foreground: "text-gray-400 border-white/20 bg-white/5",
+};
+
+function fmtAgo(ms) {
+  if (!ms) return "—";
+  const s = Math.max(0, Math.round((Date.now() - ms) / 1000));
+  if (s < 60) return `${s}s ago`;
+  const m = Math.round(s / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.round(h / 24)}d ago`;
+}
+
+function WakeActivityPanel() {
+  const { data } = useQuery({
+    queryKey: ["mobile-wakes"],
+    queryFn: async () => (await api.get("/mobile/wakes?limit=300")).data,
+    refetchInterval: 20000,
+  });
+  const summary = (data?.summary || [])
+    .slice()
+    .sort((a, b) => (b.last_ts_ms || 0) - (a.last_ts_ms || 0));
+  return (
+    <div className="surface mt-6" data-testid="wake-activity">
+      <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
+        <div>
+          <div className="label-uppercase">WAKE ACTIVITY</div>
+          <div className="text-sm text-gray-400 mt-0.5">What background trigger is keeping each app alive (last 14 days)</div>
+        </div>
+        <div className="mono text-[10px] uppercase tracking-widest text-gray-500">RELIABILITY</div>
+      </div>
+      <div className="p-4">
+        {summary.length === 0 ? (
+          <div className="text-center text-gray-500 text-xs mono py-4" data-testid="wake-empty">
+            NO WAKE EVENTS YET — appears once employees run the latest build
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {summary.map((row) => (
+              <div key={row.user_id} className="border border-white/5 px-3 py-2" data-testid={`wake-row-${row.user_id}`}>
+                <div className="flex items-center justify-between gap-3 mb-2">
+                  <div className="min-w-0">
+                    <div className="text-sm truncate">{row.employee_name}</div>
+                    <div className="text-[10px] text-gray-500 mono truncate">{row.employee_email}</div>
+                  </div>
+                  <div className="text-[10px] text-gray-500 mono flex-none" data-testid={`wake-last-${row.user_id}`}>
+                    last: <span className="text-white">{WAKE_LABEL[row.last_source] || row.last_source}</span> · {fmtAgo(row.last_ts_ms)}
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {Object.entries(row.counts || {}).sort((a, b) => b[1] - a[1]).map(([src, n]) => (
+                    <span
+                      key={src}
+                      data-testid={`wake-badge-${row.user_id}-${src}`}
+                      className={`text-[9px] mono uppercase tracking-widest px-1.5 py-0.5 border ${WAKE_COLOR[src] || "text-gray-400 border-white/20 bg-white/5"}`}
+                      title={WAKE_LABEL[src] || src}
+                    >
+                      {WAKE_LABEL[src] || src} · {n}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function fmtClock(ms) {
   if (!ms) return "—";
   try {
@@ -431,6 +521,8 @@ export default function AdminDashboard() {
           </div>
         </div>
       </div>
+
+      <WakeActivityPanel />
     </AppShell>
   );
 }

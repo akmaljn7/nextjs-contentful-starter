@@ -266,6 +266,23 @@ class MobileHeartbeat(BaseModel):
     last_geofence_event_ms: Optional[int] = None
 
 
+class MobileWake(BaseModel):
+    """Field-reliability telemetry: which background trigger woke the app.
+
+    Purely diagnostic — lets admins see (per employee) whether attendance is
+    being kept alive by geofences, the outer approach ring, iOS SLC / CLVisit,
+    an Android reboot, or the periodic WorkManager re-arm.
+    """
+    device_id: str = Field(min_length=8, max_length=128)
+    source: Literal[
+        "geofence", "geofence_ring", "slc", "visit",
+        "boot", "rearm", "cold_start", "foreground",
+    ]
+    ts_ms: int = Field(ge=0)
+    lat: Optional[float] = None
+    lng: Optional[float] = None
+
+
 class MobileAttestation(BaseModel):
     """Play Integrity (Android) / App Attest (iOS) attestation payload (Phase 6).
 

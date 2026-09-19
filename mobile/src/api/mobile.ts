@@ -14,6 +14,10 @@ export interface MobileEventPayload {
   battery?: number;
 }
 
+export type WakeSource =
+  | "geofence" | "geofence_ring" | "slc" | "visit"
+  | "boot" | "rearm" | "cold_start" | "foreground";
+
 export interface RegisterDevicePayload {
   device_id: string;
   platform: "ios" | "android";
@@ -75,6 +79,8 @@ export const mobile = {
                          permission_state?: string; last_geofence_event_ms?: number }) =>
     api.post("/mobile/heartbeat", payload).then((r) => r.data),
   reconcile: (): Promise<ReconcileState> => api.get("/mobile/reconcile").then((r) => r.data),
+  logWake: (p: { source: WakeSource; device_id: string; ts_ms: number; lat?: number; lng?: number }) =>
+    api.post("/mobile/wake", p).then((r) => r.data),
   selfieSync: (drafts: SelfieDraftPayload[]) =>
     api.post("/mobile/selfie-sync", { drafts }).then((r) => r.data),
   attestation: (payload: { device_id: string; platform: "ios" | "android";

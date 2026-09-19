@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pymongo.errors import DuplicateKeyError
 
 from db import get_db
-from deps import get_current_user, client_ip
+from deps import get_current_user, require_admin, client_ip
 from models import (
     MobileDeviceRegister,
     MobileGeofenceEvent,
@@ -25,6 +25,7 @@ from models import (
     MobileLocationBulk,
     MobileDeviceBind,
     MobileSelfieSync,
+    MobileWake,
 )
 
 logger = logging.getLogger(__name__)
@@ -447,6 +448,70 @@ async def bulk_sync(
     logger.info("mobile_bulk_sync user=%s count=%s dupes=%s",
                 user.get("email"), len(payload.events), dupes)
     return {"ok": True, "processed": processed, "dupes": dupes}
+
+
+# ---------------------------------------------------------------------------
+# Wake diagnostics — record what background trigger woke the app (field
+# reliability telemetry). Best-effort; TTL-expired after 14 days.
+# ---------------------------------------------------------------------------
+@router.post("/wake")
+async def record_wake(payload: MobileWake, user: dict = Depends(get_current_user)):
+    db = get_db()
+    now_dt = datetime.now(timezone.utc)
+    await db.device_wakes.insert_one({
+        "org_id": user.get("org_id"),
+        "user_id": user["id"],
+        "employee_name": user.get("name"),
+        "employee_email": user.get("email"),
+        "device_id": payload.device_id,
+        "source": payload.source,
+        "ts_ms": payload.ts_ms,
+        "lat": payload.lat,
+        "lng": payload.lng,
+        "created_at": now_dt.isoformat(),
+        "created_at_dt": now_dt,
+    })
+    return {"ok": True}
+
+
+@router.get("/wakes")
+async def list_wakes(
+    user_id: str | None = None,
+    limit: int = 100,
+    admin: dict = Depends(require_admin),
+):
+    """Recent wake events for the org (admin-only), newest first, plus a
+    per-employee summary of source counts and the most recent wake."""
+    db = get_db()
+    q: dict = {"org_id": admin.get("org_id")}
+    if user_id:
+        q["user_id"] = user_id
+    limit = max(1, min(limit, 500))
+    rows: List[dict] = []
+    summary: dict = {}
+    async for w in db.device_wakes.find(q).sort("ts_ms", -1).limit(limit):
+        src = w.get("source")
+        rows.append({
+            "user_id": w.get("user_id"),
+            "employee_name": w.get("employee_name"),
+            "employee_email": w.get("employee_email"),
+            "device_id": w.get("device_id"),
+            "source": src,
+            "ts_ms": w.get("ts_ms"),
+            "lat": w.get("lat"),
+            "lng": w.get("lng"),
+        })
+        uid = w.get("user_id")
+        s = summary.setdefault(uid, {
+            "user_id": uid,
+            "employee_name": w.get("employee_name"),
+            "employee_email": w.get("employee_email"),
+            "counts": {},
+            "last_source": src,
+            "last_ts_ms": w.get("ts_ms"),
+        })
+        s["counts"][src] = s["counts"].get(src, 0) + 1
+    return {"wakes": rows, "summary": list(summary.values())}
 
 
 # ---------------------------------------------------------------------------

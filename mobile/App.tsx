@@ -14,6 +14,7 @@ import { queryClient } from "@/lib/queryClient";
 // the OS can wake them from geofence transitions AND from BOOT_COMPLETED.
 import "@/services/geofence";
 import "@/services/bootTask";
+import "@/services/reArm";
 
 /**
  * Root component. Wires the top-level providers in the order:
