@@ -20,7 +20,6 @@ from services.audit import log_security_event
 from services.email import send_email, render_alert_email
 from services.ws_manager import manager as ws_manager
 from services.photos import save_session_photo, has_photo
-import os
 import random
 import uuid
 

@@ -123,7 +123,7 @@
       ]
     ],
     "extra": {
-      "apiUrl": "https://mobile-roster-3.preview.emergentagent.com"
+      "apiUrl": "https://habit-proof-geofence.preview.emergentagent.com"
     },
     "runtimeVersion": {
       "policy": "appVersion"

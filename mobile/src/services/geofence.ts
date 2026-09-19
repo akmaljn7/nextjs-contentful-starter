@@ -17,14 +17,21 @@
 import * as Location from "expo-location";
 import * as TaskManager from "expo-task-manager";
 import * as Notifications from "expo-notifications";
+import * as Battery from "expo-battery";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
 
-import { enqueueAndSync } from "@/services/syncWorker";
+import { enqueueAndSync, drainQueue } from "@/services/syncWorker";
+import { drainLocationQueue } from "@/services/liveLocation";
+import { enqueueLocationFix } from "@/services/offlineQueue";
 import { getDeviceId } from "@/lib/storage";
 import { mobile } from "@/api/mobile";
 
 export const GEOFENCE_TASK = "gfattend.geofence";
+// iOS Resurrection Layer — Significant Location Change. Registered as a
+// location-updates task (see registerOfficeGeofence). Wakes the app roughly on
+// every cell-tower change, even after the user force-quits it.
+export const SLC_TASK = "gfattend.slc";
 
 interface Office {
   id: string;
@@ -112,6 +119,66 @@ TaskManager.defineTask(GEOFENCE_TASK, async ({ data, error }) => {
 });
 
 // -----------------------------------------------------------------------------
+// iOS Resurrection Layer — SLC wake handler
+// -----------------------------------------------------------------------------
+
+/**
+ * Significant-Location-Change task. iOS wakes this (even after the user
+ * force-quits the app) whenever the device moves a meaningful distance. This is
+ * the "resurrection" half of the dual-layer strategy: the Precision Layer
+ * (geofences above) can be torn down by a force-quit, so on every SLC wake we
+ * (1) re-arm the geofences, (2) drain both offline queues, and (3) treat the
+ * SLC fix as a real location update so the session state machine keeps running.
+ *
+ * Executes in a stripped-down background JS context — keep work minimal and
+ * failure-tolerant. All heavy lifting is queue-based and idempotent server-side.
+ */
+TaskManager.defineTask(SLC_TASK, async ({ data, error }) => {
+  if (error) {
+    console.warn("[slc] task error:", error);
+    return;
+  }
+  if (!data) return;
+  const { locations } = data as { locations: Location.LocationObject[] };
+
+  // 1) Re-arm geofences that a force-quit may have torn down.
+  await syncOfficeGeofence().catch(() => undefined);
+
+  // 2) Treat each SLC fix as a real location update (offline-durable enqueue).
+  if (locations?.length) {
+    const deviceId = await getDeviceId();
+    let battery: number | undefined;
+    try {
+      const lvl = await Battery.getBatteryLevelAsync();
+      battery = lvl >= 0 ? lvl : undefined;
+    } catch {
+      battery = undefined;
+    }
+    for (const loc of locations) {
+      try {
+        await enqueueLocationFix({
+          device_id: deviceId,
+          lat: loc.coords.latitude,
+          lng: loc.coords.longitude,
+          accuracy: loc.coords.accuracy ?? 50,
+          ts_ms: Math.round(loc.timestamp || Date.now()),
+          speed: loc.coords.speed ?? undefined,
+          battery,
+          mock_location: (loc as any).mocked === true,
+        });
+      } catch (e) {
+        console.warn("[slc] enqueue fix failed:", e);
+      }
+    }
+  }
+
+  // 3) Drain both queues — location fixes drive the session state machine
+  //    server-side; the event queue flushes any buffered enter/exit crossings.
+  await drainLocationQueue().catch(() => undefined);
+  await drainQueue().catch(() => undefined);
+});
+
+// -----------------------------------------------------------------------------
 // Public API
 // -----------------------------------------------------------------------------
 
@@ -157,9 +224,9 @@ export async function registerOfficeGeofence(office: Office): Promise<void> {
       // expo-location doesn't expose SLC directly, but startLocationUpdatesAsync
       // with distanceInterval of ~500m gets very close to the same behavior.
       // Only start once — guarded by task-manager.
-      const started = await Location.hasStartedLocationUpdatesAsync("gfattend.slc");
+      const started = await Location.hasStartedLocationUpdatesAsync(SLC_TASK);
       if (!started) {
-        await Location.startLocationUpdatesAsync("gfattend.slc", {
+        await Location.startLocationUpdatesAsync(SLC_TASK, {
           accuracy: Location.Accuracy.Balanced,
           distanceInterval: 500,
           deferredUpdatesInterval: 60_000,
@@ -179,8 +246,8 @@ export async function stopGeofencing(): Promise<void> {
     }
   } catch { /* ignore */ }
   try {
-    const slcStarted = await Location.hasStartedLocationUpdatesAsync("gfattend.slc");
-    if (slcStarted) await Location.stopLocationUpdatesAsync("gfattend.slc");
+    const slcStarted = await Location.hasStartedLocationUpdatesAsync(SLC_TASK);
+    if (slcStarted) await Location.stopLocationUpdatesAsync(SLC_TASK);
   } catch { /* ignore */ }
 }
 

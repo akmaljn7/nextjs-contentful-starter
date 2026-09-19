@@ -3,7 +3,7 @@ after mobile-only removal of react-native-reanimated + expo-router."""
 import os
 import requests
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://mobile-roster-3.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://habit-proof-geofence.preview.emergentagent.com").rstrip("/")
 LOGIN = f"{BASE_URL}/api/auth/login"
 
 OWNER = {"email": "akmaljn7@gmail.com", "password": "GeofenceAdmin123!"}
