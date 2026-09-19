@@ -119,33 +119,38 @@ TaskManager.defineTask(GEOFENCE_TASK, async ({ data, error }) => {
 });
 
 // -----------------------------------------------------------------------------
-// iOS Resurrection Layer — SLC wake handler
+// iOS Resurrection Layer — shared background wake handler (SLC + CLVisit)
 // -----------------------------------------------------------------------------
 
-/**
- * Significant-Location-Change task. iOS wakes this (even after the user
- * force-quits the app) whenever the device moves a meaningful distance. This is
- * the "resurrection" half of the dual-layer strategy: the Precision Layer
- * (geofences above) can be torn down by a force-quit, so on every SLC wake we
- * (1) re-arm the geofences, (2) drain both offline queues, and (3) treat the
- * SLC fix as a real location update so the session state machine keeps running.
- *
- * Executes in a stripped-down background JS context — keep work minimal and
- * failure-tolerant. All heavy lifting is queue-based and idempotent server-side.
- */
-TaskManager.defineTask(SLC_TASK, async ({ data, error }) => {
-  if (error) {
-    console.warn("[slc] task error:", error);
-    return;
-  }
-  if (!data) return;
-  const { locations } = data as { locations: Location.LocationObject[] };
+export interface ResurrectFix {
+  lat: number;
+  lng: number;
+  accuracy: number;
+  ts_ms: number;
+  speed?: number;
+  mock?: boolean;
+}
 
+/**
+ * Shared background wake handler used by BOTH the iOS SLC task and the CLVisit
+ * monitor (services/visitMonitor.ts). The Precision Layer (geofences above)
+ * can be torn down when the user force-quits the app, so on any background
+ * resurrection we:
+ *   1. re-arm the geofences,
+ *   2. persist each supplied fix to the offline-durable queue,
+ *   3. drain both queues so the server session state machine advances.
+ *
+ * Idempotent server-side (the session `last_live_ts_ms` watermark rejects
+ * replays), so overlapping SLC + visit wakes can never double-count time.
+ * Executes in a stripped-down background JS context — keep it minimal and
+ * failure-tolerant.
+ */
+export async function backgroundResurrect(fixes: ResurrectFix[]): Promise<void> {
   // 1) Re-arm geofences that a force-quit may have torn down.
   await syncOfficeGeofence().catch(() => undefined);
 
-  // 2) Treat each SLC fix as a real location update (offline-durable enqueue).
-  if (locations?.length) {
+  // 2) Treat each fix as a real location update (offline-durable enqueue).
+  if (fixes.length) {
     const deviceId = await getDeviceId();
     let battery: number | undefined;
     try {
@@ -154,20 +159,20 @@ TaskManager.defineTask(SLC_TASK, async ({ data, error }) => {
     } catch {
       battery = undefined;
     }
-    for (const loc of locations) {
+    for (const f of fixes) {
       try {
         await enqueueLocationFix({
           device_id: deviceId,
-          lat: loc.coords.latitude,
-          lng: loc.coords.longitude,
-          accuracy: loc.coords.accuracy ?? 50,
-          ts_ms: Math.round(loc.timestamp || Date.now()),
-          speed: loc.coords.speed ?? undefined,
+          lat: f.lat,
+          lng: f.lng,
+          accuracy: f.accuracy,
+          ts_ms: f.ts_ms,
+          speed: f.speed,
           battery,
-          mock_location: (loc as any).mocked === true,
+          mock_location: f.mock === true,
         });
       } catch (e) {
-        console.warn("[slc] enqueue fix failed:", e);
+        console.warn("[resurrect] enqueue fix failed:", e);
       }
     }
   }
@@ -176,6 +181,28 @@ TaskManager.defineTask(SLC_TASK, async ({ data, error }) => {
   //    server-side; the event queue flushes any buffered enter/exit crossings.
   await drainLocationQueue().catch(() => undefined);
   await drainQueue().catch(() => undefined);
+}
+
+/**
+ * Significant-Location-Change task. iOS wakes this (even after a force-quit)
+ * roughly on every cell-tower change. Thin wrapper over backgroundResurrect.
+ */
+TaskManager.defineTask(SLC_TASK, async ({ data, error }) => {
+  if (error) {
+    console.warn("[slc] task error:", error);
+    return;
+  }
+  const { locations } = (data as { locations?: Location.LocationObject[] }) || {};
+  await backgroundResurrect(
+    (locations || []).map((loc) => ({
+      lat: loc.coords.latitude,
+      lng: loc.coords.longitude,
+      accuracy: loc.coords.accuracy ?? 50,
+      ts_ms: Math.round(loc.timestamp || Date.now()),
+      speed: loc.coords.speed ?? undefined,
+      mock: (loc as any).mocked === true,
+    })),
+  );
 });
 
 // -----------------------------------------------------------------------------

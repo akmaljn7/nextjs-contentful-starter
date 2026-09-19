@@ -23,6 +23,18 @@ Multi-tenant enterprise geofenced attendance platform. Organizations sign up, ad
 - PWA installable
 
 ## Implemented (2026-02 → 2026-08)
+### iOS CLVisit "arrival/departure" resurrection layer (June 2026)
+- **Goal**: reduce force-quit wake latency. SLC only wakes on ~cell-tower change (can be km/minutes late); CLVisit wakes a force-quit app when the employee actually *settles at* or *leaves* a place (dwell-based, tower-independent) — semantically the exact attendance event.
+- **New local Expo module** `mobile/modules/clvisit-monitor/` (iOS-only, autolinked — verified via `expo-modules-autolinking search`, no config-plugin needed):
+  - `ios/CLVisitManagerHolder.swift` — process-wide singleton owning the `CLLocationManager` (`allowsBackgroundLocationUpdates`, `startMonitoringVisits()`); on `didVisit` persists the visit to `UserDefaults` (survives cold background launch before JS is ready) and forwards to JS via an `onVisit` callback.
+  - `ios/CLVisitMonitorModule.swift` — Expo `Module` exposing `start/stop/getLastVisit/clearLastVisit` + the `onVisit` event.
+  - `ios/CLVisitAppDelegate.swift` — `ExpoAppDelegateSubscriber` that re-arms monitoring on a `.location` background relaunch so the delegate is live before JS loads.
+  - `index.ts` — safe JS bridge (no-op on Android / when unlinked).
+- **JS wiring**: new `src/services/visitMonitor.ts` (`startVisitWatcher`/`stopVisitWatcher`) processes each visit through the SAME shared `backgroundResurrect()` path as SLC (extracted into `geofence.ts`): re-arm geofences → enqueue the visit fix → drain both offline queues. Backend `last_live_ts_ms` watermark makes overlapping SLC + visit wakes idempotent (no double-count). Wired into `AuthContext` (bootstrap, signIn, app-foreground → start; signOut → stop).
+- **No backend changes** — reuses existing bulk-sync endpoints. `NSLocationAlwaysAndWhenInUseUsageDescription` + `UIBackgroundModes: location` already present.
+- **Honest limits**: CLVisit is debounced by iOS (arrival often lands minutes after settling), coarse accuracy (validated server-side vs office radius), dwell-based (not instantaneous crossings — geofences cover those). Nothing on iOS can wake at the literal instant of force-quit.
+- **Verified**: `yarn typecheck` clean; autolinking discovers the module (pod `CLVisitMonitor`, subscriber `CLVisitAppDelegate`). ⚠️ Swift compilation + real force-quit visit behaviour are **not testable in-container** — user confirms on physical iPhone / TestFlight. **Requires an IPA rebuild** (`eas build`).
+
 ### iOS Resurrection Layer — SLC TaskManager wake handler (June 2026)
 - **Goal**: "Habit-Proof" dual-layer background monitoring on iOS. The Precision Layer (CLCircularRegion geofences) can be torn down when a user force-quits the app; the Resurrection Layer (Significant Location Change) wakes the app to re-arm them.
 - **Gap fixed**: the app already started `Location.startLocationUpdatesAsync("gfattend.slc")` in `registerOfficeGeofence`, but there was **no** `TaskManager.defineTask("gfattend.slc")` — so every iOS SLC wake was silently dropped and geofences were never re-registered after a force-quit.

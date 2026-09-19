@@ -14,6 +14,7 @@ import { coldStartReconcile } from "@/services/reconcile";
 import { drainQueue } from "@/services/syncWorker";
 import { startHealthLoop, stopHealthLoop } from "@/services/health";
 import { startConnectivityWatcher, stopConnectivityWatcher } from "@/services/connectivity";
+import { startVisitWatcher, stopVisitWatcher } from "@/services/visitMonitor";
 import { purgeOldSynced } from "@/services/offlineQueue";
 import { planTodaysSelfies, sweepOfflineSelfies } from "@/services/offlineSelfie";
 import { submitAttestation } from "@/services/attestation";
@@ -110,6 +111,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           startHealthLoop();
           startLiveLocation().catch(() => undefined);
           startConnectivityWatcher();
+          startVisitWatcher();
           drainLocationQueue().catch(() => undefined);
           purgeOldSynced().catch(() => undefined);
           planTodaysSelfies().catch(() => undefined);
@@ -133,6 +135,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         syncOfficeGeofence().catch(() => undefined);
         startForegroundWatcher().catch(() => undefined);
         startLiveLocation().catch(() => undefined);
+        startVisitWatcher();
         planTodaysSelfies().catch(() => undefined);
         sweepOfflineSelfies().catch(() => undefined);
       }
@@ -152,6 +155,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         startHealthLoop();
         startLiveLocation().catch(() => undefined);
         startConnectivityWatcher();
+        startVisitWatcher();
         planTodaysSelfies().catch(() => undefined);
         sweepOfflineSelfies().catch(() => undefined);
       }
@@ -167,6 +171,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     stopForegroundWatcher();
     stopConnectivityWatcher();
     await stopLiveLocation();
+    stopVisitWatcher();
     await stopGeofencing();
     await authApi.logout();
     await clearCachedUser();
