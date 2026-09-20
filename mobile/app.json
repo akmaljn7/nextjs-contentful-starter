@@ -2,7 +2,7 @@
   "expo": {
     "name": "StayPin",
     "slug": "geofence-attendance",
-    "version": "1.0.0",
+    "version": "1.1.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "staypin",
@@ -15,7 +15,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "buildNumber": "3",
+      "buildNumber": "11",
       "bundleIdentifier": "com.staypin.app",
       "googleServicesFile": "./config/GoogleService-Info.plist",
       "infoPlist": {
@@ -40,7 +40,7 @@
         "backgroundColor": "#0a0a0a"
       },
       "package": "com.staypin.app",
-      "versionCode": 3,
+      "versionCode": 11,
       "googleServicesFile": "./config/google-services.json",
       "config": {
         "googleMaps": {
