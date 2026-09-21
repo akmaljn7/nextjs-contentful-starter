@@ -6,11 +6,13 @@ import EmployeeHomeScreen from "@/screens/employee/HomeScreen";
 import EmployeeHistoryScreen from "@/screens/employee/HistoryScreen";
 import EmployeeProfileScreen from "@/screens/employee/ProfileScreen";
 import MyColleagueScreen from "@/screens/employee/MyColleagueScreen";
+import LeaveScreen from "@/screens/employee/LeaveScreen";
 import { colors } from "@/theme";
 
 export type EmployeeTabParamList = {
   Home: undefined;
   Colleague: undefined;
+  Leave: undefined;
   History: undefined;
   Profile: undefined;
 };
@@ -37,6 +39,7 @@ export function EmployeeStack() {
           const map: Record<string, keyof typeof Ionicons.glyphMap> = {
             Home: "home",
             Colleague: "people",
+            Leave: "calendar",
             History: "time",
             Profile: "person",
           };
@@ -46,8 +49,8 @@ export function EmployeeStack() {
     >
       <Tab.Screen name="Home" component={EmployeeHomeScreen} />
       <Tab.Screen name="Colleague" component={MyColleagueScreen} options={{ tabBarLabel: "Colleague" }} />
+      <Tab.Screen name="Leave" component={LeaveScreen} />
       <Tab.Screen name="History" component={EmployeeHistoryScreen} />
-      <Tab.Screen name="Profile" component={EmployeeProfileScreen} />
     </Tab.Navigator>
   );
 }
