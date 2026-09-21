@@ -1,14 +1,15 @@
 /**
  * Leave / Time-off requests (employee).
  *
- * Employees submit a leave request (date range + reason); admins approve or
- * deny it from the web console or admin app. Approved leave overrides the
- * schedule and blocks attendance on the covered dates. This screen lets the
- * employee submit a request and track its status; pending requests can be
- * cancelled.
+ * Employees submit a leave request (date range + reason) via native calendar
+ * pickers; admins approve or deny it from the web console or admin app.
+ * Approved leave overrides the schedule and blocks attendance on the covered
+ * dates. This screen lets the employee submit a request and track its status;
+ * pending requests can be cancelled.
  */
 import React, { useCallback, useEffect, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert, RefreshControl } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Pressable, Alert, RefreshControl, Platform, Modal } from "react-native";
+import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { Ionicons } from "@expo/vector-icons";
 import { Screen } from "@/components/Screen";
 import { Input } from "@/components/Input";
@@ -17,13 +18,22 @@ import { timeOff, LeaveRequest } from "@/api/timeOff";
 import { apiError } from "@/api/client";
 import { colors } from "@/theme";
 
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-const todayStr = () => new Date().toISOString().slice(0, 10);
+/** Local-time YYYY-MM-DD (avoids UTC off-by-one from toISOString). */
+function toISODate(d: Date): string {
+  const y = d.getFullYear();
+  const m = `${d.getMonth() + 1}`.padStart(2, "0");
+  const day = `${d.getDate()}`.padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
 
-function isValidDate(s: string): boolean {
-  if (!DATE_RE.test(s)) return false;
-  const d = new Date(`${s}T00:00:00Z`);
-  return !isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
+function fmtDisplay(d: Date): string {
+  return d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short", year: "numeric" });
+}
+
+function startOfToday(): Date {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
 }
 
 const STATUS_META: Record<LeaveRequest["status"], { color: string; soft: string; label: string; icon: keyof typeof Ionicons.glyphMap }> = {
@@ -32,9 +42,12 @@ const STATUS_META: Record<LeaveRequest["status"], { color: string; soft: string;
   denied: { color: colors.red, soft: colors.redSoft, label: "Denied", icon: "close-circle" },
 };
 
+type PickerTarget = "start" | "end" | null;
+
 export default function LeaveScreen() {
-  const [start, setStart] = useState("");
-  const [end, setEnd] = useState("");
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [endDate, setEndDate] = useState<Date | null>(null);
+  const [picker, setPicker] = useState<PickerTarget>(null);
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [requests, setRequests] = useState<LeaveRequest[]>([]);
@@ -52,19 +65,35 @@ export default function LeaveScreen() {
 
   useEffect(() => { load(); }, [load]);
 
+  const minFor = useCallback((target: Exclude<PickerTarget, null>): Date => {
+    if (target === "end" && startDate) return startDate;
+    return startOfToday();
+  }, [startDate]);
+
+  const onPickerChange = useCallback((event: DateTimePickerEvent, selected?: Date) => {
+    const target = picker;
+    // Android closes itself; iOS stays open (dismissed via the "Done" button).
+    if (Platform.OS !== "ios") setPicker(null);
+    if (event.type === "dismissed" || !selected || !target) return;
+    if (target === "start") {
+      setStartDate(selected);
+      // Keep the range valid — pull end forward if it's now before start.
+      if (endDate && endDate < selected) setEndDate(selected);
+    } else {
+      setEndDate(selected);
+    }
+  }, [picker, endDate]);
+
   const submit = useCallback(async () => {
-    const s = start.trim();
-    const e = end.trim();
-    if (!isValidDate(s)) return Alert.alert("Invalid start date", "Use the format YYYY-MM-DD, e.g. 2026-07-15.");
-    if (!isValidDate(e)) return Alert.alert("Invalid end date", "Use the format YYYY-MM-DD, e.g. 2026-07-16.");
-    if (e < s) return Alert.alert("Check dates", "The end date is before the start date.");
-    if (s < todayStr()) return Alert.alert("Check dates", "You can't request leave for a date in the past.");
+    if (!startDate) return Alert.alert("Pick a start date", "Tap “Start date” to choose when your leave begins.");
+    if (!endDate) return Alert.alert("Pick an end date", "Tap “End date” to choose when your leave ends.");
+    if (endDate < startDate) return Alert.alert("Check dates", "The end date is before the start date.");
     if (!reason.trim()) return Alert.alert("Add a reason", "Please write a short reason for your leave.");
 
     setBusy(true);
     try {
-      await timeOff.create({ start_date: s, end_date: e, reason: reason.trim() });
-      setStart(""); setEnd(""); setReason("");
+      await timeOff.create({ start_date: toISODate(startDate), end_date: toISODate(endDate), reason: reason.trim() });
+      setStartDate(null); setEndDate(null); setReason("");
       Alert.alert("✅ Request submitted", "Your leave request was sent to your admin for approval.");
       await load();
     } catch (err) {
@@ -72,7 +101,7 @@ export default function LeaveScreen() {
     } finally {
       setBusy(false);
     }
-  }, [start, end, reason, load]);
+  }, [startDate, endDate, reason, load]);
 
   const cancel = useCallback((req: LeaveRequest) => {
     Alert.alert("Cancel request?", `Withdraw your leave for ${req.start_date} → ${req.end_date}?`, [
@@ -92,6 +121,8 @@ export default function LeaveScreen() {
     ]);
   }, [load]);
 
+  const pickerValue = picker === "end" ? (endDate || startDate || startOfToday()) : (startDate || startOfToday());
+
   return (
     <Screen testID="leave-screen">
       <ScrollView
@@ -106,28 +137,24 @@ export default function LeaveScreen() {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>New request</Text>
           <View style={styles.row}>
-            <View style={styles.rowItem}>
-              <Input
-                label="Start date"
-                testID="leave-start-date"
-                placeholder="YYYY-MM-DD"
-                autoCapitalize="none"
-                keyboardType="numbers-and-punctuation"
-                value={start}
-                onChangeText={setStart}
-              />
-            </View>
-            <View style={styles.rowItem}>
-              <Input
-                label="End date"
-                testID="leave-end-date"
-                placeholder="YYYY-MM-DD"
-                autoCapitalize="none"
-                keyboardType="numbers-and-punctuation"
-                value={end}
-                onChangeText={setEnd}
-              />
-            </View>
+            <Pressable style={styles.dateField} onPress={() => setPicker("start")} testID="leave-start-date">
+              <Text style={styles.dateFieldLabel}>Start date</Text>
+              <View style={styles.dateFieldValueRow}>
+                <Ionicons name="calendar-outline" size={15} color={startDate ? colors.green : colors.textMute} />
+                <Text style={[styles.dateFieldValue, !startDate && styles.datePlaceholder]}>
+                  {startDate ? fmtDisplay(startDate) : "Select date"}
+                </Text>
+              </View>
+            </Pressable>
+            <Pressable style={styles.dateField} onPress={() => setPicker("end")} testID="leave-end-date">
+              <Text style={styles.dateFieldLabel}>End date</Text>
+              <View style={styles.dateFieldValueRow}>
+                <Ionicons name="calendar-outline" size={15} color={endDate ? colors.green : colors.textMute} />
+                <Text style={[styles.dateFieldValue, !endDate && styles.datePlaceholder]}>
+                  {endDate ? fmtDisplay(endDate) : "Select date"}
+                </Text>
+              </View>
+            </Pressable>
           </View>
           <Input
             label="Reason"
@@ -159,9 +186,7 @@ export default function LeaveScreen() {
                 </View>
                 {!!req.reason && <Text style={styles.reqReason}>{req.reason}</Text>}
                 {req.status !== "pending" && !!req.decision_notes && (
-                  <Text style={styles.reqNotes}>
-                    Admin note: {req.decision_notes}
-                  </Text>
+                  <Text style={styles.reqNotes}>Admin note: {req.decision_notes}</Text>
                 )}
                 {req.status === "pending" && (
                   <Pressable
@@ -179,6 +204,35 @@ export default function LeaveScreen() {
           })}
         </View>
       </ScrollView>
+
+      {/* --- Native date picker --- */}
+      {picker && Platform.OS !== "ios" && (
+        <DateTimePicker
+          value={pickerValue}
+          mode="date"
+          minimumDate={minFor(picker)}
+          onChange={onPickerChange}
+        />
+      )}
+      {Platform.OS === "ios" && (
+        <Modal visible={!!picker} transparent animationType="slide" onRequestClose={() => setPicker(null)}>
+          <Pressable style={styles.modalBackdrop} onPress={() => setPicker(null)}>
+            <Pressable style={styles.modalSheet} onPress={() => undefined}>
+              <Text style={styles.modalTitle}>{picker === "end" ? "End date" : "Start date"}</Text>
+              <DateTimePicker
+                value={pickerValue}
+                mode="date"
+                display="spinner"
+                themeVariant="dark"
+                textColor={colors.text}
+                minimumDate={picker ? minFor(picker) : startOfToday()}
+                onChange={onPickerChange}
+              />
+              <Button testID="leave-date-done" label="Done" onPress={() => setPicker(null)} />
+            </Pressable>
+          </Pressable>
+        </Modal>
+      )}
     </Screen>
   );
 }
@@ -189,11 +243,18 @@ const styles = StyleSheet.create({
   sub: { color: colors.textDim, fontSize: 14, marginBottom: 16 },
   card: {
     backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
-    borderRadius: 4, padding: 16, gap: 4, marginBottom: 20,
+    borderRadius: 4, padding: 16, gap: 12, marginBottom: 20,
   },
-  cardTitle: { color: colors.text, fontSize: 15, fontWeight: "600", marginBottom: 8 },
+  cardTitle: { color: colors.text, fontSize: 15, fontWeight: "600" },
   row: { flexDirection: "row", gap: 12 },
-  rowItem: { flex: 1 },
+  dateField: {
+    flex: 1, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border,
+    borderRadius: 3, paddingHorizontal: 12, paddingVertical: 10, gap: 6,
+  },
+  dateFieldLabel: { color: colors.textMute, fontSize: 11, fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.4 },
+  dateFieldValueRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  dateFieldValue: { color: colors.text, fontSize: 13, fontWeight: "500", flexShrink: 1 },
+  datePlaceholder: { color: colors.textMute, fontWeight: "400" },
   sectionTitle: { color: colors.text, fontSize: 15, fontWeight: "600", marginBottom: 10 },
   empty: { color: colors.textMute, fontSize: 13, marginBottom: 8 },
   reqCard: {
@@ -211,4 +272,10 @@ const styles = StyleSheet.create({
   reqNotes: { color: colors.textMute, fontSize: 12, fontStyle: "italic" },
   cancelBtn: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 4 },
   cancelText: { color: colors.red, fontSize: 12, fontWeight: "600" },
+  modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "flex-end" },
+  modalSheet: {
+    backgroundColor: colors.surface, borderTopWidth: 1, borderColor: colors.border,
+    paddingHorizontal: 20, paddingTop: 12, paddingBottom: 32, gap: 8,
+  },
+  modalTitle: { color: colors.text, fontSize: 15, fontWeight: "600", textAlign: "center", marginBottom: 4 },
 });
