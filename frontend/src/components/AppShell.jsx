@@ -36,9 +36,7 @@ export function AppShell({ children }) {
         <div className="mx-auto max-w-[1600px] px-4 sm:px-8 py-3 flex items-center justify-between gap-4">
           <div className="flex items-center gap-6">
             <Link to={user?.role === "employee" ? "/employee" : "/admin"} className="flex items-center gap-2" data-testid="logo-link">
-              <div className="w-6 h-6 border border-green-500 grid place-items-center">
-                <div className="live-pin pin-active" style={{ width: 6, height: 6 }} />
-              </div>
+              <img src="/logo192.png" alt="StayPin" className="w-7 h-7" />
               <div>
                 <div className="label-uppercase" style={{ letterSpacing: "0.24em", fontSize: 10 }}>STAYPIN</div>
                 <div className="text-sm font-medium leading-tight">Attendance</div>
