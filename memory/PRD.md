@@ -23,6 +23,15 @@ Multi-tenant enterprise geofenced attendance platform. Organizations sign up, ad
 - PWA installable
 
 ## Implemented (2026-02 → 2026-08)
+### FIX: Mobile forced-logout — refresh-token rotation race (June 2026)
+- **Symptom**: employees intermittently kicked to the sign-in screen (worse after data off / on app reopen).
+- **Root cause**: `POST /api/auth/refresh` hard-revoked the presented refresh token the moment it rotated. The RN app runs multiple JS runtimes (foreground + background tasks) sharing one stored refresh token; at access-token expiry they refresh in parallel — the first rotated it, the rest got `401 Refresh token revoked`, permanently breaking the chain.
+- **Fix** (`routes/auth.py` + `security.py` + `db.py`, designed via integration_expert): rotation now uses an atomic `find_one_and_update` compare-and-set to pick ONE winner per token; concurrent losers within a **60s grace window** (`REFRESH_GRACE_SECONDS`) receive a fresh valid pair in the same per-login token **family** instead of a 401; reuse OUTSIDE grace revokes the whole family (theft detection preserved). Added `family_id` to refresh_tokens docs + index `(family_id, revoked_at)`. Access-token TTL raised **15 → 30 min**. Client already never wipes tokens on network error and falls back to a cached profile offline.
+- **Verified**: testing agent iteration_33 — 9/9 backend tests pass incl. 8-way concurrent same-token burst (all 200), rotation chain, logout revocation, invalid-token 401s, time-off regression. Regression suite: `/app/backend/tests/test_refresh_grace_iter33.py`. ⚠️ Client-side effect ships on next mobile rebuild.
+
+### Employee Leave Request — native calendar picker (June 2026)
+- Added mobile **Leave** tab; start/end now use a native calendar picker (`@react-native-community/datetimepicker`); restored the **Profile** tab (accidentally dropped when Leave was added). App logo (mobile icon/splash/adaptive + web favicon/header/login) swapped to the new StayPin pin-with-rings mark.
+
 ### Employee Leave Request — mobile app (June 2026)
 - **Context**: the Time-Off backend (`/api/time-off`) and the admin **approve/deny** web console (`TimeOff.jsx`) already existed; the gap was that the **mobile app had no way for employees to request leave**. Added it.
 - **Mobile**: new `src/api/timeOff.ts` (mine / create / cancel) + new **Leave** tab (`src/screens/employee/LeaveScreen.tsx`, added to `EmployeeStack.tsx` with a calendar icon). Employees enter a start/end date (YYYY-MM-DD, client-validated: real dates, end ≥ start, not in the past) + reason, submit, and see their request list with colour-coded status badges (Pending/Approved/Denied), admin decision notes, and a Cancel action for pending requests. Pull-to-refresh.

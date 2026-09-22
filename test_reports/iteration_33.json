@@ -1,0 +1,25 @@
+{
+  "summary": "Backend-only verification of the refresh-token GRACE window fix in routes/auth.py that prevents mobile forced-logout on concurrent refresh with the same refresh token. Wrote /app/backend/tests/test_refresh_grace_iter33.py with 9 tests: login+/me (employee & admin), 3-step rotation chain, sequential double-use within grace (both 200), 8-way concurrent burst via httpx.AsyncClient+asyncio.gather (all 200 + a successor still refreshes), logout revocation regression, invalid/missing refresh token 401s, and time-off create+admin-list regression. ALL 9 PASSED. The core bug fix is confirmed: reusing the same R1 concurrently now returns 200 for every caller instead of the prior 401 'Refresh token revoked'.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_refresh_grace_iter33.py",
+    "/app/test_reports/pytest/iter33_refresh_grace.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "routes/auth.py refresh() correctly uses an atomic find_one_and_update CAS on {jti, revoked_at: None} — only one caller mints the successor; losers fall through to grace-window handling. Good.",
+    "Grace window (60s) issues a NEW family-preserving token pair to grace-path callers. Note: this multiplies successor tokens per burst (e.g. 8 concurrent -> 1 winner + 7 grace tokens, all valid). This is acceptable for the mobile use case but is worth being aware of — the family, not the token count, is the theft-boundary.",
+    "Reuse-outside-grace path revokes the entire family via update_many — correct and matches the doc comment.",
+    "Minor: refresh() function shadows the imported 'payload' variable name with the decoded token dict (parameter `payload: dict | None` then reassigned from decode_token). Works but is confusing; consider renaming.",
+    "Index on refresh_tokens(family_id, revoked_at) supports the family-revoke path; verify a jti index also exists for the CAS hot path (likely already there via prior iterations)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (9/9)", "frontend": "N/A (skipped per request)"},
+  "test_credentials": "Employee: employee@example.com / Employee123! ; Owner: akmaljn7@gmail.com / GeofenceAdmin123!",
+  "seed_data_creation": "One time-off request created by employee (2030-06-01 to 2030-06-02) as part of regression test.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Iter 33 confirmed the refresh grace-window fix end-to-end against the public REACT_APP_BACKEND_URL. Full test lives at /app/backend/tests/test_refresh_grace_iter33.py — reuse it as a regression. The 60s-expiry theft-revoke path (reuse AFTER grace) was NOT tested (would require sleep>60s); if a future agent wants to verify it, wait ~65s then re-present an already-rotated token and expect 401 plus revoked_at set on all family tokens. Run with: cd /app/backend && REACT_APP_BACKEND_URL=<url> python -m pytest tests/test_refresh_grace_iter33.py -v -o addopts=''.",
+  "rca of the issue": "Prior bug: refresh() eagerly revoked the presented refresh token before minting the successor. Mobile RN runs multiple JS runtimes (foreground + background tasks + push handlers) that share one stored refresh token; when the 15-min (now 30-min) access token expired they'd all POST /auth/refresh in parallel. First request rotated the token; siblings then saw revoked_at set and got 401 'Refresh token revoked', which the app treated as a signed-out state -> forced login screen especially after connectivity blips. Fix: (a) atomic find_one_and_update CAS designates one winner per jti; (b) losers within 60s grace get a fresh valid pair in the SAME token family instead of 401; (c) reuse beyond grace revokes the whole family, preserving theft detection; (d) ACCESS_TOKEN_MINUTES raised 15->30 to reduce refresh frequency. Verified by concurrent 8x burst — all 200."
+}
