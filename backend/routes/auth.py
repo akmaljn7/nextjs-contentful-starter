@@ -34,13 +34,37 @@ def _set_auth_cookies(response: Response, access: str, refresh: str):
     )
 
 
+# Grace window (seconds) during which a just-rotated refresh token may be
+# presented again by a legitimate concurrent client (mobile runs several JS
+# runtimes — foreground + background tasks — that share one stored token and
+# refresh together when the 30-min access token expires). Within this window we
+# hand back a fresh valid pair instead of a 401, which is what stops the app
+# from being forced to sign in. Reuse OUTSIDE the window = theft -> family revoke.
+REFRESH_GRACE_SECONDS = 60
+
+
+def _as_utc(dt):
+    """Coerce a stored value (Mongo datetime or ISO string, possibly naive) to
+    a timezone-aware UTC datetime for safe comparison."""
+    if dt is None:
+        return None
+    if isinstance(dt, str):
+        try:
+            dt = datetime.fromisoformat(dt)
+        except Exception:
+            return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
 def _slugify(text: str) -> str:
     import re
     slug = re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
     return slug[:60] or f"org-{uuid.uuid4().hex[:8]}"
 
 
-async def _issue_tokens(user_doc: dict, response: Response) -> tuple[str, str]:
+async def _issue_tokens(user_doc: dict, response: Response, family_id: str | None = None) -> tuple[str, str]:
     db = get_db()
     user_id = str(user_doc["_id"])
     access = create_access_token(user_id, user_doc["email"], user_doc["org_id"], user_doc["role"])
@@ -49,6 +73,10 @@ async def _issue_tokens(user_doc: dict, response: Response) -> tuple[str, str]:
     await db.refresh_tokens.insert_one({
         "jti": jti,
         "user_id": user_id,
+        # A token "family" is created per login and inherited across rotations,
+        # so genuine reuse can revoke the whole chain without touching other
+        # devices/logins.
+        "family_id": family_id or uuid.uuid4().hex,
         "expires_at": datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_DAYS),
         "revoked_at": None,
         "created_at": datetime.now(timezone.utc).isoformat(),
@@ -203,21 +231,47 @@ async def refresh(request: Request, response: Response, payload: dict | None = N
     if payload.get("type") != "refresh":
         raise HTTPException(status_code=401, detail="Invalid token type")
 
-    stored = await db.refresh_tokens.find_one({"jti": payload["jti"]})
-    if not stored or stored.get("revoked_at"):
-        raise HTTPException(status_code=401, detail="Refresh token revoked")
+    jti = payload["jti"]
+    stored = await db.refresh_tokens.find_one({"jti": jti})
+    if not stored:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
 
     user = await db.users.find_one({"_id": ObjectId(payload["sub"])})
     if not user or user.get("deleted_at"):
         raise HTTPException(status_code=401, detail="User not found")
 
-    # Rotate refresh token
-    await db.refresh_tokens.update_one(
-        {"jti": payload["jti"]},
-        {"$set": {"revoked_at": datetime.now(timezone.utc).isoformat()}},
+    now = datetime.now(timezone.utc)
+
+    # Atomic compare-and-set: only ONE concurrent request can flip this token
+    # from live -> rotated. That request is the "winner" and mints the successor.
+    claimed = await db.refresh_tokens.find_one_and_update(
+        {"jti": jti, "revoked_at": None},
+        {"$set": {"revoked_at": now.isoformat(), "rotated_at": now}},
     )
-    access, refresh_new = await _issue_tokens(user, response)
-    return {"ok": True, "access_token": access, "refresh_token": refresh_new, "token_type": "bearer"}
+    if claimed is not None:
+        access, refresh_new = await _issue_tokens(user, response, family_id=stored.get("family_id"))
+        return {"ok": True, "access_token": access, "refresh_token": refresh_new, "token_type": "bearer"}
+
+    # We lost the race — the token was already rotated by a sibling request. On
+    # mobile this is normal (multiple runtimes refresh together). Within the
+    # grace window, treat it as legitimate and return a fresh valid pair in the
+    # same family instead of revoking. This is the core fix for the forced-logout.
+    fresh = await db.refresh_tokens.find_one({"jti": jti})
+    rotated_at = _as_utc((fresh or {}).get("rotated_at"))
+    within_grace = rotated_at is not None and (now - rotated_at).total_seconds() <= REFRESH_GRACE_SECONDS
+    if fresh and fresh.get("revoked_at") and within_grace:
+        access, refresh_new = await _issue_tokens(user, response, family_id=fresh.get("family_id"))
+        return {"ok": True, "access_token": access, "refresh_token": refresh_new, "token_type": "bearer"}
+
+    # Outside the grace window, presenting a revoked token is genuine reuse/theft
+    # — revoke the entire family so a leaked token can't mint access forever.
+    fam = (fresh or stored).get("family_id")
+    if fam:
+        await db.refresh_tokens.update_many(
+            {"family_id": fam, "revoked_at": None},
+            {"$set": {"revoked_at": now.isoformat(), "reuse_detected_at": now.isoformat()}},
+        )
+    raise HTTPException(status_code=401, detail="Refresh token revoked")
 
 
 @router.post("/logout")

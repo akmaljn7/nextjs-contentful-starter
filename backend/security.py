@@ -5,7 +5,7 @@ import jwt
 from datetime import datetime, timezone, timedelta
 
 JWT_ALGORITHM = "HS256"
-ACCESS_TOKEN_MINUTES = 15
+ACCESS_TOKEN_MINUTES = 30
 REFRESH_TOKEN_DAYS = 7
 
 
