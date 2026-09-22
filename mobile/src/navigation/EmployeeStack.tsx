@@ -51,6 +51,7 @@ export function EmployeeStack() {
       <Tab.Screen name="Colleague" component={MyColleagueScreen} options={{ tabBarLabel: "Colleague" }} />
       <Tab.Screen name="Leave" component={LeaveScreen} />
       <Tab.Screen name="History" component={EmployeeHistoryScreen} />
+      <Tab.Screen name="Profile" component={EmployeeProfileScreen} />
     </Tab.Navigator>
   );
 }
