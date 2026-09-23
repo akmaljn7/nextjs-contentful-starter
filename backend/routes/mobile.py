@@ -949,9 +949,18 @@ async def location_sync(
 @router.post("/heartbeat")
 async def heartbeat(
     payload: MobileHeartbeat,
+    request: Request,
     user: dict = Depends(get_current_user),
 ):
     db = get_db()
+    # Detect a permission CHANGE vs what we last saw for this device, so admins
+    # get an event the moment an employee downgrades from "Always" (which
+    # silently breaks background attendance). Read prior state before we upsert.
+    prior = await db.mobile_devices.find_one(
+        {"user_id": user["id"], "device_id": payload.device_id, "deleted_at": None},
+        {"permission_state": 1},
+    )
+    prev_perm = (prior or {}).get("permission_state")
     update = {
         "last_seen_at": _now_iso(),
         "last_seen_ts_ms": payload.ts_ms,
@@ -965,6 +974,25 @@ async def heartbeat(
     )
     if not r.matched_count:
         raise HTTPException(status_code=404, detail="Device not registered — call /register-device first")
+
+    new_perm = payload.permission_state
+    if new_perm and prev_perm and new_perm != prev_perm:
+        from services.audit import log_security_event
+        downgraded = new_perm != "always"  # anything other than Always breaks bg tracking
+        await log_security_event(
+            type_="location_permission_downgraded" if downgraded else "location_permission_restored",
+            severity="high" if downgraded else "info",
+            ip=client_ip(request),
+            details={
+                "employee_name": user.get("name"),
+                "employee_email": user.get("email"),
+                "device_id": payload.device_id,
+                "from": prev_perm,
+                "to": new_perm,
+            },
+            org_id=user.get("org_id"),
+            user_id=user["id"],
+        )
     return {"ok": True}
 
 

@@ -16,6 +16,7 @@ import { startHealthLoop, stopHealthLoop } from "@/services/health";
 import { startConnectivityWatcher, stopConnectivityWatcher } from "@/services/connectivity";
 import { startVisitWatcher, stopVisitWatcher } from "@/services/visitMonitor";
 import { registerReArm, unregisterReArm } from "@/services/reArm";
+import { checkLocationPermission, registerLocationWarningTapHandler } from "@/services/locationGuard";
 import { purgeOldSynced } from "@/services/offlineQueue";
 import { planTodaysSelfies, sweepOfflineSelfies } from "@/services/offlineSelfie";
 import { submitAttestation } from "@/services/attestation";
@@ -114,6 +115,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           startConnectivityWatcher();
           startVisitWatcher();
           registerReArm().catch(() => undefined);
+          checkLocationPermission().catch(() => undefined);
           drainLocationQueue().catch(() => undefined);
           purgeOldSynced().catch(() => undefined);
           planTodaysSelfies().catch(() => undefined);
@@ -138,11 +140,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         startForegroundWatcher().catch(() => undefined);
         startLiveLocation().catch(() => undefined);
         startVisitWatcher();
+        checkLocationPermission().catch(() => undefined);
         planTodaysSelfies().catch(() => undefined);
         sweepOfflineSelfies().catch(() => undefined);
       }
     });
     return () => sub.remove();
+  }, [user]);
+
+  // Employee-only: open the app's OS settings when a "turn on Always location"
+  // warning notification is tapped.
+  useEffect(() => {
+    if (!user || user.role !== "employee") return;
+    return registerLocationWarningTapHandler();
   }, [user]);
 
   const signIn = useCallback(async (email: string, password: string) => {
@@ -159,6 +169,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         startConnectivityWatcher();
         startVisitWatcher();
         registerReArm().catch(() => undefined);
+        checkLocationPermission().catch(() => undefined);
         planTodaysSelfies().catch(() => undefined);
         sweepOfflineSelfies().catch(() => undefined);
       }
