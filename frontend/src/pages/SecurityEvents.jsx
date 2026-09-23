@@ -4,6 +4,52 @@ import { api } from "@/lib/api";
 import { AppShell } from "@/components/AppShell";
 import { StatusChip } from "@/components/StatusChip";
 import { fmtDateTime } from "@/lib/format";
+import { AlertTriangle, ShieldCheck } from "lucide-react";
+
+const PERM_LABEL = {
+  always: "Always",
+  when_in_use: "While Using",
+  denied: "Never / Denied",
+  restricted: "Restricted",
+};
+
+function EventDetails({ row }) {
+  const d = row.details || {};
+  const who = d.employee_name || row.user_name;
+
+  if (row.type === "location_permission_downgraded" || row.type === "location_permission_restored") {
+    const down = row.type === "location_permission_downgraded";
+    const from = PERM_LABEL[d.from] || d.from || "—";
+    const to = PERM_LABEL[d.to] || d.to || "—";
+    return (
+      <div className="flex flex-col gap-1" data-testid="perm-event-detail">
+        <div className={`flex items-center gap-1.5 font-medium ${down ? "text-red-400" : "text-green-400"}`}>
+          {down ? <AlertTriangle size={13} /> : <ShieldCheck size={13} />}
+          <span>{who ? <b>{who}</b> : "Employee"} {down ? "turned location OFF" : "restored location"}</span>
+        </div>
+        <div className="mono text-[11px] text-gray-400">
+          {from} <span className="text-gray-600">→</span> {to}
+          {d.employee_email ? <span className="text-gray-600"> · {d.employee_email}</span> : null}
+        </div>
+      </div>
+    );
+  }
+
+  const entries = Object.entries(d).filter(([, v]) => v !== null && v !== undefined && v !== "");
+  if (entries.length === 0) return <span className="text-gray-600">—</span>;
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {entries.slice(0, 6).map(([k, v]) => {
+        const s = String(v);
+        return (
+          <span key={k} className="mono text-[10px] px-1.5 py-0.5 border border-white/10 bg-white/5 text-gray-300 rounded-sm">
+            <span className="text-gray-500">{k}:</span> {s.length > 40 ? s.slice(0, 40) + "…" : s}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function SecurityEvents() {
   const { data: rows = [], isLoading } = useQuery({
@@ -31,12 +77,12 @@ export default function SecurityEvents() {
             <tbody>
               {rows.map((r, i) => (
                 <tr key={r.id} className="stagger" style={{ animationDelay: `${i * 20}ms` }} data-testid={`sec-${r.id}`}>
-                  <td className="mono text-[11px] text-gray-400">{fmtDateTime(r.ts)}</td>
-                  <td className="mono text-xs">{r.type}</td>
-                  <td><StatusChip status={r.severity} label={r.severity.toUpperCase()} /></td>
-                  <td className="text-xs">{r.user_name || <span className="text-gray-500">—</span>}</td>
-                  <td className="mono text-[11px] text-gray-500">{r.ip || "—"}</td>
-                  <td className="mono text-[10px] text-gray-400 max-w-[380px] truncate" title={JSON.stringify(r.details)}>{JSON.stringify(r.details)}</td>
+                  <td className="mono text-[11px] text-gray-400 align-top">{fmtDateTime(r.ts)}</td>
+                  <td className="mono text-xs align-top">{r.type}</td>
+                  <td className="align-top"><StatusChip status={r.severity} label={r.severity.toUpperCase()} /></td>
+                  <td className="text-xs align-top">{r.user_name || <span className="text-gray-500">—</span>}</td>
+                  <td className="mono text-[11px] text-gray-500 align-top">{r.ip || "—"}</td>
+                  <td className="align-top max-w-[460px]"><EventDetails row={r} /></td>
                 </tr>
               ))}
             </tbody>
