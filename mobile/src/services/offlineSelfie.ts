@@ -128,6 +128,7 @@ export async function planTodaysSelfies(cached?: { config?: SelfieConfig; schedu
           body: "Take a quick selfie now — look at the camera and blink.",
           data: { kind: "offline_selfie", client_selfie_id: id },
           sound: "selfie_alert.wav",
+          interruptionLevel: "timeSensitive",
         },
         trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: new Date(trigger_ms) } as any,
       });

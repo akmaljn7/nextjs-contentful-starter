@@ -126,11 +126,11 @@ async def send_push(
         message["data"].update({"title": title, "body": body, "full_screen": "true"})
         message["android"].pop("notification", None)
         aps_sound = sound or "default"
-        message["apns"]["payload"] = {"aps": {"alert": {"title": title, "body": body}, "sound": aps_sound}}
+        message["apns"]["payload"] = {"aps": {"alert": {"title": title, "body": body}, "sound": aps_sound, "interruption-level": "time-sensitive"}}
     else:
         message["notification"] = {"title": title, "body": body}
         aps_sound = sound or "default"
-        message["apns"]["payload"] = {"aps": {"alert": {"title": title, "body": body}, "sound": aps_sound}}
+        message["apns"]["payload"] = {"aps": {"alert": {"title": title, "body": body}, "sound": aps_sound, "interruption-level": "time-sensitive"}}
         # Android plays the channel's configured sound; nothing else needed here.
 
     url = f"https://fcm.googleapis.com/v1/projects/{project}/messages:send"

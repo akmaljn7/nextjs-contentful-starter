@@ -23,6 +23,13 @@ Multi-tenant enterprise geofenced attendance platform. Organizations sign up, ad
 - PWA installable
 
 ## Implemented (2026-02 → 2026-08)
+### Selfie alert: 30s ringtone + Time-Sensitive notifications (June 2026)
+- **Goal**: make the iOS selfie prompt hard to miss even from a killed state ("ringtone" feel like Android).
+- **30s ringtone**: replaced `mobile/assets/selfie_alert.wav` with an original urgent repeating two-tone ring, 29.5s (just under iOS's 30s custom-sound cap). Used by both the OS notification (killed state) and the in-app looping alarm (`alarm.ts`).
+- **Time-Sensitive**: `offlineSelfie.ts` scheduled local notification now sets `interruptionLevel: "timeSensitive"`; backend `services/push.py` adds `"interruption-level": "time-sensitive"` to the APNS aps payload (both full_screen + normal alert branches); added iOS entitlement `com.apple.developer.usernotifications.time-sensitive` (generally available, NO Apple approval) to `app.json`. Punches through Focus/DND.
+- **Critical Alerts (item 3)**: intentionally NOT enabled — the entitlement breaks signing until Apple approves it. When approved: enable in Apple portal for com.staypin.app, then set `interruptionLevel: "critical"`. Only Critical Alerts can ring through the hardware silent switch.
+- **Verified**: app.json valid JSON, `yarn typecheck` clean, backend restart healthy, push.py syntax OK. ⚠️ Native + sound + APNS change → requires an IPA rebuild (bump buildNumber first).
+
 ### FIX: Mobile forced-logout — refresh-token rotation race (June 2026)
 - **Symptom**: employees intermittently kicked to the sign-in screen (worse after data off / on app reopen).
 - **Root cause**: `POST /api/auth/refresh` hard-revoked the presented refresh token the moment it rotated. The RN app runs multiple JS runtimes (foreground + background tasks) sharing one stored refresh token; at access-token expiry they refresh in parallel — the first rotated it, the rest got `401 Refresh token revoked`, permanently breaking the chain.
