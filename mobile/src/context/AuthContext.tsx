@@ -2,11 +2,12 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import * as Application from "expo-application";
 import * as Localization from "expo-localization";
 import { Platform, AppState } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import * as authApi from "@/api/auth";
 import { mobile } from "@/api/mobile";
 import { getAccessToken } from "@/api/client";
-import { getDeviceId, secureGet, secureSet, secureDelete } from "@/lib/storage";
+import { getDeviceId, secureGet, secureDelete } from "@/lib/storage";
 import { syncOfficeGeofence, stopGeofencing } from "@/services/geofence";
 import { startForegroundWatcher, stopForegroundWatcher } from "@/services/foregroundWatcher";
 import { startLiveLocation, stopLiveLocation, drainLocationQueue } from "@/services/liveLocation";
@@ -34,20 +35,31 @@ interface AuthState {
 const AuthContext = createContext<AuthState | null>(null);
 
 // Last-known profile — lets the app stay signed in while offline (data or
-// location turned off) instead of forcing a logout. Never auto-cleared; only
-// wiped on an explicit Sign out.
-const CACHED_USER_KEY = "cached_user";
+// location turned off, or the server unreachable) instead of forcing a logout.
+// Stored in AsyncStorage (NOT SecureStore): the profile is non-secret and can
+// exceed SecureStore's ~2KB iOS Keychain limit, which previously caused the
+// cache to silently fail and the app to log out whenever /me couldn't be
+// reached. Never auto-cleared; only wiped on an explicit Sign out.
+const CACHED_USER_KEY = "gfattend.cached_user";
+const LEGACY_CACHED_USER_KEY = "cached_user"; // old SecureStore location
 async function cacheUser(u: authApi.AuthUser): Promise<void> {
-  try { await secureSet(CACHED_USER_KEY, JSON.stringify(u)); } catch { /* ignore */ }
+  try { await AsyncStorage.setItem(CACHED_USER_KEY, JSON.stringify(u)); } catch { /* ignore */ }
 }
 async function getCachedUser(): Promise<authApi.AuthUser | null> {
   try {
-    const s = await secureGet(CACHED_USER_KEY);
+    let s = await AsyncStorage.getItem(CACHED_USER_KEY);
+    if (!s) {
+      // One-time migration from the old SecureStore location so existing
+      // installs don't get logged out after this update.
+      s = await secureGet(LEGACY_CACHED_USER_KEY);
+      if (s) { try { await AsyncStorage.setItem(CACHED_USER_KEY, s); } catch { /* ignore */ } }
+    }
     return s ? (JSON.parse(s) as authApi.AuthUser) : null;
   } catch { return null; }
 }
 async function clearCachedUser(): Promise<void> {
-  try { await secureDelete(CACHED_USER_KEY); } catch { /* ignore */ }
+  try { await AsyncStorage.removeItem(CACHED_USER_KEY); } catch { /* ignore */ }
+  try { await secureDelete(LEGACY_CACHED_USER_KEY); } catch { /* ignore */ }
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -85,23 +97,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setHydrating(true);
     try {
       const token = await getAccessToken();
-      if (!token) {
-        // No token at all — genuinely signed out (fresh install or explicit
-        // sign out). Nothing to restore.
-        await clearCachedUser();
+      const cached = await getCachedUser();
+      // Truly signed out ONLY when there is no token AND no cached profile
+      // (fresh install, or an explicit sign-out that clears both). A missing
+      // token but present cached profile is treated as a still-valid session —
+      // the refresh token recovers a new access token on the next request, and
+      // a transient Keychain read miss can no longer force a logout.
+      if (!token && !cached) {
         setUser(null);
         return;
       }
-      // We have a token → resolve the profile. NEVER log out on failure:
-      // if the network is unreachable (data/location off, server hiccup) we
-      // fall back to the last known profile and stay signed in. The session
-      // recovers automatically once connectivity returns.
-      let me: authApi.AuthUser | null = null;
-      try {
-        me = await authApi.fetchMe();
-        await cacheUser(me);
-      } catch {
-        me = await getCachedUser();
+      // NEVER log out on a failed /me: if the server is unreachable (data off,
+      // preview server asleep, transient hiccup) we keep the last known profile
+      // and stay signed in. The session recovers automatically once
+      // connectivity returns.
+      let me: authApi.AuthUser | null = cached;
+      if (token) {
+        try {
+          me = await authApi.fetchMe();
+          await cacheUser(me);
+        } catch {
+          me = cached;
+        }
       }
       setUser(me);
       if (me) {

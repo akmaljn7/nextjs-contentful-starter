@@ -23,6 +23,12 @@ Multi-tenant enterprise geofenced attendance platform. Organizations sign up, ad
 - PWA installable
 
 ## Implemented (2026-02 → 2026-08)
+### FIX: Mobile auto-logout when server unreachable (June 2026)
+- **Symptom (persisted after the earlier refresh-race fix)**: app still showed the sign-in screen on reopen, especially when data was off or the preview server was asleep.
+- **Root cause (client-side, `context/AuthContext.tsx`)**: the offline fallback profile (`cached_user`) was stored in SecureStore (iOS Keychain), which has a ~2KB reliability limit — the user JSON (org/config) can exceed it, so the cache silently failed to persist. On app open, when `/auth/me` couldn't be reached (502/timeout/offline), bootstrap fell back to the empty cache → `setUser(null)` → login screen. A transient Keychain token read-miss also forced logout.
+- **Fix**: moved `cached_user` to **AsyncStorage** (no size limit) with one-time migration from the legacy SecureStore key; hardened bootstrap to sign out ONLY when there is no token AND no cached profile (explicit sign-out clears both). Server-unreachable now keeps the cached session and recovers automatically. Tokens remain in SecureStore (small, fine).
+- **Verified**: `yarn typecheck` clean. ⚠️ Mobile-only — not testable in-container; confirm on-device after rebuild (airplane mode / sleeping server → app stays logged in). Complements the earlier server refresh-grace fix (iteration_33).
+
 ### Selfie alert: 30s ringtone + Time-Sensitive notifications (June 2026)
 - **Goal**: make the iOS selfie prompt hard to miss even from a killed state ("ringtone" feel like Android).
 - **30s ringtone**: replaced `mobile/assets/selfie_alert.wav` with an original urgent repeating two-tone ring, 29.5s (just under iOS's 30s custom-sound cap). Used by both the OS notification (killed state) and the in-app looping alarm (`alarm.ts`).
