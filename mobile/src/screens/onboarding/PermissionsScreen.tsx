@@ -153,6 +153,25 @@ export default function PermissionsScreen({ onGranted }: Props) {
           );
         })}
 
+        {Platform.OS === "ios" && (
+          <View style={styles.consentCard} testID="critical-alerts-consent">
+            <View style={styles.cardHead}>
+              <Ionicons name="alert-circle" size={22} color={colors.amber} />
+              <Text style={styles.cardTitle}>Ring even on Silent / Do Not Disturb</Text>
+            </View>
+            <Text style={styles.cardBody}>
+              Selfie check-ins are time-sensitive. So you never miss one — even if
+              your phone is on Silent or Do Not Disturb (for example, left on
+              silent overnight and forgotten) — StayPin will play a loud alert
+              when a check-in is required. Missing a check-in can affect your
+              attendance record and your pay.{"\n\n"}
+              By tapping “Request permissions” you understand and agree that
+              StayPin may alert you even when your phone is silenced, and only
+              for these required shift check-ins.
+            </Text>
+          </View>
+        )}
+
         {anyDenied && (
           <View style={styles.deniedNote}>
             <Text style={styles.deniedLabel}>SOMETHING WAS DECLINED</Text>
@@ -200,6 +219,10 @@ const styles = StyleSheet.create({
     paddingVertical: 3, paddingHorizontal: 6, borderWidth: 1,
   },
   cardBody: { color: colors.textDim, fontSize: 13, lineHeight: 20, marginTop: 8 },
+  consentCard: {
+    marginTop: 20, padding: 16, backgroundColor: colors.amberSoft,
+    borderColor: colors.amber, borderLeftWidth: 3,
+  },
   deniedNote: {
     marginTop: 20, padding: 16, backgroundColor: colors.amberSoft,
     borderColor: colors.amber, borderLeftWidth: 3,
